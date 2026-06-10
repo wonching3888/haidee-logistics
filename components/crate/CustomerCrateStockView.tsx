@@ -37,6 +37,7 @@ interface CustomerCrateStockViewProps {
 
 function formatLedgerType(changeType: string) {
   if (changeType === "export") return "归还 Export";
+  if (changeType === "inbound") return "入库 Inbound";
   if (changeType === "manual") return "手动 Manual";
   return changeType;
 }

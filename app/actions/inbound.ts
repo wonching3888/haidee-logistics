@@ -4,8 +4,36 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { deductCustomerCrate } from "@/app/actions/customerCrateStock";
 import { generateSessionNo } from "@/lib/inbound";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
+
+async function applyInboundCrateDeduction(
+  shipperId: string,
+  lines: { tongTypeId: string; quantity: number }[]
+) {
+  if (lines.length === 0) return;
+
+  const tongTypeIds = Array.from(new Set(lines.map((l) => l.tongTypeId)));
+  const tongTypes = await prisma.tongType.findMany({
+    where: { id: { in: tongTypeIds } },
+  });
+  const typeMap = new Map(tongTypes.map((t) => [t.id, t]));
+
+  const byCrateType = new Map<string, number>();
+  for (const line of lines) {
+    const crateType = typeMap.get(line.tongTypeId);
+    if (!crateType?.trackInventory || crateType.isBox) continue;
+    byCrateType.set(
+      line.tongTypeId,
+      (byCrateType.get(line.tongTypeId) ?? 0) + line.quantity
+    );
+  }
+
+  for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
+    await deductCustomerCrate(shipperId, crateTypeId, qty, "inbound");
+  }
+}
 
 export interface InboundSessionFilters {
   date?: string;
@@ -349,7 +377,12 @@ export async function saveInboundSession(input: SaveInboundInput) {
       }
     }
 
+    if (status === "confirmed" && existing.status === "draft") {
+      await applyInboundCrateDeduction(input.shipperId, allLines);
+    }
+
     revalidatePath("/inbound");
+    revalidatePath("/crate/customer-stock");
     return { id: input.sessionId, sessionNo };
   }
 
@@ -383,6 +416,11 @@ export async function saveInboundSession(input: SaveInboundInput) {
     },
   });
 
+  if (status === "confirmed") {
+    await applyInboundCrateDeduction(input.shipperId, allLines);
+  }
+
   revalidatePath("/inbound");
+  revalidatePath("/crate/customer-stock");
   return { id: session.id, sessionNo: session.sessionNo };
 }

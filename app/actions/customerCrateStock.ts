@@ -142,11 +142,49 @@ export async function getCustomerCrateLedger(
   }));
 }
 
-/** Deduct customer crate stock on empty-crate export (allows negative balance). */
+/** Increase customer crate stock (e.g. crate export return to shipper). */
+export async function addCustomerCrate(
+  shipperId: string,
+  crateTypeId: string,
+  quantity: number,
+  changeType: string,
+  notes?: string
+) {
+  if (quantity <= 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.customerCrateStock.findUnique({
+      where: { shipperId_crateTypeId: { shipperId, crateTypeId } },
+    });
+
+    const previousQty = existing?.quantity ?? 0;
+    const newQty = previousQty + quantity;
+
+    await tx.customerCrateStock.upsert({
+      where: { shipperId_crateTypeId: { shipperId, crateTypeId } },
+      create: { shipperId, crateTypeId, quantity },
+      update: { quantity: newQty },
+    });
+
+    await tx.customerCrateLedger.create({
+      data: {
+        shipperId,
+        crateTypeId,
+        changeType,
+        quantity,
+        balance: newQty,
+        notes: notes?.trim() || null,
+      },
+    });
+  });
+}
+
+/** Decrease customer crate stock (e.g. inbound cargo shipped to Malaysia). */
 export async function deductCustomerCrate(
   shipperId: string,
   crateTypeId: string,
   quantity: number,
+  changeType: string,
   notes?: string
 ) {
   if (quantity <= 0) return;
@@ -169,7 +207,7 @@ export async function deductCustomerCrate(
       data: {
         shipperId,
         crateTypeId,
-        changeType: "export",
+        changeType,
         quantity: -quantity,
         balance: newQty,
         notes: notes?.trim() || null,
