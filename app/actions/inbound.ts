@@ -134,7 +134,9 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
     where,
     include: {
       shipper: { select: { id: true, name: true, code: true } },
-      lines: { select: { quantity: true, dispatchStatus: true } },
+      lines: {
+        select: { quantity: true, dispatchStatus: true, isBox: true },
+      },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
@@ -142,8 +144,20 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
   return sessions
     .map((s) => {
       const totalQty = s.lines.reduce((sum, l) => sum + l.quantity, 0);
+      const crateQty = s.lines
+        .filter((l) => !l.isBox)
+        .reduce((sum, l) => sum + l.quantity, 0);
+      const boxQty = s.lines
+        .filter((l) => l.isBox)
+        .reduce((sum, l) => sum + l.quantity, 0);
       const unassignedQty = s.lines
         .filter((l) => l.dispatchStatus === "unassigned")
+        .reduce((sum, l) => sum + l.quantity, 0);
+      const unassignedCrateQty = s.lines
+        .filter((l) => l.dispatchStatus === "unassigned" && !l.isBox)
+        .reduce((sum, l) => sum + l.quantity, 0);
+      const unassignedBoxQty = s.lines
+        .filter((l) => l.dispatchStatus === "unassigned" && l.isBox)
         .reduce((sum, l) => sum + l.quantity, 0);
       const allAssigned =
         s.lines.length > 0 &&
@@ -159,7 +173,11 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
         areaNote: s.areaNote,
         thVehiclePlate: s.thVehiclePlate,
         totalQty,
+        crateQty,
+        boxQty,
         unassignedQty,
+        unassignedCrateQty,
+        unassignedBoxQty,
         allAssigned,
       };
     })

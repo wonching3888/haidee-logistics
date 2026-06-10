@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { buildConsignorAreaLabel } from "@/lib/consignor-label";
 import { parseDateInput } from "@/lib/inbound-utils";
 
 export interface LoadingListColumn {
@@ -30,16 +31,6 @@ export interface VehicleLoadingListData {
 
 /** @deprecated Use VehicleLoadingListData */
 export type DailySummaryData = VehicleLoadingListData;
-
-function buildSessionLabel(
-  shipperName: string,
-  areaNote: string | null | undefined
-): string {
-  if (areaNote?.trim()) {
-    return `${shipperName} (${areaNote.trim()})`;
-  }
-  return shipperName;
-}
 
 export async function getDailySummary(
   dateStr: string
@@ -97,7 +88,10 @@ export async function getDailySummary(
       if (!row) {
         row = {
           sessionId,
-          label: buildSessionLabel(session.shipper.name, session.areaNote),
+          label: buildConsignorAreaLabel(
+            session.shipper.name,
+            session.areaNote
+          ),
           cells: {},
           boxCells: {},
           boxTotal: 0,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,7 +20,11 @@ interface SessionRow {
   areaNote: string | null;
   thVehiclePlate: string | null;
   totalQty: number;
+  crateQty: number;
+  boxQty: number;
   unassignedQty: number;
+  unassignedCrateQty: number;
+  unassignedBoxQty: number;
 }
 
 interface InboundListTableProps {
@@ -45,7 +50,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
             <TableHead>寄货人 Consignor</TableHead>
             <TableHead>地区 Area</TableHead>
             <TableHead>泰国车牌 TH Plate</TableHead>
-            <TableHead className="text-right">总桶数 Total</TableHead>
+            <TableHead className="text-right">总数量 Total</TableHead>
             <TableHead className="text-right">未分配 Unassigned</TableHead>
             <TableHead>状态 Status</TableHead>
             <TableHead className="text-right">操作 Actions</TableHead>
@@ -70,7 +75,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 {s.thVehiclePlate ?? "—"}
               </TableCell>
               <TableCell className="text-right font-mono font-semibold">
-                {s.totalQty}
+                {formatCrateBoxQty(s.crateQty, s.boxQty)}
               </TableCell>
               <TableCell className="text-right font-mono">
                 {s.status === "draft" ? (
@@ -83,7 +88,10 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                         : "text-haidee-green"
                     }
                   >
-                    {s.unassignedQty}
+                    {formatCrateBoxQty(
+                      s.unassignedCrateQty,
+                      s.unassignedBoxQty
+                    )}
                   </span>
                 )}
               </TableCell>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
+import { buildConsignorAreaLabel } from "@/lib/consignor-label";
 import { DISPATCH_MARKET_ORDER, getActiveMarkets } from "@/lib/markets";
 
 export interface DispatchMatrixData {
@@ -13,7 +14,9 @@ export interface DispatchMatrixData {
   markets: string[];
   cells: Record<string, Record<string, number>>;
   rowTotals: Record<string, number>;
+  rowBoxTotals: Record<string, number>;
   colTotals: Record<string, number>;
+  boxGrandTotal: number;
   grandTotal: number;
 }
 
@@ -47,14 +50,6 @@ export interface DispatchSelection {
   marketCode: string;
   sessionId?: string;
   stallAssignments?: StallAssignment[];
-}
-
-function buildSessionLabel(
-  shipperName: string,
-  areaNote: string | null | undefined
-): string {
-  if (areaNote?.trim()) return `${shipperName} (${areaNote.trim()})`;
-  return shipperName;
 }
 
 function sumDispatchLoad(
@@ -125,7 +120,7 @@ function aggregateLines(
         key,
         sessionId,
         shipperId,
-        shipperName: buildSessionLabel(
+        shipperName: buildConsignorAreaLabel(
           line.session.shipper.name,
           line.session.areaNote
         ),
@@ -160,8 +155,10 @@ export async function getUnassignedMatrix(
   const sessionMap = new Map<string, string>();
   const cells: Record<string, Record<string, number>> = {};
   const rowTotals: Record<string, number> = {};
+  const rowBoxTotals: Record<string, number> = {};
   const colTotals: Record<string, number> = {};
   let grandTotal = 0;
+  let boxGrandTotal = 0;
 
   for (const line of lines) {
     const marketCode = line.stall.market?.code;
@@ -170,8 +167,15 @@ export async function getUnassignedMatrix(
     const sessionId = line.sessionId;
     sessionMap.set(
       sessionId,
-      buildSessionLabel(line.session.shipper.name, line.session.areaNote)
+      buildConsignorAreaLabel(line.session.shipper.name, line.session.areaNote)
     );
+
+    if (line.isBox) {
+      rowBoxTotals[sessionId] =
+        (rowBoxTotals[sessionId] ?? 0) + line.quantity;
+      boxGrandTotal += line.quantity;
+      continue;
+    }
 
     if (!cells[sessionId]) cells[sessionId] = {};
     cells[sessionId][marketCode] =
@@ -193,7 +197,9 @@ export async function getUnassignedMatrix(
     markets: activeMarkets,
     cells,
     rowTotals,
+    rowBoxTotals,
     colTotals,
+    boxGrandTotal,
     grandTotal,
   };
 }

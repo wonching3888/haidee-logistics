@@ -9,7 +9,16 @@ interface DispatchMatrixProps {
 }
 
 export function DispatchMatrix({ data }: DispatchMatrixProps) {
-  const { shippers, markets, cells, rowTotals, colTotals, grandTotal } = data;
+  const {
+    shippers,
+    markets,
+    cells,
+    rowTotals,
+    rowBoxTotals,
+    colTotals,
+    boxGrandTotal,
+    grandTotal,
+  } = data;
 
   if (shippers.length === 0) {
     return (
@@ -44,6 +53,9 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                   </th>
                 );
               })}
+              <th className="px-3 py-3 text-center font-medium text-haidee-muted">
+                盒 BOX
+              </th>
               <th className="px-3 py-3 text-right font-medium text-haidee-muted">
                 合计 Total
               </th>
@@ -72,6 +84,11 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                     </td>
                   );
                 })}
+                <td className="px-3 py-2.5 text-center font-mono text-sm text-haidee-text">
+                  {(rowBoxTotals[shipper.id] ?? 0) > 0
+                    ? `${rowBoxTotals[shipper.id]}盒`
+                    : ""}
+                </td>
                 <td className="px-3 py-2.5 text-right font-mono font-bold text-haidee-text">
                   {rowTotals[shipper.id] ?? 0}
                 </td>
@@ -91,6 +108,9 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                   {colTotals[code] ?? 0}
                 </td>
               ))}
+              <td className="px-3 py-3 text-center font-mono text-haidee-text">
+                {boxGrandTotal > 0 ? `${boxGrandTotal}盒` : ""}
+              </td>
               <td className="px-3 py-3 text-right font-mono text-lg text-haidee-navy">
                 {grandTotal}
               </td>
