@@ -5,7 +5,7 @@ export default async function SettingsPage() {
   const data = await getSettingsData();
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">
           系统设置 System Settings

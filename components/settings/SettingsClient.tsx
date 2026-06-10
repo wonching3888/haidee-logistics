@@ -168,15 +168,16 @@ export function SettingsClient({ data }: SettingsClientProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       {error && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
           {error}
         </p>
       )}
 
-      <Tabs defaultValue="shippers">
-        <TabsList className="flex h-auto flex-wrap gap-1 bg-haidee-surface p-1">
+      <div className="w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
+      <Tabs defaultValue="shippers" className="w-full">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b border-haidee-border bg-haidee-surface p-2">
           <TabsTrigger value="shippers" className="min-h-[40px] px-3">
             寄货人 Shippers
           </TabsTrigger>
@@ -195,7 +196,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
         </TabsList>
 
         {/* Shippers */}
-        <TabsContent value="shippers" className="mt-4">
+        <TabsContent value="shippers" className="w-full p-4">
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -267,7 +268,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
         </TabsContent>
 
         {/* Stalls */}
-        <TabsContent value="stalls" className="mt-4">
+        <TabsContent value="stalls" className="w-full p-4">
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -325,7 +326,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
         </TabsContent>
 
         {/* Defaults */}
-        <TabsContent value="defaults" className="mt-4">
+        <TabsContent value="defaults" className="w-full p-4">
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -383,7 +384,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
         </TabsContent>
 
         {/* Trucks */}
-        <TabsContent value="trucks" className="mt-4">
+        <TabsContent value="trucks" className="w-full p-4">
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -438,7 +439,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
         </TabsContent>
 
         {/* Users */}
-        <TabsContent value="users" className="mt-4">
+        <TabsContent value="users" className="w-full p-4">
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -501,6 +502,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
           </DataTable>
         </TabsContent>
       </Tabs>
+      </div>
 
       {/* Shipper Dialog */}
       <FormDialog
@@ -753,7 +755,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
 
 function DataTable({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+    <div className="w-full overflow-x-auto rounded-lg border border-haidee-border">
       <Table>{children}</Table>
     </div>
   );
