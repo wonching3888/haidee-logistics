@@ -14,13 +14,15 @@ import { toDateInputValue } from "@/lib/date-utils";
 
 interface SummaryViewProps {
   date: string;
+  displayDate: string;
   data: DailySummaryData;
 }
 
-export function SummaryView({ date, data }: SummaryViewProps) {
+export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<
     Awaited<ReturnType<typeof searchStallByCode>>
   >([]);
@@ -33,13 +35,21 @@ export function SummaryView({ date, data }: SummaryViewProps) {
 
   function runSearch(value: string) {
     setSearch(value);
+    setSearchError(null);
     if (!value.trim()) {
       setSearchResults([]);
       return;
     }
     startTransition(async () => {
-      const results = await searchStallByCode(date, value);
-      setSearchResults(results);
+      try {
+        const results = await searchStallByCode(date, value);
+        setSearchResults(results);
+      } catch (e) {
+        setSearchResults([]);
+        setSearchError(
+          e instanceof Error ? e.message : "搜索失败 Search failed"
+        );
+      }
     });
   }
 
@@ -47,7 +57,9 @@ export function SummaryView({ date, data }: SummaryViewProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">日期 Date</label>
+          <label className="text-sm font-medium">
+            日期 Date <span className="font-mono text-haidee-muted">({displayDate})</span>
+          </label>
           <Input
             type="date"
             value={date}
@@ -78,6 +90,12 @@ export function SummaryView({ date, data }: SummaryViewProps) {
           打印 Print
         </Button>
       </div>
+
+      {searchError && (
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
+          {searchError}
+        </p>
+      )}
 
       {search && (
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">

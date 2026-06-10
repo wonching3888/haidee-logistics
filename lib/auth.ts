@@ -6,9 +6,10 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const supabase = await createClient();
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (!user?.email) return null;
+  if (authError || !user?.email) return null;
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },

@@ -47,6 +47,7 @@ interface MarketTongCombo {
 
 interface DocumentsClientProps {
   date: string;
+  displayDate: string;
   dispatchOrders: DispatchOrderRow[];
   marketTongCombos: MarketTongCombo[];
 }
@@ -60,12 +61,14 @@ type PreviewState =
 
 export function DocumentsClient({
   date,
+  displayDate,
   dispatchOrders,
   marketTongCombos,
 }: DocumentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(
     dispatchOrders[0]?.id ?? ""
   );
@@ -82,32 +85,56 @@ export function DocumentsClient({
 
   async function openInternalDO(external: boolean) {
     if (!selectedId) return;
+    setActionError(null);
     startTransition(async () => {
-      const data = await getDeliveryOrderData(selectedId);
-      if (!data) return;
-      setPreviewTitle(external ? "外部 D/O External D/O" : "内部 D/O Internal D/O");
-      setPreview(external ? { type: "external", data } : { type: "internal", data });
+      try {
+        const data = await getDeliveryOrderData(selectedId);
+        if (!data) {
+          setActionError("无法加载 D/O 数据 Unable to load D/O data");
+          return;
+        }
+        setPreviewTitle(external ? "外部 D/O External D/O" : "内部 D/O Internal D/O");
+        setPreview(external ? { type: "external", data } : { type: "internal", data });
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "生成 D/O 失败");
+      }
     });
   }
 
   async function handleGenerateMarketDO() {
     if (selectedMarkets.length === 0) return;
+    setActionError(null);
     startTransition(async () => {
-      const data = await getMultiMarketDOData(date, selectedMarkets);
-      if (!data || data.rows.length === 0) return;
-      setPreviewTitle(
-        `市场 D/O Market D/O — ${selectedMarkets.join(" / ")}`
-      );
-      setPreview({ type: "market", data });
+      try {
+        const data = await getMultiMarketDOData(date, selectedMarkets);
+        if (!data || data.rows.length === 0) {
+          setActionError("所选市场当日无货物 No cargo for selected markets");
+          return;
+        }
+        setPreviewTitle(
+          `市场 D/O Market D/O — ${selectedMarkets.join(" / ")}`
+        );
+        setPreview({ type: "market", data });
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "生成市场 D/O 失败");
+      }
     });
   }
 
   async function openCrateByType(marketCode: string, tongCode: string) {
+    setActionError(null);
     startTransition(async () => {
-      const data = await getCrateByTypeData(date, marketCode, tongCode);
-      if (!data || data.rows.length === 0) return;
-      setPreviewTitle(`桶型记录 Crate — ${marketCode} / ${tongCode}`);
-      setPreview({ type: "crate", data });
+      try {
+        const data = await getCrateByTypeData(date, marketCode, tongCode);
+        if (!data || data.rows.length === 0) {
+          setActionError("当日无该桶型记录 No records for this crate type");
+          return;
+        }
+        setPreviewTitle(`桶型记录 Crate — ${marketCode} / ${tongCode}`);
+        setPreview({ type: "crate", data });
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "生成桶型记录失败");
+      }
     });
   }
 
@@ -132,7 +159,9 @@ export function DocumentsClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-haidee-text">日期 Date</label>
+          <label className="text-sm font-medium text-haidee-text">
+            日期 Date <span className="font-mono text-haidee-muted">({displayDate})</span>
+          </label>
           <Input
             type="date"
             value={date}
@@ -141,6 +170,12 @@ export function DocumentsClient({
           />
         </div>
       </div>
+
+      {actionError && (
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
+          {actionError}
+        </p>
+      )}
 
       {/* Dispatch orders list */}
       <div className="rounded-xl border border-haidee-border bg-white">

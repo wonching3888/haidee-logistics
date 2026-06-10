@@ -45,6 +45,7 @@ interface TongStockViewProps {
   shortages: ShortageRow[];
   ledger: LedgerRow[];
   filterDate: string;
+  displayDate: string;
 }
 
 export function TongStockView({
@@ -52,6 +53,7 @@ export function TongStockView({
   shortages,
   ledger,
   filterDate,
+  displayDate,
 }: TongStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -154,7 +156,9 @@ export function TongStockView({
             每日流水 Ledger
           </h3>
           <div className="space-y-1">
-            <label className="text-xs text-haidee-muted">筛选日期 Filter</label>
+            <label className="text-xs text-haidee-muted">
+              筛选日期 Filter ({displayDate})
+            </label>
             <Input
               type="date"
               value={filterDate}
