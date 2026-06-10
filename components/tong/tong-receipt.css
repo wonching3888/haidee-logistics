@@ -1,0 +1,78 @@
+.tong-receipt {
+  font-family: "Sarabun", "IBM Plex Sans", sans-serif;
+  font-size: 13px;
+  color: #000;
+  padding: 16px;
+  max-width: 210mm;
+}
+
+.tong-receipt .receipt-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.tong-receipt .receipt-header-right {
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tong-receipt .receipt-company-cn {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.tong-receipt .receipt-company-en {
+  font-weight: bold;
+}
+
+.tong-receipt .receipt-address {
+  font-size: 10px;
+}
+
+.tong-receipt .receipt-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  margin: 12px 0;
+}
+
+.tong-receipt .receipt-meta {
+  margin-bottom: 12px;
+  line-height: 1.8;
+}
+
+.tong-receipt .receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.tong-receipt .receipt-table th,
+.tong-receipt .receipt-table td {
+  border: 1px solid #000;
+  padding: 6px 8px;
+}
+
+.tong-receipt .receipt-table th {
+  background: #f5f5f5;
+}
+
+.tong-receipt .text-center {
+  text-align: center;
+}
+
+.tong-receipt .receipt-total {
+  text-align: right;
+  font-weight: bold;
+  margin-bottom: 24px;
+}
+
+.tong-receipt .receipt-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+}

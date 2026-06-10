@@ -1,0 +1,487 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
+import { InboundLineRow } from "@/components/inbound/InboundLineRow";
+import { MarketBadge } from "@/components/shared/MarketBadge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  getShipperStalls,
+  getThVehiclePlates,
+  saveInboundSession,
+} from "@/app/actions/inbound";
+import { computeMarketTotals, toDateInputValue } from "@/lib/inbound-utils";
+
+interface ShipperOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface TongTypeOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface LineState {
+  stallId: string;
+  stallCode: string;
+  marketCode: string;
+  tongTypeId: string;
+  quantity: string;
+  lineId?: string;
+}
+
+interface MarketOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface InitialSession {
+  id: string;
+  date: Date;
+  shipperId: string;
+  thVehiclePlate: string | null;
+  areaNote?: string | null;
+  status: string;
+  lines: {
+    id: string;
+    stallId: string;
+    stallCode: string;
+    marketCode: string;
+    tongTypeId: string;
+    quantity: number;
+  }[];
+}
+
+interface InboundFormProps {
+  shippers: ShipperOption[];
+  tongTypes: TongTypeOption[];
+  markets?: MarketOption[];
+  initialSession?: InitialSession;
+}
+
+export function InboundForm({
+  shippers,
+  tongTypes,
+  markets = [],
+  initialSession,
+}: InboundFormProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const [date, setDate] = useState(
+    initialSession
+      ? toDateInputValue(new Date(initialSession.date))
+      : toDateInputValue(new Date())
+  );
+  const [shipperId, setShipperId] = useState(initialSession?.shipperId ?? "");
+  const [thVehiclePlate, setThVehiclePlate] = useState(
+    initialSession?.thVehiclePlate ?? ""
+  );
+  const [areaNote, setAreaNote] = useState(initialSession?.areaNote ?? "");
+  const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
+  const [rows, setRows] = useState<LineState[]>([]);
+  const [removedStallIds, setRemovedStallIds] = useState<string[]>([]);
+  const [loadingStalls, setLoadingStalls] = useState(false);
+  const [showAddStall, setShowAddStall] = useState(false);
+  const [newStall, setNewStall] = useState({
+    code: "",
+    marketId: markets[0]?.id ?? "",
+    tongTypeId: tongTypes[0]?.id ?? "",
+  });
+  const [pendingNewStalls, setPendingNewStalls] = useState<
+    { code: string; marketId: string; tongTypeId: string; stallId: string }[]
+  >([]);
+
+  const existingLineMap = useMemo(() => {
+    const map = new Map<string, InitialSession["lines"][0]>();
+    initialSession?.lines.forEach((l) => map.set(l.stallId, l));
+    return map;
+  }, [initialSession]);
+
+  const loadStalls = useCallback(
+    async (sid: string) => {
+      if (!sid) {
+        setRows([]);
+        return;
+      }
+      setLoadingStalls(true);
+      try {
+        const [stalls, vehicles] = await Promise.all([
+          getShipperStalls(sid),
+          getThVehiclePlates(sid),
+        ]);
+        setVehicleSuggestions(vehicles.map((v) => v.plate));
+        setRows(
+          stalls.map((s) => {
+            const existing = existingLineMap.get(s.stallId);
+            return {
+              stallId: s.stallId,
+              stallCode: s.stallCode,
+              marketCode: s.marketCode,
+              tongTypeId: existing?.tongTypeId ?? s.defaultTongTypeId,
+              quantity: existing ? String(existing.quantity) : "",
+              lineId: existing?.id,
+            };
+          })
+        );
+      } finally {
+        setLoadingStalls(false);
+      }
+    },
+    [existingLineMap]
+  );
+
+  useEffect(() => {
+    if (shipperId) loadStalls(shipperId);
+  }, [shipperId, loadStalls]);
+
+  const marketTotals = useMemo(
+    () =>
+      computeMarketTotals(
+        rows.map((r) => ({
+          marketCode: r.marketCode,
+          quantity: parseInt(r.quantity, 10) || 0,
+        }))
+      ),
+    [rows]
+  );
+
+  const grandTotal = Object.values(marketTotals).reduce((a, b) => a + b, 0);
+
+  function updateRow(index: number, patch: Partial<LineState>) {
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, ...patch } : r))
+    );
+  }
+
+  function handleSave(asDraft: boolean) {
+    setError(null);
+    if (!shipperId) {
+      setError("请选择寄货人 Please select a consignor");
+      return;
+    }
+
+    const lines = rows
+      .filter((r) => r.quantity && parseInt(r.quantity, 10) > 0)
+      .map((r) => ({
+        stallId: r.stallId,
+        tongTypeId: r.tongTypeId,
+        quantity: parseInt(r.quantity, 10),
+        lineId: r.lineId,
+      }));
+
+    startTransition(async () => {
+      try {
+        await saveInboundSession({
+          date,
+          shipperId,
+          thVehiclePlate: thVehiclePlate || undefined,
+          areaNote: areaNote || undefined,
+          lines,
+          removedStallIds,
+          newStalls: pendingNewStalls.map((s) => {
+            const row = rows.find((r) => r.stallId === s.stallId);
+            return {
+              code: s.code,
+              marketId: s.marketId,
+              tongTypeId: row?.tongTypeId ?? s.tongTypeId,
+              quantity: parseInt(row?.quantity ?? "0", 10) || 0,
+            };
+          }),
+          asDraft,
+          sessionId: initialSession?.id,
+        });
+        router.push("/inbound");
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "保存失败 Save failed");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header fields */}
+      <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            日期 Date
+          </label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="min-h-[44px]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            寄货人 Consignor
+          </label>
+          <select
+            value={shipperId}
+            onChange={(e) => setShipperId(e.target.value)}
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
+          >
+            <option value="">— 选择寄货人 Select —</option>
+            {shippers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.code})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            地区/备注 Area/Note <span className="text-haidee-muted">(选填)</span>
+          </label>
+          <Input
+            value={areaNote}
+            onChange={(e) => setAreaNote(e.target.value)}
+            placeholder="如 PTN, RN, SK..."
+            className="min-h-[44px]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            泰国车牌 TH Plate <span className="text-haidee-muted">(选填)</span>
+          </label>
+          <Input
+            list="th-vehicles"
+            value={thVehiclePlate}
+            onChange={(e) => setThVehiclePlate(e.target.value)}
+            placeholder="70-1743"
+            className="min-h-[44px] font-mono"
+          />
+          <datalist id="th-vehicles">
+            {vehicleSuggestions.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        </div>
+      </div>
+
+      {/* Entry table */}
+      {shipperId && (
+        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+          {loadingStalls ? (
+            <p className="p-8 text-center text-haidee-muted">加载档口… Loading stalls…</p>
+          ) : rows.length === 0 ? (
+            <p className="p-8 text-center text-haidee-muted">
+              此寄货人暂无固定档口，请先在系统设置中添加。
+              <br />
+              No default stalls for this consignor.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px] text-sm">
+                <thead>
+                  <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
+                    <th className="px-3 py-3 font-medium">档口 Store</th>
+                    <th className="px-3 py-3 font-medium">地区 Area</th>
+                    <th className="px-3 py-3 font-medium">桶型 Crate Type</th>
+                    <th className="px-3 py-3 font-medium text-right">
+                      桶数 Crates
+                    </th>
+                    <th className="px-2 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <InboundLineRow
+                      key={row.stallId}
+                      stallCode={row.stallCode}
+                      marketCode={row.marketCode}
+                      tongTypes={tongTypes}
+                      tongTypeId={row.tongTypeId}
+                      quantity={row.quantity}
+                      tabIndex={i + 1}
+                      onTongTypeChange={(v) => updateRow(i, { tongTypeId: v })}
+                      onQuantityChange={(v) => updateRow(i, { quantity: v })}
+                      onDelete={() => {
+                        if (
+                          !confirm(
+                            `确定要永久删除档口 ${row.stallCode} 吗？\nAre you sure to permanently delete stall ${row.stallCode}?`
+                          )
+                        )
+                          return;
+                        setRemovedStallIds((prev) => [...prev, row.stallId]);
+                        setRows((prev) => prev.filter((_, idx) => idx !== i));
+                      }}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {shipperId && (
+        <div className="space-y-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowAddStall((v) => !v)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            新增档口 Add Stall
+          </Button>
+          {showAddStall && (
+            <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
+              <div className="space-y-1">
+                <label className="text-xs text-haidee-muted">档口代码 Code</label>
+                <Input
+                  value={newStall.code}
+                  onChange={(e) =>
+                    setNewStall({ ...newStall, code: e.target.value })
+                  }
+                  className="min-h-[40px] font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-haidee-muted">地区 Market</label>
+                <select
+                  value={newStall.marketId}
+                  onChange={(e) =>
+                    setNewStall({ ...newStall, marketId: e.target.value })
+                  }
+                  className="min-h-[40px] rounded-lg border border-haidee-border px-3 text-sm"
+                >
+                  {markets.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-haidee-muted">桶型 Type</label>
+                <select
+                  value={newStall.tongTypeId}
+                  onChange={(e) =>
+                    setNewStall({ ...newStall, tongTypeId: e.target.value })
+                  }
+                  className="min-h-[40px] rounded-lg border border-haidee-border px-3 text-sm"
+                >
+                  {tongTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!newStall.code.trim()) return;
+                  const market = markets.find((m) => m.id === newStall.marketId);
+                  const tempId = `new-${crypto.randomUUID()}`;
+                  setPendingNewStalls((prev) => [
+                    ...prev,
+                    { ...newStall, stallId: tempId },
+                  ]);
+                  setRows((prev) => [
+                    ...prev,
+                    {
+                      stallId: tempId,
+                      stallCode: newStall.code,
+                      marketCode: market?.code ?? "",
+                      tongTypeId: newStall.tongTypeId,
+                      quantity: "",
+                    },
+                  ]);
+                  setNewStall({
+                    code: "",
+                    marketId: markets[0]?.id ?? "",
+                    tongTypeId: tongTypes[0]?.id ?? "",
+                  });
+                  setShowAddStall(false);
+                }}
+                className="bg-haidee-blue text-white"
+              >
+                确认添加 Add
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Market subtotals */}
+      {grandTotal > 0 && (
+        <div className="rounded-xl border border-haidee-border bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-haidee-text">
+            各市场小计 Market Subtotals
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(marketTotals)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([code, qty]) => (
+                <div
+                  key={code}
+                  className="flex items-center gap-2 rounded-lg border border-haidee-border px-3 py-2"
+                >
+                  <MarketBadge code={code} />
+                  <span className="font-mono text-lg font-semibold text-haidee-text">
+                    {qty}
+                  </span>
+                  <span className="text-xs text-haidee-muted">桶</span>
+                </div>
+              ))}
+            <div className="flex items-center gap-2 rounded-lg bg-haidee-navy px-4 py-2 text-white">
+              <span className="text-sm">合计 Total</span>
+              <span className="font-mono text-lg font-bold">{grandTotal}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
+          {error}
+        </p>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 border-t border-haidee-border pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/inbound")}
+          disabled={isPending}
+          className="min-h-[44px] min-w-[100px]"
+        >
+          取消 Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleSave(true)}
+          disabled={isPending || !shipperId}
+          className="min-h-[44px] min-w-[120px]"
+        >
+          保存草稿 Save Draft
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleSave(false)}
+          disabled={isPending || !shipperId}
+          className="min-h-[44px] min-w-[120px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
+        >
+          {isPending ? "保存中…" : "确认保存 Confirm"}
+        </Button>
+      </div>
+    </div>
+  );
+}

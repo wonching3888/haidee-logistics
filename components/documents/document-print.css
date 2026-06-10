@@ -1,0 +1,74 @@
+.document-print {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  color: #000;
+  background: #fff;
+  line-height: 1.3;
+}
+
+.document-print table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.document-print th,
+.document-print td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.document-print th {
+  font-weight: bold;
+  background: #f0f0f0;
+}
+
+.document-print .text-left {
+  text-align: left;
+}
+
+.document-print .text-right {
+  text-align: right;
+}
+
+.document-print .header-title {
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.document-print .header-sub {
+  text-align: center;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.document-print .header-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.document-print .signature-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 8px;
+}
+
+.document-print .page-break {
+  page-break-after: always;
+}
+
+.document-print .totals-row td {
+  font-weight: bold;
+}
+
+@media print {
+  .document-print {
+    padding: 0;
+  }
+}

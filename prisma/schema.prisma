@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Users (synced with Supabase Auth) ───────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  role      String   @default("clerk") // admin | clerk
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  inboundSessions InboundSession[]
+  dispatchOrders  DispatchOrder[]
+  tongImports     TongImport[]
+  tongExports     TongExport[]
+
+  @@map("users")
+}
+
+// ─── Master Data ─────────────────────────────────────────────────────────────
+
+model Market {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique
+  name         String
+  state        String?
+  displayOrder Int?     @map("display_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  stalls       Stall[]
+  freightRates FreightRate[]
+  tongImports  TongImport[]
+
+  @@map("markets")
+}
+
+model CrateAgent {
+  id       String   @id @default(uuid()) @db.Uuid
+  name     String
+  whatsapp String?
+  markets  String[]
+  active   Boolean  @default(true)
+
+  @@map("crate_agents")
+}
+
+model TongType {
+  id             String  @id @default(uuid()) @db.Uuid
+  code           String  @unique
+  name           String
+  trackInventory Boolean @default(true) @map("track_inventory")
+  isBox          Boolean @default(false) @map("is_box")
+  displayOrder   Int?    @map("display_order")
+  active         Boolean @default(true)
+
+  shippers              Shipper[]
+  shipperStallDefaults  ShipperStallDefault[]
+  inboundLines          InboundLine[]
+  inboundLinesOriginal  InboundLine[]         @relation("OriginalTongType")
+  tongImports           TongImport[]
+  tongExports           TongExport[]
+
+  @@map("tong_types")
+}
+
+model Shipper {
+  id               String   @id @default(uuid()) @db.Uuid
+  code             String   @unique
+  name             String
+  nameTh           String?  @map("name_th")
+  phone            String?
+  lineId           String?  @map("line_id")
+  location         String?
+  defaultTongTypeId String? @map("default_tong_type_id") @db.Uuid
+  paymentParty     String   @default("shipper") @map("payment_party")
+  company          String   @default("haidee")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  defaultTongType      TongType?             @relation(fields: [defaultTongTypeId], references: [id])
+  stalls               ShipperStallDefault[]
+  freightRates         FreightRate[]
+  thVehicles           ThVehicle[]
+  inboundSessions      InboundSession[]
+  tongExports          TongExport[]
+
+  @@map("shippers")
+}
+
+model Stall {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String
+  name     String?
+  marketId String? @map("market_id") @db.Uuid
+  active   Boolean @default(true)
+
+  market               Market?               @relation(fields: [marketId], references: [id])
+  shipperStallDefaults ShipperStallDefault[]
+  inboundLines         InboundLine[]
+  inboundLinesOriginal InboundLine[]         @relation("OriginalStall")
+
+  @@map("stalls")
+}
+
+model ShipperStallDefault {
+  id         String @id @default(uuid()) @db.Uuid
+  shipperId  String @map("shipper_id") @db.Uuid
+  stallId    String @map("stall_id") @db.Uuid
+  tongTypeId String @map("tong_type_id") @db.Uuid
+
+  shipper  Shipper  @relation(fields: [shipperId], references: [id])
+  stall    Stall    @relation(fields: [stallId], references: [id])
+  tongType TongType @relation(fields: [tongTypeId], references: [id])
+
+  @@unique([shipperId, stallId])
+  @@map("shipper_stall_defaults")
+}
+
+model FreightRate {
+  id            String   @id @default(uuid()) @db.Uuid
+  shipperId     String   @map("shipper_id") @db.Uuid
+  marketId      String   @map("market_id") @db.Uuid
+  rateTong      Decimal? @map("rate_tong") @db.Decimal(10, 2)
+  rateBox       Decimal? @map("rate_box") @db.Decimal(10, 2)
+  currency      String   @default("MYR")
+  effectiveDate DateTime @default(now()) @map("effective_date") @db.Date
+
+  shipper Shipper @relation(fields: [shipperId], references: [id])
+  market  Market  @relation(fields: [marketId], references: [id])
+
+  @@unique([shipperId, marketId])
+  @@map("freight_rates")
+}
+
+model Truck {
+  id           String  @id @default(uuid()) @db.Uuid
+  plate        String  @unique
+  type         String  @default("big")
+  capacityTong Int?    @map("capacity_tong")
+  active       Boolean @default(true)
+
+  inboundLines   InboundLine[]
+  dispatchOrders DispatchOrder[]
+  dispatchOrdersOriginal DispatchOrder[] @relation("OriginalTruck")
+  tongImports    TongImport[]
+
+  @@map("trucks")
+}
+
+model ThVehicle {
+  id        String  @id @default(uuid()) @db.Uuid
+  plate     String  @unique
+  shipperId String? @map("shipper_id") @db.Uuid
+  active    Boolean @default(true)
+
+  shipper Shipper? @relation(fields: [shipperId], references: [id])
+
+  @@map("th_vehicles")
+}
+
+// ─── Business Data ───────────────────────────────────────────────────────────
+
+model InboundSession {
+  id              String   @id @default(uuid()) @db.Uuid
+  sessionNo       String?  @unique @map("session_no")
+  date            DateTime @db.Date
+  shipperId       String   @map("shipper_id") @db.Uuid
+  thVehiclePlate  String?  @map("th_vehicle_plate")
+  areaNote        String?  @map("area_note")
+  status          String   @default("confirmed") // draft | confirmed
+  notes           String?
+  createdById     String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  shipper  Shipper       @relation(fields: [shipperId], references: [id])
+  createdBy User?        @relation(fields: [createdById], references: [id])
+  lines    InboundLine[]
+
+  @@map("inbound_sessions")
+}
+
+model InboundLine {
+  id                 String   @id @default(uuid()) @db.Uuid
+  sessionId          String   @map("session_id") @db.Uuid
+  stallId            String   @map("stall_id") @db.Uuid
+  tongTypeId         String   @map("tong_type_id") @db.Uuid
+  quantity           Int
+  isBox              Boolean  @default(false) @map("is_box")
+  dispatchStatus     String   @default("unassigned") @map("dispatch_status")
+  truckId            String?  @map("truck_id") @db.Uuid
+  originalQuantity   Int?     @map("original_quantity")
+  originalTongTypeId String?  @map("original_tong_type_id") @db.Uuid
+  originalStallId    String?  @map("original_stall_id") @db.Uuid
+  modifiedAt         DateTime? @map("modified_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  session          InboundSession @relation(fields: [sessionId], references: [id])
+  stall            Stall          @relation(fields: [stallId], references: [id])
+  tongType         TongType       @relation(fields: [tongTypeId], references: [id])
+  truck            Truck?         @relation(fields: [truckId], references: [id])
+  originalTongType TongType?      @relation("OriginalTongType", fields: [originalTongTypeId], references: [id])
+  originalStall    Stall?         @relation("OriginalStall", fields: [originalStallId], references: [id])
+  dispatchLines    DispatchLine[]
+
+  @@map("inbound_lines")
+}
+
+model DispatchOrder {
+  id                 String   @id @default(uuid()) @db.Uuid
+  dispatchNo         String?  @unique @map("dispatch_no")
+  date               DateTime @db.Date
+  truckId            String   @map("truck_id") @db.Uuid
+  driverName         String?  @map("driver_name")
+  markets            String[]
+  status             String   @default("draft")
+  originalTruckId    String?  @map("original_truck_id") @db.Uuid
+  originalDriverName String?  @map("original_driver_name")
+  modifiedAt         DateTime? @map("modified_at")
+  createdById        String?  @map("created_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  truck         Truck          @relation(fields: [truckId], references: [id])
+  originalTruck Truck?         @relation("OriginalTruck", fields: [originalTruckId], references: [id])
+  createdBy     User?          @relation(fields: [createdById], references: [id])
+  lines         DispatchLine[]
+
+  @@map("dispatch_orders")
+}
+
+model DispatchLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  dispatchOrderId String   @map("dispatch_order_id") @db.Uuid
+  inboundLineId   String   @map("inbound_line_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  dispatchOrder DispatchOrder @relation(fields: [dispatchOrderId], references: [id])
+  inboundLine   InboundLine   @relation(fields: [inboundLineId], references: [id])
+
+  @@map("dispatch_lines")
+}
+
+model TongImport {
+  id         String    @id @default(uuid()) @db.Uuid
+  date       DateTime  @db.Date
+  truckId    String    @map("truck_id") @db.Uuid
+  marketId   String    @map("market_id") @db.Uuid
+  tongTypeId String    @map("tong_type_id") @db.Uuid
+  quantity   Int
+  status     String    @default("on_the_way") // on_the_way | arrived
+  arrivedAt  DateTime? @map("arrived_at")
+  notes      String?
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  truck     Truck    @relation(fields: [truckId], references: [id])
+  market    Market   @relation(fields: [marketId], references: [id])
+  tongType  TongType @relation(fields: [tongTypeId], references: [id])
+  createdBy User?    @relation(fields: [createdById], references: [id])
+
+  @@map("tong_imports")
+}
+
+model TongExport {
+  id                String   @id @default(uuid()) @db.Uuid
+  exportNo          String?  @unique @map("export_no")
+  date              DateTime @db.Date
+  thVehiclePlate    String   @map("th_vehicle_plate")
+  areaNote          String?  @map("area_note")
+  shipperId         String   @map("shipper_id") @db.Uuid
+  tongTypeId        String   @map("tong_type_id") @db.Uuid
+  quantitySuggested Int?     @map("quantity_suggested")
+  quantityActual    Int      @map("quantity_actual")
+  shortage          Int      @default(0)
+  notes             String?
+  createdById       String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  shipper   Shipper  @relation(fields: [shipperId], references: [id])
+  tongType  TongType @relation(fields: [tongTypeId], references: [id])
+  createdBy User?    @relation(fields: [createdById], references: [id])
+
+  @@map("tong_exports")
+}
