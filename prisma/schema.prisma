@@ -84,6 +84,7 @@ model Shipper {
   defaultTongTypeId String? @map("default_tong_type_id") @db.Uuid
   paymentParty     String   @default("shipper") @map("payment_party")
   company          String   @default("haidee")
+  currency         String   @default("THB")
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
 

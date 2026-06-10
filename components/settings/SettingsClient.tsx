@@ -57,6 +57,7 @@ interface SettingsData {
     defaultTongTypeCode: string;
     paymentParty: string;
     company: string;
+    currency: string;
     active: boolean;
   }[];
   stalls: {
@@ -114,6 +115,21 @@ function ActiveBadge({ active }: { active: boolean }) {
   );
 }
 
+function ShipperCurrencyBadge({ currency }: { currency: string }) {
+  const isMyr = currency === "MYR";
+  return (
+    <span
+      className={
+        isMyr
+          ? "inline-flex rounded border border-haidee-blue/40 bg-haidee-blue/10 px-2 py-0.5 text-xs font-medium text-haidee-blue"
+          : "inline-flex rounded border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"
+      }
+    >
+      {currency}
+    </span>
+  );
+}
+
 export function SettingsClient({ data }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -130,6 +146,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
     defaultTongTypeId: "",
     paymentParty: "shipper",
     company: "haidee",
+    currency: "THB",
     active: true,
   });
   const [stallForm, setStallForm] = useState({
@@ -218,6 +235,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
                   defaultTongTypeId: data.tongTypes[0]?.id ?? "",
                   paymentParty: "shipper",
                   company: "haidee",
+                  currency: "THB",
                   active: true,
                 });
                 setDialog("shipper");
@@ -232,6 +250,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>代码 Code</TableHead>
                 <TableHead>名称 Name</TableHead>
+                <TableHead>货币 Currency</TableHead>
                 <TableHead>默认桶型 Default Crate Type</TableHead>
                 <TableHead>付款方 Payment</TableHead>
                 <TableHead>公司 Company</TableHead>
@@ -244,6 +263,9 @@ export function SettingsClient({ data }: SettingsClientProps) {
                 <TableRow key={s.id}>
                   <TableCell className="font-mono">{s.code}</TableCell>
                   <TableCell>{s.name}</TableCell>
+                  <TableCell>
+                    <ShipperCurrencyBadge currency={s.currency} />
+                  </TableCell>
                   <TableCell className="font-mono">{s.defaultTongTypeCode || "—"}</TableCell>
                   <TableCell>{s.paymentParty}</TableCell>
                   <TableCell>{s.company}</TableCell>
@@ -260,6 +282,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
                           defaultTongTypeId: s.defaultTongTypeId ?? "",
                           paymentParty: s.paymentParty,
                           company: s.company,
+                          currency: s.currency,
                           active: s.active,
                         });
                         setDialog("shipper");
@@ -576,8 +599,18 @@ export function SettingsClient({ data }: SettingsClientProps) {
             onChange={(e) => setShipperForm({ ...shipperForm, company: e.target.value })}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
           >
-            <option value="haidee">HAI DEE (THB)</option>
-            <option value="wtl">WTL (MYR)</option>
+            <option value="haidee">HAI DEE</option>
+            <option value="wtl">WTL</option>
+          </select>
+        </FormField>
+        <FormField label="货币 Currency">
+          <select
+            value={shipperForm.currency}
+            onChange={(e) => setShipperForm({ ...shipperForm, currency: e.target.value })}
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+          >
+            <option value="THB">THB 泰铢</option>
+            <option value="MYR">MYR 马币</option>
           </select>
         </FormField>
         <label className="flex items-center gap-2 text-sm">

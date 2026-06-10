@@ -69,6 +69,7 @@ export async function getSettingsData() {
       defaultTongTypeCode: s.defaultTongType?.code ?? "",
       paymentParty: s.paymentParty,
       company: s.company,
+      currency: s.currency,
       active: s.active,
     })),
     stalls: stalls.map((s) => ({
@@ -123,6 +124,7 @@ export async function saveShipper(input: {
   defaultTongTypeId?: string;
   paymentParty: string;
   company: string;
+  currency?: string;
   active: boolean;
 }) {
   await requireAdmin();
@@ -135,6 +137,7 @@ export async function saveShipper(input: {
     defaultTongTypeId: input.defaultTongTypeId || null,
     paymentParty: input.paymentParty,
     company: input.company,
+    currency: input.currency?.trim() || "THB",
     active: input.active,
   };
 
