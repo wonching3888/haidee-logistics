@@ -23,13 +23,13 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            每日总单 Daily Summary
+            装车清单 Vehicle Loading List
           </h2>
           <p className="text-sm text-haidee-muted">
-            派车货物汇总矩阵 Dispatch cargo summary matrix · {displayDate}
+            派车后每辆车装载明细 Post-dispatch loading by truck · {displayDate}
           </p>
         </div>
-        <SummaryView date={date} data={data} />
+        <SummaryView date={date} displayDate={displayDate} data={data} />
       </div>
     );
   } catch (error) {
@@ -37,7 +37,7 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            每日总单 Daily Summary
+            装车清单 Vehicle Loading List
           </h2>
           <p className="text-sm text-haidee-muted">{displayDate}</p>
         </div>

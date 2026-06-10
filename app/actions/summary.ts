@@ -2,81 +2,30 @@
 
 import { prisma } from "@/lib/prisma";
 import { parseDateInput } from "@/lib/inbound-utils";
-import { DISPATCH_MARKET_ORDER } from "@/lib/markets";
 
-export interface StallSearchResult {
-  stallCode: string;
-  marketCode: string;
-  shipperName: string;
-  vehicle: string;
-  quantity: number;
-  status: string;
-}
-
-export interface SummaryColumn {
+export interface LoadingListColumn {
   id: string;
   truckPlate: string;
-  marketCode: string;
   capacity: number | null;
 }
 
-export interface SummaryRow {
+export interface LoadingListRow {
   sessionId: string;
   label: string;
   cells: Record<string, number>;
   total: number;
 }
 
-export interface DailySummaryData {
-  columns: SummaryColumn[];
-  rows: SummaryRow[];
+export interface VehicleLoadingListData {
+  columns: LoadingListColumn[];
+  rows: LoadingListRow[];
   columnTotals: Record<string, number>;
   grandTotal: number;
+  hasDispatches: boolean;
 }
 
-export async function searchStallByCode(
-  dateStr: string,
-  query: string
-): Promise<StallSearchResult[]> {
-  if (!query.trim()) return [];
-
-  const date = parseDateInput(dateStr);
-  const lines = await prisma.inboundLine.findMany({
-    where: {
-      session: { date, status: "confirmed" },
-      stall: { code: { contains: query.trim(), mode: "insensitive" } },
-    },
-    include: {
-      session: {
-        include: {
-          shipper: true,
-          lines: false,
-        },
-      },
-      stall: { include: { market: true } },
-      dispatchLines: {
-        include: {
-          dispatchOrder: { include: { truck: true } },
-        },
-      },
-    },
-  });
-
-  return lines.map((l) => {
-    const assigned = l.dispatchStatus === "assigned";
-    const dispatch = l.dispatchLines[0]?.dispatchOrder;
-    return {
-      stallCode: l.stall.code,
-      marketCode: l.stall.market?.code ?? "—",
-      shipperName: l.session.shipper.name,
-      vehicle: assigned
-        ? `${dispatch?.truck.plate ?? ""} ${dispatch?.markets.join(" ") ?? ""}`.trim()
-        : "未分配",
-      quantity: l.quantity,
-      status: assigned ? "已分配" : "未分配",
-    };
-  });
-}
+/** @deprecated Use VehicleLoadingListData */
+export type DailySummaryData = VehicleLoadingListData;
 
 function buildSessionLabel(
   shipperName: string,
@@ -88,11 +37,17 @@ function buildSessionLabel(
   return shipperName;
 }
 
-export async function getDailySummary(dateStr: string): Promise<DailySummaryData> {
+export async function getDailySummary(
+  dateStr: string
+): Promise<VehicleLoadingListData> {
   const date = parseDateInput(dateStr);
 
   const orders = await prisma.dispatchOrder.findMany({
-    where: { date },
+    where: {
+      date,
+      status: { not: "draft" },
+      lines: { some: {} },
+    },
     include: {
       truck: true,
       lines: {
@@ -100,7 +55,6 @@ export async function getDailySummary(dateStr: string): Promise<DailySummaryData
           inboundLine: {
             include: {
               session: { include: { shipper: true } },
-              stall: { include: { market: true } },
             },
           },
         },
@@ -109,85 +63,70 @@ export async function getDailySummary(dateStr: string): Promise<DailySummaryData
     orderBy: { createdAt: "asc" },
   });
 
-  const columns: SummaryColumn[] = [];
+  if (orders.length === 0) {
+    return {
+      columns: [],
+      rows: [],
+      columnTotals: {},
+      grandTotal: 0,
+      hasDispatches: false,
+    };
+  }
+
+  const columns: LoadingListColumn[] = orders.map((order) => ({
+    id: order.id,
+    truckPlate: order.truck.plate,
+    capacity: order.truck.capacityTong,
+  }));
+
+  const rowMap = new Map<string, LoadingListRow>();
+
   for (const order of orders) {
-    for (const marketCode of order.markets) {
-      columns.push({
-        id: `${order.id}:${marketCode}`,
-        truckPlate: order.truck.plate,
-        marketCode,
-        capacity: order.truck.capacityTong,
-      });
-    }
-  }
+    for (const dl of order.lines) {
+      const line = dl.inboundLine;
+      const session = line.session;
+      const sessionId = session.id;
 
-  const visibleMarkets = DISPATCH_MARKET_ORDER.filter((m) =>
-    columns.some((c) => c.marketCode === m)
-  );
-
-  const filteredColumns = columns.filter((c) =>
-    visibleMarkets.includes(c.marketCode as (typeof DISPATCH_MARKET_ORDER)[number])
-  );
-
-  const sessions = await prisma.inboundSession.findMany({
-    where: { date, status: "confirmed" },
-    include: {
-      shipper: true,
-      lines: {
-        include: {
-          stall: { include: { market: true } },
-          dispatchLines: {
-            include: {
-              dispatchOrder: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: [{ shipper: { name: "asc" } }, { createdAt: "asc" }],
-  });
-
-  const rows: SummaryRow[] = [];
-  const columnTotals: Record<string, number> = {};
-
-  for (const session of sessions) {
-    const cells: Record<string, number> = {};
-    let sessionTotal = 0;
-
-    for (const line of session.lines) {
-      sessionTotal += line.quantity;
-
-      if (line.dispatchStatus !== "assigned") continue;
-
-      const marketCode = line.stall.market?.code;
-      if (!marketCode) continue;
-
-      for (const dl of line.dispatchLines) {
-        const order = dl.dispatchOrder;
-        const colId = `${order.id}:${marketCode}`;
-        if (!filteredColumns.some((c) => c.id === colId)) continue;
-
-        cells[colId] = (cells[colId] ?? 0) + line.quantity;
-        columnTotals[colId] = (columnTotals[colId] ?? 0) + line.quantity;
+      let row = rowMap.get(sessionId);
+      if (!row) {
+        row = {
+          sessionId,
+          label: buildSessionLabel(session.shipper.name, session.areaNote),
+          cells: {},
+          total: 0,
+        };
+        rowMap.set(sessionId, row);
       }
+
+      row.cells[order.id] = (row.cells[order.id] ?? 0) + line.quantity;
     }
-
-    if (sessionTotal === 0) continue;
-
-    rows.push({
-      sessionId: session.id,
-      label: buildSessionLabel(session.shipper.name, session.areaNote),
-      cells,
-      total: sessionTotal,
-    });
   }
 
-  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const rows = Array.from(rowMap.values())
+    .map((row) => ({
+      ...row,
+      total: Object.values(row.cells).reduce((sum, qty) => sum + qty, 0),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const columnTotals: Record<string, number> = {};
+  for (const col of columns) {
+    columnTotals[col.id] = rows.reduce(
+      (sum, row) => sum + (row.cells[col.id] ?? 0),
+      0
+    );
+  }
+
+  const grandTotal = Object.values(columnTotals).reduce(
+    (sum, qty) => sum + qty,
+    0
+  );
 
   return {
-    columns: filteredColumns,
+    columns,
     rows,
     columnTotals,
     grandTotal,
+    hasDispatches: true,
   };
 }
