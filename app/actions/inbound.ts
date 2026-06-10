@@ -275,6 +275,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
   if (input.removedStallIds?.length) {
     for (const stallId of input.removedStallIds) {
+      // Client-side temp ids for unsaved stalls must not hit the database
+      if (stallId.startsWith("new-")) continue;
       await prisma.shipperStallDefault.deleteMany({
         where: { shipperId: input.shipperId, stallId },
       });

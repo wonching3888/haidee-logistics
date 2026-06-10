@@ -310,7 +310,13 @@ export function InboundForm({
                           )
                         )
                           return;
-                        setRemovedStallIds((prev) => [...prev, row.stallId]);
+                        if (row.stallId.startsWith("new-")) {
+                          setPendingNewStalls((prev) =>
+                            prev.filter((s) => s.stallId !== row.stallId)
+                          );
+                        } else {
+                          setRemovedStallIds((prev) => [...prev, row.stallId]);
+                        }
                         setRows((prev) => prev.filter((_, idx) => idx !== i));
                       }}
                     />
