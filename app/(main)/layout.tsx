@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { Header } from "@/components/shared/Header";
 
+export const maxDuration = 60;
+
 export default async function MainLayout({
   children,
 }: {

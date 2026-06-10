@@ -6,6 +6,9 @@ const nextConfig = {
       "@prisma/adapter-pg",
       "pg",
     ],
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
   },
   async redirects() {
     return [
