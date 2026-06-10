@@ -62,6 +62,13 @@ function sumDispatchLoad(
   );
 }
 
+const DISPATCH_BATCH_SIZE = 10;
+
+const DISPATCH_TRANSACTION_OPTIONS = {
+  timeout: 30_000,
+  maxWait: 10_000,
+} as const;
+
 const lineInclude = {
   session: { include: { shipper: true } },
   stall: { include: { market: true } },
@@ -404,6 +411,12 @@ async function assignLinesToOrder(
   date: Date,
   assignments: StallAssignment[]
 ): Promise<void> {
+  const dispatchLineRows: {
+    dispatchOrderId: string;
+    inboundLineId: string;
+  }[] = [];
+  const assignedLineIds: string[] = [];
+
   for (const assignment of assignments) {
     const line = await tx.inboundLine.findFirst({
       where: {
@@ -420,20 +433,20 @@ async function assignLinesToOrder(
     }
 
     const lineId = await splitAndAssignLine(tx, line, assignment.quantity);
+    dispatchLineRows.push({ dispatchOrderId, inboundLineId: lineId });
+    assignedLineIds.push(lineId);
+  }
 
-    await tx.dispatchLine.create({
-      data: {
-        dispatchOrderId,
-        inboundLineId: lineId,
-      },
-    });
+  for (let i = 0; i < dispatchLineRows.length; i += DISPATCH_BATCH_SIZE) {
+    const batch = dispatchLineRows.slice(i, i + DISPATCH_BATCH_SIZE);
+    await tx.dispatchLine.createMany({ data: batch });
+  }
 
-    await tx.inboundLine.update({
-      where: { id: lineId },
-      data: {
-        dispatchStatus: "assigned",
-        truckId,
-      },
+  for (let i = 0; i < assignedLineIds.length; i += DISPATCH_BATCH_SIZE) {
+    const batch = assignedLineIds.slice(i, i + DISPATCH_BATCH_SIZE);
+    await tx.inboundLine.updateMany({
+      where: { id: { in: batch } },
+      data: { dispatchStatus: "assigned", truckId },
     });
   }
 }
@@ -516,7 +529,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         date,
         assignments
       );
-    });
+    }, DISPATCH_TRANSACTION_OPTIONS);
 
     revalidatePath("/dispatch");
     revalidatePath("/summary");
@@ -551,7 +564,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     );
 
     return created;
-  });
+  }, DISPATCH_TRANSACTION_OPTIONS);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");
@@ -584,7 +597,7 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
         data: { dispatchStatus: "unassigned", truckId: null },
       });
     }
-  });
+  }, DISPATCH_TRANSACTION_OPTIONS);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");
@@ -632,7 +645,7 @@ export async function changeDispatchTruck(
         data: { truckId },
       });
     }
-  });
+  }, DISPATCH_TRANSACTION_OPTIONS);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");
