@@ -193,7 +193,7 @@ export async function getTrucks() {
 export async function getDispatchOrders(dateStr: string) {
   const date = parseDateInput(dateStr);
   const orders = await prisma.dispatchOrder.findMany({
-    where: { date },
+    where: { date, status: { notIn: ["draft", "cancelled"] } },
     include: {
       truck: true,
       lines: {
@@ -211,6 +211,7 @@ export async function getDispatchOrders(dateStr: string) {
     id: o.id,
     dispatchNo: o.dispatchNo,
     date: o.date,
+    truckId: o.truckId,
     truckPlate: o.truck.plate,
     driverName: o.driverName,
     markets: o.markets,
@@ -507,4 +508,85 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
 
   revalidatePath("/dispatch");
   return { id: order.id, dispatchNo };
+}
+
+export async function cancelDispatchOrder(dispatchOrderId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
+  const order = await prisma.dispatchOrder.findUnique({
+    where: { id: dispatchOrderId },
+    include: { lines: true },
+  });
+  if (!order) throw new Error("派车单不存在 Dispatch order not found");
+  if (order.status === "cancelled") {
+    throw new Error("派车单已取消 Dispatch order already cancelled");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dispatchOrder.update({
+      where: { id: dispatchOrderId },
+      data: { status: "cancelled" },
+    });
+
+    for (const dl of order.lines) {
+      await tx.dispatchLine.delete({ where: { id: dl.id } });
+      await tx.inboundLine.update({
+        where: { id: dl.inboundLineId },
+        data: { dispatchStatus: "unassigned", truckId: null },
+      });
+    }
+  });
+
+  revalidatePath("/dispatch");
+  revalidatePath("/summary");
+  revalidatePath("/documents");
+}
+
+export async function changeDispatchTruck(
+  dispatchOrderId: string,
+  truckId: string
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
+  const order = await prisma.dispatchOrder.findUnique({
+    where: { id: dispatchOrderId },
+    include: { lines: true },
+  });
+  if (!order) throw new Error("派车单不存在 Dispatch order not found");
+  if (order.status === "cancelled") {
+    throw new Error("已取消的派车单无法换车 Cannot change truck on cancelled order");
+  }
+
+  const truck = await prisma.truck.findUnique({ where: { id: truckId } });
+  if (!truck?.active) throw new Error("车辆不存在 Truck not found");
+
+  const truckChanged = order.truckId !== truckId;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dispatchOrder.update({
+      where: { id: dispatchOrderId },
+      data: {
+        truckId,
+        ...(truckChanged && !order.originalTruckId
+          ? { originalTruckId: order.truckId, modifiedAt: new Date() }
+          : truckChanged
+            ? { modifiedAt: new Date() }
+            : {}),
+      },
+    });
+
+    const lineIds = order.lines.map((dl) => dl.inboundLineId);
+    if (lineIds.length > 0) {
+      await tx.inboundLine.updateMany({
+        where: { id: { in: lineIds } },
+        data: { truckId },
+      });
+    }
+  });
+
+  revalidatePath("/dispatch");
+  revalidatePath("/summary");
+  revalidatePath("/documents");
 }

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import {
   getDispatchOrders,
+  getTrucks,
   getUnassignedMatrix,
 } from "@/app/actions/dispatch";
 import { DispatchMatrix } from "@/components/dispatch/DispatchMatrix";
@@ -25,9 +26,10 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
   const displayDate = formatDisplayDate(parseDateInput(date));
 
   try {
-    const [matrix, orders] = await Promise.all([
+    const [matrix, orders, trucks] = await Promise.all([
       getUnassignedMatrix(date),
       getDispatchOrders(date),
+      getTrucks(),
     ]);
 
     return (
@@ -60,7 +62,7 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
         </div>
 
         <DispatchMatrix data={matrix} />
-        <DispatchOrderList orders={orders} />
+        <DispatchOrderList orders={orders} trucks={trucks} />
       </div>
     );
   } catch (error) {

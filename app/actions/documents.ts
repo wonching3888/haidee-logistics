@@ -88,7 +88,7 @@ function mergeDORow(existing: DORow, tongCode: string, quantity: number) {
 export async function getDocumentDispatchOrders(dateStr: string) {
   const date = parseDateInput(dateStr);
   const orders = await prisma.dispatchOrder.findMany({
-    where: { date, status: { not: "draft" } },
+    where: { date, status: { notIn: ["draft", "cancelled"] } },
     include: {
       truck: true,
       lines: { include: { inboundLine: true } },
@@ -171,7 +171,9 @@ async function fetchAssignedLinesForDate(date: Date, marketCode?: string) {
       dispatchStatus: "assigned",
       stall: marketCode ? { market: { code: marketCode } } : undefined,
       dispatchLines: {
-        some: { dispatchOrder: { date, status: { not: "draft" } } },
+        some: {
+          dispatchOrder: { date, status: { notIn: ["draft", "cancelled"] } },
+        },
       },
     },
     include: {

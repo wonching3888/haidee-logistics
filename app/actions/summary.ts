@@ -45,7 +45,7 @@ export async function getDailySummary(
   const orders = await prisma.dispatchOrder.findMany({
     where: {
       date,
-      status: { not: "draft" },
+      status: { notIn: ["draft", "cancelled"] },
       lines: { some: {} },
     },
     include: {
