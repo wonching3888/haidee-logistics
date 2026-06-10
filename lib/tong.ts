@@ -1,8 +1,8 @@
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { toDateInputValue } from "@/lib/inbound-utils";
 
 export async function generateExportNo(date: Date): Promise<string> {
-  const dateStr = format(date, "yyyyMMdd");
+  const dateStr = toDateInputValue(date).replace(/-/g, "");
   const prefix = `TE-${dateStr}-`;
   const count = await prisma.tongExport.count({
     where: { exportNo: { startsWith: prefix } },

@@ -173,7 +173,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     colSpan={data.columns.length + 2}
                     className="border border-haidee-border px-4 py-8 text-center text-haidee-muted"
                   >
-                    当日暂无已分配货物 No assigned cargo for this date
+                    当日暂无进货记录 No inbound records for this date
                   </td>
                 </tr>
               ) : (

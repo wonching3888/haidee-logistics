@@ -1,5 +1,5 @@
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { toDateInputValue } from "@/lib/inbound-utils";
 
 export type { InboundLineInput } from "@/lib/inbound-utils";
 export {
@@ -10,7 +10,7 @@ export {
 } from "@/lib/inbound-utils";
 
 export async function generateSessionNo(date: Date): Promise<string> {
-  const dateStr = format(date, "yyyyMMdd");
+  const dateStr = toDateInputValue(date).replace(/-/g, "");
   const prefix = `IN-${dateStr}-`;
   const count = await prisma.inboundSession.count({
     where: {

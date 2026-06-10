@@ -149,13 +149,14 @@ export async function getDailySummary(dateStr: string): Promise<DailySummaryData
 
   const rows: SummaryRow[] = [];
   const columnTotals: Record<string, number> = {};
-  let grandTotal = 0;
 
   for (const session of sessions) {
     const cells: Record<string, number> = {};
-    let total = 0;
+    let sessionTotal = 0;
 
     for (const line of session.lines) {
+      sessionTotal += line.quantity;
+
       if (line.dispatchStatus !== "assigned") continue;
 
       const marketCode = line.stall.market?.code;
@@ -168,20 +169,20 @@ export async function getDailySummary(dateStr: string): Promise<DailySummaryData
 
         cells[colId] = (cells[colId] ?? 0) + line.quantity;
         columnTotals[colId] = (columnTotals[colId] ?? 0) + line.quantity;
-        total += line.quantity;
-        grandTotal += line.quantity;
       }
     }
 
-    if (total === 0) continue;
+    if (sessionTotal === 0) continue;
 
     rows.push({
       sessionId: session.id,
       label: buildSessionLabel(session.shipper.name, session.areaNote),
       cells,
-      total,
+      total: sessionTotal,
     });
   }
+
+  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
 
   return {
     columns: filteredColumns,
