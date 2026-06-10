@@ -295,6 +295,8 @@ model TongExport {
 }
 
 // ─── Customer Crate Stock ────────────────────────────────────────────────────
+// Shipper.customerCrateStock / customerCrateLedger
+// TongType.customerCrateStock / customerCrateLedger
 
 model CustomerCrateStock {
   id          String   @id @default(uuid()) @db.Uuid
