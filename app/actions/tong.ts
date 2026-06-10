@@ -242,7 +242,9 @@ export async function saveTongExport(input: {
   }
 
   revalidatePath("/tong/export");
+  revalidatePath("/crate/export");
   revalidatePath("/tong/stock");
+  revalidatePath("/crate/stock");
 
   return {
     exportNo,
