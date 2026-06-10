@@ -66,6 +66,7 @@ export function TongStockView({
           <h3 className="font-semibold text-haidee-text">
             SADAO 实时库存 SADAO Stock
           </h3>
+          <p className="text-sm text-haidee-muted">{displayDate}</p>
         </div>
         <Table>
           <TableHeader>
