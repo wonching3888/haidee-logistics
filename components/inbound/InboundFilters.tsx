@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { resolveDateParam } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 
@@ -39,15 +39,13 @@ export function InboundFilters({ shippers }: InboundFiltersProps) {
     <div className="grid gap-3 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
       <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">日期 Date</label>
-        <Input
-          type="date"
+        <DateInputField
           value={
             searchParams.get("date")
               ? resolveDateParam(searchParams.get("date")!)
               : ""
           }
-          onChange={(e) => updateParams("date", e.target.value)}
-          className="min-h-[44px]"
+          onChange={(next) => updateParams("date", next)}
         />
       </div>
 

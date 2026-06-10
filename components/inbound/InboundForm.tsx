@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { MarketBadge } from "@/components/shared/MarketBadge";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -214,12 +215,7 @@ export function InboundForm({
           <label className="text-sm font-medium text-haidee-text">
             日期 Date
           </label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="min-h-[44px]"
-          />
+          <DateInputField value={date} onChange={setDate} />
         </div>
 
         <div className="space-y-1.5">

@@ -1,5 +1,6 @@
 import {
   DISPLAY_DATE_FORMAT,
+  formatDisplay,
   formatDisplayDate,
   parseDateInput,
   resolveDateParam,
@@ -8,6 +9,7 @@ import {
 
 export {
   DISPLAY_DATE_FORMAT,
+  formatDisplay,
   formatDisplayDate,
   parseDateInput,
   resolveDateParam,

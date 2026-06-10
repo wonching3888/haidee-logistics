@@ -8,6 +8,14 @@ function toCalendarDate(date: Date): Date {
   return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+/** ISO yyyy-MM-dd → display dd/MM/yyyy */
+export function formatDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  if (!year || !month || !day) return dateStr;
+  return `${day}/${month}/${year}`;
+}
+
 /** User-facing date display: dd/MM/yyyy */
 export function formatDisplayDate(date: Date): string {
   return format(toCalendarDate(date), DISPLAY_DATE_FORMAT);

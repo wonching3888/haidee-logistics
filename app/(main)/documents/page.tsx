@@ -46,7 +46,6 @@ export default async function DocumentsPage({
         >
           <DocumentsClient
             date={date}
-            displayDate={displayDate}
             dispatchOrders={dispatchOrders}
             marketTongCombos={marketTongCombos}
           />

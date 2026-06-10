@@ -8,17 +8,16 @@ import { searchStallByCode } from "@/app/actions/summary";
 import type { DailySummaryData } from "@/app/actions/summary";
 import { MarketBadge } from "@/components/shared/MarketBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { getMarketColor } from "@/lib/markets";
 import { toDateInputValue } from "@/lib/date-utils";
 
 interface SummaryViewProps {
   date: string;
-  displayDate: string;
   data: DailySummaryData;
 }
 
-export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
+export function SummaryView({ date, data }: SummaryViewProps) {
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
@@ -58,17 +57,15 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium">
-            日期 Date <span className="font-mono text-haidee-muted">({displayDate})</span>
+            日期 Date
           </label>
-          <Input
-            type="date"
+          <DateInputField
             value={date}
-            onChange={(e) => {
+            onChange={(next) => {
               const params = new URLSearchParams();
-              params.set("date", e.target.value || toDateInputValue(new Date()));
+              params.set("date", next || toDateInputValue(new Date()));
               router.push(`/summary?${params.toString()}`);
             }}
-            className="min-h-[44px] w-auto"
           />
         </div>
         <div className="min-w-[240px] flex-1 space-y-1">

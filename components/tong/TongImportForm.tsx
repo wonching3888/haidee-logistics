@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TONG_IMPORT_COLUMNS } from "@/lib/constants/tong-import-columns";
@@ -117,12 +118,7 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">日期 Date</label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="min-h-[44px] w-auto"
-          />
+          <DateInputField value={date} onChange={setDate} />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">状态筛选 Filter</label>

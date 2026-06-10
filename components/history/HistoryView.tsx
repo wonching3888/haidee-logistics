@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import {
   Table,
   TableBody,
@@ -38,16 +38,14 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
           <label className="text-sm font-medium text-haidee-text">
             筛选日期 Filter Date
           </label>
-          <Input
-            type="date"
+          <DateInputField
             value={filterDate}
-            onChange={(e) => {
+            onChange={(next) => {
               const params = new URLSearchParams(searchParams.toString());
-              if (e.target.value) params.set("date", e.target.value);
+              if (next) params.set("date", next);
               else params.delete("date");
               router.push(`/history?${params.toString()}`);
             }}
-            className="min-h-[44px] w-auto"
           />
         </div>
         {filterDate && (

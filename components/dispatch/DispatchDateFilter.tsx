@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { resolveDateParam, toDateInputValue } from "@/lib/date-utils";
 
 export function DispatchDateFilter() {
@@ -15,15 +15,13 @@ export function DispatchDateFilter() {
   return (
     <div className="flex items-center gap-2">
       <label className="text-sm font-medium text-haidee-text">日期 Date</label>
-      <Input
-        type="date"
+      <DateInputField
         value={value}
-        onChange={(e) => {
+        onChange={(next) => {
           const params = new URLSearchParams(searchParams.toString());
-          params.set("date", e.target.value);
+          params.set("date", next);
           router.push(`/dispatch?${params.toString()}`);
         }}
-        className="min-h-[44px] w-auto"
       />
     </div>
   );

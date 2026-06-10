@@ -12,6 +12,7 @@ import {
   TongExportReceipt,
   type ReceiptData,
 } from "@/components/tong/TongExportReceipt";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toDateInputValue } from "@/lib/inbound-utils";
@@ -145,12 +146,7 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">日期 Date</label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="min-h-[44px]"
-          />
+          <DateInputField value={date} onChange={setDate} />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">

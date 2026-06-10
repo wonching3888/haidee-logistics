@@ -29,7 +29,7 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
             派车货物汇总矩阵 Dispatch cargo summary matrix · {displayDate}
           </p>
         </div>
-        <SummaryView date={date} displayDate={displayDate} data={data} />
+        <SummaryView date={date} data={data} />
       </div>
     );
   } catch (error) {

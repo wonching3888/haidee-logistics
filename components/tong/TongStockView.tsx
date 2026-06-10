@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
   Table,
@@ -157,18 +157,17 @@ export function TongStockView({
           </h3>
           <div className="space-y-1">
             <label className="text-xs text-haidee-muted">
-              筛选日期 Filter ({displayDate})
+              筛选日期 Filter
             </label>
-            <Input
-              type="date"
+            <DateInputField
               value={filterDate}
-              onChange={(e) => {
+              inputClassName="min-h-[40px]"
+              onChange={(next) => {
                 const params = new URLSearchParams(searchParams.toString());
-                if (e.target.value) params.set("date", e.target.value);
+                if (next) params.set("date", next);
                 else params.delete("date");
                 router.push(`/tong/stock?${params.toString()}`);
               }}
-              className="min-h-[40px] w-auto"
             />
           </div>
         </div>

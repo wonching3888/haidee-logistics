@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { MarketBadge } from "@/components/shared/MarketBadge";
 import { DeliveryOrderPrint } from "@/components/documents/DeliveryOrderPrint";
 import { MarketDOPrint } from "@/components/documents/MarketDOPrint";
@@ -47,7 +47,6 @@ interface MarketTongCombo {
 
 interface DocumentsClientProps {
   date: string;
-  displayDate: string;
   dispatchOrders: DispatchOrderRow[];
   marketTongCombos: MarketTongCombo[];
 }
@@ -61,7 +60,6 @@ type PreviewState =
 
 export function DocumentsClient({
   date,
-  displayDate,
   dispatchOrders,
   marketTongCombos,
 }: DocumentsClientProps) {
@@ -160,14 +158,9 @@ export function DocumentsClient({
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
-            日期 Date <span className="font-mono text-haidee-muted">({displayDate})</span>
+            日期 Date
           </label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => changeDate(e.target.value)}
-            className="min-h-[44px] w-auto"
-          />
+          <DateInputField value={date} onChange={changeDate} />
         </div>
       </div>
 
