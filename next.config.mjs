@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@prisma/client",
+      "@prisma/adapter-pg",
+      "pg",
+    ],
+  },
   async redirects() {
     return [
       { source: "/tong/import", destination: "/crate/import", permanent: false },

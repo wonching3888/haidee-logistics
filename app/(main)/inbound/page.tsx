@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { getInboundSessions, getShippers } from "@/app/actions/inbound";
 import { InboundFilters } from "@/components/inbound/InboundFilters";
 import { InboundListTable } from "@/components/inbound/InboundListTable";
+import { PageError } from "@/components/shared/PageError";
 
 interface InboundPageProps {
   searchParams: Promise<{
@@ -23,12 +24,13 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     search: params.search,
   };
 
-  const [sessions, shippers] = await Promise.all([
-    getInboundSessions(filters),
-    getShippers(),
-  ]);
+  try {
+    const [sessions, shippers] = await Promise.all([
+      getInboundSessions(filters),
+      getShippers(),
+    ]);
 
-  return (
+    return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -54,5 +56,17 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
 
       <InboundListTable sessions={sessions} />
     </div>
-  );
+    );
+  } catch (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-haidee-text">
+            进货录入 Inbound Entry
+          </h2>
+        </div>
+        <PageError error={error} />
+      </div>
+    );
+  }
 }

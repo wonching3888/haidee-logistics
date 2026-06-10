@@ -6,6 +6,8 @@ import {
   getTongTypes,
 } from "@/app/actions/inbound";
 import { InboundForm } from "@/components/inbound/InboundForm";
+import { PageError } from "@/components/shared/PageError";
+import { toDateInputValue } from "@/lib/inbound-utils";
 
 interface EditInboundPageProps {
   params: Promise<{ id: string }>;
@@ -14,16 +16,17 @@ interface EditInboundPageProps {
 export default async function EditInboundPage({ params }: EditInboundPageProps) {
   const { id } = await params;
 
-  const [session, shippers, tongTypes, markets] = await Promise.all([
-    getInboundSession(id),
-    getShippers(),
-    getTongTypes(),
-    getMarkets(),
-  ]);
+  try {
+    const [session, shippers, tongTypes, markets] = await Promise.all([
+      getInboundSession(id),
+      getShippers(),
+      getTongTypes(),
+      getMarkets(),
+    ]);
 
-  if (!session) notFound();
+    if (!session) notFound();
 
-  return (
+    return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">
@@ -46,7 +49,7 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
         markets={markets}
         initialSession={{
           id: session.id,
-          date: session.date,
+          date: toDateInputValue(new Date(session.date)),
           shipperId: session.shipperId,
           thVehiclePlate: session.thVehiclePlate,
           areaNote: session.areaNote,
@@ -55,5 +58,17 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
         }}
       />
     </div>
-  );
+    );
+  } catch (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-haidee-text">
+            编辑进货 Edit Inbound
+          </h2>
+        </div>
+        <PageError error={error} />
+      </div>
+    );
+  }
 }

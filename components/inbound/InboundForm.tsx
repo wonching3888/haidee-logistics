@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
-import { MarketBadge } from "@/components/shared/MarketBadge";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,7 @@ interface MarketOption {
 
 interface InitialSession {
   id: string;
-  date: Date;
+  date: string;
   shipperId: string;
   thVehiclePlate: string | null;
   areaNote?: string | null;
@@ -428,7 +427,9 @@ export function InboundForm({
                   key={code}
                   className="flex items-center gap-2 rounded-lg border border-haidee-border px-3 py-2"
                 >
-                  <MarketBadge code={code} />
+                  <span className="rounded border border-gray-300 bg-white px-2 py-1 text-sm font-medium text-gray-700">
+                    {code}
+                  </span>
                   <span className="font-mono text-lg font-semibold text-haidee-text">
                     {qty}
                   </span>
