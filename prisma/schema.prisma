@@ -67,6 +67,8 @@ model TongType {
   inboundLinesOriginal  InboundLine[]         @relation("OriginalTongType")
   tongImports           TongImport[]
   tongExports           TongExport[]
+  customerCrateStock    CustomerCrateStock[]
+  customerCrateLedger   CustomerCrateLedger[]
 
   @@map("tong_types")
 }
@@ -91,6 +93,8 @@ model Shipper {
   thVehicles           ThVehicle[]
   inboundSessions      InboundSession[]
   tongExports          TongExport[]
+  customerCrateStock   CustomerCrateStock[]
+  customerCrateLedger  CustomerCrateLedger[]
 
   @@map("shippers")
 }
@@ -288,4 +292,37 @@ model TongExport {
   createdBy User?    @relation(fields: [createdById], references: [id])
 
   @@map("tong_exports")
+}
+
+// ─── Customer Crate Stock ────────────────────────────────────────────────────
+
+model CustomerCrateStock {
+  id          String   @id @default(uuid()) @db.Uuid
+  shipperId   String   @map("shipper_id") @db.Uuid
+  crateTypeId String   @map("tong_type_id") @db.Uuid
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  shipper   Shipper  @relation(fields: [shipperId], references: [id])
+  crateType TongType @relation(fields: [crateTypeId], references: [id])
+
+  @@unique([shipperId, crateTypeId])
+  @@map("customer_crate_stock")
+}
+
+model CustomerCrateLedger {
+  id          String   @id @default(uuid()) @db.Uuid
+  shipperId   String   @map("shipper_id") @db.Uuid
+  crateTypeId String   @map("tong_type_id") @db.Uuid
+  changeType  String   @map("change_type") // manual | export
+  quantity    Int
+  balance     Int
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  shipper   Shipper  @relation(fields: [shipperId], references: [id])
+  crateType TongType @relation(fields: [crateTypeId], references: [id])
+
+  @@map("customer_crate_ledger")
 }

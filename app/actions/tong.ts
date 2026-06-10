@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { deductCustomerCrate } from "@/app/actions/customerCrateStock";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
@@ -231,6 +232,15 @@ export async function saveTongExport(input: {
       },
     });
 
+    if (actual > 0) {
+      await deductCustomerCrate(
+        input.shipperId,
+        line.tongTypeId,
+        actual,
+        exportNo ? `归还 ${exportNo}` : "空桶归还 Crate export"
+      );
+    }
+
     if (actual > 0 || shortage > 0) {
       receiptLines.push({
         tongName: tongType.name,
@@ -245,6 +255,7 @@ export async function saveTongExport(input: {
   revalidatePath("/crate/export");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
+  revalidatePath("/crate/customer-stock");
 
   return {
     exportNo,

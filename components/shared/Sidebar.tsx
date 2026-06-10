@@ -13,6 +13,7 @@ import {
   Package,
   History,
   Settings,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -34,6 +35,12 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/crate/import", label: "空桶回收", labelEn: "Crate Import", icon: Download },
   { href: "/crate/export", label: "空桶归还", labelEn: "Crate Export", icon: Upload },
   { href: "/crate/stock", label: "桶库存", labelEn: "Crate Stock", icon: Package },
+  {
+    href: "/crate/customer-stock",
+    label: "顾客桶库存",
+    labelEn: "Customer Crate Stock",
+    icon: Users,
+  },
   { href: "/history", label: "修改记录", labelEn: "History", icon: History },
   { href: "/settings", label: "系统设置", labelEn: "Settings", icon: Settings, adminOnly: true },
 ];
