@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   getAssignableItems,
   saveDispatchOrder,
@@ -18,6 +17,7 @@ interface TruckOption {
   plate: string;
   type: string;
   capacityTong: number | null;
+  defaultDriverId: string | null;
   defaultDriverName: string;
 }
 
@@ -54,7 +54,14 @@ export function DispatchForm({
   const [error, setError] = useState<string | null>(null);
 
   const [truckId, setTruckId] = useState(initialOrder?.truckId ?? "");
-  const [driverName, setDriverName] = useState(initialOrder?.driverName ?? "");
+  const [selectedDriverId, setSelectedDriverId] = useState(() => {
+    if (initialOrder?.driverName) {
+      const matched = drivers.find((d) => d.name === initialOrder.driverName);
+      if (matched) return matched.id;
+    }
+    const truck = trucks.find((t) => t.id === initialOrder?.truckId);
+    return truck?.defaultDriverId ?? "";
+  });
   const [markets, setMarkets] = useState<string[]>(initialOrder?.markets ?? []);
   const [items, setItems] = useState<AssignableItem[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
@@ -206,6 +213,9 @@ export function DispatchForm({
 
     startTransition(async () => {
       try {
+        const driverName =
+          drivers.find((d) => d.id === selectedDriverId)?.name ?? "";
+
         await saveDispatchOrder({
           date,
           truckId,
@@ -234,9 +244,7 @@ export function DispatchForm({
               const nextTruckId = e.target.value;
               setTruckId(nextTruckId);
               const truck = trucks.find((t) => t.id === nextTruckId);
-              if (truck?.defaultDriverName) {
-                setDriverName(truck.defaultDriverName);
-              }
+              setSelectedDriverId(truck?.defaultDriverId ?? "");
             }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 font-mono text-sm"
           >
@@ -253,34 +261,18 @@ export function DispatchForm({
           <label className="text-sm font-medium text-haidee-text">
             司机 Driver
           </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value) setDriverName(e.target.value);
-              }}
-              className="min-h-[44px] rounded-lg border border-haidee-border bg-white px-3 text-sm sm:w-44"
-            >
-              <option value="">选择司机 Select…</option>
-              {drivers.map((driver) => (
-                <option key={driver.id} value={driver.name}>
-                  {driver.name}
-                </option>
-              ))}
-            </select>
-            <Input
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              list="dispatch-driver-options"
-              placeholder="可手动输入或修改"
-              className="min-h-[44px] flex-1"
-            />
-            <datalist id="dispatch-driver-options">
-              {drivers.map((driver) => (
-                <option key={driver.id} value={driver.name} />
-              ))}
-            </datalist>
-          </div>
+          <select
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm"
+          >
+            <option value="">— 选择司机 Select —</option>
+            {drivers.map((driver) => (
+              <option key={driver.id} value={driver.id}>
+                {driver.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
