@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { MarketBadge } from "@/components/shared/MarketBadge";
 import { DeliveryOrderPrint } from "@/components/documents/DeliveryOrderPrint";
 import { MarketDOPrint } from "@/components/documents/MarketDOPrint";
 import { CrateByTypePrint } from "@/components/documents/CrateByTypePrint";
@@ -43,6 +42,13 @@ interface MarketTongCombo {
   tongCode: string;
   tongHeader: string;
   quantity: number;
+}
+
+const marketLabelClass =
+  "rounded border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700";
+
+function MarketLabel({ code }: { code: string }) {
+  return <span className={marketLabelClass}>{code}</span>;
 }
 
 interface DocumentsClientProps {
@@ -219,7 +225,7 @@ export function DocumentsClient({
                   <TableCell>
                     <div className="flex gap-1">
                       {o.markets.map((m) => (
-                        <MarketBadge key={m} code={m} />
+                        <MarketLabel key={m} code={m} />
                       ))}
                     </div>
                   </TableCell>
@@ -290,7 +296,7 @@ export function DocumentsClient({
                 }}
                 className="h-4 w-4 accent-haidee-blue"
               />
-              <MarketBadge code={code} />
+              <MarketLabel code={code} />
             </label>
           ))}
         </div>
@@ -328,7 +334,7 @@ export function DocumentsClient({
                       onChange={() => toggleCombo(key)}
                       className="h-4 w-4 accent-haidee-blue"
                     />
-                    <MarketBadge code={c.marketCode} />
+                    <MarketLabel code={c.marketCode} />
                     <span className="font-mono text-sm">{c.tongHeader}</span>
                     <span className="ml-auto font-mono text-sm text-haidee-muted">
                       {c.quantity}

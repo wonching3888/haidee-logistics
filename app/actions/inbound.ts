@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { deductCustomerCrate } from "@/app/actions/customerCrateStock";
 import { generateSessionNo } from "@/lib/inbound";
+import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
 async function applyInboundCrateDeduction(
@@ -43,11 +44,22 @@ export interface InboundSessionFilters {
 }
 
 export async function getMarkets() {
-  return prisma.market.findMany({
+  const orderMap = new Map<string, number>(
+    MARKET_ORDER.map((code, index) => [code, index])
+  );
+  const allowedCodes = new Set<string>(MARKET_ORDER);
+
+  const markets = await prisma.market.findMany({
     where: { active: true },
-    orderBy: { code: "asc" },
     select: { id: true, code: true, name: true },
   });
+
+  return markets
+    .filter((market) => allowedCodes.has(market.code))
+    .sort(
+      (a, b) =>
+        (orderMap.get(a.code) ?? 999) - (orderMap.get(b.code) ?? 999)
+    );
 }
 
 export async function removeShipperStallDefault(
