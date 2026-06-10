@@ -96,7 +96,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             <thead>
               <tr>
                 <th
-                  rowSpan={3}
+                  rowSpan={2}
                   className="border border-haidee-border bg-haidee-surface px-3 py-2 text-left align-bottom font-medium text-haidee-muted"
                 >
                   寄货人 / 地区
@@ -120,18 +120,6 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     className="border border-haidee-border bg-haidee-surface px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text"
                   >
                     {col.marketCode}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {columns.map((col) => (
-                  <th
-                    key={`c-${col.key}`}
-                    className="border border-haidee-border bg-haidee-surface px-2 py-1 text-center text-xs font-normal text-haidee-muted"
-                  >
-                    {col.showCapacity && col.capacity != null
-                      ? `(${col.capacity}桶)`
-                      : ""}
                   </th>
                 ))}
               </tr>
