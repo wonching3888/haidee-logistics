@@ -85,11 +85,30 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
   useEffect(() => {
     if (markets.length === 0) {
       setItems([]);
+      setSelectedKeys(new Set());
+      setSplitKeys(new Set());
+      setSplitQty({});
       return;
     }
     setLoadingItems(true);
+    setSelectedKeys(new Set());
+    setSplitKeys(new Set());
+    setSplitQty({});
     getAssignableItems(date, markets, initialOrder?.id)
-      .then((data) => setItems(data))
+      .then((data) => {
+        setItems(data);
+        if (initialOrder?.selections.length) {
+          setSelectedKeys(
+            new Set(
+              initialOrder.selections.map((s) =>
+                s.sessionId
+                  ? `${s.sessionId}:${s.marketCode}`
+                  : `${s.shipperId}:${s.marketCode}`
+              )
+            )
+          );
+        }
+      })
       .finally(() => setLoadingItems(false));
   }, [date, markets.join(","), initialOrder?.id]);
 
@@ -183,8 +202,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
           selections,
           dispatchOrderId: initialOrder?.id,
         });
-        router.push("/dispatch");
-        router.refresh();
+        router.replace(`/dispatch?date=${encodeURIComponent(date)}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
       }
@@ -256,9 +274,12 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
 
       {markets.length > 0 && (
         <div className="mx-auto w-full max-w-4xl rounded-xl border border-haidee-border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-haidee-text">
+          <h3 className="mb-1 text-sm font-semibold text-haidee-text">
             勾选货物 Select Cargo
           </h3>
+          <p className="mb-3 text-xs text-haidee-muted">
+            仅显示今日未分配货物 Unassigned cargo for this date only
+          </p>
           {loadingItems ? (
             <p className="text-haidee-muted">加载中… Loading…</p>
           ) : items.length === 0 ? (
@@ -401,7 +422,9 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push("/dispatch")}
+          onClick={() =>
+            router.push(`/dispatch?date=${encodeURIComponent(date)}`)
+          }
           disabled={isPending}
           className="min-h-[44px]"
         >

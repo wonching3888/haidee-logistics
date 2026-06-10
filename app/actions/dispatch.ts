@@ -66,6 +66,7 @@ async function fetchUnassignedLines(date: Date) {
   return prisma.inboundLine.findMany({
     where: {
       dispatchStatus: "unassigned",
+      dispatchLines: { none: {} },
       session: { status: "confirmed", date },
     },
     include: {
@@ -249,15 +250,17 @@ export async function getAssignableItems(
   dispatchOrderId?: string
 ): Promise<AssignableItem[]> {
   const date = parseDateInput(dateStr);
-  const unassigned = await fetchUnassignedLines(date);
-  const assignedHere = dispatchOrderId
-    ? await fetchLinesForDispatch(dispatchOrderId)
-    : [];
 
-  const filtered = [
-    ...unassigned,
-    ...assignedHere.filter((l) => l.dispatchStatus === "assigned"),
-  ].filter((l) => {
+  const lines = dispatchOrderId
+    ? [
+        ...(await fetchUnassignedLines(date)),
+        ...(await fetchLinesForDispatch(dispatchOrderId)).filter(
+          (l) => l.dispatchStatus === "assigned"
+        ),
+      ]
+    : await fetchUnassignedLines(date);
+
+  const filtered = lines.filter((l) => {
     const code = l.stall.market?.code;
     return code && markets.includes(code);
   });
@@ -337,6 +340,7 @@ async function resolveAssignments(
   const assignedHere = dispatchOrderId
     ? await fetchLinesForDispatch(dispatchOrderId)
     : [];
+  const assignedHereIds = new Set(assignedHere.map((l) => l.id));
 
   const allLines = [...unassigned, ...assignedHere];
   const assignments: StallAssignment[] = [];
@@ -353,7 +357,8 @@ async function resolveAssignments(
       (l) =>
         l.session.shipperId === sel.shipperId &&
         l.stall.market?.code === sel.marketCode &&
-        (!sel.sessionId || l.sessionId === sel.sessionId)
+        (!sel.sessionId || l.sessionId === sel.sessionId) &&
+        (l.dispatchStatus === "unassigned" || assignedHereIds.has(l.id))
     );
     for (const line of matching) {
       assignments.push({ inboundLineId: line.id, quantity: line.quantity });
@@ -488,7 +493,12 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     });
 
     revalidatePath("/dispatch");
-    return { id: input.dispatchOrderId, dispatchNo: existing.dispatchNo };
+    revalidatePath("/summary");
+    return {
+      id: input.dispatchOrderId,
+      dispatchNo: existing.dispatchNo,
+      date: input.date,
+    };
   }
 
   const dispatchNo = await generateDispatchNo(date);
@@ -529,7 +539,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   });
 
   revalidatePath("/dispatch");
-  return { id: order.id, dispatchNo };
+  revalidatePath("/summary");
+  return { id: order.id, dispatchNo, date: input.date };
 }
 
 export async function cancelDispatchOrder(dispatchOrderId: string) {
