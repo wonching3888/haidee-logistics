@@ -62,17 +62,23 @@ function sumDispatchLoad(
   );
 }
 
+const lineInclude = {
+  session: { include: { shipper: true } },
+  stall: { include: { market: true } },
+} as const;
+
+function unassignedLineWhere(date: Date): Prisma.InboundLineWhereInput {
+  return {
+    dispatchStatus: "unassigned",
+    dispatchLines: { none: {} },
+    session: { status: "confirmed", date },
+  };
+}
+
 async function fetchUnassignedLines(date: Date) {
   return prisma.inboundLine.findMany({
-    where: {
-      dispatchStatus: "unassigned",
-      dispatchLines: { none: {} },
-      session: { status: "confirmed", date },
-    },
-    include: {
-      session: { include: { shipper: true } },
-      stall: { include: { market: true } },
-    },
+    where: unassignedLineWhere(date),
+    include: lineInclude,
   });
 }
 
@@ -81,10 +87,7 @@ async function fetchLinesForDispatch(dispatchOrderId: string) {
     where: {
       dispatchLines: { some: { dispatchOrderId } },
     },
-    include: {
-      session: { include: { shipper: true } },
-      stall: { include: { market: true } },
-    },
+    include: lineInclude,
   });
 }
 
@@ -394,6 +397,47 @@ async function splitAndAssignLine(
   return line.id;
 }
 
+async function assignLinesToOrder(
+  tx: Prisma.TransactionClient,
+  dispatchOrderId: string,
+  truckId: string,
+  date: Date,
+  assignments: StallAssignment[]
+): Promise<void> {
+  for (const assignment of assignments) {
+    const line = await tx.inboundLine.findFirst({
+      where: {
+        id: assignment.inboundLineId,
+        ...unassignedLineWhere(date),
+      },
+      include: lineInclude,
+    });
+
+    if (!line) {
+      throw new Error(
+        "所选货物不可用或已被分配 Selected cargo unavailable or already assigned"
+      );
+    }
+
+    const lineId = await splitAndAssignLine(tx, line, assignment.quantity);
+
+    await tx.dispatchLine.create({
+      data: {
+        dispatchOrderId,
+        inboundLineId: lineId,
+      },
+    });
+
+    await tx.inboundLine.update({
+      where: { id: lineId },
+      data: {
+        dispatchStatus: "assigned",
+        truckId,
+      },
+    });
+  }
+}
+
 export async function saveDispatchOrder(input: SaveDispatchInput) {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
@@ -465,31 +509,13 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         });
       }
 
-      const unassigned = await fetchUnassignedLines(date);
-      const lineMap = new Map(unassigned.map((l) => [l.id, l]));
-
-      for (const assignment of assignments) {
-        const line = lineMap.get(assignment.inboundLineId);
-        if (!line) continue;
-        const lineId = await splitAndAssignLine(
-          tx,
-          line,
-          assignment.quantity
-        );
-        await tx.dispatchLine.create({
-          data: {
-            dispatchOrderId: input.dispatchOrderId!,
-            inboundLineId: lineId,
-          },
-        });
-        await tx.inboundLine.update({
-          where: { id: lineId },
-          data: {
-            dispatchStatus: "assigned",
-            truckId: input.truckId,
-          },
-        });
-      }
+      await assignLinesToOrder(
+        tx,
+        input.dispatchOrderId!,
+        input.truckId,
+        date,
+        assignments
+      );
     });
 
     revalidatePath("/dispatch");
@@ -504,17 +530,6 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   const dispatchNo = await generateDispatchNo(date);
 
   const order = await prisma.$transaction(async (tx) => {
-    const unassigned = await fetchUnassignedLines(date);
-    const lineMap = new Map(unassigned.map((l) => [l.id, l]));
-    const resolvedLineIds: string[] = [];
-
-    for (const assignment of assignments) {
-      const line = lineMap.get(assignment.inboundLineId);
-      if (!line) continue;
-      const lineId = await splitAndAssignLine(tx, line, assignment.quantity);
-      resolvedLineIds.push(lineId);
-    }
-
     const created = await tx.dispatchOrder.create({
       data: {
         dispatchNo,
@@ -524,16 +539,16 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         markets: input.markets,
         status: "dispatched",
         createdById: user.id,
-        lines: {
-          create: resolvedLineIds.map((inboundLineId) => ({ inboundLineId })),
-        },
       },
     });
 
-    await tx.inboundLine.updateMany({
-      where: { id: { in: resolvedLineIds } },
-      data: { dispatchStatus: "assigned", truckId: input.truckId },
-    });
+    await assignLinesToOrder(
+      tx,
+      created.id,
+      input.truckId,
+      date,
+      assignments
+    );
 
     return created;
   });
