@@ -66,10 +66,11 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
     for (const item of items) {
       if (splitKeys.has(item.key)) {
         for (const stall of item.stalls) {
+          if (stall.isBox) continue;
           total += parseInt(splitQty[stall.inboundLineId] ?? "0", 10) || 0;
         }
       } else if (selectedKeys.has(item.key)) {
-        total += item.quantity;
+        total += item.crateQuantity;
       }
     }
     return total;
@@ -287,7 +288,9 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
                     </span>
                     <MarketBadge code={item.marketCode} />
                     <span className="ml-auto font-mono text-lg font-semibold">
-                      {item.quantity} 桶
+                      {item.crateQuantity > 0 && `${item.crateQuantity} 桶`}
+                      {item.crateQuantity > 0 && item.boxQuantity > 0 && " "}
+                      {item.boxQuantity > 0 && `${item.boxQuantity} 盒`}
                     </span>
                     <Button
                       type="button"
@@ -315,7 +318,8 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
                               {stall.stallCode} {item.marketCode}
                             </span>
                             <span className="text-haidee-muted">
-                              共 {stall.quantity} 桶
+                              共 {stall.quantity}{" "}
+                              {stall.isBox ? "盒" : "桶"}
                             </span>
                             <span>此车:</span>
                             <input

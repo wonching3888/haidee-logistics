@@ -21,6 +21,7 @@ export interface StallLineDetail {
   inboundLineId: string;
   stallCode: string;
   quantity: number;
+  isBox: boolean;
 }
 
 export interface AssignableItem {
@@ -30,6 +31,8 @@ export interface AssignableItem {
   shipperName: string;
   marketCode: string;
   quantity: number;
+  crateQuantity: number;
+  boxQuantity: number;
   inboundLineIds: string[];
   stalls: StallLineDetail[];
 }
@@ -55,9 +58,13 @@ function buildSessionLabel(
 }
 
 function sumDispatchLoad(
-  lines: { inboundLine: { quantity: number } }[]
+  lines: { inboundLine: { quantity: number; isBox: boolean } }[]
 ): number {
-  return lines.reduce((sum, dl) => sum + dl.inboundLine.quantity, 0);
+  return lines.reduce(
+    (sum, dl) =>
+      sum + (dl.inboundLine.isBox ? 0 : dl.inboundLine.quantity),
+    0
+  );
 }
 
 async function fetchUnassignedLines(date: Date) {
@@ -106,7 +113,13 @@ function aggregateLines(
         inboundLineId: line.id,
         stallCode: line.stall.code,
         quantity: line.quantity,
+        isBox: line.isBox,
       });
+      if (!line.isBox) {
+        existing.crateQuantity += line.quantity;
+      } else {
+        existing.boxQuantity += line.quantity;
+      }
     } else {
       map.set(key, {
         key,
@@ -118,12 +131,15 @@ function aggregateLines(
         ),
         marketCode,
         quantity: line.quantity,
+        crateQuantity: line.isBox ? 0 : line.quantity,
+        boxQuantity: line.isBox ? line.quantity : 0,
         inboundLineIds: [line.id],
         stalls: [
           {
             inboundLineId: line.id,
             stallCode: line.stall.code,
             quantity: line.quantity,
+            isBox: line.isBox,
           },
         ],
       });

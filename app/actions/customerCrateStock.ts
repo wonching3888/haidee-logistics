@@ -152,6 +152,12 @@ export async function addCustomerCrate(
 ) {
   if (quantity <= 0) return;
 
+  const crateType = await prisma.tongType.findUnique({
+    where: { id: crateTypeId },
+    select: { isBox: true },
+  });
+  if (crateType?.isBox) return;
+
   await prisma.$transaction(async (tx) => {
     const existing = await tx.customerCrateStock.findUnique({
       where: { shipperId_crateTypeId: { shipperId, crateTypeId } },
@@ -188,6 +194,12 @@ export async function deductCustomerCrate(
   notes?: string
 ) {
   if (quantity <= 0) return;
+
+  const crateType = await prisma.tongType.findUnique({
+    where: { id: crateTypeId },
+    select: { isBox: true },
+  });
+  if (crateType?.isBox) return;
 
   await prisma.$transaction(async (tx) => {
     const existing = await tx.customerCrateStock.findUnique({

@@ -1,6 +1,10 @@
 import type { MarketDOData } from "@/app/actions/documents";
 import { MARKET_DISPLAY_NAMES } from "@/lib/constants/market-names";
-import { DO_TONG_COLUMNS, sumQuantities } from "@/lib/constants/tong-columns";
+import {
+  DO_TONG_COLUMNS,
+  formatDOCrateQuantity,
+  sumQuantities,
+} from "@/lib/constants/tong-columns";
 import "./document-print.css";
 
 interface MarketDOPrintProps {
@@ -49,7 +53,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
               <td>{row.area}</td>
               {DO_TONG_COLUMNS.map((c) => (
                 <td key={c.code}>
-                  {row.quantities[c.code] > 0 ? row.quantities[c.code] : ""}
+                  {formatDOCrateQuantity(c.code, row.quantities[c.code] ?? 0)}
                 </td>
               ))}
               <td>{row.qty}</td>
@@ -61,7 +65,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
             </td>
             {DO_TONG_COLUMNS.map((c) => (
               <td key={c.code}>
-                {totals[c.code] > 0 ? totals[c.code] : ""}
+                {formatDOCrateQuantity(c.code, totals[c.code] ?? 0)}
               </td>
             ))}
             <td>{grandTotal}</td>

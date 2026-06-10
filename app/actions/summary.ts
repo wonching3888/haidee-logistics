@@ -13,6 +13,8 @@ export interface LoadingListRow {
   sessionId: string;
   label: string;
   cells: Record<string, number>;
+  boxCells: Record<string, number>;
+  boxTotal: number;
   total: number;
 }
 
@@ -20,6 +22,8 @@ export interface VehicleLoadingListData {
   columns: LoadingListColumn[];
   rows: LoadingListRow[];
   columnTotals: Record<string, number>;
+  columnBoxTotals: Record<string, number>;
+  boxGrandTotal: number;
   grandTotal: number;
   hasDispatches: boolean;
 }
@@ -68,6 +72,8 @@ export async function getDailySummary(
       columns: [],
       rows: [],
       columnTotals: {},
+      columnBoxTotals: {},
+      boxGrandTotal: 0,
       grandTotal: 0,
       hasDispatches: false,
     };
@@ -93,26 +99,38 @@ export async function getDailySummary(
           sessionId,
           label: buildSessionLabel(session.shipper.name, session.areaNote),
           cells: {},
+          boxCells: {},
+          boxTotal: 0,
           total: 0,
         };
         rowMap.set(sessionId, row);
       }
 
-      row.cells[order.id] = (row.cells[order.id] ?? 0) + line.quantity;
+      if (line.isBox) {
+        row.boxCells[order.id] = (row.boxCells[order.id] ?? 0) + line.quantity;
+      } else {
+        row.cells[order.id] = (row.cells[order.id] ?? 0) + line.quantity;
+      }
     }
   }
 
   const rows = Array.from(rowMap.values())
     .map((row) => ({
       ...row,
+      boxTotal: Object.values(row.boxCells).reduce((sum, qty) => sum + qty, 0),
       total: Object.values(row.cells).reduce((sum, qty) => sum + qty, 0),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const columnTotals: Record<string, number> = {};
+  const columnBoxTotals: Record<string, number> = {};
   for (const col of columns) {
     columnTotals[col.id] = rows.reduce(
       (sum, row) => sum + (row.cells[col.id] ?? 0),
+      0
+    );
+    columnBoxTotals[col.id] = rows.reduce(
+      (sum, row) => sum + (row.boxCells[col.id] ?? 0),
       0
     );
   }
@@ -121,11 +139,14 @@ export async function getDailySummary(
     (sum, qty) => sum + qty,
     0
   );
+  const boxGrandTotal = rows.reduce((sum, row) => sum + row.boxTotal, 0);
 
   return {
     columns,
     rows,
     columnTotals,
+    columnBoxTotals,
+    boxGrandTotal,
     grandTotal,
     hasDispatches: true,
   };

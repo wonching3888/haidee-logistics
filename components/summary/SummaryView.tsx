@@ -81,6 +81,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     )}
                   </th>
                 ))}
+                <th className="border border-haidee-border bg-haidee-surface px-2 py-3 text-center font-medium">
+                  BOX
+                </th>
                 <th className="border border-haidee-border bg-haidee-surface px-3 py-3 text-right font-medium">
                   合计 Total
                 </th>
@@ -90,7 +93,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               {!data.hasDispatches ? (
                 <tr>
                   <td
-                    colSpan={data.columns.length + 2}
+                    colSpan={data.columns.length + 3}
                     className="border border-haidee-border px-4 py-12 text-center text-haidee-muted"
                   >
                     今日尚未派车 No dispatch orders for this date
@@ -113,6 +116,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                         </td>
                       );
                     })}
+                    <td className="border border-haidee-border px-2 py-2 text-center font-mono">
+                      {row.boxTotal > 0 ? `${row.boxTotal}盒` : ""}
+                    </td>
                     <td className="border border-haidee-border px-3 py-2 text-right font-mono font-semibold">
                       {row.total}
                     </td>
@@ -134,6 +140,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                       {data.columnTotals[col.id] ?? ""}
                     </td>
                   ))}
+                  <td className="border border-haidee-border px-2 py-2 text-center font-mono">
+                    {data.boxGrandTotal > 0 ? `${data.boxGrandTotal}盒` : ""}
+                  </td>
                   <td className="border border-haidee-border px-3 py-2 text-right font-mono">
                     {data.grandTotal}
                   </td>

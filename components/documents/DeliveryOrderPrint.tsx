@@ -1,5 +1,9 @@
 import type { DeliveryOrderData } from "@/app/actions/documents";
-import { DO_TONG_COLUMNS, sumQuantities } from "@/lib/constants/tong-columns";
+import {
+  DO_TONG_COLUMNS,
+  formatDOCrateQuantity,
+  sumQuantities,
+} from "@/lib/constants/tong-columns";
 import { paginateRows } from "@/lib/document-utils";
 import "./document-print.css";
 
@@ -59,9 +63,10 @@ export function DeliveryOrderPrint({
                   <td>{row.area}</td>
                   {DO_TONG_COLUMNS.map((c) => (
                     <td key={c.code}>
-                      {row.quantities[c.code] > 0
-                        ? row.quantities[c.code]
-                        : ""}
+                      {formatDOCrateQuantity(
+                        c.code,
+                        row.quantities[c.code] ?? 0
+                      )}
                     </td>
                   ))}
                   <td>{row.qty}</td>
@@ -77,7 +82,7 @@ export function DeliveryOrderPrint({
                   </td>
                   {DO_TONG_COLUMNS.map((c) => (
                     <td key={c.code}>
-                      {totals[c.code] > 0 ? totals[c.code] : ""}
+                      {formatDOCrateQuantity(c.code, totals[c.code] ?? 0)}
                     </td>
                   ))}
                   <td>

@@ -7,6 +7,7 @@ import { formatDODate } from "@/lib/document-utils";
 import {
   DO_TONG_COLUMNS,
   emptyQuantities,
+  isBoxColumn,
   mapTongToColumn,
 } from "@/lib/constants/tong-columns";
 
@@ -76,13 +77,21 @@ function buildDORow(
   const quantities = emptyQuantities();
   const col = mapTongToColumn(tongCode);
   quantities[col] = quantity;
-  return { consignor, store, area, quantities, qty: quantity };
+  return {
+    consignor,
+    store,
+    area,
+    quantities,
+    qty: isBoxColumn(col) ? 0 : quantity,
+  };
 }
 
 function mergeDORow(existing: DORow, tongCode: string, quantity: number) {
   const col = mapTongToColumn(tongCode);
   existing.quantities[col] = (existing.quantities[col] ?? 0) + quantity;
-  existing.qty += quantity;
+  if (!isBoxColumn(col)) {
+    existing.qty += quantity;
+  }
 }
 
 export async function getDocumentDispatchOrders(dateStr: string) {
@@ -104,7 +113,11 @@ export async function getDocumentDispatchOrders(dateStr: string) {
       truckPlate: o.truck.plate,
       driverName: o.driverName,
       markets: o.markets,
-      totalQty: o.lines.reduce((s, l) => s + (l.inboundLine?.quantity ?? 0), 0),
+      totalQty: o.lines.reduce(
+        (s, l) =>
+          s + (l.inboundLine?.isBox ? 0 : (l.inboundLine?.quantity ?? 0)),
+        0
+      ),
     }))
   );
 }
@@ -208,7 +221,9 @@ function buildMarketDORows(
       const col = mapTongToColumn(line.tongType.code);
       existing.quantities[col] =
         (existing.quantities[col] ?? 0) + line.quantity;
-      existing.qty += line.quantity;
+      if (!line.isBox) {
+        existing.qty += line.quantity;
+      }
     } else {
       const quantities = emptyQuantities();
       const col = mapTongToColumn(line.tongType.code);
@@ -219,7 +234,7 @@ function buildMarketDORows(
         stallCode,
         area,
         quantities,
-        qty: line.quantity,
+        qty: line.isBox ? 0 : line.quantity,
       });
     }
   }
