@@ -69,7 +69,7 @@ export function InboundLineRow({
           disabled={disabled}
           tabIndex={tabIndex}
           placeholder=""
-          className="min-h-[44px] w-full min-w-[80px] rounded-lg border border-haidee-border bg-white px-3 text-right font-mono text-lg text-haidee-text focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:opacity-50"
+          className="min-h-[44px] w-28 rounded-lg border border-haidee-border bg-white px-3 text-right font-mono text-lg text-haidee-text focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:opacity-50"
         />
       </td>
       {onDelete && (

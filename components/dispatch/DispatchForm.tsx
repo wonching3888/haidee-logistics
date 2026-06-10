@@ -191,7 +191,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
@@ -256,7 +256,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
       </div>
 
       {markets.length > 0 && (
-        <div className="rounded-xl border border-haidee-border bg-white p-4">
+        <div className="mx-auto w-full max-w-4xl rounded-xl border border-haidee-border bg-white p-4">
           <h3 className="mb-3 text-sm font-semibold text-haidee-text">
             勾选货物 Select Cargo
           </h3>
@@ -269,8 +269,11 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
           ) : (
             <div className="space-y-2">
               {items.map((item) => (
-                <div key={item.key} className="rounded-lg border border-haidee-border">
-                  <div className="flex min-h-[44px] items-center gap-3 px-4 py-2">
+                <div
+                  key={item.key}
+                  className="w-full max-w-3xl rounded-lg border border-haidee-border"
+                >
+                  <div className="flex min-h-[44px] flex-wrap items-center gap-3 px-4 py-2">
                     {!splitKeys.has(item.key) && (
                       <input
                         type="checkbox"

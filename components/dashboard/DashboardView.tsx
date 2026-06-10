@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MarketBadge } from "@/components/shared/MarketBadge";
-import { MARKET_COLORS } from "@/lib/markets";
 import { sortMarkets } from "@/lib/constants/markets";
 import {
   Table,
@@ -76,7 +74,7 @@ export function DashboardView({
   ).map((code) => [code, marketTotals[code]] as const);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">总览 Dashboard</h2>
         <p className="text-sm text-haidee-muted">今日 {todayStr}</p>
@@ -113,31 +111,28 @@ export function DashboardView({
       </div>
 
       {marketEntries.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-haidee-text">
-            各市场今日桶数 Market Totals Today
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {marketEntries.map(([code, qty]) => {
-              const c = MARKET_COLORS[code];
-              return (
-                <div
-                  key={code}
-                  style={{
-                    background: c?.light,
-                    border: `1px solid ${c?.border ?? "#e5e7eb"}`,
-                    borderRadius: "8px",
-                    padding: "8px 12px",
-                    minWidth: "100px",
-                  }}
-                >
-                  <MarketBadge code={code} />
-                  <div className="text-xl font-bold font-mono">{qty}</div>
-                  <div className="text-xs text-gray-500">桶</div>
-                </div>
-              );
-            })}
+        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+          <div className="border-b border-haidee-border px-4 py-3">
+            <h3 className="text-sm font-semibold text-haidee-text">
+              各市场今日桶数 Market Totals Today
+            </h3>
           </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                <TableHead>市场 Market</TableHead>
+                <TableHead className="text-right">桶数 Crates</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {marketEntries.map(([code, qty]) => (
+                <TableRow key={code}>
+                  <TableCell className="font-mono">{code}</TableCell>
+                  <TableCell className="text-right font-mono">{qty}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
