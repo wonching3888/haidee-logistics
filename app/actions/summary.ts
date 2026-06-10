@@ -1,36 +1,74 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { buildConsignorAreaLabel } from "@/lib/consignor-label";
 import { parseDateInput } from "@/lib/inbound-utils";
 
-export interface LoadingListColumn {
-  id: string;
+export interface LoadingMatrixTruck {
+  orderId: string;
   truckPlate: string;
   capacity: number | null;
+  markets: string[];
 }
 
-export interface LoadingListRow {
-  sessionId: string;
+export interface LoadingMatrixColumn {
+  key: string;
+  orderId: string;
+  truckPlate: string;
+  marketCode: string;
+  capacity: number | null;
+  showCapacity: boolean;
+}
+
+export interface LoadingMatrixCell {
+  crateQty: number;
+  boxQty: number;
+}
+
+export interface LoadingMatrixRow {
+  id: string;
   label: string;
-  cells: Record<string, number>;
-  boxCells: Record<string, number>;
-  boxTotal: number;
-  total: number;
+  indent: boolean;
+  isGroupHeader: boolean;
+  cells: Record<string, LoadingMatrixCell>;
 }
 
 export interface VehicleLoadingListData {
-  columns: LoadingListColumn[];
-  rows: LoadingListRow[];
-  columnTotals: Record<string, number>;
-  columnBoxTotals: Record<string, number>;
-  boxGrandTotal: number;
-  grandTotal: number;
+  trucks: LoadingMatrixTruck[];
+  columns: LoadingMatrixColumn[];
+  rows: LoadingMatrixRow[];
+  columnCrateTotals: Record<string, number>;
   hasDispatches: boolean;
 }
 
 /** @deprecated Use VehicleLoadingListData */
 export type DailySummaryData = VehicleLoadingListData;
+
+function matrixCellKey(orderId: string, marketCode: string): string {
+  return `${orderId}:${marketCode}`;
+}
+
+interface SessionAccum {
+  sessionId: string;
+  shipperId: string;
+  shipperName: string;
+  areaNote: string | null;
+  cells: Record<string, LoadingMatrixCell>;
+}
+
+function emptyCell(): LoadingMatrixCell {
+  return { crateQty: 0, boxQty: 0 };
+}
+
+function addToCell(
+  cells: Record<string, LoadingMatrixCell>,
+  key: string,
+  quantity: number,
+  isBox: boolean
+) {
+  if (!cells[key]) cells[key] = emptyCell();
+  if (isBox) cells[key].boxQty += quantity;
+  else cells[key].crateQty += quantity;
+}
 
 export async function getDailySummary(
   dateStr: string
@@ -50,6 +88,7 @@ export async function getDailySummary(
           inboundLine: {
             include: {
               session: { include: { shipper: true } },
+              stall: { include: { market: true } },
             },
           },
         },
@@ -60,88 +99,139 @@ export async function getDailySummary(
 
   if (orders.length === 0) {
     return {
+      trucks: [],
       columns: [],
       rows: [],
-      columnTotals: {},
-      columnBoxTotals: {},
-      boxGrandTotal: 0,
-      grandTotal: 0,
+      columnCrateTotals: {},
       hasDispatches: false,
     };
   }
 
-  const columns: LoadingListColumn[] = orders.map((order) => ({
-    id: order.id,
+  const trucks: LoadingMatrixTruck[] = orders.map((order) => ({
+    orderId: order.id,
     truckPlate: order.truck.plate,
     capacity: order.truck.capacityTong,
+    markets: order.markets,
   }));
 
-  const rowMap = new Map<string, LoadingListRow>();
+  const columns: LoadingMatrixColumn[] = [];
+  for (const truck of trucks) {
+    truck.markets.forEach((marketCode, index) => {
+      columns.push({
+        key: matrixCellKey(truck.orderId, marketCode),
+        orderId: truck.orderId,
+        truckPlate: truck.truckPlate,
+        marketCode,
+        capacity: truck.capacity,
+        showCapacity: index === 0,
+      });
+    });
+  }
+
+  const sessionMap = new Map<string, SessionAccum>();
 
   for (const order of orders) {
+    const orderMarkets = new Set(order.markets);
+
     for (const dl of order.lines) {
       const line = dl.inboundLine;
+      const marketCode = line.stall.market?.code;
+      if (!marketCode || !orderMarkets.has(marketCode)) continue;
+
       const session = line.session;
       const sessionId = session.id;
+      const key = matrixCellKey(order.id, marketCode);
 
-      let row = rowMap.get(sessionId);
-      if (!row) {
-        row = {
+      let accum = sessionMap.get(sessionId);
+      if (!accum) {
+        accum = {
           sessionId,
-          label: buildConsignorAreaLabel(
-            session.shipper.name,
-            session.areaNote
-          ),
+          shipperId: session.shipperId,
+          shipperName: session.shipper.name,
+          areaNote: session.areaNote,
           cells: {},
-          boxCells: {},
-          boxTotal: 0,
-          total: 0,
         };
-        rowMap.set(sessionId, row);
+        sessionMap.set(sessionId, accum);
       }
 
-      if (line.isBox) {
-        row.boxCells[order.id] = (row.boxCells[order.id] ?? 0) + line.quantity;
-      } else {
-        row.cells[order.id] = (row.cells[order.id] ?? 0) + line.quantity;
+      addToCell(accum.cells, key, line.quantity, line.isBox);
+    }
+  }
+
+  const byShipper = new Map<string, SessionAccum[]>();
+  for (const session of Array.from(sessionMap.values())) {
+    const list = byShipper.get(session.shipperId) ?? [];
+    list.push(session);
+    byShipper.set(session.shipperId, list);
+  }
+
+  const rows: LoadingMatrixRow[] = [];
+
+  const shipperGroups = Array.from(byShipper.entries()).sort((a, b) => {
+    const nameA = a[1][0]?.shipperName ?? "";
+    const nameB = b[1][0]?.shipperName ?? "";
+    return nameA.localeCompare(nameB);
+  });
+
+  for (const [, sessions] of shipperGroups) {
+    const shipperName = sessions[0].shipperName;
+    const withArea = sessions
+      .filter((s) => s.areaNote?.trim())
+      .sort((a, b) => (a.areaNote ?? "").localeCompare(b.areaNote ?? ""));
+    const withoutArea = sessions.filter((s) => !s.areaNote?.trim());
+
+    for (const session of withoutArea) {
+      rows.push({
+        id: session.sessionId,
+        label: shipperName,
+        indent: false,
+        isGroupHeader: false,
+        cells: session.cells,
+      });
+    }
+
+    if (withArea.length > 0) {
+      rows.push({
+        id: `header-${sessions[0].shipperId}`,
+        label: shipperName,
+        indent: false,
+        isGroupHeader: true,
+        cells: {},
+      });
+
+      for (const session of withArea) {
+        rows.push({
+          id: session.sessionId,
+          label: session.areaNote!.trim(),
+          indent: true,
+          isGroupHeader: false,
+          cells: session.cells,
+        });
       }
     }
   }
 
-  const rows = Array.from(rowMap.values())
-    .map((row) => ({
-      ...row,
-      boxTotal: Object.values(row.boxCells).reduce((sum, qty) => sum + qty, 0),
-      total: Object.values(row.cells).reduce((sum, qty) => sum + qty, 0),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-
-  const columnTotals: Record<string, number> = {};
-  const columnBoxTotals: Record<string, number> = {};
+  const columnCrateTotals: Record<string, number> = {};
   for (const col of columns) {
-    columnTotals[col.id] = rows.reduce(
-      (sum, row) => sum + (row.cells[col.id] ?? 0),
-      0
-    );
-    columnBoxTotals[col.id] = rows.reduce(
-      (sum, row) => sum + (row.boxCells[col.id] ?? 0),
-      0
-    );
+    columnCrateTotals[col.key] = 0;
   }
 
-  const grandTotal = Object.values(columnTotals).reduce(
-    (sum, qty) => sum + qty,
-    0
-  );
-  const boxGrandTotal = rows.reduce((sum, row) => sum + row.boxTotal, 0);
+  for (const row of rows) {
+    if (row.isGroupHeader) continue;
+    for (const col of columns) {
+      const cell = row.cells[col.key];
+      if (cell) {
+        columnCrateTotals[col.key] =
+          (columnCrateTotals[col.key] ?? 0) + cell.crateQty;
+      }
+    }
+  }
 
   return {
+    trucks,
     columns,
     rows,
-    columnTotals,
-    columnBoxTotals,
-    boxGrandTotal,
-    grandTotal,
+    columnCrateTotals,
     hasDispatches: true,
   };
 }

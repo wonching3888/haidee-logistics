@@ -10,6 +10,14 @@ export function buildConsignorAreaLabel(
   return shipperName;
 }
 
+/** Loading matrix cell: "20", "3盒", "20+3盒", or "" */
+export function cellDisplay(crateQty: number, boxQty: number): string {
+  if (crateQty === 0 && boxQty === 0) return "";
+  if (crateQty === 0) return `${boxQty}盒`;
+  if (boxQty === 0) return `${crateQty}`;
+  return `${crateQty}+${boxQty}盒`;
+}
+
 /** Display crate + box counts, e.g. "33桶 + 2盒" */
 export function formatCrateBoxQty(crateQty: number, boxQty: number): string {
   const parts: string[] = [];

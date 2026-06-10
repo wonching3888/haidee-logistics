@@ -7,7 +7,9 @@ import { Printer } from "lucide-react";
 import type { VehicleLoadingListData } from "@/app/actions/summary";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
+import { cellDisplay } from "@/lib/consignor-label";
 import { toDateInputValue } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 
 interface SummaryViewProps {
   date: string;
@@ -23,6 +25,8 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
     contentRef: printRef,
     documentTitle: `loading-list-${date}`,
   });
+
+  const colSpan = data.columns.length + 1;
 
   return (
     <div className="space-y-6">
@@ -60,40 +64,55 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr>
-                <th className="border border-haidee-border bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
-                  寄货人 / 地区 Consignor / Area
+                <th
+                  rowSpan={3}
+                  className="border border-haidee-border bg-haidee-surface px-3 py-2 text-left align-bottom font-medium text-haidee-muted"
+                >
+                  寄货人 / 地区
+                  <br />
+                  Consignor / Area
                 </th>
-                {data.columns.map((col) => (
+                {data.trucks.map((truck) => (
                   <th
-                    key={col.id}
-                    className="border border-haidee-border bg-haidee-surface px-2 py-3 text-center"
+                    key={truck.orderId}
+                    colSpan={truck.markets.length}
+                    className="border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-mono text-base font-bold text-haidee-text"
                   >
-                    <div className="font-mono text-base font-bold text-haidee-text">
-                      {col.truckPlate}
-                    </div>
-                    {col.capacity != null && (
-                      <div className="text-xs font-normal text-haidee-muted">
-                        ({col.capacity} 桶)
-                      </div>
-                    )}
+                    {truck.truckPlate}
                   </th>
                 ))}
-                <th className="border border-haidee-border bg-haidee-surface px-2 py-3 text-center font-medium">
-                  BOX
-                </th>
-                <th className="border border-haidee-border bg-haidee-surface px-3 py-3 text-right font-medium">
-                  合计 Total
-                </th>
+              </tr>
+              <tr>
+                {data.columns.map((col) => (
+                  <th
+                    key={`m-${col.key}`}
+                    className="border border-haidee-border bg-haidee-surface px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text"
+                  >
+                    {col.marketCode}
+                  </th>
+                ))}
+              </tr>
+              <tr>
+                {data.columns.map((col) => (
+                  <th
+                    key={`c-${col.key}`}
+                    className="border border-haidee-border bg-haidee-surface px-2 py-1 text-center text-xs font-normal text-haidee-muted"
+                  >
+                    {col.showCapacity && col.capacity != null
+                      ? `(${col.capacity}桶)`
+                      : ""}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {!data.hasDispatches ? (
                 <tr>
                   <td
-                    colSpan={data.columns.length + 3}
+                    colSpan={colSpan}
                     className="border border-haidee-border px-4 py-12 text-center text-haidee-muted"
                   >
                     今日尚未派车 No dispatch orders for this date
@@ -101,27 +120,30 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 </tr>
               ) : (
                 data.rows.map((row) => (
-                  <tr key={row.sessionId}>
-                    <td className="border border-haidee-border px-3 py-2 font-medium">
+                  <tr key={row.id}>
+                    <td
+                      className={cn(
+                        "border border-haidee-border px-3 py-2 font-medium text-haidee-text",
+                        row.indent && "pl-8"
+                      )}
+                    >
                       {row.label}
                     </td>
                     {data.columns.map((col) => {
-                      const qty = row.cells[col.id] ?? 0;
+                      const cell = row.cells[col.key];
+                      const crateQty = cell?.crateQty ?? 0;
+                      const boxQty = cell?.boxQty ?? 0;
                       return (
                         <td
-                          key={col.id}
+                          key={col.key}
                           className="border border-haidee-border px-2 py-2 text-center font-mono"
                         >
-                          {qty > 0 ? qty : ""}
+                          {row.isGroupHeader
+                            ? ""
+                            : cellDisplay(crateQty, boxQty)}
                         </td>
                       );
                     })}
-                    <td className="border border-haidee-border px-2 py-2 text-center font-mono">
-                      {row.boxTotal > 0 ? `${row.boxTotal}盒` : ""}
-                    </td>
-                    <td className="border border-haidee-border px-3 py-2 text-right font-mono font-semibold">
-                      {row.total}
-                    </td>
                   </tr>
                 ))
               )}
@@ -129,23 +151,20 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             {data.hasDispatches && (
               <tfoot>
                 <tr className="bg-haidee-navy/5 font-bold">
-                  <td className="border border-haidee-border px-3 py-2">
+                  <td className="border border-haidee-border px-3 py-2 text-haidee-text">
                     各车总计 Truck Totals
                   </td>
-                  {data.columns.map((col) => (
-                    <td
-                      key={col.id}
-                      className="border border-haidee-border px-2 py-2 text-center font-mono"
-                    >
-                      {data.columnTotals[col.id] ?? ""}
-                    </td>
-                  ))}
-                  <td className="border border-haidee-border px-2 py-2 text-center font-mono">
-                    {data.boxGrandTotal > 0 ? `${data.boxGrandTotal}盒` : ""}
-                  </td>
-                  <td className="border border-haidee-border px-3 py-2 text-right font-mono">
-                    {data.grandTotal}
-                  </td>
+                  {data.columns.map((col) => {
+                    const total = data.columnCrateTotals[col.key] ?? 0;
+                    return (
+                      <td
+                        key={col.key}
+                        className="border border-haidee-border px-2 py-2 text-center font-mono"
+                      >
+                        {total > 0 ? total : ""}
+                      </td>
+                    );
+                  })}
                 </tr>
               </tfoot>
             )}
