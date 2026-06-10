@@ -1,7 +1,7 @@
 "use client";
 
-import { getMarketColor } from "@/lib/markets";
 import type { DispatchMatrixData } from "@/app/actions/dispatch";
+import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { cn } from "@/lib/utils";
 
 interface DispatchMatrixProps {
@@ -37,22 +37,14 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
               <th className="sticky left-0 z-10 bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
                 寄货人 / 地区 Consignor / Area
               </th>
-              {markets.map((code) => {
-                const c = getMarketColor(code);
-                return (
-                  <th
-                    key={code}
-                    className="min-w-[52px] px-2 py-3 text-center font-mono text-xs font-semibold"
-                    style={{
-                      backgroundColor: c.bg,
-                      color: c.text,
-                      borderBottom: `2px solid ${c.border}`,
-                    }}
-                  >
-                    {code}
-                  </th>
-                );
-              })}
+              {markets.map((code) => (
+                <th
+                  key={code}
+                  className="min-w-[52px] px-2 py-3 text-center"
+                >
+                  <DispatchMarketLabel code={code} className="font-mono" />
+                </th>
+              ))}
               <th className="px-3 py-3 text-center font-medium text-haidee-muted">
                 盒 BOX
               </th>

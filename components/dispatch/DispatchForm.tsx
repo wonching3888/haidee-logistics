@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MarketBadge } from "@/components/shared/MarketBadge";
+import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -236,20 +236,18 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
             return (
               <label
                 key={code}
-                className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-                  checked
-                    ? "border-haidee-blue bg-haidee-blue/5"
-                    : "border-haidee-border"
-                } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                className={`flex min-h-[40px] cursor-pointer items-center gap-2 ${
+                  disabled ? "cursor-not-allowed opacity-40" : ""
+                }`}
               >
                 <input
                   type="checkbox"
                   checked={checked}
                   disabled={disabled}
                   onChange={() => toggleMarket(code)}
-                  className="h-4 w-4 accent-haidee-blue"
+                  className="h-4 w-4 accent-haidee-navy"
                 />
-                <MarketBadge code={code} />
+                <DispatchMarketLabel code={code} selected={checked} />
               </label>
             );
           })}
@@ -286,7 +284,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
                     <span className="font-medium text-haidee-text">
                       {item.shipperName}
                     </span>
-                    <MarketBadge code={item.marketCode} />
+                    <DispatchMarketLabel code={item.marketCode} />
                     <span className="ml-auto font-mono text-lg font-semibold">
                       {item.crateQuantity > 0 && `${item.crateQuantity} 桶`}
                       {item.crateQuantity > 0 && item.boxQuantity > 0 && " "}
@@ -315,8 +313,9 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
                             className="flex flex-wrap items-center gap-3 text-sm"
                           >
                             <span className="font-mono font-medium">
-                              {stall.stallCode} {item.marketCode}
+                              {stall.stallCode}
                             </span>
+                            <DispatchMarketLabel code={item.marketCode} />
                             <span className="text-haidee-muted">
                               共 {stall.quantity}{" "}
                               {stall.isBox ? "盒" : "桶"}

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MarketBadge } from "@/components/shared/MarketBadge";
+import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import {
   Table,
   TableBody,
@@ -132,7 +132,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {o.markets.map((m) => (
-                        <MarketBadge key={m} code={m} />
+                        <DispatchMarketLabel key={m} code={m} />
                       ))}
                     </div>
                   </TableCell>
