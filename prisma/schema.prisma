@@ -144,17 +144,31 @@ model FreightRate {
   @@map("freight_rates")
 }
 
-model Truck {
-  id           String  @id @default(uuid()) @db.Uuid
-  plate        String  @unique
-  type         String  @default("big")
-  capacityTong Int?    @map("capacity_tong")
-  active       Boolean @default(true)
+model Driver {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  inboundLines   InboundLine[]
-  dispatchOrders DispatchOrder[]
+  trucks Truck[]
+
+  @@map("drivers")
+}
+
+model Truck {
+  id              String  @id @default(uuid()) @db.Uuid
+  plate           String  @unique
+  type            String  @default("big")
+  capacityTong    Int?    @map("capacity_tong")
+  defaultDriverId String? @map("default_driver_id") @db.Uuid
+  sortOrder       Int?    @map("sort_order")
+  active          Boolean @default(true)
+
+  defaultDriver          Driver?         @relation(fields: [defaultDriverId], references: [id])
+  inboundLines           InboundLine[]
+  dispatchOrders         DispatchOrder[]
   dispatchOrdersOriginal DispatchOrder[] @relation("OriginalTruck")
-  tongImports    TongImport[]
+  tongImports            TongImport[]
 
   @@map("trucks")
 }

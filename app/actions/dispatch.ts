@@ -215,12 +215,36 @@ export async function getUnassignedMatrix(
   };
 }
 
-export async function getTrucks() {
-  return prisma.truck.findMany({
+export async function getDrivers() {
+  return prisma.driver.findMany({
     where: { active: true },
-    orderBy: { plate: "asc" },
-    select: { id: true, plate: true, type: true, capacityTong: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
   });
+}
+
+export async function getTrucks() {
+  const trucks = await prisma.truck.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { plate: "asc" }],
+    select: {
+      id: true,
+      plate: true,
+      type: true,
+      capacityTong: true,
+      defaultDriverId: true,
+      defaultDriver: { select: { name: true } },
+    },
+  });
+
+  return trucks.map((truck) => ({
+    id: truck.id,
+    plate: truck.plate,
+    type: truck.type,
+    capacityTong: truck.capacityTong,
+    defaultDriverId: truck.defaultDriverId,
+    defaultDriverName: truck.defaultDriver?.name ?? "",
+  }));
 }
 
 export async function getDispatchOrders(dateStr: string) {

@@ -1,4 +1,4 @@
-import { getTrucks } from "@/app/actions/dispatch";
+import { getDrivers, getTrucks } from "@/app/actions/dispatch";
 import { DispatchForm } from "@/components/dispatch/DispatchForm";
 import { resolveDateParam } from "@/lib/date-utils";
 
@@ -11,7 +11,7 @@ export default async function NewDispatchPage({
 }: NewDispatchPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
-  const trucks = await getTrucks();
+  const [trucks, drivers] = await Promise.all([getTrucks(), getDrivers()]);
 
   return (
     <div className="space-y-6">
@@ -24,7 +24,7 @@ export default async function NewDispatchPage({
         </p>
       </div>
 
-      <DispatchForm trucks={trucks} date={date} />
+      <DispatchForm trucks={trucks} drivers={drivers} date={date} />
     </div>
   );
 }

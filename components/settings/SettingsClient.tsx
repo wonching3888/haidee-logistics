@@ -82,7 +82,14 @@ interface SettingsData {
     plate: string;
     type: string;
     capacityTong: number | null;
+    defaultDriverId: string | null;
+    defaultDriverName: string;
+    sortOrder: number | null;
     active: boolean;
+  }[];
+  drivers: {
+    id: string;
+    name: string;
   }[];
   users: {
     id: string;
@@ -140,6 +147,8 @@ export function SettingsClient({ data }: SettingsClientProps) {
     plate: "",
     type: "big",
     capacityTong: "",
+    defaultDriverId: "",
+    sortOrder: "",
     active: true,
   });
   const [userForm, setUserForm] = useState({
@@ -389,7 +398,14 @@ export function SettingsClient({ data }: SettingsClientProps) {
             <Button
               onClick={() => {
                 setEditId(undefined);
-                setTruckForm({ plate: "", type: "big", capacityTong: "", active: true });
+                setTruckForm({
+                  plate: "",
+                  type: "big",
+                  capacityTong: "",
+                  defaultDriverId: "",
+                  sortOrder: "",
+                  active: true,
+                });
                 setDialog("truck");
               }}
               className="gap-2 bg-haidee-blue text-white"
@@ -401,6 +417,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>车牌 Plate</TableHead>
+                <TableHead>默认司机 Default Driver</TableHead>
                 <TableHead>类型 Type</TableHead>
                 <TableHead className="text-right">容量 Capacity</TableHead>
                 <TableHead>状态</TableHead>
@@ -411,6 +428,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
               {data.trucks.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono font-semibold">{t.plate}</TableCell>
+                  <TableCell>{t.defaultDriverName || "—"}</TableCell>
                   <TableCell>{t.type}</TableCell>
                   <TableCell className="text-right font-mono">
                     {t.capacityTong ?? "—"}
@@ -424,6 +442,8 @@ export function SettingsClient({ data }: SettingsClientProps) {
                           plate: t.plate,
                           type: t.type,
                           capacityTong: t.capacityTong?.toString() ?? "",
+                          defaultDriverId: t.defaultDriverId ?? "",
+                          sortOrder: t.sortOrder?.toString() ?? "",
                           active: t.active,
                         });
                         setDialog("truck");
@@ -661,6 +681,10 @@ export function SettingsClient({ data }: SettingsClientProps) {
               capacityTong: truckForm.capacityTong
                 ? parseInt(truckForm.capacityTong, 10)
                 : undefined,
+              defaultDriverId: truckForm.defaultDriverId || null,
+              sortOrder: truckForm.sortOrder
+                ? parseInt(truckForm.sortOrder, 10)
+                : null,
               active: truckForm.active,
             })
           )
@@ -686,6 +710,31 @@ export function SettingsClient({ data }: SettingsClientProps) {
             inputMode="numeric"
             value={truckForm.capacityTong}
             onChange={(e) => setTruckForm({ ...truckForm, capacityTong: e.target.value })}
+            className="min-h-[44px] font-mono"
+          />
+        </FormField>
+        <FormField label="默认司机 Default Driver">
+          <select
+            value={truckForm.defaultDriverId}
+            onChange={(e) =>
+              setTruckForm({ ...truckForm, defaultDriverId: e.target.value })
+            }
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+          >
+            <option value="">— 无 None —</option>
+            {data.drivers.map((driver) => (
+              <option key={driver.id} value={driver.id}>
+                {driver.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="排序 Sort Order">
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={truckForm.sortOrder}
+            onChange={(e) => setTruckForm({ ...truckForm, sortOrder: e.target.value })}
             className="min-h-[44px] font-mono"
           />
         </FormField>

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getDispatchOrder, getTrucks } from "@/app/actions/dispatch";
+import { getDispatchOrder, getDrivers, getTrucks } from "@/app/actions/dispatch";
 import { DispatchForm } from "@/components/dispatch/DispatchForm";
 import { toDateInputValue } from "@/lib/date-utils";
 
@@ -10,9 +10,10 @@ interface EditDispatchPageProps {
 export default async function EditDispatchPage({ params }: EditDispatchPageProps) {
   const { id } = await params;
 
-  const [order, trucks] = await Promise.all([
+  const [order, trucks, drivers] = await Promise.all([
     getDispatchOrder(id),
     getTrucks(),
+    getDrivers(),
   ]);
 
   if (!order) notFound();
@@ -32,6 +33,7 @@ export default async function EditDispatchPage({ params }: EditDispatchPageProps
 
       <DispatchForm
         trucks={trucks}
+        drivers={drivers}
         date={toDateInputValue(new Date(order.date))}
         initialOrder={{
           id: order.id,

@@ -18,6 +18,12 @@ interface TruckOption {
   plate: string;
   type: string;
   capacityTong: number | null;
+  defaultDriverName: string;
+}
+
+interface DriverOption {
+  id: string;
+  name: string;
 }
 
 interface InitialOrder {
@@ -32,11 +38,17 @@ interface InitialOrder {
 
 interface DispatchFormProps {
   trucks: TruckOption[];
+  drivers: DriverOption[];
   date: string;
   initialOrder?: InitialOrder;
 }
 
-export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) {
+export function DispatchForm({
+  trucks,
+  drivers,
+  date,
+  initialOrder,
+}: DispatchFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +230,14 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
           </label>
           <select
             value={truckId}
-            onChange={(e) => setTruckId(e.target.value)}
+            onChange={(e) => {
+              const nextTruckId = e.target.value;
+              setTruckId(nextTruckId);
+              const truck = trucks.find((t) => t.id === nextTruckId);
+              if (truck?.defaultDriverName) {
+                setDriverName(truck.defaultDriverName);
+              }
+            }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 font-mono text-sm"
           >
             <option value="">— 选择车牌 Select —</option>
@@ -234,12 +253,34 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
           <label className="text-sm font-medium text-haidee-text">
             司机 Driver
           </label>
-          <Input
-            value={driverName}
-            onChange={(e) => setDriverName(e.target.value)}
-            placeholder="Ahmad"
-            className="min-h-[44px]"
-          />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) setDriverName(e.target.value);
+              }}
+              className="min-h-[44px] rounded-lg border border-haidee-border bg-white px-3 text-sm sm:w-44"
+            >
+              <option value="">选择司机 Select…</option>
+              {drivers.map((driver) => (
+                <option key={driver.id} value={driver.name}>
+                  {driver.name}
+                </option>
+              ))}
+            </select>
+            <Input
+              value={driverName}
+              onChange={(e) => setDriverName(e.target.value)}
+              list="dispatch-driver-options"
+              placeholder="可手动输入或修改"
+              className="min-h-[44px] flex-1"
+            />
+            <datalist id="dispatch-driver-options">
+              {drivers.map((driver) => (
+                <option key={driver.id} value={driver.name} />
+              ))}
+            </datalist>
+          </div>
         </div>
       </div>
 

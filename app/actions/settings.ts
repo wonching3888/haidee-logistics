@@ -16,7 +16,7 @@ async function requireAdmin() {
 export async function getSettingsData() {
   await requireAdmin();
 
-  const [shippers, stalls, defaults, trucks, users, markets, tongTypes] =
+  const [shippers, stalls, defaults, trucks, drivers, users, markets, tongTypes] =
     await Promise.all([
       prisma.shipper.findMany({
         orderBy: { name: "asc" },
@@ -36,7 +36,15 @@ export async function getSettingsData() {
         },
         orderBy: [{ shipper: { name: "asc" } }],
       }),
-      prisma.truck.findMany({ orderBy: { plate: "asc" } }),
+      prisma.truck.findMany({
+        orderBy: [{ sortOrder: "asc" }, { plate: "asc" }],
+        include: { defaultDriver: { select: { id: true, name: true } } },
+      }),
+      prisma.driver.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
       prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.market.findMany({
         where: { active: true },
@@ -86,8 +94,12 @@ export async function getSettingsData() {
       plate: t.plate,
       type: t.type,
       capacityTong: t.capacityTong,
+      defaultDriverId: t.defaultDriverId,
+      defaultDriverName: t.defaultDriver?.name ?? "",
+      sortOrder: t.sortOrder,
       active: t.active,
     })),
+    drivers,
     users: users.map((u) => ({
       id: u.id,
       email: u.email,
@@ -222,6 +234,8 @@ export async function saveTruck(input: {
   plate: string;
   type: string;
   capacityTong?: number;
+  defaultDriverId?: string | null;
+  sortOrder?: number | null;
   active: boolean;
 }) {
   await requireAdmin();
@@ -230,6 +244,8 @@ export async function saveTruck(input: {
     plate: input.plate.trim().toUpperCase(),
     type: input.type,
     capacityTong: input.capacityTong ?? null,
+    defaultDriverId: input.defaultDriverId || null,
+    sortOrder: input.sortOrder ?? null,
     active: input.active,
   };
 
