@@ -16,6 +16,7 @@ interface SessionRow {
   date: Date;
   status: string;
   shipperName: string;
+  areaNote: string | null;
   thVehiclePlate: string | null;
   totalQty: number;
   unassignedQty: number;
@@ -42,6 +43,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
             <TableHead>日期 Date</TableHead>
             <TableHead>批次号 Batch No.</TableHead>
             <TableHead>寄货人 Consignor</TableHead>
+            <TableHead>地区 Area</TableHead>
             <TableHead>泰国车牌 TH Plate</TableHead>
             <TableHead className="text-right">总桶数 Total</TableHead>
             <TableHead className="text-right">未分配 Unassigned</TableHead>
@@ -61,6 +63,9 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 )}
               </TableCell>
               <TableCell className="font-medium">{s.shipperName}</TableCell>
+              <TableCell className="font-mono text-haidee-muted">
+                {s.areaNote?.trim() || "—"}
+              </TableCell>
               <TableCell className="font-mono text-haidee-muted">
                 {s.thVehiclePlate ?? "—"}
               </TableCell>

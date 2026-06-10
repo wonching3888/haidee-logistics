@@ -8,6 +8,7 @@ import { searchStallByCode } from "@/app/actions/summary";
 import type { DailySummaryData } from "@/app/actions/summary";
 import { MarketBadge } from "@/components/shared/MarketBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { getMarketColor } from "@/lib/markets";
 import { toDateInputValue } from "@/lib/date-utils";

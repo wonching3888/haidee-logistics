@@ -26,7 +26,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface">
               <th className="sticky left-0 z-10 bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
-                寄货人 Consignor
+                寄货人 / 地区 Consignor / Area
               </th>
               {markets.map((code) => {
                 const c = getMarketColor(code);

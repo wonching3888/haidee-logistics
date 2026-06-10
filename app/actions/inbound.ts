@@ -128,6 +128,7 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
         status: s.status,
         shipperName: s.shipper.name,
         shipperId: s.shipper.id,
+        areaNote: s.areaNote,
         thVehiclePlate: s.thVehiclePlate,
         totalQty,
         unassignedQty,

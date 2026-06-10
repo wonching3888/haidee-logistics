@@ -47,7 +47,11 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
   const [items, setItems] = useState<AssignableItem[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
     new Set(
-      initialOrder?.selections.map((s) => `${s.shipperId}:${s.marketCode}`) ?? []
+      initialOrder?.selections.map((s) =>
+        s.sessionId
+          ? `${s.sessionId}:${s.marketCode}`
+          : `${s.shipperId}:${s.marketCode}`
+      ) ?? []
     )
   );
   const [splitKeys, setSplitKeys] = useState<Set<string>>(new Set());
@@ -148,6 +152,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
           selections.push({
             shipperId: item.shipperId,
             marketCode: item.marketCode,
+            sessionId: item.sessionId,
             stallAssignments,
           });
         }
@@ -155,6 +160,7 @@ export function DispatchForm({ trucks, date, initialOrder }: DispatchFormProps) 
         selections.push({
           shipperId: item.shipperId,
           marketCode: item.marketCode,
+          sessionId: item.sessionId,
         });
       }
     }

@@ -25,6 +25,7 @@ export interface StallLineDetail {
 
 export interface AssignableItem {
   key: string;
+  sessionId: string;
   shipperId: string;
   shipperName: string;
   marketCode: string;
@@ -41,7 +42,16 @@ export interface StallAssignment {
 export interface DispatchSelection {
   shipperId: string;
   marketCode: string;
+  sessionId?: string;
   stallAssignments?: StallAssignment[];
+}
+
+function buildSessionLabel(
+  shipperName: string,
+  areaNote: string | null | undefined
+): string {
+  if (areaNote?.trim()) return `${shipperName} (${areaNote.trim()})`;
+  return shipperName;
 }
 
 function sumDispatchLoad(
@@ -85,7 +95,8 @@ function aggregateLines(
     if (!marketCode) continue;
 
     const shipperId = line.session.shipperId;
-    const key = `${shipperId}:${marketCode}`;
+    const sessionId = line.sessionId;
+    const key = `${sessionId}:${marketCode}`;
 
     const existing = map.get(key);
     if (existing) {
@@ -99,8 +110,12 @@ function aggregateLines(
     } else {
       map.set(key, {
         key,
+        sessionId,
         shipperId,
-        shipperName: line.session.shipper.name,
+        shipperName: buildSessionLabel(
+          line.session.shipper.name,
+          line.session.areaNote
+        ),
         marketCode,
         quantity: line.quantity,
         inboundLineIds: [line.id],
@@ -126,7 +141,7 @@ export async function getUnassignedMatrix(
   const date = parseDateInput(dateStr);
   const lines = await fetchUnassignedLines(date);
 
-  const shipperMap = new Map<string, string>();
+  const sessionMap = new Map<string, string>();
   const cells: Record<string, Record<string, number>> = {};
   const rowTotals: Record<string, number> = {};
   const colTotals: Record<string, number> = {};
@@ -136,19 +151,22 @@ export async function getUnassignedMatrix(
     const marketCode = line.stall.market?.code;
     if (!marketCode) continue;
 
-    const shipperId = line.session.shipperId;
-    shipperMap.set(shipperId, line.session.shipper.name);
+    const sessionId = line.sessionId;
+    sessionMap.set(
+      sessionId,
+      buildSessionLabel(line.session.shipper.name, line.session.areaNote)
+    );
 
-    if (!cells[shipperId]) cells[shipperId] = {};
-    cells[shipperId][marketCode] =
-      (cells[shipperId][marketCode] ?? 0) + line.quantity;
+    if (!cells[sessionId]) cells[sessionId] = {};
+    cells[sessionId][marketCode] =
+      (cells[sessionId][marketCode] ?? 0) + line.quantity;
 
-    rowTotals[shipperId] = (rowTotals[shipperId] ?? 0) + line.quantity;
+    rowTotals[sessionId] = (rowTotals[sessionId] ?? 0) + line.quantity;
     colTotals[marketCode] = (colTotals[marketCode] ?? 0) + line.quantity;
     grandTotal += line.quantity;
   }
 
-  const shippers = Array.from(shipperMap.entries())
+  const shippers = Array.from(sessionMap.entries())
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -250,11 +268,12 @@ export async function getDispatchOrder(id: string) {
   for (const dl of order.lines) {
     const line = dl.inboundLine;
     const marketCode = line.stall.market?.code ?? "";
-    const key = `${line.session.shipperId}:${marketCode}`;
+    const key = `${line.sessionId}:${marketCode}`;
     if (!selMap.has(key)) {
       selMap.set(key, {
         shipperId: line.session.shipperId,
         marketCode,
+        sessionId: line.sessionId,
       });
     }
   }
@@ -310,7 +329,8 @@ async function resolveAssignments(
     const matching = allLines.filter(
       (l) =>
         l.session.shipperId === sel.shipperId &&
-        l.stall.market?.code === sel.marketCode
+        l.stall.market?.code === sel.marketCode &&
+        (!sel.sessionId || l.sessionId === sel.sessionId)
     );
     for (const line of matching) {
       assignments.push({ inboundLineId: line.id, quantity: line.quantity });
