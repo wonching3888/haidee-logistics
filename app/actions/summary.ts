@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput } from "@/lib/inbound-utils";
 
 export interface LoadingMatrixTruck {
@@ -8,6 +9,7 @@ export interface LoadingMatrixTruck {
   truckPlate: string;
   capacity: number | null;
   markets: string[];
+  dispatchedAt: Date;
 }
 
 export interface LoadingMatrixColumn {
@@ -27,8 +29,6 @@ export interface LoadingMatrixCell {
 export interface LoadingMatrixRow {
   id: string;
   label: string;
-  indent: boolean;
-  isGroupHeader: boolean;
   cells: Record<string, LoadingMatrixCell>;
 }
 
@@ -47,8 +47,7 @@ function matrixCellKey(orderId: string, marketCode: string): string {
   return `${orderId}:${marketCode}`;
 }
 
-interface SessionAccum {
-  sessionId: string;
+interface RowAccum {
   shipperId: string;
   shipperName: string;
   areaNote: string | null;
@@ -70,12 +69,21 @@ function addToCell(
   else cells[key].crateQty += quantity;
 }
 
-export async function getDailySummary(
-  dateStr: string
-): Promise<VehicleLoadingListData> {
-  const date = parseDateInput(dateStr);
+function marketRank(code: string): number {
+  const idx = MARKET_ORDER.indexOf(code as (typeof MARKET_ORDER)[number]);
+  return idx === -1 ? 999 : idx;
+}
 
-  const orders = await prisma.dispatchOrder.findMany({
+function sortMarketCodes(codes: string[]): string[] {
+  return [...codes].sort((a, b) => marketRank(a) - marketRank(b));
+}
+
+type DispatchOrderWithLines = Awaited<
+  ReturnType<typeof fetchDispatchOrders>
+>[number];
+
+async function fetchDispatchOrders(date: Date) {
+  return prisma.dispatchOrder.findMany({
     where: {
       date,
       status: { notIn: ["draft", "cancelled"] },
@@ -96,6 +104,68 @@ export async function getDailySummary(
     },
     orderBy: { createdAt: "asc" },
   });
+}
+
+function getTruckPrimaryMarket(order: DispatchOrderWithLines): string {
+  const orderMarkets = new Set(order.markets);
+  const marketCrates = new Map<string, number>();
+
+  for (const dl of order.lines) {
+    const line = dl.inboundLine;
+    const marketCode = line.stall.market?.code;
+    if (!marketCode || !orderMarkets.has(marketCode) || line.isBox) continue;
+    marketCrates.set(
+      marketCode,
+      (marketCrates.get(marketCode) ?? 0) + line.quantity
+    );
+  }
+
+  let bestMarket = order.markets[0] ?? "KL";
+  let bestQty = -1;
+  for (const [code, qty] of Array.from(marketCrates.entries())) {
+    if (qty > bestQty) {
+      bestQty = qty;
+      bestMarket = code;
+    }
+  }
+
+  if (bestQty <= 0) {
+    for (const m of MARKET_ORDER) {
+      if (order.markets.includes(m)) return m;
+    }
+  }
+
+  return bestMarket;
+}
+
+function sortDispatchOrders(
+  orders: DispatchOrderWithLines[]
+): DispatchOrderWithLines[] {
+  return [...orders].sort((a, b) => {
+    const aMarket = getTruckPrimaryMarket(a);
+    const bMarket = getTruckPrimaryMarket(b);
+    const aOrder = marketRank(aMarket);
+    const bOrder = marketRank(bMarket);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+}
+
+function rowGroupKey(shipperId: string, areaNote: string | null): string {
+  return `${shipperId}:${(areaNote ?? "").trim()}`;
+}
+
+function formatRowLabel(shipperName: string, areaNote: string | null): string {
+  const area = areaNote?.trim();
+  return area ? `${shipperName} (${area})` : shipperName;
+}
+
+export async function getDailySummary(
+  dateStr: string
+): Promise<VehicleLoadingListData> {
+  const date = parseDateInput(dateStr);
+
+  const orders = await fetchDispatchOrders(date);
 
   if (orders.length === 0) {
     return {
@@ -107,11 +177,14 @@ export async function getDailySummary(
     };
   }
 
-  const trucks: LoadingMatrixTruck[] = orders.map((order) => ({
+  const sortedOrders = sortDispatchOrders(orders);
+
+  const trucks: LoadingMatrixTruck[] = sortedOrders.map((order) => ({
     orderId: order.id,
     truckPlate: order.truck.plate,
     capacity: order.truck.capacityTong,
-    markets: order.markets,
+    markets: sortMarketCodes(order.markets),
+    dispatchedAt: order.createdAt,
   }));
 
   const columns: LoadingMatrixColumn[] = [];
@@ -128,9 +201,9 @@ export async function getDailySummary(
     });
   }
 
-  const sessionMap = new Map<string, SessionAccum>();
+  const rowMap = new Map<string, RowAccum>();
 
-  for (const order of orders) {
+  for (const order of sortedOrders) {
     const orderMarkets = new Set(order.markets);
 
     for (const dl of order.lines) {
@@ -139,77 +212,35 @@ export async function getDailySummary(
       if (!marketCode || !orderMarkets.has(marketCode)) continue;
 
       const session = line.session;
-      const sessionId = session.id;
-      const key = matrixCellKey(order.id, marketCode);
+      const groupKey = rowGroupKey(session.shipperId, session.areaNote);
+      const cellKey = matrixCellKey(order.id, marketCode);
 
-      let accum = sessionMap.get(sessionId);
-      if (!accum) {
-        accum = {
-          sessionId,
+      let row = rowMap.get(groupKey);
+      if (!row) {
+        row = {
           shipperId: session.shipperId,
           shipperName: session.shipper.name,
           areaNote: session.areaNote,
           cells: {},
         };
-        sessionMap.set(sessionId, accum);
+        rowMap.set(groupKey, row);
       }
 
-      addToCell(accum.cells, key, line.quantity, line.isBox);
+      addToCell(row.cells, cellKey, line.quantity, line.isBox);
     }
   }
 
-  const byShipper = new Map<string, SessionAccum[]>();
-  for (const session of Array.from(sessionMap.values())) {
-    const list = byShipper.get(session.shipperId) ?? [];
-    list.push(session);
-    byShipper.set(session.shipperId, list);
-  }
-
-  const rows: LoadingMatrixRow[] = [];
-
-  const shipperGroups = Array.from(byShipper.entries()).sort((a, b) => {
-    const nameA = a[1][0]?.shipperName ?? "";
-    const nameB = b[1][0]?.shipperName ?? "";
-    return nameA.localeCompare(nameB);
-  });
-
-  for (const [, sessions] of shipperGroups) {
-    const shipperName = sessions[0].shipperName;
-    const withArea = sessions
-      .filter((s) => s.areaNote?.trim())
-      .sort((a, b) => (a.areaNote ?? "").localeCompare(b.areaNote ?? ""));
-    const withoutArea = sessions.filter((s) => !s.areaNote?.trim());
-
-    for (const session of withoutArea) {
-      rows.push({
-        id: session.sessionId,
-        label: shipperName,
-        indent: false,
-        isGroupHeader: false,
-        cells: session.cells,
-      });
-    }
-
-    if (withArea.length > 0) {
-      rows.push({
-        id: `header-${sessions[0].shipperId}`,
-        label: shipperName,
-        indent: false,
-        isGroupHeader: true,
-        cells: {},
-      });
-
-      for (const session of withArea) {
-        rows.push({
-          id: session.sessionId,
-          label: session.areaNote!.trim(),
-          indent: true,
-          isGroupHeader: false,
-          cells: session.cells,
-        });
-      }
-    }
-  }
+  const rows: LoadingMatrixRow[] = Array.from(rowMap.values())
+    .sort((a, b) => {
+      const nameCmp = a.shipperName.localeCompare(b.shipperName);
+      if (nameCmp !== 0) return nameCmp;
+      return (a.areaNote ?? "").localeCompare(b.areaNote ?? "");
+    })
+    .map((row) => ({
+      id: rowGroupKey(row.shipperId, row.areaNote),
+      label: formatRowLabel(row.shipperName, row.areaNote),
+      cells: row.cells,
+    }));
 
   const columnCrateTotals: Record<string, number> = {};
   for (const col of columns) {
@@ -217,7 +248,6 @@ export async function getDailySummary(
   }
 
   for (const row of rows) {
-    if (row.isGroupHeader) continue;
     for (const col of columns) {
       const cell = row.cells[col.key];
       if (cell) {

@@ -1,15 +1,18 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { Printer } from "lucide-react";
-import type { VehicleLoadingListData } from "@/app/actions/summary";
+import type {
+  LoadingMatrixColumn,
+  VehicleLoadingListData,
+} from "@/app/actions/summary";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
+import { MARKET_ORDER } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 
 interface SummaryViewProps {
   date: string;
@@ -17,16 +20,41 @@ interface SummaryViewProps {
   data: VehicleLoadingListData;
 }
 
+function sortColumnsByMarketOrder(
+  columns: LoadingMatrixColumn[],
+  trucks: VehicleLoadingListData["trucks"]
+): LoadingMatrixColumn[] {
+  const truckOrder = new Map(trucks.map((truck, index) => [truck.orderId, index]));
+  const marketOrder = new Map<string, number>(
+    MARKET_ORDER.map((code, index) => [code, index])
+  );
+
+  return [...columns].sort((a, b) => {
+    const truckCmp =
+      (truckOrder.get(a.orderId) ?? 999) - (truckOrder.get(b.orderId) ?? 999);
+    if (truckCmp !== 0) return truckCmp;
+    return (
+      (marketOrder.get(a.marketCode) ?? 999) -
+      (marketOrder.get(b.marketCode) ?? 999)
+    );
+  });
+}
+
 export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
+
+  const columns = useMemo(
+    () => sortColumnsByMarketOrder(data.columns, data.trucks),
+    [data.columns, data.trucks]
+  );
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `loading-list-${date}`,
   });
 
-  const colSpan = data.columns.length + 1;
+  const colSpan = columns.length + 1;
 
   return (
     <div className="space-y-6">
@@ -86,7 +114,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 ))}
               </tr>
               <tr>
-                {data.columns.map((col) => (
+                {columns.map((col) => (
                   <th
                     key={`m-${col.key}`}
                     className="border border-haidee-border bg-haidee-surface px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text"
@@ -96,7 +124,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 ))}
               </tr>
               <tr>
-                {data.columns.map((col) => (
+                {columns.map((col) => (
                   <th
                     key={`c-${col.key}`}
                     className="border border-haidee-border bg-haidee-surface px-2 py-1 text-center text-xs font-normal text-haidee-muted"
@@ -121,15 +149,10 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               ) : (
                 data.rows.map((row) => (
                   <tr key={row.id}>
-                    <td
-                      className={cn(
-                        "border border-haidee-border px-3 py-2 font-medium text-haidee-text",
-                        row.indent && "pl-8"
-                      )}
-                    >
+                    <td className="border border-haidee-border px-3 py-2 font-medium text-haidee-text">
                       {row.label}
                     </td>
-                    {data.columns.map((col) => {
+                    {columns.map((col) => {
                       const cell = row.cells[col.key];
                       const crateQty = cell?.crateQty ?? 0;
                       const boxQty = cell?.boxQty ?? 0;
@@ -138,9 +161,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                           key={col.key}
                           className="border border-haidee-border px-2 py-2 text-center font-mono"
                         >
-                          {row.isGroupHeader
-                            ? ""
-                            : cellDisplay(crateQty, boxQty)}
+                          {cellDisplay(crateQty, boxQty)}
                         </td>
                       );
                     })}
@@ -154,7 +175,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   <td className="border border-haidee-border px-3 py-2 text-haidee-text">
                     各车总计 Truck Totals
                   </td>
-                  {data.columns.map((col) => {
+                  {columns.map((col) => {
                     const total = data.columnCrateTotals[col.key] ?? 0;
                     return (
                       <td
