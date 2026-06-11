@@ -11,7 +11,6 @@ import {
   parseDateInput,
   toDateInputValue,
 } from "@/lib/inbound-utils";
-import { getSadaoStockByTongType } from "@/lib/tong";
 
 export interface DepotQty {
   crate: number;
@@ -31,6 +30,28 @@ export interface DailyDispatchSummaryData {
   rows: DailyDispatchSummaryRow[];
   columnTotals: Record<string, DepotQty>;
   grandTotal: DepotQty;
+}
+
+export interface DashboardOrder {
+  id: string;
+  dispatchNo: string | null;
+  date: string;
+  truckPlate: string;
+  driverName: string | null;
+  markets: string[];
+  totalQty: number;
+}
+
+export interface DashboardData {
+  dateInput: string;
+  dateStr: string;
+  stats: {
+    todayInbound: number;
+    unassigned: number;
+    dispatchCount: number;
+  };
+  dailySummary: DailyDispatchSummaryData;
+  dispatchOrders: DashboardOrder[];
 }
 
 function addLineQty(
@@ -133,89 +154,71 @@ export async function getDailyDispatchSummary(
   };
 }
 
-export async function getDashboardData() {
-  const today = parseDateInput(toDateInputValue(new Date()));
+export async function getDashboardData(dateStr?: string): Promise<DashboardData> {
+  const date = parseDateInput(dateStr ?? toDateInputValue(new Date()));
+  const dateInput = toDateInputValue(date);
 
-  const [
-    inboundLines,
-    allUnassignedLines,
-    dispatchCount,
-    stock,
-    marketLines,
-    recentOrders,
-  ] = await Promise.all([
-    prisma.inboundLine.findMany({
-      where: { session: { date: today, status: "confirmed" } },
-      select: { quantity: true },
-    }),
-    prisma.inboundLine.findMany({
-      where: {
-        dispatchStatus: "unassigned",
-        session: { status: "confirmed" },
-      },
-      select: { quantity: true, session: { select: { date: true } } },
-    }),
-    prisma.dispatchOrder.count({ where: { date: today } }),
-    getSadaoStockByTongType(),
-    prisma.inboundLine.findMany({
-      where: { session: { date: today, status: "confirmed" } },
-      include: { stall: { include: { market: true } } },
-    }),
-    prisma.dispatchOrder.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        truck: { select: { plate: true, capacityTong: true } },
-        lines: { include: { inboundLine: { select: { quantity: true } } } },
-      },
-    }),
-  ]);
+  const [inboundLines, unassignedLines, dispatchOrders, dailySummary] =
+    await Promise.all([
+      prisma.inboundLine.findMany({
+        where: {
+          session: { date, status: "confirmed" },
+          isBox: false,
+        },
+        select: { quantity: true },
+      }),
+      prisma.inboundLine.findMany({
+        where: {
+          dispatchStatus: "unassigned",
+          session: { date, status: "confirmed" },
+          isBox: false,
+        },
+        select: { quantity: true },
+      }),
+      prisma.dispatchOrder.findMany({
+        where: {
+          date,
+          status: { notIn: ["draft", "cancelled"] },
+        },
+        include: {
+          truck: { select: { plate: true } },
+          lines: {
+            include: {
+              inboundLine: { select: { quantity: true, isBox: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      getDailyDispatchSummary(dateInput),
+    ]);
 
   const todayInbound = inboundLines.reduce((s, l) => s + l.quantity, 0);
-  const unassigned = allUnassignedLines.reduce((s, l) => s + l.quantity, 0);
-  const olderUnassigned = allUnassignedLines
-    .filter((l) => l.session.date < today)
-    .reduce((s, l) => s + l.quantity, 0);
+  const unassigned = unassignedLines.reduce((s, l) => s + l.quantity, 0);
 
-  const totalSadaoStock = Object.values(stock).reduce((s, r) => s + r.stock, 0);
-
-  const marketTotals: Record<string, number> = {};
-  for (const line of marketLines) {
-    const code = line.stall.market?.code;
-    if (code) {
-      marketTotals[code] = (marketTotals[code] ?? 0) + line.quantity;
-    }
-  }
-
-  const dailySummary = await getDailyDispatchSummary(toDateInputValue(today));
+  const dispatchOrdersList: DashboardOrder[] = dispatchOrders.map((o) => ({
+    id: o.id,
+    dispatchNo: o.dispatchNo,
+    date: formatDisplayDate(o.date),
+    truckPlate: o.truck.plate,
+    driverName: o.driverName,
+    markets: o.markets,
+    totalQty: o.lines.reduce((s, l) => {
+      const line = l.inboundLine;
+      if (!line || line.isBox) return s;
+      return s + line.quantity;
+    }, 0),
+  }));
 
   return {
-    todayStr: formatDisplayDate(today),
-    dailySummary,
+    dateInput,
+    dateStr: formatDisplayDate(date),
     stats: {
       todayInbound,
       unassigned,
-      dispatchCount,
-      totalSadaoStock,
+      dispatchCount: dispatchOrders.length,
     },
-    unassignedWarning:
-      olderUnassigned > 0
-        ? { total: unassigned, olderThanToday: olderUnassigned }
-        : null,
-    marketTotals,
-    recentOrders: recentOrders.map((o) => ({
-      id: o.id,
-      dispatchNo: o.dispatchNo,
-      date: formatDisplayDate(o.date),
-      truckPlate: o.truck.plate,
-      driverName: o.driverName,
-      markets: o.markets,
-      status: o.status,
-      totalQty: o.lines.reduce(
-        (s, l) => s + (l.inboundLine?.quantity ?? 0),
-        0
-      ),
-      capacity: o.truck.capacityTong,
-    })),
+    dailySummary,
+    dispatchOrders: dispatchOrdersList,
   };
 }

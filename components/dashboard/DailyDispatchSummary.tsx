@@ -1,77 +1,19 @@
-"use client";
-
-import { useRef, useState, useTransition } from "react";
-import { useReactToPrint } from "react-to-print";
-import { Printer, RefreshCw } from "lucide-react";
-import {
-  getDailyDispatchSummary,
-  type DailyDispatchSummaryData,
-  type DepotQty,
-} from "@/app/actions/dashboard";
-import { Button } from "@/components/ui/button";
+import type { DailyDispatchSummaryData, DepotQty } from "@/app/actions/dashboard";
 import { cellDisplay } from "@/lib/consignor-label";
 import "./daily-dispatch-summary.css";
 
 interface DailyDispatchSummaryProps {
-  initialData: DailyDispatchSummaryData;
+  data: DailyDispatchSummaryData;
 }
 
 function formatCell(qty: DepotQty): string {
   return cellDisplay(qty.crate, qty.box);
 }
 
-export function DailyDispatchSummary({ initialData }: DailyDispatchSummaryProps) {
-  const [data, setData] = useState(initialData);
-  const [isPending, startTransition] = useTransition();
-  const printRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `daily-summary-${data.dateInput}`,
-  });
-
-  function handleGenerate() {
-    startTransition(async () => {
-      const fresh = await getDailyDispatchSummary(data.dateInput);
-      setData(fresh);
-    });
-  }
-
+export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
-    <section className="w-full space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-haidee-text">
-          每日派车总结 Daily Summary
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePrint()}
-            disabled={data.rows.length === 0}
-            className="gap-1.5"
-          >
-            <Printer className="h-4 w-4" />
-            打印 Print
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleGenerate}
-            disabled={isPending}
-            className="gap-1.5 bg-haidee-blue text-white hover:bg-haidee-blue/90"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`}
-            />
-            {isPending ? "生成中…" : "生成 Generate"}
-          </Button>
-        </div>
-      </div>
-
-      <div
-        ref={printRef}
-        className="daily-summary-print overflow-hidden rounded-xl border border-haidee-border bg-white"
-      >
+    <section className="w-full">
+      <div className="daily-summary-print overflow-hidden rounded-xl border border-haidee-border bg-white">
         <div className="daily-summary-header px-4 py-3 text-center">
           <p className="text-base font-bold tracking-wide text-gray-900">
             WTL EXPRESS SDN BHD

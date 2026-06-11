@@ -1,23 +1,24 @@
-import { getCurrentUser } from "@/lib/auth";
 import { getDashboardData } from "@/app/actions/dashboard";
 import { DashboardView } from "@/components/dashboard/DashboardView";
+import { getCurrentUser } from "@/lib/auth";
+import { resolveDateParam } from "@/lib/inbound-utils";
 
-export default async function DashboardPage() {
-  const [user, data] = await Promise.all([getCurrentUser(), getDashboardData()]);
+interface DashboardPageProps {
+  searchParams: Promise<{ date?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
+  const date = resolveDateParam(params.date);
+  const [user, data] = await Promise.all([
+    getCurrentUser(),
+    getDashboardData(date),
+  ]);
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-haidee-muted">
-        欢迎回来，{user?.name ?? user?.email}
-      </p>
-      <DashboardView
-        todayStr={data.todayStr}
-        dailySummary={data.dailySummary}
-        stats={data.stats}
-        marketTotals={data.marketTotals}
-        unassignedWarning={data.unassignedWarning}
-        recentOrders={data.recentOrders}
-      />
-    </div>
+    <DashboardView
+      {...data}
+      userName={user?.name ?? user?.email}
+    />
   );
 }

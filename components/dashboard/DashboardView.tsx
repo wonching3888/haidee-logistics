@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import type { DailyDispatchSummaryData } from "@/app/actions/dashboard";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import type { DashboardData } from "@/app/actions/dashboard";
 import { DailyDispatchSummary } from "@/components/dashboard/DailyDispatchSummary";
+import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { sortMarkets } from "@/lib/constants/markets";
 import {
   Table,
   TableBody,
@@ -11,90 +16,72 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
-interface DashboardViewProps {
-  todayStr: string;
-  dailySummary: DailyDispatchSummaryData;
-  stats: {
-    todayInbound: number;
-    unassigned: number;
-    dispatchCount: number;
-    totalSadaoStock: number;
-  };
-  marketTotals: Record<string, number>;
-  unassignedWarning?: { total: number; olderThanToday: number } | null;
-  recentOrders: {
-    id: string;
-    dispatchNo: string | null;
-    date: string;
-    truckPlate: string;
-    driverName: string | null;
-    markets: string[];
-    status: string;
-    totalQty: number;
-    capacity: number | null;
-  }[];
+interface DashboardViewProps extends DashboardData {
+  userName?: string | null;
 }
 
 export function DashboardView({
-  todayStr,
-  dailySummary,
+  dateInput,
+  dateStr,
   stats,
-  marketTotals,
-  unassignedWarning,
-  recentOrders,
+  dailySummary,
+  dispatchOrders,
+  userName,
 }: DashboardViewProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function handleDateChange(nextDate: string) {
+    if (!nextDate || nextDate === dateInput) return;
+    startTransition(() => {
+      router.push(`/dashboard?date=${nextDate}`);
+    });
+  }
+
   const statCards = [
     {
-      title: "今日进货总桶数",
+      title: "进桶总数",
       titleEn: "Today Inbound",
       value: stats.todayInbound.toLocaleString(),
-      href: "/inbound",
+      href: `/inbound?date=${dateInput}`,
     },
     {
       title: "未分配桶数",
       titleEn: "Unassigned",
       value: stats.unassigned.toLocaleString(),
-      href: "/dispatch",
+      href: `/dispatch?date=${dateInput}`,
       highlight: stats.unassigned > 0 ? "orange" : undefined,
     },
     {
-      title: "已出发车辆数",
-      titleEn: "Dispatched Today",
+      title: "已出发车辆",
+      titleEn: "Dispatched",
       value: stats.dispatchCount.toLocaleString(),
-      href: "/dispatch",
-    },
-    {
-      title: "SADAO库存",
-      titleEn: "SADAO Stock",
-      value: stats.totalSadaoStock.toLocaleString(),
-      href: "/crate/stock",
+      href: `/dispatch?date=${dateInput}`,
     },
   ];
 
-  const marketEntries = sortMarkets(
-    Object.keys(marketTotals).filter((c) => marketTotals[c] > 0)
-  ).map((code) => [code, marketTotals[code]] as const);
-
   return (
-    <div className="space-y-6">
-    <div className="dashboard-main mx-auto max-w-4xl space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-haidee-text">总览 Dashboard</h2>
-        <p className="text-sm text-haidee-muted">今日 {todayStr}</p>
+    <div
+      className={`mx-auto max-w-6xl space-y-6 ${isPending ? "opacity-60" : ""}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-haidee-text">
+            总览 Dashboard
+          </h2>
+          {userName && (
+            <p className="text-sm text-haidee-muted">欢迎回来，{userName}</p>
+          )}
+        </div>
+        <DateInputField
+          value={dateInput}
+          onChange={handleDateChange}
+          className="max-w-[11.5rem]"
+        />
       </div>
 
-      {unassignedWarning && unassignedWarning.olderThanToday > 0 && (
-        <div className="rounded-lg border border-haidee-orange bg-orange-50 px-4 py-3 text-sm text-haidee-orange">
-          ⚠️ 有 {unassignedWarning.total.toLocaleString()} 桶货物未分配（含昨日及以前）
-          <span className="ml-2 text-haidee-muted">
-            {unassignedWarning.olderThanToday.toLocaleString()} buckets unassigned from prior days
-          </span>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {statCards.map((card) => (
           <Link key={card.title} href={card.href} className="block">
             <div className="rounded-xl border border-haidee-border bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
@@ -115,90 +102,79 @@ export function DashboardView({
         ))}
       </div>
 
-      {marketEntries.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-          <div className="border-b border-haidee-border px-4 py-3">
-            <h3 className="text-sm font-semibold text-haidee-text">
-              各市场今日桶数 Market Totals Today
-            </h3>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                <TableHead>市场 Market</TableHead>
-                <TableHead className="text-right">桶数 Crates</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {marketEntries.map(([code, qty]) => (
-                <TableRow key={code}>
-                  <TableCell className="font-mono">{code}</TableCell>
-                  <TableCell className="text-right font-mono">{qty}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-haidee-text">
+          每日派车总结 Daily Summary
+          <span className="ml-2 text-sm font-normal text-haidee-muted">
+            {dateStr}
+          </span>
+        </h3>
+        <DailyDispatchSummary data={dailySummary} />
+      </div>
 
       <Card className="border-haidee-border">
         <CardHeader>
           <CardTitle className="text-haidee-text">
-            最新派车单 Recent Dispatch Orders
+            派车单 Dispatch Orders
+            <span className="ml-2 text-sm font-normal text-haidee-muted">
+              {dateStr}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {recentOrders.length === 0 ? (
+          {dispatchOrders.length === 0 ? (
             <p className="p-6 text-center text-sm text-haidee-muted">
-              暂无派车单 No dispatch orders yet
+              当日暂无派车单 No dispatch orders for this date
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                  <TableHead>单号 DO</TableHead>
-                  <TableHead>日期 Date</TableHead>
-                  <TableHead>车牌 Plate</TableHead>
-                  <TableHead className="text-right">装载 Load</TableHead>
-                  <TableHead>状态</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrders.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell>
-                      <Link
-                        href={`/dispatch/${o.id}`}
-                        className="font-mono text-sm text-haidee-blue hover:underline"
-                      >
-                        {o.dispatchNo ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{o.date}</TableCell>
-                    <TableCell className="font-mono">{o.truckPlate}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {o.totalQty}
-                      {o.capacity ? ` / ${o.capacity}` : ""}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={o.status === "confirmed" ? "default" : "secondary"}
-                      >
-                        {o.status}
-                      </Badge>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                    <TableHead>单号 DO</TableHead>
+                    <TableHead>日期 Date</TableHead>
+                    <TableHead>车牌 Plate</TableHead>
+                    <TableHead>司机 Driver</TableHead>
+                    <TableHead>市场 Markets</TableHead>
+                    <TableHead className="text-right">装载 Load</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {dispatchOrders.map((o) => (
+                    <TableRow key={o.id}>
+                      <TableCell>
+                        <Link
+                          href={`/dispatch/${o.id}`}
+                          className="font-mono text-sm text-haidee-blue hover:underline"
+                        >
+                          {o.dispatchNo ?? "—"}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {o.date}
+                      </TableCell>
+                      <TableCell className="font-mono">{o.truckPlate}</TableCell>
+                      <TableCell className="text-sm">
+                        {o.driverName ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {o.markets.map((code) => (
+                            <DispatchMarketLabel key={code} code={code} />
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {o.totalQty}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
-    </div>
-
-    <div className="dashboard-daily-summary mx-auto w-full max-w-6xl">
-      <DailyDispatchSummary initialData={dailySummary} />
-    </div>
     </div>
   );
 }
