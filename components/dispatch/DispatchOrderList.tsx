@@ -115,7 +115,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                 <TableHead>派车单号 DO No.</TableHead>
                 <TableHead>车牌 Plate</TableHead>
                 <TableHead>司机 Driver</TableHead>
-                <TableHead>市场 Markets</TableHead>
+                <TableHead className="min-w-[140px]">市场 Markets</TableHead>
                 <TableHead className="text-right">装载 Load</TableHead>
                 <TableHead>状态 Status</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -129,10 +129,14 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                   </TableCell>
                   <TableCell className="font-mono">{o.truckPlate}</TableCell>
                   <TableCell>{o.driverName ?? "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                  <TableCell className="whitespace-normal">
+                    <div className="flex flex-wrap items-center gap-1">
                       {o.markets.map((m) => (
-                        <DispatchMarketLabel key={m} code={m} />
+                        <DispatchMarketLabel
+                          key={m}
+                          code={m}
+                          className="shrink-0"
+                        />
                       ))}
                     </div>
                   </TableCell>
