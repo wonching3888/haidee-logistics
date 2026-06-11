@@ -11,8 +11,58 @@
   border-collapse: collapse;
 }
 
-.document-print table.do-table {
+.document-print table.do-table,
+.document-print table.market-do-table {
   table-layout: fixed;
+}
+
+.document-print .market-do-lorry-col {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
+.document-print .market-do-stall-col {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+}
+
+.document-print .market-do-area-col {
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+}
+
+.document-print .market-do-crate-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  padding: 2px 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.document-print .market-do-qty-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
+.document-print tr.market-do-area-header td {
+  font-weight: bold;
+  text-transform: uppercase;
+  background: #fff;
+  border-left: 1px solid #000;
+  border-right: 1px solid #000;
+}
+
+.document-print tr.market-do-spacer td {
+  border: none;
+  height: 10px;
+  padding: 0;
+  line-height: 0;
+  background: #fff;
 }
 
 .document-print .do-no-col {
