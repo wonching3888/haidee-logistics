@@ -7,7 +7,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { buildConsignorAreaLabel } from "@/lib/consignor-label";
-import { DISPATCH_MARKET_ORDER, getActiveMarkets } from "@/lib/markets";
+import {
+  DISPATCH_MARKET_ORDER,
+  MARKET_ORDER,
+  getActiveMarkets,
+  sortMarkets,
+} from "@/lib/markets";
 
 export interface DispatchMatrixData {
   shippers: { id: string; name: string }[];
@@ -213,6 +218,22 @@ export async function getUnassignedMatrix(
     boxGrandTotal,
     grandTotal,
   };
+}
+
+export async function getDispatchMarkets(): Promise<string[]> {
+  const markets = await prisma.market.findMany({
+    where: { active: true },
+    select: { code: true },
+  });
+  const codes = new Set(markets.map((market) => market.code));
+  const ordered = DISPATCH_MARKET_ORDER.filter((code) => codes.has(code));
+  const extras = markets
+    .map((market) => market.code)
+    .filter(
+      (code) =>
+        !(DISPATCH_MARKET_ORDER as readonly string[]).includes(code)
+    );
+  return [...ordered, ...sortMarkets(extras, MARKET_ORDER)];
 }
 
 export async function getDrivers() {

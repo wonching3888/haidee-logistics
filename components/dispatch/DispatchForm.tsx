@@ -10,7 +10,6 @@ import {
   type AssignableItem,
   type DispatchSelection,
 } from "@/app/actions/dispatch";
-import { DISPATCH_MARKET_ORDER } from "@/lib/markets";
 
 interface TruckOption {
   id: string;
@@ -39,6 +38,7 @@ interface InitialOrder {
 interface DispatchFormProps {
   trucks: TruckOption[];
   drivers: DriverOption[];
+  marketOptions: string[];
   date: string;
   initialOrder?: InitialOrder;
 }
@@ -46,6 +46,7 @@ interface DispatchFormProps {
 export function DispatchForm({
   trucks,
   drivers,
+  marketOptions,
   date,
   initialOrder,
 }: DispatchFormProps) {
@@ -292,7 +293,7 @@ export function DispatchForm({
           目的市场 Markets
         </label>
         <div className="flex flex-wrap gap-2">
-          {DISPATCH_MARKET_ORDER.map((code) => {
+          {marketOptions.map((code) => {
             const checked = markets.includes(code);
             return (
               <label

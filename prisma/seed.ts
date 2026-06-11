@@ -17,7 +17,7 @@ const MARKETS = [
   { code: "BP", name: "Pasar Borong Batu Pahat", state: "Johor" },
   { code: "MP", name: "Pasar Borong Muar", state: "Johor" },
   { code: "TP", name: "Pasar Borong Taiping", state: "Perak" },
-  { code: "SL", name: "SL", state: "" },
+  { code: "SL", name: "Selangor", state: "Selangor" },
   { code: "KT", name: "Tanjung Piandang", state: "Perak" },
   { code: "NT", name: "N'Tebal", state: "Penang" },
   { code: "SA", name: "Simpang Ampat", state: "Penang" },
