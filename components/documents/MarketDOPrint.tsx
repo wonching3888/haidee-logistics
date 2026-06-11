@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import type { MarketDOData } from "@/app/actions/documents";
 import { MARKET_DISPLAY_NAMES } from "@/lib/constants/market-names";
 import {
@@ -7,18 +6,11 @@ import {
   sumQuantities,
 } from "@/lib/constants/tong-columns";
 import { groupMarketDORows } from "@/lib/market-do-grouping";
+import { GroupedAreaTruckRows } from "@/components/documents/GroupedAreaTruckRows";
 import "./document-print.css";
 
 interface MarketDOPrintProps {
   data: MarketDOData;
-}
-
-function SpacerRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr className="market-do-spacer" aria-hidden="true">
-      <td colSpan={colSpan}>&nbsp;</td>
-    </tr>
-  );
 }
 
 export function MarketDOPrint({ data }: MarketDOPrintProps) {
@@ -57,52 +49,27 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
           </tr>
         </thead>
         <tbody>
-          {areaGroups.map((areaGroup, areaIndex) => (
-            <Fragment key={areaGroup.areaName}>
-              <tr className="market-do-area-header">
-                <td colSpan={colSpan} className="text-left">
-                  {areaGroup.areaName}
-                </td>
+          <GroupedAreaTruckRows
+            areaGroups={areaGroups}
+            colSpan={colSpan}
+            rowKey={(row) => `${row.lorryNo}:${row.stallCode}`}
+            renderRow={(row) => (
+              <tr>
+                <td className="market-do-lorry-col">{row.lorryNo}</td>
+                <td className="market-do-stall-col">{row.stallCode}</td>
+                <td className="market-do-area-col">{row.area}</td>
+                {activeColumns.map((c) => (
+                  <td key={c.code} className="market-do-crate-col">
+                    {formatDOCrateQuantity(
+                      c.code,
+                      row.quantities[c.code] ?? 0
+                    )}
+                  </td>
+                ))}
+                <td className="market-do-qty-col">{row.qty}</td>
               </tr>
-              {areaGroup.trucks.map((truck, truckIndex) => (
-                <Fragment key={`${areaGroup.areaName}:${truck.lorryNo}`}>
-                  {truckIndex > 0 && (
-                    <SpacerRow colSpan={colSpan} key={`sp-${truck.lorryNo}`} />
-                  )}
-                  {truck.rows.map((row, rowIndex) => (
-                    <tr
-                      key={`${truck.lorryNo}:${row.stallCode}:${rowIndex}`}
-                    >
-                      <td className="market-do-lorry-col">{row.lorryNo}</td>
-                      <td className="market-do-stall-col">{row.stallCode}</td>
-                      <td className="market-do-area-col">{row.area}</td>
-                      {activeColumns.map((c) => (
-                        <td key={c.code} className="market-do-crate-col">
-                          {formatDOCrateQuantity(
-                            c.code,
-                            row.quantities[c.code] ?? 0
-                          )}
-                        </td>
-                      ))}
-                      <td className="market-do-qty-col">{row.qty}</td>
-                    </tr>
-                  ))}
-                </Fragment>
-              ))}
-              {areaIndex < areaGroups.length - 1 && (
-                <>
-                  <SpacerRow
-                    colSpan={colSpan}
-                    key={`${areaGroup.areaName}-gap-1`}
-                  />
-                  <SpacerRow
-                    colSpan={colSpan}
-                    key={`${areaGroup.areaName}-gap-2`}
-                  />
-                </>
-              )}
-            </Fragment>
-          ))}
+            )}
+          />
           <tr className="totals-row">
             <td colSpan={3} className="text-left">
               总计

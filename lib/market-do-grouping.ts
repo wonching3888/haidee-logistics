@@ -38,8 +38,13 @@ export interface ReportAreaGroup<T> {
 
 export interface AreaTruckRow {
   lorryNo: string;
-  stallCode: string;
   area: string;
+  stallCode?: string;
+  store?: string;
+}
+
+function rowStallKey(row: AreaTruckRow): string {
+  return row.stallCode ?? row.store ?? "";
 }
 
 export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
@@ -74,7 +79,9 @@ export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([lorryNo, truckRows]) => ({
         lorryNo,
-        rows: truckRows.sort((a, b) => a.stallCode.localeCompare(b.stallCode)),
+        rows: truckRows.sort((a, b) =>
+          rowStallKey(a).localeCompare(rowStallKey(b))
+        ),
       }));
 
     return { areaName, trucks };

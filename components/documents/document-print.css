@@ -71,6 +71,18 @@
   max-width: 28px;
 }
 
+.document-print .do-lorry-col {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
+.document-print .do-consignor-col {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
 .document-print .do-store-col {
   width: 48px;
   min-width: 48px;

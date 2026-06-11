@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants/tong-columns";
 
 export interface DORow {
+  lorryNo: string;
   consignor: string;
   store: string;
   area: string;
@@ -80,6 +81,7 @@ export interface MarketTongCombo {
 }
 
 function buildDORow(
+  lorryNo: string,
   consignor: string,
   store: string,
   area: string,
@@ -90,6 +92,7 @@ function buildDORow(
   const col = mapTongToColumn(tongCode);
   quantities[col] = quantity;
   return {
+    lorryNo,
     consignor,
     store,
     area,
@@ -157,6 +160,7 @@ export async function getDeliveryOrderData(
 
   if (!order) return null;
 
+  const lorryNo = order.truck.plate;
   const rowMap = new Map<string, DORow>();
 
   for (const dl of order.lines) {
@@ -172,14 +176,19 @@ export async function getDeliveryOrderData(
     } else {
       rowMap.set(
         key,
-        buildDORow(consignor, store, area, line.tongType.code, line.quantity)
+        buildDORow(
+          lorryNo,
+          consignor,
+          store,
+          area,
+          line.tongType.code,
+          line.quantity
+        )
       );
     }
   }
 
-  const rows = Array.from(rowMap.values()).sort((a, b) =>
-    a.consignor.localeCompare(b.consignor)
-  );
+  const rows = Array.from(rowMap.values());
 
   return {
     doNumber: await getDONumber(dispatchOrderId),

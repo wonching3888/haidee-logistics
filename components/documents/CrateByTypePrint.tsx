@@ -1,18 +1,10 @@
-import { Fragment } from "react";
 import type { CrateByTypeMergedData, CrateByTypeRow } from "@/app/actions/documents";
 import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
+import { GroupedAreaTruckRows } from "@/components/documents/GroupedAreaTruckRows";
 import "./document-print.css";
 
 interface CrateByTypePrintProps {
   data: CrateByTypeMergedData;
-}
-
-function SpacerRow({ colSpan }: { colSpan: number }) {
-  return (
-    <tr className="market-do-spacer" aria-hidden="true">
-      <td colSpan={colSpan}>&nbsp;</td>
-    </tr>
-  );
 }
 
 interface TongSection {
@@ -20,7 +12,9 @@ interface TongSection {
   rows: CrateByTypeRow[];
 }
 
-function buildTongSections(sections: CrateByTypeMergedData["sections"]): TongSection[] {
+function buildTongSections(
+  sections: CrateByTypeMergedData["sections"]
+): TongSection[] {
   const byTong = new Map<string, CrateByTypeRow[]>();
 
   for (const section of sections) {
@@ -62,35 +56,20 @@ function CrateTongTable({
         </tr>
       </thead>
       <tbody>
-        {areaGroups.map((areaGroup, areaIndex) => (
-          <Fragment key={areaGroup.areaName}>
-            <tr className="market-do-area-header">
-              <td colSpan={colSpan} className="text-left">
-                {areaGroup.areaName}
-              </td>
+        <GroupedAreaTruckRows
+          areaGroups={areaGroups}
+          colSpan={colSpan}
+          rowKey={(row) => `${row.lorryNo}:${row.stallCode}`}
+          renderRow={(row) => (
+            <tr>
+              <td className="market-do-lorry-col">{row.lorryNo}</td>
+              <td className="market-do-stall-col">{row.stallCode}</td>
+              <td className="market-do-area-col">{row.area}</td>
+              <td className="market-do-crate-col">{row.quantity}</td>
+              <td className="market-do-qty-col">{row.quantity}桶</td>
             </tr>
-            {areaGroup.trucks.map((truck, truckIndex) => (
-              <Fragment key={`${areaGroup.areaName}:${truck.lorryNo}`}>
-                {truckIndex > 0 && <SpacerRow colSpan={colSpan} />}
-                {truck.rows.map((row, rowIndex) => (
-                  <tr key={`${truck.lorryNo}:${row.stallCode}:${rowIndex}`}>
-                    <td className="market-do-lorry-col">{row.lorryNo}</td>
-                    <td className="market-do-stall-col">{row.stallCode}</td>
-                    <td className="market-do-area-col">{row.area}</td>
-                    <td className="market-do-crate-col">{row.quantity}</td>
-                    <td className="market-do-qty-col">{row.quantity}桶</td>
-                  </tr>
-                ))}
-              </Fragment>
-            ))}
-            {areaIndex < areaGroups.length - 1 && (
-              <>
-                <SpacerRow colSpan={colSpan} key={`${areaGroup.areaName}-gap-1`} />
-                <SpacerRow colSpan={colSpan} key={`${areaGroup.areaName}-gap-2`} />
-              </>
-            )}
-          </Fragment>
-        ))}
+          )}
+        />
         <tr className="totals-row">
           <td colSpan={3} className="text-left">
             总计
