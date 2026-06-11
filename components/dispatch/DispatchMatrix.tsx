@@ -24,25 +24,53 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
     );
   }
 
+  const headerRowHeight = "3.25rem";
+
   return (
     <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-      <div className="overflow-x-auto">
+      <div className="max-h-[70vh] overflow-auto">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface">
-              <th className="sticky left-0 z-10 bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
+              <th className="sticky left-0 top-0 z-30 bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
                 寄货人 / 地区 Consignor / Area
               </th>
               {markets.map((code) => (
                 <th
                   key={code}
-                  className="min-w-[52px] px-2 py-3 text-center"
+                  className="sticky top-0 z-20 min-w-[52px] bg-haidee-surface px-2 py-3 text-center"
                 >
                   <DispatchMarketLabel code={code} className="font-mono" />
                 </th>
               ))}
-              <th className="px-3 py-3 text-right font-medium text-haidee-muted">
+              <th className="sticky top-0 z-20 bg-haidee-surface px-3 py-3 text-right font-medium text-haidee-muted">
                 合计 Total
+              </th>
+            </tr>
+            <tr className="border-b-2 border-haidee-border bg-gray-100 font-semibold">
+              <th
+                className="sticky left-0 z-40 bg-gray-100 px-3 py-2.5 text-left text-haidee-text"
+                style={{ top: headerRowHeight }}
+              >
+                各市场总计 Market Totals
+              </th>
+              {markets.map((code) => {
+                const qty = colTotals[code] ?? emptyQty();
+                return (
+                  <th
+                    key={code}
+                    className="sticky z-20 min-w-[52px] bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text"
+                    style={{ top: headerRowHeight }}
+                  >
+                    {cellDisplay(qty.crate, qty.box)}
+                  </th>
+                );
+              })}
+              <th
+                className="sticky z-20 bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy"
+                style={{ top: headerRowHeight }}
+              >
+                {cellDisplay(grandTotal.crate, grandTotal.box)}
               </th>
             </tr>
           </thead>
@@ -80,27 +108,6 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
               );
             })}
           </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-haidee-navy bg-haidee-navy/5 font-semibold">
-              <td className="sticky left-0 z-10 bg-haidee-surface px-3 py-3 text-haidee-text">
-                各市场总计 Market Totals
-              </td>
-              {markets.map((code) => {
-                const qty = colTotals[code] ?? emptyQty();
-                return (
-                  <td
-                    key={code}
-                    className="px-2 py-3 text-center font-mono text-haidee-text"
-                  >
-                    {cellDisplay(qty.crate, qty.box)}
-                  </td>
-                );
-              })}
-              <td className="px-3 py-3 text-right font-mono text-lg text-haidee-navy">
-                {cellDisplay(grandTotal.crate, grandTotal.box)}
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
     </div>
