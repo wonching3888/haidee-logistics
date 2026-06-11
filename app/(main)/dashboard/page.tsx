@@ -12,6 +12,7 @@ export default async function DashboardPage() {
       </p>
       <DashboardView
         todayStr={data.todayStr}
+        dailySummary={data.dailySummary}
         stats={data.stats}
         marketTotals={data.marketTotals}
         unassignedWarning={data.unassignedWarning}

@@ -1,0 +1,49 @@
+.daily-summary-header {
+  background: #d4edda;
+  border-bottom: 1px solid #a3d9a5;
+}
+
+.daily-summary-table .daily-summary-th {
+  background: #c8e6c9;
+  border: 1px solid #81c784;
+  padding: 8px 10px;
+  text-align: center;
+  font-weight: 700;
+  color: #1b5e20;
+  white-space: nowrap;
+}
+
+.daily-summary-table .daily-summary-td {
+  border: 1px solid #c8e6c9;
+  padding: 6px 10px;
+  text-align: center;
+  color: #111;
+}
+
+.daily-summary-row-even {
+  background: #ffffff;
+}
+
+.daily-summary-row-odd {
+  background: #f1f8f4;
+}
+
+.daily-summary-total-row {
+  background: #e8f5e9;
+}
+
+.daily-summary-total-row .daily-summary-td {
+  border-top: 2px solid #66bb6a;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  .daily-summary-print {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

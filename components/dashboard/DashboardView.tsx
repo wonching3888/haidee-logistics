@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { DailyDispatchSummaryData } from "@/app/actions/dashboard";
+import { DailyDispatchSummary } from "@/components/dashboard/DailyDispatchSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { sortMarkets } from "@/lib/constants/markets";
 import {
@@ -13,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface DashboardViewProps {
   todayStr: string;
+  dailySummary: DailyDispatchSummaryData;
   stats: {
     todayInbound: number;
     unassigned: number;
@@ -36,6 +39,7 @@ interface DashboardViewProps {
 
 export function DashboardView({
   todayStr,
+  dailySummary,
   stats,
   marketTotals,
   unassignedWarning,
@@ -74,7 +78,8 @@ export function DashboardView({
   ).map((code) => [code, marketTotals[code]] as const);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
+    <div className="dashboard-main mx-auto max-w-4xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">总览 Dashboard</h2>
         <p className="text-sm text-haidee-muted">今日 {todayStr}</p>
@@ -189,6 +194,11 @@ export function DashboardView({
           )}
         </CardContent>
       </Card>
+    </div>
+
+    <div className="dashboard-daily-summary mx-auto w-full max-w-6xl">
+      <DailyDispatchSummary initialData={dailySummary} />
+    </div>
     </div>
   );
 }
