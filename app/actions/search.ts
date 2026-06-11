@@ -12,6 +12,7 @@ export interface SearchResultRow {
   tongTypeCode: string;
   quantity: number;
   marketCode: string;
+  truckPlate: string;
   isBox: boolean;
 }
 
@@ -76,12 +77,25 @@ export async function searchInbound(input: {
       }
     : baseWhere;
 
+  const dispatchOrderFilter = {
+    date,
+    status: { notIn: ["draft", "cancelled"] },
+  };
+
   const lines = await prisma.inboundLine.findMany({
     where,
     include: {
       session: { include: { shipper: true } },
       stall: { include: { market: true } },
       tongType: true,
+      dispatchLines: {
+        where: { dispatchOrder: dispatchOrderFilter },
+        include: {
+          dispatchOrder: { include: { truck: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
     orderBy: [
       { session: { shipper: { name: "asc" } } },
@@ -143,15 +157,21 @@ export async function searchInbound(input: {
     }
   }
 
-  const rows: SearchResultRow[] = lines.map((line) => ({
-    shipperName: line.session.shipper.name,
-    areaNote: line.session.areaNote,
-    stallCode: line.stall.code,
-    tongTypeCode: line.tongType.code,
-    quantity: line.quantity,
-    marketCode: line.stall.market?.code ?? "—",
-    isBox: line.isBox,
-  }));
+  const rows: SearchResultRow[] = lines.map((line) => {
+    const plate =
+      line.dispatchLines[0]?.dispatchOrder.truck.plate ?? "未派车";
+
+    return {
+      shipperName: line.session.shipper.name,
+      areaNote: line.session.areaNote,
+      stallCode: line.stall.code,
+      tongTypeCode: line.tongType.code,
+      quantity: line.quantity,
+      marketCode: line.stall.market?.code ?? "—",
+      truckPlate: plate,
+      isBox: line.isBox,
+    };
+  });
 
   return { rows, truckHeader };
 }

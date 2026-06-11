@@ -131,12 +131,13 @@ function SearchResults({
             <TableHead>桶型 Crate Type</TableHead>
             <TableHead className="text-right">数量 Qty</TableHead>
             <TableHead>市场 Market</TableHead>
+            <TableHead>车牌 Plate</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row, i) => (
             <TableRow
-              key={`${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${i}`}
+              key={`${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
             >
               <TableCell>
                 <div className="font-medium text-haidee-text">{row.shipperName}</div>
@@ -153,6 +154,15 @@ function SearchResults({
                 {row.isBox ? " 盒" : " 桶"}
               </TableCell>
               <TableCell className="font-mono">{row.marketCode}</TableCell>
+              <TableCell
+                className={
+                  row.truckPlate === "未派车"
+                    ? "text-haidee-muted"
+                    : "font-mono"
+                }
+              >
+                {row.truckPlate}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
