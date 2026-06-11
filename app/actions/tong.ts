@@ -9,6 +9,8 @@ import {
   getCrateTypesForImport,
   getDispatchedTruckPlatesForDate,
   loadCrateImportsForDate,
+  loadInTransitCrateImports,
+  markCrateImportRowArrived,
   saveCrateImport,
   type CrateImportRowInput,
 } from "@/app/actions/crateImport";
@@ -45,18 +47,22 @@ export async function getMarketsForImport() {
 }
 
 export async function getCrateImportPageData(dateStr: string) {
-  const [trucks, markets, crateTypes, importData] = await Promise.all([
-    getTrucksForImport(),
-    getMarketsForImport(),
-    getCrateTypesForImport(),
-    loadCrateImportsForDate(dateStr),
-  ]);
+  const [trucks, markets, crateTypes, importData, inTransitData] =
+    await Promise.all([
+      getTrucksForImport(),
+      getMarketsForImport(),
+      getCrateTypesForImport(),
+      loadCrateImportsForDate(dateStr),
+      loadInTransitCrateImports(),
+    ]);
 
   return {
     trucks,
     markets,
     crateTypes,
     ...importData,
+    inTransitRows: inTransitData.rows,
+    inTransitDynamicColumns: inTransitData.dynamicColumns,
   };
 }
 
@@ -64,6 +70,8 @@ export {
   getCrateTypesForImport,
   getDispatchedTruckPlatesForDate,
   loadCrateImportsForDate,
+  loadInTransitCrateImports,
+  markCrateImportRowArrived,
 };
 
 export async function getTongTypesForExport() {

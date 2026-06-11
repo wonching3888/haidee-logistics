@@ -3,8 +3,8 @@ import { TongImportForm } from "@/components/tong/TongImportForm";
 import { toDateInputValue } from "@/lib/inbound-utils";
 
 export default async function TongImportPage() {
-  const date = toDateInputValue(new Date());
-  const data = await getCrateImportPageData(date);
+  const todayDate = toDateInputValue(new Date());
+  const data = await getCrateImportPageData(todayDate);
 
   return (
     <div className="space-y-6">
@@ -20,10 +20,12 @@ export default async function TongImportPage() {
         allTrucks={data.trucks}
         markets={data.markets}
         crateTypes={data.crateTypes}
-        initialDate={date}
+        todayDate={todayDate}
         initialRows={data.rows}
         initialDynamicColumns={data.dynamicColumns}
         initialDispatchedPlates={data.dispatchedPlates}
+        initialInTransitRows={data.inTransitRows}
+        initialInTransitDynamicColumns={data.inTransitDynamicColumns}
       />
     </div>
   );

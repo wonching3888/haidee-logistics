@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { parseDateInput } from "@/lib/inbound-utils";
+import { formatDisplayDate } from "@/lib/date-utils";
+import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import {
   CRATE_IMPORT_OTHER_COLUMN,
   isDefaultImportColumn,
@@ -46,6 +47,22 @@ export interface CrateImportLoadedRow {
   status: "on_the_way" | "arrived";
 }
 
+export interface InTransitImportRow extends CrateImportLoadedRow {
+  dateInput: string;
+  dateStr: string;
+}
+
+type TongImportRecord = {
+  date: Date;
+  quantity: number;
+  status: string;
+  notes: string | null;
+  otherCols: Prisma.JsonValue | null;
+  truck: { plate: string };
+  market: { code: string };
+  tongType: { code: string };
+};
+
 function emptyQuantities(): Record<string, string> {
   return Object.fromEntries(
     TONG_IMPORT_DEFAULT_COLUMNS.map((c) => [c.key, ""])
@@ -80,21 +97,7 @@ export async function getDispatchedTruckPlatesForDate(
   return Array.from(new Set(orders.map((o) => o.truck.plate)));
 }
 
-export async function loadCrateImportsForDate(dateStr: string) {
-  const date = parseDateInput(dateStr);
-  const [imports, dispatchedPlates] = await Promise.all([
-    prisma.tongImport.findMany({
-      where: { date },
-      include: {
-        truck: { select: { plate: true } },
-        market: { select: { code: true } },
-        tongType: { select: { code: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    getDispatchedTruckPlatesForDate(dateStr),
-  ]);
-
+function groupTongImportsToRows(imports: TongImportRecord[]) {
   const rowMap = new Map<string, CrateImportLoadedRow>();
   const dynamicColNames = new Set<string>();
 
@@ -127,7 +130,31 @@ export async function loadCrateImportsForDate(dateStr: string) {
     }
   }
 
-  let rows = Array.from(rowMap.values());
+  return {
+    rows: Array.from(rowMap.values()),
+    dynamicColumns: Array.from(dynamicColNames),
+  };
+}
+
+const tongImportInclude = {
+  truck: { select: { plate: true } },
+  market: { select: { code: true } },
+  tongType: { select: { code: true } },
+} as const;
+
+export async function loadCrateImportsForDate(dateStr: string) {
+  const date = parseDateInput(dateStr);
+  const [imports, dispatchedPlates] = await Promise.all([
+    prisma.tongImport.findMany({
+      where: { date },
+      include: tongImportInclude,
+      orderBy: { createdAt: "asc" },
+    }),
+    getDispatchedTruckPlatesForDate(dateStr),
+  ]);
+
+  const grouped = groupTongImportsToRows(imports);
+  let rows = grouped.rows;
 
   if (rows.length === 0 && dispatchedPlates.length > 0) {
     rows = dispatchedPlates.map((plate) => ({
@@ -141,9 +168,83 @@ export async function loadCrateImportsForDate(dateStr: string) {
 
   return {
     rows,
-    dynamicColumns: Array.from(dynamicColNames),
+    dynamicColumns: grouped.dynamicColumns,
     dispatchedPlates,
   };
+}
+
+export async function loadInTransitCrateImports() {
+  const imports = await prisma.tongImport.findMany({
+    where: { status: "on_the_way" },
+    include: tongImportInclude,
+    orderBy: [{ date: "desc" }, { createdAt: "asc" }],
+  });
+
+  const byDate = new Map<string, TongImportRecord[]>();
+  for (const imp of imports) {
+    const dateInput = toDateInputValue(imp.date);
+    const list = byDate.get(dateInput) ?? [];
+    list.push(imp);
+    byDate.set(dateInput, list);
+  }
+
+  const rows: InTransitImportRow[] = [];
+  const dynamicColNames = new Set<string>();
+
+  for (const [dateInput, dateImports] of Array.from(byDate.entries())) {
+    const grouped = groupTongImportsToRows(dateImports);
+    for (const col of grouped.dynamicColumns) dynamicColNames.add(col);
+
+    for (const row of grouped.rows) {
+      rows.push({
+        ...row,
+        dateInput,
+        dateStr: formatDisplayDate(parseDateInput(dateInput)),
+      });
+    }
+  }
+
+  rows.sort((a, b) => {
+    const dateCmp = b.dateInput.localeCompare(a.dateInput);
+    if (dateCmp !== 0) return dateCmp;
+    return a.truckPlate.localeCompare(b.truckPlate);
+  });
+
+  return {
+    rows,
+    dynamicColumns: Array.from(dynamicColNames),
+  };
+}
+
+export async function markCrateImportRowArrived(
+  dateStr: string,
+  truckPlate: string,
+  marketCode: string
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
+  const date = parseDateInput(dateStr);
+  const truck = await prisma.truck.findFirst({ where: { plate: truckPlate } });
+  if (!truck) throw new Error(`车牌不存在 Unknown plate: ${truckPlate}`);
+
+  const market = await prisma.market.findFirst({ where: { code: marketCode } });
+  if (!market) throw new Error(`市场代码无效 Invalid market: ${marketCode}`);
+
+  await prisma.tongImport.updateMany({
+    where: {
+      date,
+      truckId: truck.id,
+      marketId: market.id,
+      status: "on_the_way",
+    },
+    data: { status: "arrived", arrivedAt: new Date() },
+  });
+
+  revalidatePath("/tong/import");
+  revalidatePath("/crate/import");
+  revalidatePath("/tong/stock");
+  revalidatePath("/crate/stock");
 }
 
 /**
