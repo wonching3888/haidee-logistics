@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
@@ -10,8 +11,117 @@ export interface CrateImportRowInput {
   truckPlate: string;
   marketCode: string;
   quantities: Record<string, string>;
+  otherQuantities?: Record<string, string>;
   notes?: string;
   status?: "on_the_way" | "arrived";
+}
+
+export interface CrateImportLoadedRow {
+  truckPlate: string;
+  marketCode: string;
+  quantities: Record<string, string>;
+  otherQuantities: Record<string, string>;
+  notes: string;
+  status: "on_the_way" | "arrived";
+}
+
+const colByTongCode = Object.fromEntries(
+  TONG_IMPORT_COLUMNS.map((c) => [c.tongCode, c.key])
+);
+
+function emptyQuantities(): Record<string, string> {
+  return Object.fromEntries(TONG_IMPORT_COLUMNS.map((c) => [c.key, ""]));
+}
+
+function parseOtherColsJson(value: Prisma.JsonValue | null): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result: Record<string, number> = {};
+  for (const [key, qty] of Object.entries(value as Record<string, unknown>)) {
+    const n = typeof qty === "number" ? qty : parseInt(String(qty), 10);
+    if (!Number.isNaN(n) && n > 0) result[key] = n;
+  }
+  return result;
+}
+
+export async function getDispatchedTruckPlatesForDate(
+  dateStr: string
+): Promise<string[]> {
+  const date = parseDateInput(dateStr);
+  const orders = await prisma.dispatchOrder.findMany({
+    where: {
+      date,
+      status: { notIn: ["draft", "cancelled"] },
+    },
+    include: { truck: { select: { plate: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return Array.from(new Set(orders.map((o) => o.truck.plate)));
+}
+
+export async function loadCrateImportsForDate(dateStr: string) {
+  const date = parseDateInput(dateStr);
+  const [imports, dispatchedPlates] = await Promise.all([
+    prisma.tongImport.findMany({
+      where: { date },
+      include: {
+        truck: { select: { plate: true } },
+        market: { select: { code: true } },
+        tongType: { select: { code: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    getDispatchedTruckPlatesForDate(dateStr),
+  ]);
+
+  const rowMap = new Map<string, CrateImportLoadedRow>();
+  const otherColNames = new Set<string>();
+
+  for (const imp of imports) {
+    const key = `${imp.truck.plate}|${imp.market.code}`;
+    let row = rowMap.get(key);
+    if (!row) {
+      row = {
+        truckPlate: imp.truck.plate,
+        marketCode: imp.market.code,
+        quantities: emptyQuantities(),
+        otherQuantities: {},
+        notes: imp.notes ?? "",
+        status: imp.status as "on_the_way" | "arrived",
+      };
+      rowMap.set(key, row);
+    }
+
+    const colKey = colByTongCode[imp.tongType.code];
+    if (colKey && imp.quantity > 0) {
+      row.quantities[colKey] = String(imp.quantity);
+    }
+
+    const otherCols = parseOtherColsJson(imp.otherCols);
+    for (const [name, qty] of Object.entries(otherCols)) {
+      row.otherQuantities[name] = String(qty);
+      otherColNames.add(name);
+    }
+  }
+
+  let rows = Array.from(rowMap.values());
+
+  if (rows.length === 0 && dispatchedPlates.length > 0) {
+    rows = dispatchedPlates.map((plate) => ({
+      truckPlate: plate,
+      marketCode: "",
+      quantities: emptyQuantities(),
+      otherQuantities: {},
+      notes: "",
+      status: "on_the_way" as const,
+    }));
+  }
+
+  return {
+    rows,
+    otherColumns: Array.from(otherColNames),
+    dispatchedPlates,
+  };
 }
 
 /**
@@ -32,6 +142,7 @@ export async function saveCrateImport(
   const marketMap = Object.fromEntries(markets.map((m) => [m.code, m.id]));
   const tongTypes = await prisma.tongType.findMany();
   const tongMap = Object.fromEntries(tongTypes.map((t) => [t.code, t.id]));
+  const otherTongTypeId = tongMap["OTHER"];
 
   await prisma.tongImport.deleteMany({ where: { date } });
 
@@ -46,6 +157,24 @@ export async function saveCrateImport(
     if (!marketId)
       throw new Error(`市场代码无效 Invalid market: ${row.marketCode}`);
 
+    const otherColsData: Record<string, number> = {};
+    for (const [name, raw] of Object.entries(row.otherQuantities ?? {})) {
+      const qty = parseInt(raw ?? "0", 10) || 0;
+      if (qty > 0) otherColsData[name] = qty;
+    }
+    const hasOtherCols = Object.keys(otherColsData).length > 0;
+
+    let storedOtherCols = false;
+    const baseData = {
+      date,
+      truckId,
+      marketId,
+      status: row.status ?? "on_the_way",
+      arrivedAt: row.status === "arrived" ? new Date() : null,
+      notes: row.notes || null,
+      createdById: user.id,
+    };
+
     for (const col of TONG_IMPORT_COLUMNS) {
       const qty = parseInt(row.quantities[col.key] ?? "0", 10) || 0;
       if (qty <= 0) continue;
@@ -53,18 +182,25 @@ export async function saveCrateImport(
       const tongTypeId = tongMap[col.tongCode];
       if (!tongTypeId) continue;
 
-      const status = row.status ?? "on_the_way";
       await prisma.tongImport.create({
         data: {
-          date,
-          truckId,
-          marketId,
+          ...baseData,
           tongTypeId,
           quantity: qty,
-          status,
-          arrivedAt: status === "arrived" ? new Date() : null,
-          notes: row.notes || null,
-          createdById: user.id,
+          otherCols:
+            !storedOtherCols && hasOtherCols ? otherColsData : undefined,
+        },
+      });
+      storedOtherCols = storedOtherCols || hasOtherCols;
+    }
+
+    if (!storedOtherCols && hasOtherCols && otherTongTypeId) {
+      await prisma.tongImport.create({
+        data: {
+          ...baseData,
+          tongTypeId: otherTongTypeId,
+          quantity: 0,
+          otherCols: otherColsData,
         },
       });
     }

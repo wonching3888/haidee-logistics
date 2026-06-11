@@ -6,9 +6,12 @@ import { getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
   confirmCrateImportArrived,
+  getDispatchedTruckPlatesForDate,
+  loadCrateImportsForDate,
   saveCrateImport,
   type CrateImportRowInput,
 } from "@/app/actions/crateImport";
+import { sortMarketsForImport } from "@/lib/constants/import-markets";
 import {
   saveCrateExport,
   type CrateExportLineInput,
@@ -27,12 +30,28 @@ export async function getTrucksForImport() {
 }
 
 export async function getMarketsForImport() {
-  return prisma.market.findMany({
+  const markets = await prisma.market.findMany({
     where: { active: true },
-    orderBy: { code: "asc" },
     select: { id: true, code: true, name: true },
   });
+  return sortMarketsForImport(markets);
 }
+
+export async function getCrateImportPageData(dateStr: string) {
+  const [trucks, markets, importData] = await Promise.all([
+    getTrucksForImport(),
+    getMarketsForImport(),
+    loadCrateImportsForDate(dateStr),
+  ]);
+
+  return {
+    trucks,
+    markets,
+    ...importData,
+  };
+}
+
+export { getDispatchedTruckPlatesForDate, loadCrateImportsForDate };
 
 export async function getTongTypesForExport() {
   return prisma.tongType.findMany({

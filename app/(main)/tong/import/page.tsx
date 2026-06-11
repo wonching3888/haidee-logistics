@@ -1,11 +1,10 @@
-import { getMarketsForImport, getTrucksForImport } from "@/app/actions/tong";
+import { getCrateImportPageData } from "@/app/actions/tong";
 import { TongImportForm } from "@/components/tong/TongImportForm";
+import { toDateInputValue } from "@/lib/inbound-utils";
 
 export default async function TongImportPage() {
-  const [trucks, markets] = await Promise.all([
-    getTrucksForImport(),
-    getMarketsForImport(),
-  ]);
+  const date = toDateInputValue(new Date());
+  const data = await getCrateImportPageData(date);
 
   return (
     <div className="space-y-6">
@@ -17,7 +16,14 @@ export default async function TongImportPage() {
           马来西亚车回程空桶回收录入 MY truck return entry
         </p>
       </div>
-      <TongImportForm trucks={trucks} markets={markets} />
+      <TongImportForm
+        allTrucks={data.trucks}
+        markets={data.markets}
+        initialDate={date}
+        initialRows={data.rows}
+        initialOtherColumns={data.otherColumns}
+        initialDispatchedPlates={data.dispatchedPlates}
+      />
     </div>
   );
 }

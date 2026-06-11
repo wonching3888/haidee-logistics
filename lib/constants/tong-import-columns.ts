@@ -12,5 +12,4 @@ export const TONG_IMPORT_COLUMNS = [
   { key: "BS", label: "BS", tongCode: "BS" },
   { key: "BH", label: "BH", tongCode: "BH" },
   { key: "SHS", label: "SHS", tongCode: "SHS" },
-  { key: "OTH", label: "OTH", tongCode: "OTHER" },
 ] as const;

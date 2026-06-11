@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+import {
+  loadCrateImportsForDate,
+  markImportsArrived,
+  saveTongImport,
+} from "@/app/actions/tong";
+import type { CrateImportLoadedRow } from "@/app/actions/crateImport";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
+import { sortTrucksForImport } from "@/lib/constants/import-markets";
 import { TONG_IMPORT_COLUMNS } from "@/lib/constants/tong-import-columns";
-import { markImportsArrived, saveTongImport } from "@/app/actions/tong";
-import { toDateInputValue } from "@/lib/inbound-utils";
 
 interface TruckOption {
   id: string;
@@ -25,6 +30,7 @@ interface ImportRow {
   truckPlate: string;
   marketCode: string;
   quantities: Record<string, string>;
+  otherQuantities: Record<string, string>;
   notes: string;
   status: "on_the_way" | "arrived";
 }
@@ -35,44 +41,136 @@ function emptyRow(): ImportRow {
     truckPlate: "",
     marketCode: "",
     quantities: Object.fromEntries(TONG_IMPORT_COLUMNS.map((c) => [c.key, ""])),
+    otherQuantities: {},
     notes: "",
     status: "on_the_way",
   };
 }
 
-function rowTotal(row: ImportRow): number {
-  return TONG_IMPORT_COLUMNS.reduce(
+function rowFromLoaded(row: CrateImportLoadedRow): ImportRow {
+  return {
+    id: crypto.randomUUID(),
+    truckPlate: row.truckPlate,
+    marketCode: row.marketCode,
+    quantities: { ...row.quantities },
+    otherQuantities: { ...row.otherQuantities },
+    notes: row.notes,
+    status: row.status,
+  };
+}
+
+function rowTotal(row: ImportRow, otherColumns: string[]): number {
+  const fixed = TONG_IMPORT_COLUMNS.reduce(
     (sum, col) => sum + (parseInt(row.quantities[col.key] ?? "0", 10) || 0),
     0
   );
+  const other = otherColumns.reduce(
+    (sum, name) =>
+      sum + (parseInt(row.otherQuantities[name] ?? "0", 10) || 0),
+    0
+  );
+  return fixed + other;
 }
 
 interface TongImportFormProps {
-  trucks: TruckOption[];
+  allTrucks: TruckOption[];
   markets: MarketOption[];
+  initialDate: string;
+  initialRows: CrateImportLoadedRow[];
+  initialOtherColumns: string[];
+  initialDispatchedPlates: string[];
 }
 
-export function TongImportForm({ trucks, markets }: TongImportFormProps) {
+export function TongImportForm({
+  allTrucks,
+  markets,
+  initialDate,
+  initialRows,
+  initialOtherColumns,
+  initialDispatchedPlates,
+}: TongImportFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [date, setDate] = useState(toDateInputValue(new Date()));
-  const [rows, setRows] = useState<ImportRow[]>([emptyRow(), emptyRow(), emptyRow()]);
+  const [date, setDate] = useState(initialDate);
+  const [dispatchedPlates, setDispatchedPlates] = useState(
+    initialDispatchedPlates
+  );
+  const [otherColumns, setOtherColumns] = useState(initialOtherColumns);
+  const [rows, setRows] = useState<ImportRow[]>(() =>
+    initialRows.length > 0 ? initialRows.map(rowFromLoaded) : [emptyRow()]
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "on_the_way" | "arrived">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "on_the_way" | "arrived"
+  >("all");
+
+  const trucks = useMemo(
+    () => sortTrucksForImport(allTrucks, dispatchedPlates),
+    [allTrucks, dispatchedPlates]
+  );
+
+  const priorityPlateSet = useMemo(
+    () => new Set(dispatchedPlates),
+    [dispatchedPlates]
+  );
+
+  const isFirstDateEffect = useRef(true);
+
+  useEffect(() => {
+    if (isFirstDateEffect.current) {
+      isFirstDateEffect.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    startTransition(async () => {
+      try {
+        const data = await loadCrateImportsForDate(date);
+        if (cancelled) return;
+
+        setDispatchedPlates(data.dispatchedPlates);
+        setOtherColumns(data.otherColumns);
+        setRows(
+          data.rows.length > 0 ? data.rows.map(rowFromLoaded) : [emptyRow()]
+        );
+        setError(null);
+        setSuccess(false);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "加载失败 Load failed");
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
 
   const columnTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const col of TONG_IMPORT_COLUMNS) totals[col.key] = 0;
+    const otherTotals: Record<string, number> = {};
+    for (const name of otherColumns) otherTotals[name] = 0;
+
     for (const row of rows) {
       for (const col of TONG_IMPORT_COLUMNS) {
         totals[col.key] += parseInt(row.quantities[col.key] ?? "0", 10) || 0;
       }
+      for (const name of otherColumns) {
+        otherTotals[name] +=
+          parseInt(row.otherQuantities[name] ?? "0", 10) || 0;
+      }
     }
-    return totals;
-  }, [rows]);
 
-  const grandTotal = Object.values(columnTotals).reduce((a, b) => a + b, 0);
+    return { fixed: totals, other: otherTotals };
+  }, [rows, otherColumns]);
+
+  const grandTotal =
+    Object.values(columnTotals.fixed).reduce((a, b) => a + b, 0) +
+    Object.values(columnTotals.other).reduce((a, b) => a + b, 0);
 
   function updateRow(id: string, patch: Partial<ImportRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -89,6 +187,43 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
     );
   }
 
+  function updateOtherQty(id: string, colName: string, value: string) {
+    if (value !== "" && !/^\d+$/.test(value)) return;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              otherQuantities: { ...r.otherQuantities, [colName]: value },
+            }
+          : r
+      )
+    );
+  }
+
+  function addOtherColumn() {
+    const name = prompt("输入列名称\nEnter column name");
+    if (!name?.trim()) return;
+    const colName = name.trim();
+    if (otherColumns.includes(colName)) {
+      setError(`列名已存在 Column already exists: ${colName}`);
+      return;
+    }
+    setOtherColumns((prev) => [...prev, colName]);
+    setError(null);
+  }
+
+  function removeOtherColumn(colName: string) {
+    setOtherColumns((prev) => prev.filter((c) => c !== colName));
+    setRows((prev) =>
+      prev.map((r) => {
+        const rest = { ...r.otherQuantities };
+        delete rest[colName];
+        return { ...r, otherQuantities: rest };
+      })
+    );
+  }
+
   function handleSave() {
     setError(null);
     setSuccess(false);
@@ -100,6 +235,7 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
             truckPlate: r.truckPlate,
             marketCode: r.marketCode,
             quantities: r.quantities,
+            otherQuantities: r.otherQuantities,
             notes: r.notes || undefined,
             status: r.status,
           }))
@@ -116,11 +252,15 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-haidee-text">日期 Date</label>
+          <label className="text-sm font-medium text-haidee-text">
+            日期 Date
+          </label>
           <DateInputField value={date} onChange={setDate} />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium text-haidee-text">状态筛选 Filter</label>
+          <label className="text-sm font-medium text-haidee-text">
+            状态筛选 Filter
+          </label>
           <select
             value={statusFilter}
             onChange={(e) =>
@@ -164,6 +304,31 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
                     {c.label}
                   </th>
                 ))}
+                {otherColumns.map((name) => (
+                  <th key={name} className="px-1 py-2 font-mono">
+                    <span className="inline-flex items-center gap-1">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeOtherColumn(name)}
+                        className="rounded p-0.5 text-haidee-muted hover:text-haidee-red"
+                        aria-label={`删除列 ${name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </th>
+                ))}
+                <th className="px-1 py-2">
+                  <button
+                    type="button"
+                    onClick={addOtherColumn}
+                    className="inline-flex items-center gap-0.5 rounded border border-dashed border-haidee-border px-1.5 py-0.5 font-medium text-haidee-blue hover:bg-haidee-surface"
+                  >
+                    <Plus className="h-3 w-3" />
+                    加列
+                  </button>
+                </th>
                 <th className="px-2 py-2">总计 Total</th>
                 <th className="px-2 py-2">状态 Status</th>
                 <th className="px-2 py-2">备注 Notes</th>
@@ -177,98 +342,127 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
                     statusFilter === "all" || row.status === statusFilter
                 )
                 .map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-haidee-border/60 ${
-                    row.status === "on_the_way" ? "bg-yellow-50/80" : ""
-                  }`}
-                >
-                  <td className="px-2 py-1 text-center font-mono">{idx + 1}</td>
-                  <td className="px-1 py-1">
-                    <select
-                      value={row.truckPlate}
-                      onChange={(e) =>
-                        updateRow(row.id, { truckPlate: e.target.value })
-                      }
-                      className="min-h-[40px] w-full min-w-[100px] rounded border border-haidee-border px-1 font-mono text-xs"
-                    >
-                      <option value="">—</option>
-                      {trucks.map((t) => (
-                        <option key={t.id} value={t.plate}>
-                          {t.plate}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-1 py-1">
-                    <select
-                      value={row.marketCode}
-                      onChange={(e) =>
-                        updateRow(row.id, { marketCode: e.target.value })
-                      }
-                      className="min-h-[40px] w-full min-w-[72px] rounded border border-haidee-border px-1 font-mono text-xs"
-                    >
-                      <option value="">—</option>
-                      <option value="X">X</option>
-                      {markets.map((m) => (
-                        <option key={m.id} value={m.code}>
-                          {m.code}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  {TONG_IMPORT_COLUMNS.map((col) => (
-                    <td key={col.key} className="px-1 py-1">
+                  <tr
+                    key={row.id}
+                    className={`border-b border-haidee-border/60 ${
+                      row.status === "on_the_way" ? "bg-yellow-50/80" : ""
+                    }`}
+                  >
+                    <td className="px-2 py-1 text-center font-mono">
+                      {idx + 1}
+                    </td>
+                    <td className="px-1 py-1">
+                      <select
+                        value={row.truckPlate}
+                        onChange={(e) =>
+                          updateRow(row.id, { truckPlate: e.target.value })
+                        }
+                        className="min-h-[40px] w-full min-w-[100px] rounded border border-haidee-border px-1 font-mono text-xs"
+                      >
+                        <option value="">—</option>
+                        {trucks.map((t) => (
+                          <option
+                            key={t.id}
+                            value={t.plate}
+                            className={
+                              priorityPlateSet.has(t.plate)
+                                ? "font-semibold"
+                                : undefined
+                            }
+                          >
+                            {priorityPlateSet.has(t.plate)
+                              ? `★ ${t.plate}`
+                              : t.plate}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-1 py-1">
+                      <select
+                        value={row.marketCode}
+                        onChange={(e) =>
+                          updateRow(row.id, { marketCode: e.target.value })
+                        }
+                        className="min-h-[40px] w-full min-w-[72px] rounded border border-haidee-border px-1 font-mono text-xs"
+                      >
+                        <option value="">—</option>
+                        <option value="X">X</option>
+                        {markets.map((m) => (
+                          <option key={m.id} value={m.code}>
+                            {m.code}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    {TONG_IMPORT_COLUMNS.map((col) => (
+                      <td key={col.key} className="px-1 py-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={row.quantities[col.key]}
+                          onChange={(e) =>
+                            updateQty(row.id, col.key, e.target.value)
+                          }
+                          disabled={row.marketCode === "X"}
+                          className="min-h-[40px] w-12 rounded border border-haidee-border px-1 text-center font-mono text-sm disabled:bg-haidee-surface"
+                        />
+                      </td>
+                    ))}
+                    {otherColumns.map((name) => (
+                      <td key={name} className="px-1 py-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={row.otherQuantities[name] ?? ""}
+                          onChange={(e) =>
+                            updateOtherQty(row.id, name, e.target.value)
+                          }
+                          disabled={row.marketCode === "X"}
+                          className="min-h-[40px] w-12 rounded border border-haidee-border px-1 text-center font-mono text-sm disabled:bg-haidee-surface"
+                        />
+                      </td>
+                    ))}
+                    <td className="px-1 py-1" />
+                    <td className="px-2 py-1 text-center font-mono font-semibold">
+                      {rowTotal(row, otherColumns)}
+                    </td>
+                    <td className="px-1 py-1">
+                      <select
+                        value={row.status}
+                        onChange={(e) =>
+                          updateRow(row.id, {
+                            status: e.target.value as ImportRow["status"],
+                          })
+                        }
+                        className="min-h-[40px] w-full min-w-[90px] rounded border border-haidee-border px-1 text-xs"
+                      >
+                        <option value="on_the_way">🟡 在途</option>
+                        <option value="arrived">🟢 已到</option>
+                      </select>
+                    </td>
+                    <td className="px-1 py-1">
                       <input
                         type="text"
-                        inputMode="numeric"
-                        value={row.quantities[col.key]}
-                        onChange={(e) => updateQty(row.id, col.key, e.target.value)}
-                        disabled={row.marketCode === "X"}
-                        className="min-h-[40px] w-12 rounded border border-haidee-border px-1 text-center font-mono text-sm disabled:bg-haidee-surface"
+                        value={row.notes}
+                        onChange={(e) =>
+                          updateRow(row.id, { notes: e.target.value })
+                        }
+                        className="min-h-[40px] w-full min-w-[80px] rounded border border-haidee-border px-1 text-xs"
                       />
                     </td>
-                  ))}
-                  <td className="px-2 py-1 text-center font-mono font-semibold">
-                    {rowTotal(row)}
-                  </td>
-                  <td className="px-1 py-1">
-                    <select
-                      value={row.status}
-                      onChange={(e) =>
-                        updateRow(row.id, {
-                          status: e.target.value as ImportRow["status"],
-                        })
-                      }
-                      className="min-h-[40px] w-full min-w-[90px] rounded border border-haidee-border px-1 text-xs"
-                    >
-                      <option value="on_the_way">🟡 在途</option>
-                      <option value="arrived">🟢 已到</option>
-                    </select>
-                  </td>
-                  <td className="px-1 py-1">
-                    <input
-                      type="text"
-                      value={row.notes}
-                      onChange={(e) =>
-                        updateRow(row.id, { notes: e.target.value })
-                      }
-                      className="min-h-[40px] w-full min-w-[80px] rounded border border-haidee-border px-1 text-xs"
-                    />
-                  </td>
-                  <td className="px-1 py-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRows((prev) => prev.filter((r) => r.id !== row.id))
-                      }
-                      className="rounded p-1 text-haidee-muted hover:text-haidee-red"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-1 py-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRows((prev) => prev.filter((r) => r.id !== row.id))
+                        }
+                        className="rounded p-1 text-haidee-muted hover:text-haidee-red"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -291,8 +485,12 @@ export function TongImportForm({ trucks, markets }: TongImportFormProps) {
         <div className="flex flex-wrap gap-3 text-sm">
           {TONG_IMPORT_COLUMNS.map((col) => (
             <span key={col.key} className="font-mono">
-              {col.label}:{" "}
-              <strong>{columnTotals[col.key]}</strong>
+              {col.label}: <strong>{columnTotals.fixed[col.key]}</strong>
+            </span>
+          ))}
+          {otherColumns.map((name) => (
+            <span key={name} className="font-mono">
+              {name}: <strong>{columnTotals.other[name]}</strong>
             </span>
           ))}
           <span className="ml-auto font-mono font-bold text-haidee-navy">

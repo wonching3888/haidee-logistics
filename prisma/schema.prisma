@@ -276,6 +276,7 @@ model TongImport {
   status     String    @default("on_the_way") // on_the_way | arrived
   arrivedAt  DateTime? @map("arrived_at")
   notes      String?
+  otherCols  Json?     @map("other_cols") @db.JsonB
   createdById String?  @map("created_by") @db.Uuid
   createdAt  DateTime  @default(now()) @map("created_at")
 
