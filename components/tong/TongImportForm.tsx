@@ -371,22 +371,20 @@ export function TongImportForm({
 
   return (
     <div className="space-y-8">
-      <div className="space-y-1">
-        <label className="text-sm font-medium text-haidee-text">日期 Date</label>
-        <DateInputField
-          value={selectedDate}
-          onChange={setSelectedDate}
-          className="max-w-[11.5rem]"
-        />
-      </div>
-
       {/* Daily records section */}
       <section className="space-y-4">
-        <div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h3 className="text-lg font-semibold text-haidee-text">
             当日记录 Today
           </h3>
-          <p className="text-sm text-haidee-muted">{selectedDateStr}</p>
+          <DateInputField
+            value={selectedDate}
+            onChange={setSelectedDate}
+            className="w-[11.5rem] shrink-0"
+          />
+          <span className="font-mono text-sm text-haidee-muted">
+            {selectedDateStr}
+          </span>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
