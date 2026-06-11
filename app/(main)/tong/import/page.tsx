@@ -19,6 +19,7 @@ export default async function TongImportPage() {
       <TongImportForm
         allTrucks={data.trucks}
         markets={data.markets}
+        crateTypes={data.crateTypes}
         initialDate={date}
         initialRows={data.rows}
         initialDynamicColumns={data.dynamicColumns}

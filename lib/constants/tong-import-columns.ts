@@ -1,3 +1,6 @@
+/** Special column: notes only, stored in other_cols JSONB */
+export const CRATE_IMPORT_OTHER_COLUMN = "OTHER";
+
 /** Default visible columns on crate import form */
 export const TONG_IMPORT_DEFAULT_COLUMNS = [
   { key: "WTL", label: "WTL", tongCode: "WTL" },

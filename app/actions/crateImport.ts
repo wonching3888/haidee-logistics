@@ -6,11 +6,29 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
 import {
+  CRATE_IMPORT_OTHER_COLUMN,
   isDefaultImportColumn,
-  resolveImportTongCode,
-  TONG_IMPORT_ALL_COLUMNS,
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
+
+export interface CrateTypeOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export async function getCrateTypesForImport(): Promise<CrateTypeOption[]> {
+  const defaultCodes = TONG_IMPORT_DEFAULT_COLUMNS.map((c) => c.tongCode);
+  return prisma.tongType.findMany({
+    where: {
+      active: true,
+      isBox: false,
+      code: { notIn: [...defaultCodes, CRATE_IMPORT_OTHER_COLUMN] },
+    },
+    orderBy: { displayOrder: "asc" },
+    select: { id: true, code: true, name: true },
+  });
+}
 
 export interface CrateImportRowInput {
   truckPlate: string;
@@ -77,10 +95,6 @@ export async function loadCrateImportsForDate(dateStr: string) {
     getDispatchedTruckPlatesForDate(dateStr),
   ]);
 
-  const colByTongCodeAll = Object.fromEntries(
-    TONG_IMPORT_ALL_COLUMNS.map((c) => [c.tongCode, c.key])
-  );
-
   const rowMap = new Map<string, CrateImportLoadedRow>();
   const dynamicColNames = new Set<string>();
 
@@ -98,7 +112,7 @@ export async function loadCrateImportsForDate(dateStr: string) {
       rowMap.set(key, row);
     }
 
-    const colKey = colByTongCodeAll[imp.tongType.code] ?? imp.tongType.code;
+    const colKey = imp.tongType.code;
     if (imp.quantity > 0) {
       row.quantities[colKey] = String(imp.quantity);
       if (!isDefaultImportColumn(colKey)) {
@@ -109,9 +123,7 @@ export async function loadCrateImportsForDate(dateStr: string) {
     const otherCols = parseOtherColsJson(imp.otherCols);
     for (const [name, qty] of Object.entries(otherCols)) {
       row.quantities[name] = String(qty);
-      if (!isDefaultImportColumn(name)) {
-        dynamicColNames.add(name);
-      }
+      dynamicColNames.add(name);
     }
   }
 
@@ -174,9 +186,12 @@ export async function saveCrateImport(
       const qty = parseInt(raw ?? "0", 10) || 0;
       if (qty <= 0) continue;
 
-      const tongCode = resolveImportTongCode(colKey) ?? colKey;
-      const tongTypeId = tongMap[tongCode];
+      if (colKey === CRATE_IMPORT_OTHER_COLUMN) {
+        otherColsData[colKey] = qty;
+        continue;
+      }
 
+      const tongTypeId = tongMap[colKey];
       if (tongTypeId) {
         tongEntries.push({ tongTypeId, quantity: qty });
       } else {

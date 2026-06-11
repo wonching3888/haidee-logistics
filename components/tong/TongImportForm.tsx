@@ -9,11 +9,19 @@ import {
   saveTongImport,
 } from "@/app/actions/tong";
 import type { CrateImportLoadedRow } from "@/app/actions/crateImport";
+import type { CrateTypeOption } from "@/app/actions/crateImport";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { sortTrucksForImport } from "@/lib/constants/import-markets";
 import {
-  isDefaultImportColumn,
+  CRATE_IMPORT_OTHER_COLUMN,
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
 
@@ -83,6 +91,7 @@ function rowTotal(row: ImportRow, dynamicColumns: string[]): number {
 interface TongImportFormProps {
   allTrucks: TruckOption[];
   markets: MarketOption[];
+  crateTypes: CrateTypeOption[];
   initialDate: string;
   initialRows: CrateImportLoadedRow[];
   initialDynamicColumns: string[];
@@ -92,6 +101,7 @@ interface TongImportFormProps {
 export function TongImportForm({
   allTrucks,
   markets,
+  crateTypes,
   initialDate,
   initialRows,
   initialDynamicColumns,
@@ -112,6 +122,8 @@ export function TongImportForm({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "on_the_way" | "arrived"
   >("all");
+  const [addColumnOpen, setAddColumnOpen] = useState(false);
+  const [selectedColumnCode, setSelectedColumnCode] = useState("");
 
   const trucks = useMemo(
     () => sortTrucksForImport(allTrucks, dispatchedPlates),
@@ -182,6 +194,34 @@ export function TongImportForm({
     [columnTotals]
   );
 
+  const usedColumnCodes = useMemo(() => {
+    const codes = new Set<string>(
+      TONG_IMPORT_DEFAULT_COLUMNS.map((c) => c.key)
+    );
+    for (const code of dynamicColumns) codes.add(code);
+    return codes;
+  }, [dynamicColumns]);
+
+  const addableColumnOptions = useMemo(() => {
+    const options = crateTypes
+      .filter((t) => !usedColumnCodes.has(t.code))
+      .map((t) => ({
+        code: t.code,
+        label: t.code,
+        hint: t.name !== t.code ? t.name : undefined,
+      }));
+
+    if (!usedColumnCodes.has(CRATE_IMPORT_OTHER_COLUMN)) {
+      options.push({
+        code: CRATE_IMPORT_OTHER_COLUMN,
+        label: CRATE_IMPORT_OTHER_COLUMN,
+        hint: "备注，不计入库存 Notes only",
+      });
+    }
+
+    return options;
+  }, [crateTypes, usedColumnCodes]);
+
   function updateRow(id: string, patch: Partial<ImportRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
@@ -197,19 +237,25 @@ export function TongImportForm({
     );
   }
 
-  function addDynamicColumn() {
-    const name = prompt("输入列名称\nEnter column name");
-    if (!name?.trim()) return;
-    const colName = name.trim().toUpperCase();
-    if (isDefaultImportColumn(colName)) {
-      setError(`${colName} 已是默认列 Already a default column`);
+  function openAddColumnDialog() {
+    if (addableColumnOptions.length === 0) {
+      setError("没有可添加的桶型 No more crate types to add");
       return;
     }
-    if (dynamicColumns.includes(colName)) {
-      setError(`列名已存在 Column already exists: ${colName}`);
+    setSelectedColumnCode(addableColumnOptions[0]?.code ?? "");
+    setAddColumnOpen(true);
+    setError(null);
+  }
+
+  function confirmAddColumn() {
+    if (!selectedColumnCode) return;
+    if (usedColumnCodes.has(selectedColumnCode)) {
+      setError(`列已存在 Column already exists: ${selectedColumnCode}`);
       return;
     }
-    setDynamicColumns((prev) => [...prev, colName]);
+    setDynamicColumns((prev) => [...prev, selectedColumnCode]);
+    setAddColumnOpen(false);
+    setSelectedColumnCode("");
     setError(null);
   }
 
@@ -320,8 +366,9 @@ export function TongImportForm({
                 <th className="px-1 py-2">
                   <button
                     type="button"
-                    onClick={addDynamicColumn}
-                    className="inline-flex items-center gap-0.5 rounded border border-dashed border-haidee-border px-1.5 py-0.5 font-medium text-haidee-blue hover:bg-haidee-surface"
+                    onClick={openAddColumnDialog}
+                    disabled={addableColumnOptions.length === 0}
+                    className="inline-flex items-center gap-0.5 rounded border border-dashed border-haidee-border px-1.5 py-0.5 font-medium text-haidee-blue hover:bg-haidee-surface disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Plus className="h-3 w-3" />
                     加列
@@ -499,6 +546,48 @@ export function TongImportForm({
       >
         {isPending ? "保存中…" : "确认保存 Confirm Save"}
       </Button>
+
+      <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>添加桶型列 Add Crate Column</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium text-haidee-text">
+              选择桶型 Select crate type
+            </label>
+            <select
+              value={selectedColumnCode}
+              onChange={(e) => setSelectedColumnCode(e.target.value)}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 font-mono text-sm"
+            >
+              {addableColumnOptions.map((opt) => (
+                <option key={opt.code} value={opt.code}>
+                  {opt.label}
+                  {opt.hint ? ` — ${opt.hint}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddColumnOpen(false)}
+            >
+              取消 Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmAddColumn}
+              disabled={!selectedColumnCode}
+              className="bg-haidee-blue text-white hover:bg-haidee-blue/90"
+            >
+              确认添加 Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

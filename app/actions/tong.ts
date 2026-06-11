@@ -6,6 +6,7 @@ import { getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
   confirmCrateImportArrived,
+  getCrateTypesForImport,
   getDispatchedTruckPlatesForDate,
   loadCrateImportsForDate,
   saveCrateImport,
@@ -44,20 +45,26 @@ export async function getMarketsForImport() {
 }
 
 export async function getCrateImportPageData(dateStr: string) {
-  const [trucks, markets, importData] = await Promise.all([
+  const [trucks, markets, crateTypes, importData] = await Promise.all([
     getTrucksForImport(),
     getMarketsForImport(),
+    getCrateTypesForImport(),
     loadCrateImportsForDate(dateStr),
   ]);
 
   return {
     trucks,
     markets,
+    crateTypes,
     ...importData,
   };
 }
 
-export { getDispatchedTruckPlatesForDate, loadCrateImportsForDate };
+export {
+  getCrateTypesForImport,
+  getDispatchedTruckPlatesForDate,
+  loadCrateImportsForDate,
+};
 
 export async function getTongTypesForExport() {
   return prisma.tongType.findMany({
