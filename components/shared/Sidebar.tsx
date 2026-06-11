@@ -12,6 +12,7 @@ import {
   Upload,
   Package,
   History,
+  Search,
   Settings,
   Users,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "总览", labelEn: "Dashboard", icon: LayoutDashboard },
   { href: "/inbound", label: "进货录入", labelEn: "Inbound", icon: PackageSearch },
   { href: "/summary", label: "每日总单", labelEn: "Daily Summary", icon: TableProperties },
+  { href: "/search", label: "查询", labelEn: "Search", icon: Search },
   { href: "/dispatch", label: "派车调度", labelEn: "Dispatch", icon: Truck },
   { href: "/documents", label: "文件生成", labelEn: "Documents", icon: FileText },
   { href: "/crate/import", label: "空桶回收", labelEn: "Crate Import", icon: Download },
