@@ -20,7 +20,7 @@ export default async function TongImportPage() {
         allTrucks={data.trucks}
         markets={data.markets}
         crateTypes={data.crateTypes}
-        todayDate={todayDate}
+        initialDate={todayDate}
         initialRows={data.rows}
         initialDynamicColumns={data.dynamicColumns}
         initialDispatchedPlates={data.dispatchedPlates}

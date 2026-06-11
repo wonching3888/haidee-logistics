@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
 import {
+  loadCrateImportsForDate,
   loadInTransitCrateImports,
   markCrateImportRowArrived,
   saveTongImport,
 } from "@/app/actions/tong";
+import { DateInputField } from "@/components/shared/DateInputField";
 import type {
   CrateImportLoadedRow,
   CrateTypeOption,
@@ -113,7 +115,7 @@ interface TongImportFormProps {
   allTrucks: TruckOption[];
   markets: MarketOption[];
   crateTypes: CrateTypeOption[];
-  todayDate: string;
+  initialDate: string;
   initialRows: CrateImportLoadedRow[];
   initialDynamicColumns: string[];
   initialDispatchedPlates: string[];
@@ -125,7 +127,7 @@ export function TongImportForm({
   allTrucks,
   markets,
   crateTypes,
-  todayDate,
+  initialDate,
   initialRows,
   initialDynamicColumns,
   initialDispatchedPlates,
@@ -134,8 +136,12 @@ export function TongImportForm({
 }: TongImportFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const todayStr = formatDisplayDate(parseDateInput(todayDate));
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const selectedDateStr = formatDisplayDate(parseDateInput(selectedDate));
 
+  const [dispatchedPlates, setDispatchedPlates] = useState(
+    initialDispatchedPlates
+  );
   const [dynamicColumns, setDynamicColumns] = useState(initialDynamicColumns);
   const [rows, setRows] = useState<ImportRow[]>(() =>
     initialRows.length > 0 ? initialRows.map(rowFromLoaded) : [emptyRow()]
@@ -150,9 +156,43 @@ export function TongImportForm({
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [selectedColumnCode, setSelectedColumnCode] = useState("");
 
+  const isFirstDateEffect = useRef(true);
+
+  useEffect(() => {
+    if (isFirstDateEffect.current) {
+      isFirstDateEffect.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    startTransition(async () => {
+      try {
+        const data = await loadCrateImportsForDate(selectedDate);
+        if (cancelled) return;
+
+        setDispatchedPlates(data.dispatchedPlates);
+        setDynamicColumns(data.dynamicColumns);
+        setRows(
+          data.rows.length > 0 ? data.rows.map(rowFromLoaded) : [emptyRow()]
+        );
+        setError(null);
+        setSuccess(false);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "加载失败 Load failed");
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
+
   const trucks = useMemo(
-    () => sortTrucksForImport(allTrucks, initialDispatchedPlates),
-    [allTrucks, initialDispatchedPlates]
+    () => sortTrucksForImport(allTrucks, dispatchedPlates),
+    [allTrucks, dispatchedPlates]
   );
 
   const allDynamicColumns = useMemo(
@@ -275,7 +315,7 @@ export function TongImportForm({
     startTransition(async () => {
       try {
         await saveTongImport(
-          todayDate,
+          selectedDate,
           rows.map((r) => ({
             truckPlate: r.truckPlate,
             marketCode: r.marketCode,
@@ -331,13 +371,22 @@ export function TongImportForm({
 
   return (
     <div className="space-y-8">
-      {/* Today section */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-haidee-text">日期 Date</label>
+        <DateInputField
+          value={selectedDate}
+          onChange={setSelectedDate}
+          className="max-w-[11.5rem]"
+        />
+      </div>
+
+      {/* Daily records section */}
       <section className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold text-haidee-text">
             当日记录 Today
           </h3>
-          <p className="text-sm text-haidee-muted">{todayStr}</p>
+          <p className="text-sm text-haidee-muted">{selectedDateStr}</p>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
