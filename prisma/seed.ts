@@ -30,15 +30,16 @@ const TONG_TYPES = [
   { code: "VIO", name: "VIOLET", trackInventory: true, isBox: false, displayOrder: 3 },
   { code: "MAR", name: "MAROON", trackInventory: true, isBox: false, displayOrder: 4 },
   { code: "SHK", name: "SHK", trackInventory: true, isBox: false, displayOrder: 5 },
-  { code: "GSK", name: "GSK", trackInventory: true, isBox: false, displayOrder: 6 },
+  { code: "GKS", name: "GKS", trackInventory: true, isBox: false, displayOrder: 6 },
   { code: "BRO", name: "BRO", trackInventory: true, isBox: false, displayOrder: 7 },
   { code: "GLY", name: "GLORY", trackInventory: true, isBox: false, displayOrder: 8 },
   { code: "BS", name: "BS", trackInventory: true, isBox: false, displayOrder: 9 },
-  { code: "HD_BHR", name: "HD(BHR)", trackInventory: true, isBox: false, displayOrder: 10 },
-  { code: "BH_BHR", name: "BH(BHR)", trackInventory: true, isBox: false, displayOrder: 11 },
-  { code: "LYS_BHR", name: "LYS(BHR)", trackInventory: false, isBox: false, displayOrder: 12 },
-  { code: "LL_BHR", name: "LL(BHR)", trackInventory: false, isBox: false, displayOrder: 13 },
-  { code: "BOX", name: "盒装BOX", trackInventory: false, isBox: true, displayOrder: 14 },
+  { code: "BHR", name: "BHR", trackInventory: true, isBox: false, displayOrder: 10 },
+  { code: "LL_BHR", name: "LL(BHR)", trackInventory: false, isBox: false, displayOrder: 11 },
+  { code: "BAN_HENG", name: "Ban Heng", trackInventory: true, isBox: false, displayOrder: 14 },
+  { code: "SAHASIN", name: "Sahasin", trackInventory: true, isBox: false, displayOrder: 15 },
+  { code: "OTHER", name: "Other", trackInventory: false, isBox: false, displayOrder: 16 },
+  { code: "BOX", name: "盒装BOX", trackInventory: false, isBox: true, displayOrder: 17 },
 ];
 
 async function main() {

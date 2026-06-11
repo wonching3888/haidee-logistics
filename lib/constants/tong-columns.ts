@@ -4,19 +4,19 @@ export const BOX_COLUMN_CODE = "BOX";
 /** Fixed tong-type column order for all D/O documents */
 export const DO_TONG_COLUMNS = [
   { code: "BOX", header: "BOX" },
-  { code: "HD_BHR", header: "HD(BHR)" },
-  { code: "BH_BHR", header: "BH(BHR)" },
-  { code: "LYS_BHR", header: "LYS(BHR)" },
+  { code: "BHR", header: "BHR" },
   { code: "LL_BHR", header: "LL(BHR)" },
   { code: "ABB", header: "ABB" },
   { code: "WTL", header: "WTL" },
   { code: "VIO", header: "VIO" },
   { code: "MAR", header: "MAR" },
   { code: "SHK", header: "SHK" },
-  { code: "GSK", header: "GSK" },
+  { code: "GKS", header: "GKS" },
   { code: "BRO", header: "BRO" },
   { code: "GLY", header: "GLY" },
   { code: "BS", header: "BS" },
+  { code: "BAN_HENG", header: "Ban Heng" },
+  { code: "SAHASIN", header: "Sahasin" },
   { code: "OTHER", header: "Other" },
 ] as const;
 
@@ -24,12 +24,20 @@ const KNOWN_CODES = new Set<string>(
   DO_TONG_COLUMNS.filter((c) => c.code !== "OTHER").map((c) => c.code)
 );
 
+const LEGACY_TONG_COLUMN_MAP: Record<string, string> = {
+  GSK: "GKS",
+  HD_BHR: "BHR",
+  BH_BHR: "BHR",
+  LYS_BHR: "BHR",
+};
+
 export function isBoxColumn(code: string): boolean {
   return code === BOX_COLUMN_CODE;
 }
 
 export function mapTongToColumn(tongCode: string): string {
-  if (KNOWN_CODES.has(tongCode)) return tongCode;
+  const mapped = LEGACY_TONG_COLUMN_MAP[tongCode] ?? tongCode;
+  if (KNOWN_CODES.has(mapped)) return mapped;
   return "OTHER";
 }
 
