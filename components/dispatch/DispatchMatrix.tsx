@@ -13,6 +13,31 @@ function emptyQty() {
   return { crate: 0, box: 0 };
 }
 
+function TotalsCellDisplay({
+  crate,
+  box,
+  align = "center",
+}: {
+  crate: number;
+  box: number;
+  align?: "center" | "end";
+}) {
+  if (crate === 0 && box === 0) return null;
+  if (crate === 0) return <>{box}盒</>;
+  if (box === 0) return <>{crate}</>;
+  return (
+    <div
+      className={cn(
+        "flex flex-col leading-tight",
+        align === "end" ? "items-end" : "items-center"
+      )}
+    >
+      <span>{crate}</span>
+      <span className="text-xs font-normal">{box}盒</span>
+    </div>
+  );
+}
+
 export function DispatchMatrix({ data }: DispatchMatrixProps) {
   const { shippers, markets, cells, rowTotals, colTotals, grandTotal } = data;
 
@@ -62,7 +87,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                     className="sticky z-20 min-w-[52px] bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text"
                     style={{ top: headerRowHeight }}
                   >
-                    {cellDisplay(qty.crate, qty.box)}
+                    <TotalsCellDisplay crate={qty.crate} box={qty.box} />
                   </th>
                 );
               })}
@@ -70,7 +95,11 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                 className="sticky z-20 bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy"
                 style={{ top: headerRowHeight }}
               >
-                {cellDisplay(grandTotal.crate, grandTotal.box)}
+                <TotalsCellDisplay
+                  crate={grandTotal.crate}
+                  box={grandTotal.box}
+                  align="end"
+                />
               </th>
             </tr>
           </thead>
