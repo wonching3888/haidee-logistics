@@ -1,3 +1,4 @@
+import { getMarketColor } from "@/lib/markets";
 import { cn } from "@/lib/utils";
 
 interface DispatchMarketLabelProps {
@@ -11,14 +12,20 @@ export function DispatchMarketLabel({
   selected = false,
   className,
 }: DispatchMarketLabelProps) {
+  const colors = getMarketColor(code);
+
   return (
     <span
       className={cn(
-        selected
-          ? "rounded border-2 border-haidee-navy bg-white px-2 py-0.5 text-xs font-medium text-haidee-navy"
-          : "rounded border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700",
+        "inline-flex min-h-[28px] min-w-[36px] items-center justify-center rounded px-2 py-0.5 font-mono text-xs font-semibold",
+        selected && "ring-2 ring-haidee-navy ring-offset-1",
         className
       )}
+      style={{
+        backgroundColor: colors.bg,
+        color: colors.text,
+        border: `1px solid ${colors.border}`,
+      }}
     >
       {code}
     </span>

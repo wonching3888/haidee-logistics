@@ -10,19 +10,38 @@ import { buildConsignorAreaLabel } from "@/lib/consignor-label";
 import {
   DISPATCH_MARKET_ORDER,
   MARKET_ORDER,
-  getActiveMarkets,
   sortMarkets,
 } from "@/lib/markets";
+
+export interface CrateBoxQty {
+  crate: number;
+  box: number;
+}
 
 export interface DispatchMatrixData {
   shippers: { id: string; name: string }[];
   markets: string[];
-  cells: Record<string, Record<string, number>>;
-  rowTotals: Record<string, number>;
-  rowBoxTotals: Record<string, number>;
-  colTotals: Record<string, number>;
-  boxGrandTotal: number;
-  grandTotal: number;
+  cells: Record<string, Record<string, CrateBoxQty>>;
+  rowTotals: Record<string, CrateBoxQty>;
+  colTotals: Record<string, CrateBoxQty>;
+  grandTotal: CrateBoxQty;
+}
+
+function emptyQty(): CrateBoxQty {
+  return { crate: 0, box: 0 };
+}
+
+function addLineQty(
+  qty: CrateBoxQty,
+  quantity: number,
+  isBox: boolean
+): CrateBoxQty {
+  if (isBox) return { ...qty, box: qty.box + quantity };
+  return { ...qty, crate: qty.crate + quantity };
+}
+
+function hasQty(qty: CrateBoxQty): boolean {
+  return qty.crate > 0 || qty.box > 0;
 }
 
 export interface StallLineDetail {
@@ -169,12 +188,10 @@ export async function getUnassignedMatrix(
   const lines = await fetchUnassignedLines(date);
 
   const sessionMap = new Map<string, string>();
-  const cells: Record<string, Record<string, number>> = {};
-  const rowTotals: Record<string, number> = {};
-  const rowBoxTotals: Record<string, number> = {};
-  const colTotals: Record<string, number> = {};
-  let grandTotal = 0;
-  let boxGrandTotal = 0;
+  const cells: Record<string, Record<string, CrateBoxQty>> = {};
+  const rowTotals: Record<string, CrateBoxQty> = {};
+  const colTotals: Record<string, CrateBoxQty> = {};
+  let grandTotal = emptyQty();
 
   for (const line of lines) {
     const marketCode = line.stall.market?.code;
@@ -186,36 +203,40 @@ export async function getUnassignedMatrix(
       buildConsignorAreaLabel(line.session.shipper.name, line.session.areaNote)
     );
 
-    if (line.isBox) {
-      rowBoxTotals[sessionId] =
-        (rowBoxTotals[sessionId] ?? 0) + line.quantity;
-      boxGrandTotal += line.quantity;
-      continue;
-    }
-
     if (!cells[sessionId]) cells[sessionId] = {};
-    cells[sessionId][marketCode] =
-      (cells[sessionId][marketCode] ?? 0) + line.quantity;
+    const cell = cells[sessionId][marketCode] ?? emptyQty();
+    cells[sessionId][marketCode] = addLineQty(cell, line.quantity, line.isBox);
 
-    rowTotals[sessionId] = (rowTotals[sessionId] ?? 0) + line.quantity;
-    colTotals[marketCode] = (colTotals[marketCode] ?? 0) + line.quantity;
-    grandTotal += line.quantity;
+    rowTotals[sessionId] = addLineQty(
+      rowTotals[sessionId] ?? emptyQty(),
+      line.quantity,
+      line.isBox
+    );
+    colTotals[marketCode] = addLineQty(
+      colTotals[marketCode] ?? emptyQty(),
+      line.quantity,
+      line.isBox
+    );
+    grandTotal = addLineQty(grandTotal, line.quantity, line.isBox);
   }
 
   const shippers = Array.from(sessionMap.entries())
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const activeMarkets = getActiveMarkets(colTotals, DISPATCH_MARKET_ORDER);
+  const activeMarkets = (() => {
+    const withData = DISPATCH_MARKET_ORDER.filter((c) =>
+      hasQty(colTotals[c] ?? emptyQty())
+    );
+    return withData.length > 0 ? [...withData] : [...DISPATCH_MARKET_ORDER];
+  })();
 
   return {
     shippers,
     markets: activeMarkets,
     cells,
     rowTotals,
-    rowBoxTotals,
     colTotals,
-    boxGrandTotal,
     grandTotal,
   };
 }

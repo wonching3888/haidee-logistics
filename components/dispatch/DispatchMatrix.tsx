@@ -2,23 +2,19 @@
 
 import type { DispatchMatrixData } from "@/app/actions/dispatch";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { cellDisplay } from "@/lib/consignor-label";
 import { cn } from "@/lib/utils";
 
 interface DispatchMatrixProps {
   data: DispatchMatrixData;
 }
 
+function emptyQty() {
+  return { crate: 0, box: 0 };
+}
+
 export function DispatchMatrix({ data }: DispatchMatrixProps) {
-  const {
-    shippers,
-    markets,
-    cells,
-    rowTotals,
-    rowBoxTotals,
-    colTotals,
-    boxGrandTotal,
-    grandTotal,
-  } = data;
+  const { shippers, markets, cells, rowTotals, colTotals, grandTotal } = data;
 
   if (shippers.length === 0) {
     return (
@@ -45,66 +41,63 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                   <DispatchMarketLabel code={code} className="font-mono" />
                 </th>
               ))}
-              <th className="px-3 py-3 text-center font-medium text-haidee-muted">
-                盒 BOX
-              </th>
               <th className="px-3 py-3 text-right font-medium text-haidee-muted">
                 合计 Total
               </th>
             </tr>
           </thead>
           <tbody>
-            {shippers.map((shipper) => (
-              <tr
-                key={shipper.id}
-                className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
-              >
-                <td className="sticky left-0 z-10 bg-white px-3 py-2.5 font-medium text-haidee-text">
-                  {shipper.name}
-                </td>
-                {markets.map((code) => {
-                  const qty = cells[shipper.id]?.[code] ?? 0;
-                  return (
-                    <td
-                      key={code}
-                      className={cn(
-                        "px-2 py-2.5 text-center font-mono text-sm text-gray-800",
-                        qty > 0 && "font-semibold"
-                      )}
-                    >
-                      {qty > 0 ? qty : ""}
-                    </td>
-                  );
-                })}
-                <td className="px-3 py-2.5 text-center font-mono text-sm text-haidee-text">
-                  {(rowBoxTotals[shipper.id] ?? 0) > 0
-                    ? `${rowBoxTotals[shipper.id]}盒`
-                    : ""}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono font-bold text-haidee-text">
-                  {rowTotals[shipper.id] ?? 0}
-                </td>
-              </tr>
-            ))}
+            {shippers.map((shipper) => {
+              const row = rowTotals[shipper.id] ?? emptyQty();
+              const rowLabel = cellDisplay(row.crate, row.box);
+              return (
+                <tr
+                  key={shipper.id}
+                  className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
+                >
+                  <td className="sticky left-0 z-10 bg-white px-3 py-2.5 font-medium text-haidee-text">
+                    {shipper.name}
+                  </td>
+                  {markets.map((code) => {
+                    const qty = cells[shipper.id]?.[code] ?? emptyQty();
+                    const label = cellDisplay(qty.crate, qty.box);
+                    return (
+                      <td
+                        key={code}
+                        className={cn(
+                          "px-2 py-2.5 text-center font-mono text-sm text-gray-800",
+                          label && "font-semibold"
+                        )}
+                      >
+                        {label}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-2.5 text-right font-mono font-bold text-haidee-text">
+                    {rowLabel}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-haidee-navy bg-haidee-navy/5 font-semibold">
               <td className="sticky left-0 z-10 bg-haidee-surface px-3 py-3 text-haidee-text">
                 各市场总计 Market Totals
               </td>
-              {markets.map((code) => (
-                <td
-                  key={code}
-                  className="px-2 py-3 text-center font-mono text-haidee-text"
-                >
-                  {colTotals[code] ?? 0}
-                </td>
-              ))}
-              <td className="px-3 py-3 text-center font-mono text-haidee-text">
-                {boxGrandTotal > 0 ? `${boxGrandTotal}盒` : ""}
-              </td>
+              {markets.map((code) => {
+                const qty = colTotals[code] ?? emptyQty();
+                return (
+                  <td
+                    key={code}
+                    className="px-2 py-3 text-center font-mono text-haidee-text"
+                  >
+                    {cellDisplay(qty.crate, qty.box)}
+                  </td>
+                );
+              })}
               <td className="px-3 py-3 text-right font-mono text-lg text-haidee-navy">
-                {grandTotal}
+                {cellDisplay(grandTotal.crate, grandTotal.box)}
               </td>
             </tr>
           </tfoot>
