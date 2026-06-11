@@ -75,3 +75,39 @@ export function resolveDateParam(dateParam?: string): string {
   if (!dateParam) return toDateInputValue(new Date());
   return toDateInputValue(parseDateInput(dateParam));
 }
+
+/** Malaysia / Thailand business timezone (UTC+8) */
+const BUSINESS_TIMEZONE = "Asia/Kuala_Lumpur";
+
+function getZonedDateParts(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "numeric",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "0";
+
+  return {
+    year: parseInt(get("year"), 10),
+    month: parseInt(get("month"), 10),
+    day: parseInt(get("day"), 10),
+    hour: parseInt(get("hour"), 10) % 24,
+  };
+}
+
+/** Default inbound date: today before 18:00, tomorrow from 18:00 (UTC+8). */
+export function getDefaultInboundDate(): Date {
+  const now = new Date();
+  const { year, month, day, hour } = getZonedDateParts(now, BUSINESS_TIMEZONE);
+
+  const base = calendarDateUTC(year, month, day);
+  if (hour >= 18) {
+    base.setUTCDate(base.getUTCDate() + 1);
+  }
+  return base;
+}

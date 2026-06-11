@@ -13,7 +13,11 @@ import {
   getThVehiclePlates,
   saveInboundSession,
 } from "@/app/actions/inbound";
-import { computeMarketTotals, toDateInputValue } from "@/lib/inbound-utils";
+import {
+  computeMarketTotals,
+  getDefaultInboundDate,
+  toDateInputValue,
+} from "@/lib/inbound-utils";
 
 interface ShipperOption {
   id: string;
@@ -84,7 +88,7 @@ export function InboundForm({
   const [date, setDate] = useState(
     initialSession
       ? toDateInputValue(new Date(initialSession.date))
-      : toDateInputValue(new Date())
+      : toDateInputValue(getDefaultInboundDate())
   );
   const [shipperId, setShipperId] = useState(initialSession?.shipperId ?? "");
   const [thVehiclePlate, setThVehiclePlate] = useState(
