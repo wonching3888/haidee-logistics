@@ -26,18 +26,26 @@ export function getMarketDOAreaGroup(marketCode: string): string {
   return CODE_TO_AREA_GROUP.get(marketCode) ?? marketCode.toUpperCase();
 }
 
-export interface MarketDOTruckGroup {
+export interface ReportTruckGroup<T> {
   lorryNo: string;
-  rows: MarketDORow[];
+  rows: T[];
 }
 
-export interface MarketDOAreaGroup {
+export interface ReportAreaGroup<T> {
   areaName: string;
-  trucks: MarketDOTruckGroup[];
+  trucks: ReportTruckGroup<T>[];
 }
 
-export function groupMarketDORows(rows: MarketDORow[]): MarketDOAreaGroup[] {
-  const areaMap = new Map<string, Map<string, MarketDORow[]>>();
+export interface AreaTruckRow {
+  lorryNo: string;
+  stallCode: string;
+  area: string;
+}
+
+export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
+  rows: T[]
+): ReportAreaGroup<T>[] {
+  const areaMap = new Map<string, Map<string, T[]>>();
 
   for (const row of rows) {
     const areaName = getMarketDOAreaGroup(row.area);
@@ -71,4 +79,8 @@ export function groupMarketDORows(rows: MarketDORow[]): MarketDOAreaGroup[] {
 
     return { areaName, trucks };
   });
+}
+
+export function groupMarketDORows(rows: MarketDORow[]): ReportAreaGroup<MarketDORow>[] {
+  return groupRowsByAreaAndTruck(rows);
 }

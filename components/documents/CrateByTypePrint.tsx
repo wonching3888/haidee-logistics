@@ -1,65 +1,117 @@
-import type { CrateByTypeMergedData } from "@/app/actions/documents";
+import { Fragment } from "react";
+import type { CrateByTypeMergedData, CrateByTypeRow } from "@/app/actions/documents";
+import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
 import "./document-print.css";
 
 interface CrateByTypePrintProps {
   data: CrateByTypeMergedData;
 }
 
-function CrateSection({
-  marketCode,
+function SpacerRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr className="market-do-spacer" aria-hidden="true">
+      <td colSpan={colSpan}>&nbsp;</td>
+    </tr>
+  );
+}
+
+interface TongSection {
+  tongHeader: string;
+  rows: CrateByTypeRow[];
+}
+
+function buildTongSections(sections: CrateByTypeMergedData["sections"]): TongSection[] {
+  const byTong = new Map<string, CrateByTypeRow[]>();
+
+  for (const section of sections) {
+    const existing = byTong.get(section.tongCode) ?? [];
+    byTong.set(section.tongCode, [...existing, ...section.rows]);
+  }
+
+  return sections
+    .filter(
+      (section, index, all) =>
+        all.findIndex((s) => s.tongCode === section.tongCode) === index
+    )
+    .map((section) => ({
+      tongHeader: section.tongHeader,
+      rows: byTong.get(section.tongCode) ?? [],
+    }));
+}
+
+function CrateTongTable({
   tongHeader,
   rows,
-}: CrateByTypeMergedData["sections"][number]) {
-  const total = rows.reduce((s, r) => s + r.quantity, 0);
+}: {
+  tongHeader: string;
+  rows: CrateByTypeRow[];
+}) {
+  const areaGroups = groupRowsByAreaAndTruck(rows);
+  const total = rows.reduce((sum, row) => sum + row.quantity, 0);
+  const colSpan = 5;
 
   return (
-    <div className="crate-by-type-section" style={{ marginTop: 16 }}>
-      <div className="header-sub">
-        地区 {marketCode} · {tongHeader}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>罗哩车牌</th>
-            <th>档口</th>
-            <th>地区</th>
-            <th>{tongHeader}</th>
-            <th>数量</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
-              <td>{row.lorryNo}</td>
-              <td>{row.stallCode}</td>
-              <td>{row.area}</td>
-              <td>{row.quantity}</td>
-              <td>{row.quantity}桶</td>
+    <table className="market-do-table" style={{ marginTop: 16 }}>
+      <thead>
+        <tr>
+          <th className="market-do-lorry-col">罗哩车牌</th>
+          <th className="market-do-stall-col">档口</th>
+          <th className="market-do-area-col">地区</th>
+          <th className="market-do-crate-col">{tongHeader}</th>
+          <th className="market-do-qty-col">数量</th>
+        </tr>
+      </thead>
+      <tbody>
+        {areaGroups.map((areaGroup, areaIndex) => (
+          <Fragment key={areaGroup.areaName}>
+            <tr className="market-do-area-header">
+              <td colSpan={colSpan} className="text-left">
+                {areaGroup.areaName}
+              </td>
             </tr>
-          ))}
-          <tr className="totals-row">
-            <td colSpan={3} className="text-left">
-              总计
-            </td>
-            <td>{total}</td>
-            <td>{total}桶</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            {areaGroup.trucks.map((truck, truckIndex) => (
+              <Fragment key={`${areaGroup.areaName}:${truck.lorryNo}`}>
+                {truckIndex > 0 && <SpacerRow colSpan={colSpan} />}
+                {truck.rows.map((row, rowIndex) => (
+                  <tr key={`${truck.lorryNo}:${row.stallCode}:${rowIndex}`}>
+                    <td className="market-do-lorry-col">{row.lorryNo}</td>
+                    <td className="market-do-stall-col">{row.stallCode}</td>
+                    <td className="market-do-area-col">{row.area}</td>
+                    <td className="market-do-crate-col">{row.quantity}</td>
+                    <td className="market-do-qty-col">{row.quantity}桶</td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+            {areaIndex < areaGroups.length - 1 && (
+              <>
+                <SpacerRow colSpan={colSpan} key={`${areaGroup.areaName}-gap-1`} />
+                <SpacerRow colSpan={colSpan} key={`${areaGroup.areaName}-gap-2`} />
+              </>
+            )}
+          </Fragment>
+        ))}
+        <tr className="totals-row">
+          <td colSpan={3} className="text-left">
+            总计
+          </td>
+          <td className="market-do-crate-col">{total}</td>
+          <td className="market-do-qty-col">{total}桶</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
 export function CrateByTypePrint({ data }: CrateByTypePrintProps) {
+  const tongSections = buildTongSections(data.sections);
   const grandTotal = data.sections.reduce(
     (sum, section) =>
-      sum + section.rows.reduce((s, r) => s + r.quantity, 0),
+      sum + section.rows.reduce((sectionSum, row) => sectionSum + row.quantity, 0),
     0
   );
 
-  const tongLabels = Array.from(
-    new Set(data.sections.map((s) => s.tongHeader))
-  ).join(" / ");
+  const tongLabels = tongSections.map((section) => section.tongHeader).join(" / ");
 
   return (
     <div className="document-print">
@@ -71,11 +123,15 @@ export function CrateByTypePrint({ data }: CrateByTypePrintProps) {
       <div className="header-sub">Crate by Area/Owner ({tongLabels})</div>
       <div className="header-sub">日期：{data.date}</div>
 
-      {data.sections.map((section) => (
-        <CrateSection key={`${section.marketCode}:${section.tongCode}`} {...section} />
+      {tongSections.map((section) => (
+        <CrateTongTable
+          key={section.tongHeader}
+          tongHeader={section.tongHeader}
+          rows={section.rows}
+        />
       ))}
 
-      {data.sections.length > 1 && (
+      {tongSections.length > 1 && (
         <div
           style={{
             marginTop: 16,

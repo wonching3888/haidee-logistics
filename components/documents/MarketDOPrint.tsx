@@ -73,9 +73,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
                     <tr
                       key={`${truck.lorryNo}:${row.stallCode}:${rowIndex}`}
                     >
-                      <td className="market-do-lorry-col">
-                        {rowIndex === 0 ? row.lorryNo : ""}
-                      </td>
+                      <td className="market-do-lorry-col">{row.lorryNo}</td>
                       <td className="market-do-stall-col">{row.stallCode}</td>
                       <td className="market-do-area-col">{row.area}</td>
                       {activeColumns.map((c) => (
