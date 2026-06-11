@@ -184,24 +184,22 @@ async function syncInboundLines(
   sessionId: string,
   allLines: InboundLineInput[],
   existingLines: ExistingInboundLine[],
-  typeMap: Map<string, TongTypeMeta>
+  typeMap: Map<string, TongTypeMeta>,
+  tx: Prisma.TransactionClient = prisma
 ) {
   const existingLineIds = new Set(existingLines.map((line) => line.id));
   const inputLineIds = new Set(
     allLines.filter((line) => line.lineId).map((line) => line.lineId!)
   );
 
-  const lineOps: Promise<unknown>[] = [];
-
   const deleteIds = existingLines
     .filter((line) => !inputLineIds.has(line.id))
     .map((line) => line.id);
   if (deleteIds.length > 0) {
-    lineOps.push(
-      prisma.inboundLine.deleteMany({ where: { id: { in: deleteIds } } })
-    );
+    await tx.inboundLine.deleteMany({ where: { id: { in: deleteIds } } });
   }
 
+  const updateOps: Promise<unknown>[] = [];
   for (const line of allLines) {
     if (!line.lineId || !existingLineIds.has(line.lineId)) continue;
 
@@ -211,8 +209,8 @@ async function syncInboundLines(
       prev.tongTypeId !== line.tongTypeId ||
       prev.stallId !== line.stallId;
 
-    lineOps.push(
-      prisma.inboundLine.update({
+    updateOps.push(
+      tx.inboundLine.update({
         where: { id: line.lineId },
         data: {
           stallId: line.stallId,
@@ -233,25 +231,24 @@ async function syncInboundLines(
       })
     );
   }
+  if (updateOps.length > 0) {
+    await Promise.all(updateOps);
+  }
 
   const createLines = allLines.filter(
     (line) => !line.lineId || !existingLineIds.has(line.lineId)
   );
   if (createLines.length > 0) {
-    lineOps.push(
-      prisma.inboundLine.createMany({
-        data: createLines.map((line) => ({
-          sessionId,
-          stallId: line.stallId,
-          tongTypeId: line.tongTypeId,
-          quantity: line.quantity,
-          isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
-        })),
-      })
-    );
+    await tx.inboundLine.createMany({
+      data: createLines.map((line) => ({
+        sessionId,
+        stallId: line.stallId,
+        tongTypeId: line.tongTypeId,
+        quantity: line.quantity,
+        isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+      })),
+    });
   }
-
-  await Promise.all(lineOps);
 }
 
 export interface InboundSessionFilters {
@@ -546,8 +543,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
         ? await generateSessionNo(date)
         : existing.sessionNo;
 
-    await Promise.all([
-      prisma.inboundSession.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.inboundSession.update({
         where: { id: input.sessionId },
         data: {
           date,
@@ -557,9 +554,15 @@ export async function saveInboundSession(input: SaveInboundInput) {
           status,
           sessionNo,
         },
-      }),
-      syncInboundLines(input.sessionId, allLines, existing.lines, typeMap),
-    ]);
+      });
+      await syncInboundLines(
+        input.sessionId!,
+        allLines,
+        existing.lines,
+        typeMap,
+        tx
+      );
+    });
 
     if (status === "confirmed" && existing.status === "draft") {
       await applyInboundCrateDeduction(
@@ -659,12 +662,22 @@ export async function deleteInboundSession(sessionId: string) {
 
     await tx.inboundSession.delete({ where: { id: sessionId } });
 
-    for (const orderId of dispatchOrderIds) {
-      const remaining = await tx.dispatchLine.count({
-        where: { dispatchOrderId: orderId },
+    if (dispatchOrderIds.length > 0) {
+      const remaining = await tx.dispatchLine.groupBy({
+        by: ["dispatchOrderId"],
+        where: { dispatchOrderId: { in: dispatchOrderIds } },
+        _count: { _all: true },
       });
-      if (remaining === 0) {
-        await tx.dispatchOrder.delete({ where: { id: orderId } });
+      const ordersWithLines = new Set(
+        remaining.map((row) => row.dispatchOrderId)
+      );
+      const emptyOrderIds = dispatchOrderIds.filter(
+        (orderId) => !ordersWithLines.has(orderId)
+      );
+      if (emptyOrderIds.length > 0) {
+        await tx.dispatchOrder.deleteMany({
+          where: { id: { in: emptyOrderIds } },
+        });
       }
     }
   });

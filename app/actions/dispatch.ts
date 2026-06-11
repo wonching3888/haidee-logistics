@@ -412,10 +412,12 @@ async function resolveAssignments(
   selections: DispatchSelection[],
   dispatchOrderId?: string
 ): Promise<StallAssignment[]> {
-  const unassigned = await fetchUnassignedLines(date);
-  const assignedHere = dispatchOrderId
-    ? await fetchLinesForDispatch(dispatchOrderId)
-    : [];
+  const [unassigned, assignedHere] = await Promise.all([
+    fetchUnassignedLines(date),
+    dispatchOrderId
+      ? fetchLinesForDispatch(dispatchOrderId)
+      : Promise.resolve([]),
+  ]);
   const assignedHereIds = new Set(assignedHere.map((l) => l.id));
 
   const allLines = [...unassigned, ...assignedHere];
@@ -581,14 +583,25 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     throw new Error("所选货物不可用或已被分配 Selected cargo unavailable");
   }
 
-  const truck = await prisma.truck.findUnique({ where: { id: input.truckId } });
-  if (!truck) throw new Error("车辆不存在 Truck not found");
-
   if (input.dispatchOrderId) {
-    const existing = await prisma.dispatchOrder.findUnique({
-      where: { id: input.dispatchOrderId },
-      include: { lines: true },
-    });
+    const [truck, existing] = await Promise.all([
+      prisma.truck.findUnique({
+        where: { id: input.truckId },
+        select: { id: true },
+      }),
+      prisma.dispatchOrder.findUnique({
+        where: { id: input.dispatchOrderId },
+        select: {
+          dispatchNo: true,
+          truckId: true,
+          driverName: true,
+          originalTruckId: true,
+          originalDriverName: true,
+          lines: { select: { inboundLineId: true } },
+        },
+      }),
+    ]);
+    if (!truck) throw new Error("车辆不存在 Truck not found");
     if (!existing) throw new Error("派车单不存在 Dispatch order not found");
 
     const truckChanged = existing.truckId !== input.truckId;
@@ -645,7 +658,14 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     };
   }
 
-  const dispatchNo = await generateDispatchNo(date);
+  const [truck, dispatchNo] = await Promise.all([
+    prisma.truck.findUnique({
+      where: { id: input.truckId },
+      select: { id: true },
+    }),
+    generateDispatchNo(date),
+  ]);
+  if (!truck) throw new Error("车辆不存在 Truck not found");
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.dispatchOrder.create({
@@ -682,12 +702,17 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
 
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
-    include: { lines: true },
+    select: {
+      status: true,
+      lines: { select: { inboundLineId: true } },
+    },
   });
   if (!order) throw new Error("派车单不存在 Dispatch order not found");
   if (order.status === "cancelled") {
     throw new Error("派车单已取消 Dispatch order already cancelled");
   }
+
+  const inboundLineIds = order.lines.map((line) => line.inboundLineId);
 
   await prisma.$transaction(async (tx) => {
     await tx.dispatchOrder.update({
@@ -695,10 +720,11 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
       data: { status: "cancelled" },
     });
 
-    for (const dl of order.lines) {
-      await tx.dispatchLine.delete({ where: { id: dl.id } });
-      await tx.inboundLine.update({
-        where: { id: dl.inboundLineId },
+    await tx.dispatchLine.deleteMany({ where: { dispatchOrderId } });
+
+    if (inboundLineIds.length > 0) {
+      await tx.inboundLine.updateMany({
+        where: { id: { in: inboundLineIds } },
         data: { dispatchStatus: "unassigned", truckId: null },
       });
     }
@@ -716,16 +742,25 @@ export async function changeDispatchTruck(
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
 
-  const order = await prisma.dispatchOrder.findUnique({
-    where: { id: dispatchOrderId },
-    include: { lines: true },
-  });
+  const [order, truck] = await Promise.all([
+    prisma.dispatchOrder.findUnique({
+      where: { id: dispatchOrderId },
+      select: {
+        status: true,
+        truckId: true,
+        originalTruckId: true,
+        lines: { select: { inboundLineId: true } },
+      },
+    }),
+    prisma.truck.findUnique({
+      where: { id: truckId },
+      select: { active: true },
+    }),
+  ]);
   if (!order) throw new Error("派车单不存在 Dispatch order not found");
   if (order.status === "cancelled") {
     throw new Error("已取消的派车单无法换车 Cannot change truck on cancelled order");
   }
-
-  const truck = await prisma.truck.findUnique({ where: { id: truckId } });
   if (!truck?.active) throw new Error("车辆不存在 Truck not found");
 
   const truckChanged = order.truckId !== truckId;

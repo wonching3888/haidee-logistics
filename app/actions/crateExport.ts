@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addCustomerCrate } from "@/app/actions/customerCrateStock";
+import type { Prisma } from "@prisma/client";
+import { addCustomerCratesBatch } from "@/app/actions/customerCrateStock";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
@@ -30,14 +31,6 @@ export async function saveCrateExport(input: {
   if (!user) throw new Error("未登录 Unauthorized");
 
   const date = parseDateInput(input.date);
-  const stock = await getSadaoStockByTongType();
-  const exportNo = await generateExportNo(date);
-
-  const shipper = await prisma.shipper.findUnique({
-    where: { id: input.shipperId },
-  });
-  if (!shipper) throw new Error("寄货人不存在 Shipper not found");
-
   const activeLines = input.lines.filter(
     (l) => l.quantityActual > 0 || l.quantitySuggested > 0
   );
@@ -45,6 +38,28 @@ export async function saveCrateExport(input: {
     throw new Error("请至少填写一行归还数据 Please enter at least one line");
   }
 
+  const tongTypeIds = Array.from(
+    new Set(activeLines.map((line) => line.tongTypeId))
+  );
+
+  const [stock, exportNo, shipper, tongTypes] = await Promise.all([
+    getSadaoStockByTongType(),
+    generateExportNo(date),
+    prisma.shipper.findUnique({
+      where: { id: input.shipperId },
+      select: { name: true },
+    }),
+    prisma.tongType.findMany({
+      where: { id: { in: tongTypeIds } },
+      select: { id: true, code: true, name: true, isBox: true },
+    }),
+  ]);
+
+  if (!shipper) throw new Error("寄货人不存在 Shipper not found");
+
+  const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
+  const exportRows: Prisma.TongExportCreateManyInput[] = [];
+  const crateAdditions: { crateTypeId: string; quantity: number }[] = [];
   const receiptLines: {
     tongName: string;
     quantity: number;
@@ -53,39 +68,28 @@ export async function saveCrateExport(input: {
   }[] = [];
 
   for (const line of activeLines) {
-    const tongType = await prisma.tongType.findUnique({
-      where: { id: line.tongTypeId },
-    });
-    if (!tongType) continue;
+    const tongType = tongTypeMap.get(line.tongTypeId);
+    if (!tongType || tongType.isBox) continue;
 
     const available = stock[tongType.code]?.stock ?? 0;
     const actual = Math.min(line.quantityActual, available);
     const shortage = Math.max(0, line.quantitySuggested - actual);
 
-    await prisma.tongExport.create({
-      data: {
-        exportNo,
-        date,
-        thVehiclePlate: input.thVehiclePlate,
-        areaNote: input.areaNote?.trim() || null,
-        shipperId: input.shipperId,
-        tongTypeId: line.tongTypeId,
-        quantitySuggested: line.quantitySuggested,
-        quantityActual: actual,
-        shortage,
-        createdById: user.id,
-      },
+    exportRows.push({
+      exportNo,
+      date,
+      thVehiclePlate: input.thVehiclePlate,
+      areaNote: input.areaNote?.trim() || null,
+      shipperId: input.shipperId,
+      tongTypeId: line.tongTypeId,
+      quantitySuggested: line.quantitySuggested,
+      quantityActual: actual,
+      shortage,
+      createdById: user.id,
     });
 
     if (actual > 0) {
-      await addCustomerCrate(
-        input.shipperId,
-        line.tongTypeId,
-        actual,
-        "export",
-        input.location ?? "",
-        exportNo ? `归还 ${exportNo}` : undefined
-      );
+      crateAdditions.push({ crateTypeId: line.tongTypeId, quantity: actual });
     }
 
     if (actual > 0 || shortage > 0) {
@@ -96,6 +100,22 @@ export async function saveCrateExport(input: {
         shortage,
       });
     }
+  }
+
+  if (exportRows.length === 0) {
+    throw new Error("请至少填写一行归还数据 Please enter at least one line");
+  }
+
+  await prisma.tongExport.createMany({ data: exportRows });
+
+  if (crateAdditions.length > 0) {
+    await addCustomerCratesBatch(
+      input.shipperId,
+      crateAdditions,
+      "export",
+      input.location ?? "",
+      exportNo ? `归还 ${exportNo}` : undefined
+    );
   }
 
   revalidatePath("/tong/export");

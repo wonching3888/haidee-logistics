@@ -15,6 +15,7 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
+/** Singleton Prisma client — reused across hot reloads and serverless invocations. */
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 globalForPrisma.prisma = prisma;

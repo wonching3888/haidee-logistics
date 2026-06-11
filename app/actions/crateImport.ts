@@ -225,10 +225,17 @@ export async function markCrateImportRowArrived(
   if (!user) throw new Error("未登录 Unauthorized");
 
   const date = parseDateInput(dateStr);
-  const truck = await prisma.truck.findFirst({ where: { plate: truckPlate } });
+  const [truck, market] = await Promise.all([
+    prisma.truck.findFirst({
+      where: { plate: truckPlate },
+      select: { id: true },
+    }),
+    prisma.market.findFirst({
+      where: { code: marketCode },
+      select: { id: true },
+    }),
+  ]);
   if (!truck) throw new Error(`车牌不存在 Unknown plate: ${truckPlate}`);
-
-  const market = await prisma.market.findFirst({ where: { code: marketCode } });
   if (!market) throw new Error(`市场代码无效 Invalid market: ${marketCode}`);
 
   await prisma.tongImport.updateMany({
@@ -251,34 +258,27 @@ export async function markCrateImportRowArrived(
  * Save crate import records. SADAO stock increases when status is "arrived"
  * (computed from tong_imports). Customer crate stock is not affected.
  */
-export async function saveCrateImport(
-  dateStr: string,
-  rows: CrateImportRowInput[]
-) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
-
-  const date = parseDateInput(dateStr);
-  const trucks = await prisma.truck.findMany();
-  const truckMap = Object.fromEntries(trucks.map((t) => [t.plate, t.id]));
-  const markets = await prisma.market.findMany();
-  const marketMap = Object.fromEntries(markets.map((m) => [m.code, m.id]));
-  const tongTypes = await prisma.tongType.findMany();
-  const tongMap = Object.fromEntries(tongTypes.map((t) => [t.code, t.id]));
-  const otherTongTypeId = tongMap["OTHER"];
-
-  await prisma.tongImport.deleteMany({ where: { date } });
+function buildTongImportRecords(
+  rows: CrateImportRowInput[],
+  date: Date,
+  userId: string,
+  truckMap: Record<string, string>,
+  marketMap: Record<string, string>,
+  tongMap: Record<string, string>,
+  otherTongTypeId: string | undefined
+): Prisma.TongImportCreateManyInput[] {
+  const records: Prisma.TongImportCreateManyInput[] = [];
 
   for (const row of rows) {
     if (!row.truckPlate) continue;
     const truckId = truckMap[row.truckPlate];
     if (!truckId) throw new Error(`车牌不存在 Unknown plate: ${row.truckPlate}`);
-
     if (!row.marketCode) continue;
 
     const marketId = marketMap[row.marketCode];
-    if (!marketId)
+    if (!marketId) {
       throw new Error(`市场代码无效 Invalid market: ${row.marketCode}`);
+    }
 
     const otherColsData: Record<string, number> = {};
     const tongEntries: { tongTypeId: string; quantity: number }[] = [];
@@ -309,33 +309,68 @@ export async function saveCrateImport(
       status: row.status ?? "on_the_way",
       arrivedAt: row.status === "arrived" ? new Date() : null,
       notes: row.notes || null,
-      createdById: user.id,
+      createdById: userId,
     };
 
     for (const entry of tongEntries) {
-      await prisma.tongImport.create({
-        data: {
-          ...baseData,
-          tongTypeId: entry.tongTypeId,
-          quantity: entry.quantity,
-          otherCols:
-            !storedOtherCols && hasOtherCols ? otherColsData : undefined,
-        },
+      records.push({
+        ...baseData,
+        tongTypeId: entry.tongTypeId,
+        quantity: entry.quantity,
+        otherCols:
+          !storedOtherCols && hasOtherCols ? otherColsData : undefined,
       });
       storedOtherCols = storedOtherCols || hasOtherCols;
     }
 
     if (!storedOtherCols && hasOtherCols && otherTongTypeId) {
-      await prisma.tongImport.create({
-        data: {
-          ...baseData,
-          tongTypeId: otherTongTypeId,
-          quantity: 0,
-          otherCols: otherColsData,
-        },
+      records.push({
+        ...baseData,
+        tongTypeId: otherTongTypeId,
+        quantity: 0,
+        otherCols: otherColsData,
       });
     }
   }
+
+  return records;
+}
+
+export async function saveCrateImport(
+  dateStr: string,
+  rows: CrateImportRowInput[]
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
+  const date = parseDateInput(dateStr);
+  const [trucks, markets, tongTypes] = await Promise.all([
+    prisma.truck.findMany({ select: { id: true, plate: true } }),
+    prisma.market.findMany({ select: { id: true, code: true } }),
+    prisma.tongType.findMany({ select: { id: true, code: true } }),
+  ]);
+
+  const truckMap = Object.fromEntries(trucks.map((t) => [t.plate, t.id]));
+  const marketMap = Object.fromEntries(markets.map((m) => [m.code, m.id]));
+  const tongMap = Object.fromEntries(tongTypes.map((t) => [t.code, t.id]));
+  const otherTongTypeId = tongMap["OTHER"];
+
+  const records = buildTongImportRecords(
+    rows,
+    date,
+    user.id,
+    truckMap,
+    marketMap,
+    tongMap,
+    otherTongTypeId
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tongImport.deleteMany({ where: { date } });
+    if (records.length > 0) {
+      await tx.tongImport.createMany({ data: records });
+    }
+  });
 
   revalidatePath("/tong/import");
   revalidatePath("/crate/import");
