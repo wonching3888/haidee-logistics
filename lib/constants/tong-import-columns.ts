@@ -10,7 +10,7 @@ export const TONG_IMPORT_COLUMNS = [
   { key: "BRO", label: "BRO", tongCode: "BRO" },
   { key: "GLY", label: "GLY", tongCode: "GLY" },
   { key: "BS", label: "BS", tongCode: "BS" },
-  { key: "BAN_HENG", label: "Ban Heng", tongCode: "BAN_HENG" },
-  { key: "SAHASIN", label: "Sahasin", tongCode: "SAHASIN" },
+  { key: "BH", label: "BH", tongCode: "BH" },
+  { key: "SHS", label: "SHS", tongCode: "SHS" },
   { key: "OTH", label: "OTH", tongCode: "OTHER" },
 ] as const;

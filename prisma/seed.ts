@@ -36,8 +36,8 @@ const TONG_TYPES = [
   { code: "BS", name: "BS", trackInventory: true, isBox: false, displayOrder: 9 },
   { code: "BHR", name: "BHR", trackInventory: true, isBox: false, displayOrder: 10 },
   { code: "LL_BHR", name: "LL(BHR)", trackInventory: false, isBox: false, displayOrder: 11 },
-  { code: "BAN_HENG", name: "Ban Heng", trackInventory: true, isBox: false, displayOrder: 14 },
-  { code: "SAHASIN", name: "Sahasin", trackInventory: true, isBox: false, displayOrder: 15 },
+  { code: "BH", name: "BH", trackInventory: true, isBox: false, displayOrder: 14 },
+  { code: "SHS", name: "SHS", trackInventory: true, isBox: false, displayOrder: 15 },
   { code: "OTHER", name: "Other", trackInventory: false, isBox: false, displayOrder: 16 },
   { code: "BOX", name: "盒装BOX", trackInventory: false, isBox: true, displayOrder: 17 },
 ];

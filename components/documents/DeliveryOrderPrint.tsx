@@ -1,7 +1,7 @@
 import type { DeliveryOrderData } from "@/app/actions/documents";
 import {
-  DO_TONG_COLUMNS,
   formatDOCrateQuantity,
+  getActiveDOColumns,
   sumQuantities,
 } from "@/lib/constants/tong-columns";
 import { paginateRows } from "@/lib/document-utils";
@@ -18,6 +18,9 @@ export function DeliveryOrderPrint({
 }: DeliveryOrderPrintProps) {
   const pages = paginateRows(data.rows);
   const totals = sumQuantities(data.rows);
+  const activeColumns = getActiveDOColumns(data.rows);
+  const grandQty = data.rows.reduce((s, r) => s + r.qty, 0);
+  const showRemarks = showConsignor;
 
   return (
     <div className="document-print">
@@ -39,37 +42,43 @@ export function DeliveryOrderPrint({
             <span>DATE: {data.date}</span>
           </div>
 
-          <table>
+          <table className="do-table">
             <thead>
               <tr>
-                <th>No</th>
-                {showConsignor && <th>Consignor</th>}
-                <th>Store</th>
-                <th>Area</th>
-                {DO_TONG_COLUMNS.map((c) => (
-                  <th key={c.code}>{c.header}</th>
+                <th className="do-no-col">No</th>
+                {showConsignor && <th className="do-consignor-col">Consignor</th>}
+                <th className="do-store-col">Store</th>
+                <th className="do-area-col">Area</th>
+                {activeColumns.map((c) => (
+                  <th key={c.code} className="do-crate-col">
+                    {c.header}
+                  </th>
                 ))}
-                <th>Qty</th>
+                <th className="do-qty-col">Qty</th>
+                {showRemarks && (
+                  <th className="do-remarks-col">备注 Remarks</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {pageRows.map((row, i) => (
                 <tr key={i}>
-                  <td>{pageIdx * 22 + i + 1}</td>
+                  <td className="do-no-col">{pageIdx * 22 + i + 1}</td>
                   {showConsignor && (
-                    <td className="text-left">{row.consignor}</td>
+                    <td className="do-consignor-col text-left">{row.consignor}</td>
                   )}
-                  <td>{row.store}</td>
-                  <td>{row.area}</td>
-                  {DO_TONG_COLUMNS.map((c) => (
-                    <td key={c.code}>
+                  <td className="do-store-col">{row.store}</td>
+                  <td className="do-area-col">{row.area}</td>
+                  {activeColumns.map((c) => (
+                    <td key={c.code} className="do-crate-col">
                       {formatDOCrateQuantity(
                         c.code,
                         row.quantities[c.code] ?? 0
                       )}
                     </td>
                   ))}
-                  <td>{row.qty}</td>
+                  <td className="do-qty-col">{row.qty}</td>
+                  {showRemarks && <td className="do-remarks-col">&nbsp;</td>}
                 </tr>
               ))}
               {pageIdx === pages.length - 1 && (
@@ -80,14 +89,13 @@ export function DeliveryOrderPrint({
                   >
                     Total:
                   </td>
-                  {DO_TONG_COLUMNS.map((c) => (
-                    <td key={c.code}>
+                  {activeColumns.map((c) => (
+                    <td key={c.code} className="do-crate-col">
                       {formatDOCrateQuantity(c.code, totals[c.code] ?? 0)}
                     </td>
                   ))}
-                  <td>
-                    {data.rows.reduce((s, r) => s + r.qty, 0)}
-                  </td>
+                  <td className="do-qty-col">{grandQty}</td>
+                  {showRemarks && <td className="do-remarks-col">&nbsp;</td>}
                 </tr>
               )}
             </tbody>

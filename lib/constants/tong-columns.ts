@@ -15,8 +15,8 @@ export const DO_TONG_COLUMNS = [
   { code: "BRO", header: "BRO" },
   { code: "GLY", header: "GLY" },
   { code: "BS", header: "BS" },
-  { code: "BAN_HENG", header: "Ban Heng" },
-  { code: "SAHASIN", header: "Sahasin" },
+  { code: "BH", header: "BH" },
+  { code: "SHS", header: "SHS" },
   { code: "OTHER", header: "Other" },
 ] as const;
 
@@ -29,6 +29,8 @@ const LEGACY_TONG_COLUMN_MAP: Record<string, string> = {
   HD_BHR: "BHR",
   BH_BHR: "BHR",
   LYS_BHR: "BHR",
+  BAN_HENG: "BH",
+  SAHASIN: "SHS",
 };
 
 export function isBoxColumn(code: string): boolean {
@@ -75,4 +77,12 @@ export function sumQuantities(
     }
   }
   return totals;
+}
+
+/** D/O columns that have quantity on at least one row */
+export function getActiveDOColumns(
+  rows: { quantities: Record<string, number> }[]
+) {
+  const totals = sumQuantities(rows);
+  return DO_TONG_COLUMNS.filter((col) => (totals[col.code] ?? 0) > 0);
 }
