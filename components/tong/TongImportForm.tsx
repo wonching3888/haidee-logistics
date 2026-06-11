@@ -28,8 +28,6 @@ import {
   CRATE_IMPORT_OTHER_COLUMN,
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
-import { formatDisplayDate } from "@/lib/date-utils";
-import { parseDateInput } from "@/lib/inbound-utils";
 
 interface TruckOption {
   id: string;
@@ -137,7 +135,6 @@ export function TongImportForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const selectedDateStr = formatDisplayDate(parseDateInput(selectedDate));
 
   const [dispatchedPlates, setDispatchedPlates] = useState(
     initialDispatchedPlates
@@ -382,9 +379,6 @@ export function TongImportForm({
             onChange={setSelectedDate}
             className="w-[11.5rem] shrink-0"
           />
-          <span className="font-mono text-sm text-haidee-muted">
-            {selectedDateStr}
-          </span>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
