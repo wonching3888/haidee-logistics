@@ -40,10 +40,6 @@ function addLineQty(
   return { ...qty, crate: qty.crate + quantity };
 }
 
-function hasQty(qty: CrateBoxQty): boolean {
-  return qty.crate > 0 || qty.box > 0;
-}
-
 export interface StallLineDetail {
   inboundLineId: string;
   stallCode: string;
@@ -224,16 +220,9 @@ export async function getUnassignedMatrix(
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const activeMarkets = (() => {
-    const withData = DISPATCH_MARKET_ORDER.filter((c) =>
-      hasQty(colTotals[c] ?? emptyQty())
-    );
-    return withData.length > 0 ? [...withData] : [...DISPATCH_MARKET_ORDER];
-  })();
-
   return {
     shippers,
-    markets: activeMarkets,
+    markets: [...DISPATCH_MARKET_ORDER],
     cells,
     rowTotals,
     colTotals,

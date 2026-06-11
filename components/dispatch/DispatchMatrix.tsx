@@ -38,44 +38,40 @@ function TotalsCellDisplay({
   );
 }
 
+/** Height of the market-label header row — row 2 sticks directly beneath it. */
+const MARKET_HEADER_ROW_TOP = "4rem";
+
 export function DispatchMatrix({ data }: DispatchMatrixProps) {
   const { shippers, markets, cells, rowTotals, colTotals, grandTotal } = data;
-
-  if (shippers.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
-        暂无未分配货物 No unassigned cargo
-      </div>
-    );
-  }
-
-  const headerRowHeight = "3.5rem";
+  const colSpan = markets.length + 2;
 
   return (
     <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-      <div className="max-h-[70vh] overflow-auto">
+      <div className="max-h-[70vh] overflow-x-auto overflow-y-auto">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface">
-              <th className="sticky left-0 top-0 z-30 bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
+              <th className="sticky left-0 top-0 z-30 whitespace-nowrap bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
                 寄货人 / 地区 Consignor / Area
               </th>
               {markets.map((code) => (
                 <th
                   key={code}
-                  className="sticky top-0 z-20 min-w-[52px] bg-haidee-surface px-2 py-3 text-center"
+                  className="sticky top-0 z-20 min-w-[56px] whitespace-nowrap bg-haidee-surface px-2 py-3 text-center"
                 >
-                  <DispatchMarketLabel code={code} className="font-mono" />
+                  <div className="flex justify-center">
+                    <DispatchMarketLabel code={code} className="font-mono" />
+                  </div>
                 </th>
               ))}
-              <th className="sticky top-0 z-20 bg-haidee-surface px-3 py-3 text-right font-medium text-haidee-muted">
+              <th className="sticky top-0 z-20 whitespace-nowrap bg-haidee-surface px-3 py-3 text-right font-medium text-haidee-muted">
                 合计 Total
               </th>
             </tr>
             <tr className="border-b-2 border-haidee-border bg-gray-100 font-semibold">
               <th
-                className="sticky left-0 z-40 bg-gray-100 px-3 py-2.5 text-left text-haidee-text"
-                style={{ top: headerRowHeight }}
+                className="sticky left-0 z-40 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-left text-haidee-text"
+                style={{ top: MARKET_HEADER_ROW_TOP }}
               >
                 各市场总计 Market Totals
               </th>
@@ -84,16 +80,16 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                 return (
                   <th
                     key={code}
-                    className="sticky z-20 min-w-[52px] bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text"
-                    style={{ top: headerRowHeight }}
+                    className="sticky z-20 min-w-[56px] whitespace-nowrap bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text"
+                    style={{ top: MARKET_HEADER_ROW_TOP }}
                   >
                     <TotalsCellDisplay crate={qty.crate} box={qty.box} />
                   </th>
                 );
               })}
               <th
-                className="sticky z-20 bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy"
-                style={{ top: headerRowHeight }}
+                className="sticky z-20 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy"
+                style={{ top: MARKET_HEADER_ROW_TOP }}
               >
                 <TotalsCellDisplay
                   crate={grandTotal.crate}
@@ -104,38 +100,49 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
             </tr>
           </thead>
           <tbody>
-            {shippers.map((shipper) => {
-              const row = rowTotals[shipper.id] ?? emptyQty();
-              const rowLabel = cellDisplay(row.crate, row.box);
-              return (
-                <tr
-                  key={shipper.id}
-                  className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
+            {shippers.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={colSpan}
+                  className="px-3 py-10 text-center text-haidee-muted"
                 >
-                  <td className="sticky left-0 z-10 bg-white px-3 py-2.5 font-medium text-haidee-text">
-                    {shipper.name}
-                  </td>
-                  {markets.map((code) => {
-                    const qty = cells[shipper.id]?.[code] ?? emptyQty();
-                    const label = cellDisplay(qty.crate, qty.box);
-                    return (
-                      <td
-                        key={code}
-                        className={cn(
-                          "px-2 py-2.5 text-center font-mono text-sm text-gray-800",
-                          label && "font-semibold"
-                        )}
-                      >
-                        {label}
-                      </td>
-                    );
-                  })}
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-haidee-text">
-                    {rowLabel}
-                  </td>
-                </tr>
-              );
-            })}
+                  暂无未分配货物 No unassigned cargo
+                </td>
+              </tr>
+            ) : (
+              shippers.map((shipper) => {
+                const row = rowTotals[shipper.id] ?? emptyQty();
+                const rowLabel = cellDisplay(row.crate, row.box);
+                return (
+                  <tr
+                    key={shipper.id}
+                    className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
+                  >
+                    <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-3 py-2.5 font-medium text-haidee-text">
+                      {shipper.name}
+                    </td>
+                    {markets.map((code) => {
+                      const qty = cells[shipper.id]?.[code] ?? emptyQty();
+                      const label = cellDisplay(qty.crate, qty.box);
+                      return (
+                        <td
+                          key={code}
+                          className={cn(
+                            "whitespace-nowrap px-2 py-2.5 text-center font-mono text-sm text-gray-800",
+                            label && "font-semibold"
+                          )}
+                        >
+                          {label}
+                        </td>
+                      );
+                    })}
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono font-bold text-haidee-text">
+                      {rowLabel}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
