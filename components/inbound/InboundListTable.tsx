@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { Badge } from "@/components/ui/badge";
@@ -111,12 +112,15 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <Link
-                  href={`/inbound/${s.id}/edit`}
-                  className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-border px-3 text-sm text-haidee-text transition-colors hover:bg-haidee-surface"
-                >
-                  编辑 Edit
-                </Link>
+                <div className="flex items-center justify-end gap-1">
+                  <Link
+                    href={`/inbound/${s.id}/edit`}
+                    className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-border px-3 text-sm text-haidee-text transition-colors hover:bg-haidee-surface"
+                  >
+                    编辑 Edit
+                  </Link>
+                  <InboundDeleteButton sessionId={s.id} variant="icon" />
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -4,24 +4,18 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { deductCustomerCrate } from "@/app/actions/customerCrateStock";
+import {
+  addCustomerCrate,
+  deductCustomerCrate,
+} from "@/app/actions/customerCrateStock";
 import { generateSessionNo } from "@/lib/inbound";
 import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
-async function applyInboundCrateDeduction(
-  shipperId: string,
-  location: string,
-  lines: { tongTypeId: string; quantity: number }[]
+function aggregateCrateQuantities(
+  lines: { tongTypeId: string; quantity: number }[],
+  typeMap: Map<string, { trackInventory: boolean; isBox: boolean }>
 ) {
-  if (lines.length === 0) return;
-
-  const tongTypeIds = Array.from(new Set(lines.map((l) => l.tongTypeId)));
-  const tongTypes = await prisma.tongType.findMany({
-    where: { id: { in: tongTypeIds } },
-  });
-  const typeMap = new Map(tongTypes.map((t) => [t.id, t]));
-
   const byCrateType = new Map<string, number>();
   for (const line of lines) {
     const crateType = typeMap.get(line.tongTypeId);
@@ -31,10 +25,57 @@ async function applyInboundCrateDeduction(
       (byCrateType.get(line.tongTypeId) ?? 0) + line.quantity
     );
   }
+  return byCrateType;
+}
 
+async function loadTongTypeMap(tongTypeIds: string[]) {
+  if (tongTypeIds.length === 0) return new Map();
+  const tongTypes = await prisma.tongType.findMany({
+    where: { id: { in: tongTypeIds } },
+    select: { id: true, trackInventory: true, isBox: true },
+  });
+  return new Map(tongTypes.map((t) => [t.id, t]));
+}
+
+async function applyInboundCrateDeduction(
+  shipperId: string,
+  location: string,
+  lines: { tongTypeId: string; quantity: number }[]
+) {
+  if (lines.length === 0) return;
+
+  const typeMap = await loadTongTypeMap(
+    Array.from(new Set(lines.map((l) => l.tongTypeId)))
+  );
+  const byCrateType = aggregateCrateQuantities(lines, typeMap);
   const loc = location?.trim() ?? "";
+
   for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
     await deductCustomerCrate(shipperId, crateTypeId, qty, "inbound", loc);
+  }
+}
+
+async function reverseInboundCrateDeduction(
+  shipperId: string,
+  location: string,
+  lines: { tongTypeId: string; quantity: number }[]
+) {
+  if (lines.length === 0) return;
+
+  const typeMap = await loadTongTypeMap(
+    Array.from(new Set(lines.map((l) => l.tongTypeId)))
+  );
+  const byCrateType = aggregateCrateQuantities(lines, typeMap);
+  const loc = location?.trim() ?? "";
+
+  for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
+    await addCustomerCrate(
+      shipperId,
+      crateTypeId,
+      qty,
+      "inbound-delete",
+      loc
+    );
   }
 }
 
@@ -465,4 +506,67 @@ export async function saveInboundSession(input: SaveInboundInput) {
   revalidatePath("/inbound");
   revalidatePath("/crate/customer-stock");
   return { id: session.id, sessionNo: session.sessionNo };
+}
+
+export async function deleteInboundSession(sessionId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
+  const session = await prisma.inboundSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      lines: {
+        select: {
+          id: true,
+          tongTypeId: true,
+          quantity: true,
+          dispatchLines: { select: { dispatchOrderId: true } },
+        },
+      },
+    },
+  });
+
+  if (!session) throw new Error("进货单不存在 Session not found");
+
+  const lineIds = session.lines.map((l) => l.id);
+  const dispatchOrderIds = Array.from(
+    new Set(
+      session.lines.flatMap((l) =>
+        l.dispatchLines.map((dl) => dl.dispatchOrderId)
+      )
+    )
+  );
+
+  if (session.status === "confirmed") {
+    await reverseInboundCrateDeduction(
+      session.shipperId,
+      session.areaNote ?? "",
+      session.lines
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (lineIds.length > 0) {
+      await tx.dispatchLine.deleteMany({
+        where: { inboundLineId: { in: lineIds } },
+      });
+      await tx.inboundLine.deleteMany({ where: { sessionId } });
+    }
+
+    await tx.inboundSession.delete({ where: { id: sessionId } });
+
+    for (const orderId of dispatchOrderIds) {
+      const remaining = await tx.dispatchLine.count({
+        where: { dispatchOrderId: orderId },
+      });
+      if (remaining === 0) {
+        await tx.dispatchOrder.delete({ where: { id: orderId } });
+      }
+    }
+  });
+
+  revalidatePath("/inbound");
+  revalidatePath("/dispatch");
+  revalidatePath("/dashboard");
+  revalidatePath("/crate/customer-stock");
 }

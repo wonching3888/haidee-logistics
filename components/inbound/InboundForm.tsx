@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
@@ -520,6 +521,9 @@ export function InboundForm({
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 border-t border-haidee-border pt-4">
+        {initialSession && (
+          <InboundDeleteButton sessionId={initialSession.id} />
+        )}
         <Button
           type="button"
           variant="outline"
