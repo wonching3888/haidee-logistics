@@ -217,8 +217,7 @@ export function DocumentsClient({
           <Button
             onClick={() => openInternalDO(true)}
             disabled={!selectedId}
-            variant="outline"
-            className="min-h-[44px] gap-2"
+            className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
           >
             <FileText className="h-4 w-4" />
             生成外部 D/O External

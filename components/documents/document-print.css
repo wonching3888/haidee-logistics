@@ -48,6 +48,12 @@
   max-width: 36px;
 }
 
+.document-print td.do-qty-col {
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+}
+
 .document-print .do-remarks-col {
   width: auto;
   min-width: 80px;

@@ -54,7 +54,7 @@ export function DeliveryOrderPrint({
                   </th>
                 ))}
                 <th className="do-qty-col">Qty</th>
-                <th className="do-remarks-col">备注</th>
+                <th className="do-remarks-col">备注 Remarks</th>
               </tr>
             </thead>
             <tbody>
