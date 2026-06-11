@@ -17,7 +17,7 @@ export function DispatchMarketLabel({
   return (
     <span
       className={cn(
-        "inline-flex min-h-[28px] min-w-[36px] items-center justify-center rounded px-2 py-0.5 font-mono text-xs font-semibold",
+        "inline-flex min-w-[44px] items-center justify-center rounded px-2.5 py-1.5 font-mono text-sm font-semibold",
         selected && "ring-2 ring-haidee-navy ring-offset-1",
         className
       )}

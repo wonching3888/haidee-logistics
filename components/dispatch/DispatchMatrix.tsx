@@ -24,7 +24,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
     );
   }
 
-  const headerRowHeight = "3.25rem";
+  const headerRowHeight = "3.5rem";
 
   return (
     <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
