@@ -5,8 +5,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  addCustomerCrate,
-  deductCustomerCrate,
+  addCustomerCratesBatch,
+  deductCustomerCratesBatch,
 } from "@/app/actions/customerCrateStock";
 import { generateSessionNo } from "@/lib/inbound";
 import { MARKET_ORDER } from "@/lib/constants";
@@ -37,46 +37,221 @@ async function loadTongTypeMap(tongTypeIds: string[]) {
   return new Map(tongTypes.map((t) => [t.id, t]));
 }
 
+type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
+
 async function applyInboundCrateDeduction(
   shipperId: string,
   location: string,
-  lines: { tongTypeId: string; quantity: number }[]
+  lines: { tongTypeId: string; quantity: number }[],
+  typeMap?: Map<string, TongTypeMeta>
 ) {
   if (lines.length === 0) return;
 
-  const typeMap = await loadTongTypeMap(
-    Array.from(new Set(lines.map((l) => l.tongTypeId)))
+  const map =
+    typeMap ??
+    (await loadTongTypeMap(Array.from(new Set(lines.map((l) => l.tongTypeId)))));
+  const byCrateType = aggregateCrateQuantities(lines, map);
+  const deductions = Array.from(byCrateType.entries()).map(
+    ([crateTypeId, quantity]) => ({ crateTypeId, quantity })
   );
-  const byCrateType = aggregateCrateQuantities(lines, typeMap);
-  const loc = location?.trim() ?? "";
 
-  for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
-    await deductCustomerCrate(shipperId, crateTypeId, qty, "inbound", loc);
-  }
+  await deductCustomerCratesBatch(
+    shipperId,
+    deductions,
+    "inbound",
+    location?.trim() ?? ""
+  );
 }
 
 async function reverseInboundCrateDeduction(
   shipperId: string,
   location: string,
-  lines: { tongTypeId: string; quantity: number }[]
+  lines: { tongTypeId: string; quantity: number }[],
+  typeMap?: Map<string, TongTypeMeta>
 ) {
   if (lines.length === 0) return;
 
-  const typeMap = await loadTongTypeMap(
-    Array.from(new Set(lines.map((l) => l.tongTypeId)))
+  const map =
+    typeMap ??
+    (await loadTongTypeMap(Array.from(new Set(lines.map((l) => l.tongTypeId)))));
+  const byCrateType = aggregateCrateQuantities(lines, map);
+  const additions = Array.from(byCrateType.entries()).map(
+    ([crateTypeId, quantity]) => ({ crateTypeId, quantity })
   );
-  const byCrateType = aggregateCrateQuantities(lines, typeMap);
-  const loc = location?.trim() ?? "";
 
-  for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
-    await addCustomerCrate(
-      shipperId,
-      crateTypeId,
-      qty,
-      "inbound-delete",
-      loc
+  await addCustomerCratesBatch(
+    shipperId,
+    additions,
+    "inbound-delete",
+    location?.trim() ?? ""
+  );
+}
+
+async function processNewStalls(
+  shipperId: string,
+  newStalls: NewStallInput[] | undefined
+): Promise<InboundLineInput[]> {
+  const createdLines: InboundLineInput[] = [];
+  if (!newStalls?.length) return createdLines;
+
+  const existingStalls = await prisma.stall.findMany({
+    where: {
+      OR: newStalls.map((ns) => ({ code: ns.code, marketId: ns.marketId })),
+    },
+    select: { id: true, code: true, marketId: true },
+  });
+  const stallMap = new Map(
+    existingStalls.map((stall) => [`${stall.code}:${stall.marketId}`, stall])
+  );
+
+  const missing = newStalls.filter(
+    (ns) => !stallMap.has(`${ns.code}:${ns.marketId}`)
+  );
+  if (missing.length > 0) {
+    await Promise.all(
+      missing.map((ns) =>
+        prisma.stall
+          .create({
+            data: { code: ns.code, marketId: ns.marketId },
+            select: { id: true, code: true, marketId: true },
+          })
+          .then((stall) => {
+            stallMap.set(`${stall.code}:${stall.marketId}`, stall);
+          })
+      )
     );
   }
+
+  await Promise.all(
+    newStalls.map((ns) => {
+      const stall = stallMap.get(`${ns.code}:${ns.marketId}`)!;
+      return prisma.shipperStallDefault.upsert({
+        where: {
+          shipperId_stallId: { shipperId, stallId: stall.id },
+        },
+        update: { tongTypeId: ns.tongTypeId },
+        create: {
+          shipperId,
+          stallId: stall.id,
+          tongTypeId: ns.tongTypeId,
+        },
+      });
+    })
+  );
+
+  for (const ns of newStalls) {
+    if (ns.quantity && ns.quantity > 0) {
+      const stall = stallMap.get(`${ns.code}:${ns.marketId}`)!;
+      createdLines.push({
+        stallId: stall.id,
+        tongTypeId: ns.tongTypeId,
+        quantity: ns.quantity,
+      });
+    }
+  }
+
+  return createdLines;
+}
+
+async function syncShipperStallDefaults(
+  shipperId: string,
+  lines: InboundLineInput[]
+) {
+  const defaultsByStall = new Map<string, string>();
+  for (const line of lines) {
+    defaultsByStall.set(line.stallId, line.tongTypeId);
+  }
+
+  await Promise.all(
+    Array.from(defaultsByStall.entries()).map(([stallId, tongTypeId]) =>
+      prisma.shipperStallDefault.updateMany({
+        where: { shipperId, stallId },
+        data: { tongTypeId },
+      })
+    )
+  );
+}
+
+interface ExistingInboundLine {
+  id: string;
+  quantity: number;
+  tongTypeId: string;
+  stallId: string;
+  originalQuantity: number | null;
+}
+
+async function syncInboundLines(
+  sessionId: string,
+  allLines: InboundLineInput[],
+  existingLines: ExistingInboundLine[],
+  typeMap: Map<string, TongTypeMeta>
+) {
+  const existingLineIds = new Set(existingLines.map((line) => line.id));
+  const inputLineIds = new Set(
+    allLines.filter((line) => line.lineId).map((line) => line.lineId!)
+  );
+
+  const lineOps: Promise<unknown>[] = [];
+
+  const deleteIds = existingLines
+    .filter((line) => !inputLineIds.has(line.id))
+    .map((line) => line.id);
+  if (deleteIds.length > 0) {
+    lineOps.push(
+      prisma.inboundLine.deleteMany({ where: { id: { in: deleteIds } } })
+    );
+  }
+
+  for (const line of allLines) {
+    if (!line.lineId || !existingLineIds.has(line.lineId)) continue;
+
+    const prev = existingLines.find((existing) => existing.id === line.lineId)!;
+    const changed =
+      prev.quantity !== line.quantity ||
+      prev.tongTypeId !== line.tongTypeId ||
+      prev.stallId !== line.stallId;
+
+    lineOps.push(
+      prisma.inboundLine.update({
+        where: { id: line.lineId },
+        data: {
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+          ...(changed && !prev.originalQuantity
+            ? {
+                originalQuantity: prev.quantity,
+                originalTongTypeId: prev.tongTypeId,
+                originalStallId: prev.stallId,
+                modifiedAt: new Date(),
+              }
+            : changed
+              ? { modifiedAt: new Date() }
+              : {}),
+        },
+      })
+    );
+  }
+
+  const createLines = allLines.filter(
+    (line) => !line.lineId || !existingLineIds.has(line.lineId)
+  );
+  if (createLines.length > 0) {
+    lineOps.push(
+      prisma.inboundLine.createMany({
+        data: createLines.map((line) => ({
+          sessionId,
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+        })),
+      })
+    );
+  }
+
+  await Promise.all(lineOps);
 }
 
 export interface InboundSessionFilters {
@@ -313,70 +488,56 @@ export async function saveInboundSession(input: SaveInboundInput) {
   const activeLines = input.lines.filter(
     (l) => l.quantity > 0 && !l.stallId.startsWith("new-")
   );
-  const createdNewStallLines: InboundLineInput[] = [];
   const status = input.asDraft ? "draft" : "confirmed";
 
-  if (input.removedStallIds?.length) {
-    for (const stallId of input.removedStallIds) {
-      // Client-side temp ids for unsaved stalls must not hit the database
-      if (stallId.startsWith("new-")) continue;
-      await prisma.shipperStallDefault.deleteMany({
-        where: { shipperId: input.shipperId, stallId },
-      });
-    }
+  const removedStallIds =
+    input.removedStallIds?.filter((stallId) => !stallId.startsWith("new-")) ??
+    [];
+  if (removedStallIds.length > 0) {
+    await prisma.shipperStallDefault.deleteMany({
+      where: {
+        shipperId: input.shipperId,
+        stallId: { in: removedStallIds },
+      },
+    });
   }
 
-  if (input.newStalls?.length) {
-    for (const ns of input.newStalls) {
-      let stall = await prisma.stall.findFirst({
-        where: { code: ns.code, marketId: ns.marketId },
-      });
-      if (!stall) {
-        stall = await prisma.stall.create({
-          data: { code: ns.code, marketId: ns.marketId },
-        });
-      }
-      await prisma.shipperStallDefault.upsert({
-        where: {
-          shipperId_stallId: {
-            shipperId: input.shipperId,
-            stallId: stall.id,
-          },
-        },
-        update: { tongTypeId: ns.tongTypeId },
-        create: {
-          shipperId: input.shipperId,
-          stallId: stall.id,
-          tongTypeId: ns.tongTypeId,
-        },
-      });
-      if (ns.quantity && ns.quantity > 0) {
-        createdNewStallLines.push({
-          stallId: stall.id,
-          tongTypeId: ns.tongTypeId,
-          quantity: ns.quantity,
-        });
-      }
-    }
-  }
-
+  const createdNewStallLines = await processNewStalls(
+    input.shipperId,
+    input.newStalls
+  );
   const allLines = [...activeLines, ...createdNewStallLines];
 
   if (!input.asDraft && allLines.length === 0) {
     throw new Error("请至少填写一个档口的桶数 Please enter at least one quantity");
   }
 
-  for (const line of allLines) {
-    await prisma.shipperStallDefault.updateMany({
-      where: { shipperId: input.shipperId, stallId: line.stallId },
-      data: { tongTypeId: line.tongTypeId },
-    });
-  }
+  const tongTypeIds = Array.from(
+    new Set([
+      ...allLines.map((line) => line.tongTypeId),
+      ...(input.newStalls?.map((stall) => stall.tongTypeId) ?? []),
+    ])
+  );
+  const typeMap = await loadTongTypeMap(tongTypeIds);
+
+  await syncShipperStallDefaults(input.shipperId, allLines);
 
   if (input.sessionId) {
     const existing = await prisma.inboundSession.findUnique({
       where: { id: input.sessionId },
-      include: { lines: true },
+      select: {
+        sessionNo: true,
+        status: true,
+        lines: {
+          select: {
+            id: true,
+            quantity: true,
+            tongTypeId: true,
+            stallId: true,
+            originalQuantity: true,
+          },
+        },
+      },
     });
     if (!existing) throw new Error("进货单不存在 Session not found");
 
@@ -385,78 +546,27 @@ export async function saveInboundSession(input: SaveInboundInput) {
         ? await generateSessionNo(date)
         : existing.sessionNo;
 
-    await prisma.inboundSession.update({
-      where: { id: input.sessionId },
-      data: {
-        date,
-        shipperId: input.shipperId,
-        thVehiclePlate: input.thVehiclePlate || null,
-        areaNote: input.areaNote || null,
-        status,
-        sessionNo,
-      },
-    });
-
-    const existingLineIds = new Set(existing.lines.map((l) => l.id));
-    const inputLineIds = new Set(
-      allLines.filter((l) => l.lineId).map((l) => l.lineId!)
-    );
-
-    for (const line of existing.lines) {
-      if (!inputLineIds.has(line.id)) {
-        await prisma.inboundLine.delete({ where: { id: line.id } });
-      }
-    }
-
-    for (const line of allLines) {
-      const tongType = await prisma.tongType.findUnique({
-        where: { id: line.tongTypeId },
-      });
-
-      if (line.lineId && existingLineIds.has(line.lineId)) {
-        const prev = existing.lines.find((l) => l.id === line.lineId)!;
-        const changed =
-          prev.quantity !== line.quantity ||
-          prev.tongTypeId !== line.tongTypeId ||
-          prev.stallId !== line.stallId;
-
-        await prisma.inboundLine.update({
-          where: { id: line.lineId },
-          data: {
-            stallId: line.stallId,
-            tongTypeId: line.tongTypeId,
-            quantity: line.quantity,
-            isBox: tongType?.isBox ?? false,
-            ...(changed && !prev.originalQuantity
-              ? {
-                  originalQuantity: prev.quantity,
-                  originalTongTypeId: prev.tongTypeId,
-                  originalStallId: prev.stallId,
-                  modifiedAt: new Date(),
-                }
-              : changed
-                ? { modifiedAt: new Date() }
-                : {}),
-          },
-        });
-      } else {
-        await prisma.inboundLine.create({
-          data: {
-            sessionId: input.sessionId,
-            stallId: line.stallId,
-            tongTypeId: line.tongTypeId,
-            quantity: line.quantity,
-            isBox: tongType?.isBox ?? false,
-          },
-        });
-      }
-    }
+    await Promise.all([
+      prisma.inboundSession.update({
+        where: { id: input.sessionId },
+        data: {
+          date,
+          shipperId: input.shipperId,
+          thVehiclePlate: input.thVehiclePlate || null,
+          areaNote: input.areaNote || null,
+          status,
+          sessionNo,
+        },
+      }),
+      syncInboundLines(input.sessionId, allLines, existing.lines, typeMap),
+    ]);
 
     if (status === "confirmed" && existing.status === "draft") {
       await applyInboundCrateDeduction(
         input.shipperId,
         input.areaNote ?? "",
-        allLines
+        allLines,
+        typeMap
       );
     }
 
@@ -478,19 +588,12 @@ export async function saveInboundSession(input: SaveInboundInput) {
       sessionNo,
       createdById: user.id,
       lines: {
-        create: await Promise.all(
-          allLines.map(async (line) => {
-            const tongType = await prisma.tongType.findUnique({
-              where: { id: line.tongTypeId },
-            });
-            return {
-              stallId: line.stallId,
-              tongTypeId: line.tongTypeId,
-              quantity: line.quantity,
-              isBox: tongType?.isBox ?? false,
-            };
-          })
-        ),
+        create: allLines.map((line) => ({
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+        })),
       },
     },
   });
@@ -499,7 +602,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     await applyInboundCrateDeduction(
       input.shipperId,
       input.areaNote ?? "",
-      allLines
+      allLines,
+      typeMap
     );
   }
 
