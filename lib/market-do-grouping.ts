@@ -1,29 +1,14 @@
 import type { MarketDORow } from "@/app/actions/documents";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
+import { MARKET_ORDER } from "@/lib/markets";
 
-/** Region titles for the market crate report (每日渔桶寄至). */
-export const MARKET_DO_AREA_GROUPS: { name: string; codes: string[] }[] = [
-  { name: "KUALA LUMPUR", codes: ["KL", "BP", "MP", "SL"] },
-  { name: "MALACCA", codes: ["MC"] },
-  { name: "ALOR SETAR", codes: ["A"] },
-  { name: "BUTTERWORTH", codes: ["BM"] },
-  { name: "PENANG / NORTH", codes: ["P", "TP", "NT", "KT", "SA"] },
-  { name: "KEDAH", codes: ["KD"] },
-  { name: "JOHOR BAHRU", codes: ["JB"] },
-];
-
-const AREA_GROUP_ORDER = new Map(
-  MARKET_DO_AREA_GROUPS.map((group, index) => [group.name, index])
+const AREA_DISPLAY_ORDER = new Map<string, number>(
+  MARKET_ORDER.map((code, index) => [getMarketDisplayName(code), index])
 );
 
-const CODE_TO_AREA_GROUP = new Map<string, string>();
-for (const group of MARKET_DO_AREA_GROUPS) {
-  for (const code of group.codes) {
-    CODE_TO_AREA_GROUP.set(code, group.name);
-  }
-}
-
+/** @deprecated Each market maps to its own display name — use getMarketDisplayName */
 export function getMarketDOAreaGroup(marketCode: string): string {
-  return CODE_TO_AREA_GROUP.get(marketCode) ?? marketCode.toUpperCase();
+  return getMarketDisplayName(marketCode);
 }
 
 export interface ReportTruckGroup<T> {
@@ -53,7 +38,7 @@ export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
   const areaMap = new Map<string, Map<string, T[]>>();
 
   for (const row of rows) {
-    const areaName = getMarketDOAreaGroup(row.area);
+    const areaName = getMarketDisplayName(row.area);
     if (!areaMap.has(areaName)) {
       areaMap.set(areaName, new Map());
     }
@@ -65,11 +50,11 @@ export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
   }
 
   const orderedAreaNames = [
-    ...MARKET_DO_AREA_GROUPS.map((group) => group.name).filter((name) =>
+    ...MARKET_ORDER.map((code) => getMarketDisplayName(code)).filter((name) =>
       areaMap.has(name)
     ),
     ...Array.from(areaMap.keys())
-      .filter((name) => !AREA_GROUP_ORDER.has(name))
+      .filter((name) => !AREA_DISPLAY_ORDER.has(name))
       .sort((a, b) => a.localeCompare(b)),
   ];
 
@@ -88,6 +73,8 @@ export function groupRowsByAreaAndTruck<T extends AreaTruckRow>(
   });
 }
 
-export function groupMarketDORows(rows: MarketDORow[]): ReportAreaGroup<MarketDORow>[] {
+export function groupMarketDORows(
+  rows: MarketDORow[]
+): ReportAreaGroup<MarketDORow>[] {
   return groupRowsByAreaAndTruck(rows);
 }

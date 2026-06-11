@@ -1,16 +1,21 @@
-/** Display names for market D/O titles */
+/** Full display names for market / area codes (one name per market). */
 export const MARKET_DISPLAY_NAMES: Record<string, string> = {
   KL: "KUALA LUMPUR",
-  BM: "BUKIT MERTAJAM",
-  A: "IPOH",
-  KD: "ALOR SETAR",
-  P: "PENANG",
-  MC: "MELAKA",
   BP: "BATU PAHAT",
+  MP: "MUAR",
+  SL: "SELANGOR",
+  MC: "MELAKA",
+  A: "IPOH",
+  BM: "BUKIT MERTAJAM",
+  P: "PENANG",
   TP: "TAIPING",
-  SL: "SL",
+  NT: "NIBONG TEBAL",
   KT: "TANJUNG PIANDANG",
-  NT: "N'TEBAL",
   SA: "SIMPANG AMPAT",
+  KD: "KEDAH",
   JB: "JOHOR BAHRU",
 };
+
+export function getMarketDisplayName(marketCode: string): string {
+  return MARKET_DISPLAY_NAMES[marketCode] ?? marketCode.toUpperCase();
+}
