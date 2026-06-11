@@ -88,10 +88,8 @@ export function DocumentsClient({
   const hasCrateTypeRecord = crateTypeRecordOptions.markets.length > 0;
 
   useEffect(() => {
-    setRecordMarkets(crateTypeRecordOptions.markets);
-    setRecordTongCodes(
-      crateTypeRecordOptions.crateTypes.map((crateType) => crateType.code)
-    );
+    setRecordMarkets([]);
+    setRecordTongCodes([]);
   }, [crateTypeRecordOptions]);
 
   function changeDate(newDate: string) {
