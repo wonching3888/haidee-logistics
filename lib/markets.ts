@@ -28,31 +28,31 @@ export interface MarketColorSet {
 }
 
 export const MARKET_COLORS: Record<string, MarketColorSet> = {
-  KL: { bg: "#FEF08A", text: "#854D0E", border: "#854D0E", light: "#FEF08A" },
-  BP: { bg: "#BBF7D0", text: "#14532D", border: "#14532D", light: "#BBF7D0" },
-  MP: { bg: "#E9D5FF", text: "#581C87", border: "#581C87", light: "#E9D5FF" },
-  SL: { bg: "#99F6E4", text: "#134E4A", border: "#134E4A", light: "#99F6E4" },
-  MC: { bg: "#FED7AA", text: "#7C2D12", border: "#7C2D12", light: "#FED7AA" },
-  A: { bg: "#E5E7EB", text: "#1F2937", border: "#1F2937", light: "#E5E7EB" },
-  BM: { bg: "#BFDBFE", text: "#1E3A5F", border: "#1E3A5F", light: "#BFDBFE" },
-  B: { bg: "#C7D2FE", text: "#312E81", border: "#312E81", light: "#C7D2FE" },
-  P: { bg: "#A5F3FC", text: "#164E63", border: "#164E63", light: "#A5F3FC" },
-  TP: { bg: "#E5E7EB", text: "#374151", border: "#374151", light: "#E5E7EB" },
-  NT: { bg: "#E5E7EB", text: "#374151", border: "#374151", light: "#E5E7EB" },
-  KD: { bg: "#FBCFE8", text: "#831843", border: "#831843", light: "#FBCFE8" },
-  KT: { bg: "#FDE68A", text: "#78350F", border: "#78350F", light: "#FDE68A" },
-  SA: { bg: "#BAE6FD", text: "#0C4A6E", border: "#0C4A6E", light: "#BAE6FD" },
-  JB: { bg: "#FECDD3", text: "#881337", border: "#881337", light: "#FECDD3" },
+  KL: { bg: "#FDE047", text: "#713F12", border: "#713F12", light: "#FDE047" },
+  SL: { bg: "#FDE047", text: "#713F12", border: "#713F12", light: "#FDE047" },
+  BP: { bg: "#86EFAC", text: "#14532D", border: "#14532D", light: "#86EFAC" },
+  MP: { bg: "#86EFAC", text: "#14532D", border: "#14532D", light: "#86EFAC" },
+  JB: { bg: "#86EFAC", text: "#14532D", border: "#14532D", light: "#86EFAC" },
+  BM: { bg: "#7DD3FC", text: "#0C4A6E", border: "#0C4A6E", light: "#7DD3FC" },
+  KD: { bg: "#FDA4AF", text: "#881337", border: "#881337", light: "#FDA4AF" },
+  MC: { bg: "#FDB97D", text: "#7C2D12", border: "#7C2D12", light: "#FDB97D" },
+  A: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  TP: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  KT: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  NT: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  P: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  SA: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  B: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
 };
 
 /** KL子市场（货装KL车但目的地不同） */
 export const KL_SUB_MARKETS = ["BP", "MP", "SL"] as const;
 
 const DEFAULT_COLOR: MarketColorSet = {
-  bg: "#E5E7EB",
-  text: "#374151",
-  border: "#374151",
-  light: "#E5E7EB",
+  bg: "#F3F4F6",
+  text: "#1F2937",
+  border: "#1F2937",
+  light: "#F3F4F6",
 };
 
 export function getMarketColor(code: string): MarketColorSet {
