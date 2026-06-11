@@ -65,6 +65,27 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
     return totals;
   }, [columns, data.rows]);
 
+  const truckTotals = useMemo(() => {
+    const totals: Record<string, { crateQty: number; boxQty: number }> = {};
+    for (const truck of data.trucks) {
+      totals[truck.orderId] = { crateQty: 0, boxQty: 0 };
+    }
+    for (const col of columns) {
+      const sub = columnSubtotals[col.key];
+      const truckTotal = totals[col.orderId];
+      if (!truckTotal || !sub) continue;
+      truckTotal.crateQty += sub.crateQty;
+      truckTotal.boxQty += sub.boxQty;
+    }
+    return totals;
+  }, [columns, columnSubtotals, data.trucks]);
+
+  function truckTotalLabel(crateQty: number, boxQty: number): string {
+    if (crateQty === 0 && boxQty === 0) return "";
+    if (boxQty > 0) return `(${cellDisplay(crateQty, boxQty)})`;
+    return String(crateQty);
+  }
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `loading-list-${date}`,
@@ -119,15 +140,26 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   <br />
                   Consignor / Area
                 </th>
-                {data.trucks.map((truck) => (
-                  <th
-                    key={truck.orderId}
-                    colSpan={truck.markets.length}
-                    className="border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-mono text-base font-bold text-haidee-text"
-                  >
-                    {truck.truckPlate}
-                  </th>
-                ))}
+                {data.trucks.map((truck) => {
+                  const total = truckTotals[truck.orderId];
+                  const totalLabel = total
+                    ? truckTotalLabel(total.crateQty, total.boxQty)
+                    : "";
+                  return (
+                    <th
+                      key={truck.orderId}
+                      colSpan={truck.markets.length}
+                      className="border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-mono text-base font-bold text-haidee-text"
+                    >
+                      <div>{truck.truckPlate}</div>
+                      {totalLabel && (
+                        <div className="mt-0.5 text-xs font-normal text-haidee-muted">
+                          {totalLabel}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
               <tr>
                 {columns.map((col) => (
