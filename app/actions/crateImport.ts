@@ -5,13 +5,17 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
-import { TONG_IMPORT_COLUMNS } from "@/lib/constants/tong-import-columns";
+import {
+  isDefaultImportColumn,
+  resolveImportTongCode,
+  TONG_IMPORT_ALL_COLUMNS,
+  TONG_IMPORT_DEFAULT_COLUMNS,
+} from "@/lib/constants/tong-import-columns";
 
 export interface CrateImportRowInput {
   truckPlate: string;
   marketCode: string;
   quantities: Record<string, string>;
-  otherQuantities?: Record<string, string>;
   notes?: string;
   status?: "on_the_way" | "arrived";
 }
@@ -20,20 +24,19 @@ export interface CrateImportLoadedRow {
   truckPlate: string;
   marketCode: string;
   quantities: Record<string, string>;
-  otherQuantities: Record<string, string>;
   notes: string;
   status: "on_the_way" | "arrived";
 }
 
-const colByTongCode = Object.fromEntries(
-  TONG_IMPORT_COLUMNS.map((c) => [c.tongCode, c.key])
-);
-
 function emptyQuantities(): Record<string, string> {
-  return Object.fromEntries(TONG_IMPORT_COLUMNS.map((c) => [c.key, ""]));
+  return Object.fromEntries(
+    TONG_IMPORT_DEFAULT_COLUMNS.map((c) => [c.key, ""])
+  );
 }
 
-function parseOtherColsJson(value: Prisma.JsonValue | null): Record<string, number> {
+function parseOtherColsJson(
+  value: Prisma.JsonValue | null
+): Record<string, number> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const result: Record<string, number> = {};
   for (const [key, qty] of Object.entries(value as Record<string, unknown>)) {
@@ -74,8 +77,12 @@ export async function loadCrateImportsForDate(dateStr: string) {
     getDispatchedTruckPlatesForDate(dateStr),
   ]);
 
+  const colByTongCodeAll = Object.fromEntries(
+    TONG_IMPORT_ALL_COLUMNS.map((c) => [c.tongCode, c.key])
+  );
+
   const rowMap = new Map<string, CrateImportLoadedRow>();
-  const otherColNames = new Set<string>();
+  const dynamicColNames = new Set<string>();
 
   for (const imp of imports) {
     const key = `${imp.truck.plate}|${imp.market.code}`;
@@ -85,22 +92,26 @@ export async function loadCrateImportsForDate(dateStr: string) {
         truckPlate: imp.truck.plate,
         marketCode: imp.market.code,
         quantities: emptyQuantities(),
-        otherQuantities: {},
         notes: imp.notes ?? "",
         status: imp.status as "on_the_way" | "arrived",
       };
       rowMap.set(key, row);
     }
 
-    const colKey = colByTongCode[imp.tongType.code];
-    if (colKey && imp.quantity > 0) {
+    const colKey = colByTongCodeAll[imp.tongType.code] ?? imp.tongType.code;
+    if (imp.quantity > 0) {
       row.quantities[colKey] = String(imp.quantity);
+      if (!isDefaultImportColumn(colKey)) {
+        dynamicColNames.add(colKey);
+      }
     }
 
     const otherCols = parseOtherColsJson(imp.otherCols);
     for (const [name, qty] of Object.entries(otherCols)) {
-      row.otherQuantities[name] = String(qty);
-      otherColNames.add(name);
+      row.quantities[name] = String(qty);
+      if (!isDefaultImportColumn(name)) {
+        dynamicColNames.add(name);
+      }
     }
   }
 
@@ -111,7 +122,6 @@ export async function loadCrateImportsForDate(dateStr: string) {
       truckPlate: plate,
       marketCode: "",
       quantities: emptyQuantities(),
-      otherQuantities: {},
       notes: "",
       status: "on_the_way" as const,
     }));
@@ -119,7 +129,7 @@ export async function loadCrateImportsForDate(dateStr: string) {
 
   return {
     rows,
-    otherColumns: Array.from(otherColNames),
+    dynamicColumns: Array.from(dynamicColNames),
     dispatchedPlates,
   };
 }
@@ -151,19 +161,30 @@ export async function saveCrateImport(
     const truckId = truckMap[row.truckPlate];
     if (!truckId) throw new Error(`车牌不存在 Unknown plate: ${row.truckPlate}`);
 
-    if (row.marketCode === "X" || row.marketCode === "x") continue;
+    if (!row.marketCode) continue;
 
     const marketId = marketMap[row.marketCode];
     if (!marketId)
       throw new Error(`市场代码无效 Invalid market: ${row.marketCode}`);
 
     const otherColsData: Record<string, number> = {};
-    for (const [name, raw] of Object.entries(row.otherQuantities ?? {})) {
-      const qty = parseInt(raw ?? "0", 10) || 0;
-      if (qty > 0) otherColsData[name] = qty;
-    }
-    const hasOtherCols = Object.keys(otherColsData).length > 0;
+    const tongEntries: { tongTypeId: string; quantity: number }[] = [];
 
+    for (const [colKey, raw] of Object.entries(row.quantities)) {
+      const qty = parseInt(raw ?? "0", 10) || 0;
+      if (qty <= 0) continue;
+
+      const tongCode = resolveImportTongCode(colKey) ?? colKey;
+      const tongTypeId = tongMap[tongCode];
+
+      if (tongTypeId) {
+        tongEntries.push({ tongTypeId, quantity: qty });
+      } else {
+        otherColsData[colKey] = qty;
+      }
+    }
+
+    const hasOtherCols = Object.keys(otherColsData).length > 0;
     let storedOtherCols = false;
     const baseData = {
       date,
@@ -175,18 +196,12 @@ export async function saveCrateImport(
       createdById: user.id,
     };
 
-    for (const col of TONG_IMPORT_COLUMNS) {
-      const qty = parseInt(row.quantities[col.key] ?? "0", 10) || 0;
-      if (qty <= 0) continue;
-
-      const tongTypeId = tongMap[col.tongCode];
-      if (!tongTypeId) continue;
-
+    for (const entry of tongEntries) {
       await prisma.tongImport.create({
         data: {
           ...baseData,
-          tongTypeId,
-          quantity: qty,
+          tongTypeId: entry.tongTypeId,
+          quantity: entry.quantity,
           otherCols:
             !storedOtherCols && hasOtherCols ? otherColsData : undefined,
         },

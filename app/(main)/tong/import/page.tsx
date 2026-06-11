@@ -21,7 +21,7 @@ export default async function TongImportPage() {
         markets={data.markets}
         initialDate={date}
         initialRows={data.rows}
-        initialOtherColumns={data.otherColumns}
+        initialDynamicColumns={data.dynamicColumns}
         initialDispatchedPlates={data.dispatchedPlates}
       />
     </div>

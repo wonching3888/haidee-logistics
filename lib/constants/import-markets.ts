@@ -1,4 +1,4 @@
-/** Market dropdown order for crate import form */
+/** Market dropdown order for crate import form (strict list) */
 export const IMPORT_MARKET_ORDER = [
   "KL",
   "MC",
@@ -20,12 +20,9 @@ export function sortMarketsForImport<
     IMPORT_MARKET_ORDER.map((code, index) => [code, index])
   );
 
-  return [...markets].sort((a, b) => {
-    const ai = orderMap.get(a.code) ?? 999;
-    const bi = orderMap.get(b.code) ?? 999;
-    if (ai !== bi) return ai - bi;
-    return a.code.localeCompare(b.code);
-  });
+  return [...markets]
+    .filter((m) => orderMap.has(m.code))
+    .sort((a, b) => orderMap.get(a.code)! - orderMap.get(b.code)!);
 }
 
 export function sortTrucksForImport<
