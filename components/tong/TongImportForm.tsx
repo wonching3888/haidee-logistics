@@ -118,11 +118,6 @@ export function TongImportForm({
     [allTrucks, dispatchedPlates]
   );
 
-  const priorityPlateSet = useMemo(
-    () => new Set(dispatchedPlates),
-    [dispatchedPlates]
-  );
-
   const isFirstDateEffect = useRef(true);
 
   useEffect(() => {
@@ -357,9 +352,7 @@ export function TongImportForm({
                       <option value="">—</option>
                       {trucks.map((t) => (
                         <option key={t.id} value={t.plate}>
-                          {priorityPlateSet.has(t.plate)
-                            ? `★ ${t.plate}`
-                            : t.plate}
+                          {t.plate}
                         </option>
                       ))}
                     </select>
