@@ -22,6 +22,10 @@ const MARKETS = [
   { code: "NT", name: "N'Tebal", state: "Penang" },
   { code: "SA", name: "Simpang Ampat", state: "Penang" },
   { code: "JB", name: "Johor Bahru", state: "Johor" },
+  { code: "ABIBA", name: "ABIBA" },
+  { code: "ALPS", name: "ALPS" },
+  { code: "ECONSAVE", name: "ECONSAVE" },
+  { code: "OTHERS", name: "OTHERS" },
 ];
 
 const TONG_TYPES = [
