@@ -82,8 +82,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
   function truckTotalLabel(crateQty: number, boxQty: number): string {
     if (crateQty === 0 && boxQty === 0) return "";
-    if (boxQty > 0) return `(${cellDisplay(crateQty, boxQty)})`;
-    return String(crateQty);
+    return `(${cellDisplay(crateQty, boxQty)})`;
   }
 
   const handlePrint = useReactToPrint({
