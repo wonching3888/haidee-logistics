@@ -81,10 +81,10 @@ export function DashboardView({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-4">
         {statCards.map((card) => (
-          <Link key={card.title} href={card.href} className="block">
-            <div className="rounded-xl border border-haidee-border bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+          <Link key={card.title} href={card.href} className="block h-full">
+            <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-haidee-border bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md">
               <p className="text-sm font-medium text-haidee-muted">
                 {card.title} {card.titleEn}
               </p>

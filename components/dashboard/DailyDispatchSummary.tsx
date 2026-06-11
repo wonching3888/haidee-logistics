@@ -1,13 +1,34 @@
 import type { DailyDispatchSummaryData, DepotQty } from "@/app/actions/dashboard";
-import { cellDisplay } from "@/lib/consignor-label";
 import "./daily-dispatch-summary.css";
 
 interface DailyDispatchSummaryProps {
   data: DailyDispatchSummaryData;
 }
 
-function formatCell(qty: DepotQty): string {
-  return cellDisplay(qty.crate, qty.box);
+function formatTong(qty: DepotQty): string {
+  return qty.crate > 0 ? String(qty.crate) : "";
+}
+
+function formatBox(qty: DepotQty): string {
+  return qty.box > 0 ? String(qty.box) : "";
+}
+
+function DepotCells({
+  qty,
+  bold = false,
+}: {
+  qty: DepotQty;
+  bold?: boolean;
+}) {
+  const cellClass = `daily-summary-td daily-summary-col-qty font-mono${
+    bold ? " font-bold" : ""
+  }`;
+  return (
+    <>
+      <td className={cellClass}>{formatTong(qty)}</td>
+      <td className={cellClass}>{formatBox(qty)}</td>
+    </>
+  );
 }
 
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
@@ -31,16 +52,48 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="daily-summary-table w-full min-w-[720px] border-collapse text-sm">
+            <table className="daily-summary-table w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="daily-summary-th text-left">Lorry No</th>
+                  <th
+                    rowSpan={2}
+                    className="daily-summary-th daily-summary-col-lorry text-left"
+                  >
+                    Lorry No
+                  </th>
                   {data.activeDepots.map((depot) => (
-                    <th key={depot} className="daily-summary-th">
+                    <th
+                      key={depot}
+                      colSpan={2}
+                      className="daily-summary-th daily-summary-col-group"
+                    >
                       {depot}
                     </th>
                   ))}
-                  <th className="daily-summary-th">Total</th>
+                  <th
+                    colSpan={2}
+                    className="daily-summary-th daily-summary-col-group"
+                  >
+                    Total
+                  </th>
+                </tr>
+                <tr>
+                  {data.activeDepots.flatMap((depot) => [
+                    <th
+                      key={`${depot}-tong`}
+                      className="daily-summary-th daily-summary-col-qty"
+                    >
+                      Tong
+                    </th>,
+                    <th
+                      key={`${depot}-box`}
+                      className="daily-summary-th daily-summary-col-qty"
+                    >
+                      Box
+                    </th>,
+                  ])}
+                  <th className="daily-summary-th daily-summary-col-qty">Tong</th>
+                  <th className="daily-summary-th daily-summary-col-qty">Box</th>
                 </tr>
               </thead>
               <tbody>
@@ -53,36 +106,32 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
                         : "daily-summary-row-odd"
                     }
                   >
-                    <td className="daily-summary-td font-mono font-medium">
+                    <td className="daily-summary-td daily-summary-col-lorry font-mono font-medium text-left">
                       {row.lorryNo}
                     </td>
                     {data.activeDepots.map((depot) => (
-                      <td key={depot} className="daily-summary-td font-mono">
-                        {formatCell(row.depots[depot] ?? { crate: 0, box: 0 })}
-                      </td>
+                      <DepotCells
+                        key={depot}
+                        qty={row.depots[depot] ?? { crate: 0, box: 0 }}
+                      />
                     ))}
-                    <td className="daily-summary-td font-mono font-semibold">
-                      {formatCell(row.total)}
-                    </td>
+                    <DepotCells qty={row.total} bold />
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="daily-summary-total-row">
-                  <td className="daily-summary-td font-bold">Sum Total</td>
-                  {data.activeDepots.map((depot) => (
-                    <td
-                      key={depot}
-                      className="daily-summary-td font-mono font-bold"
-                    >
-                      {formatCell(
-                        data.columnTotals[depot] ?? { crate: 0, box: 0 }
-                      )}
-                    </td>
-                  ))}
-                  <td className="daily-summary-td font-mono font-bold">
-                    {formatCell(data.grandTotal)}
+                  <td className="daily-summary-td daily-summary-col-lorry font-bold text-left">
+                    Total
                   </td>
+                  {data.activeDepots.map((depot) => (
+                    <DepotCells
+                      key={depot}
+                      qty={data.columnTotals[depot] ?? { crate: 0, box: 0 }}
+                      bold
+                    />
+                  ))}
+                  <DepotCells qty={data.grandTotal} bold />
                 </tr>
               </tfoot>
             </table>
