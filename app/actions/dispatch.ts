@@ -65,8 +65,8 @@ function sumDispatchLoad(
 const DISPATCH_BATCH_SIZE = 10;
 
 const DISPATCH_TRANSACTION_OPTIONS = {
-  timeout: 30_000,
-  maxWait: 10_000,
+  timeout: 60_000,
+  maxWait: 15_000,
 } as const;
 
 const lineInclude = {
@@ -402,13 +402,23 @@ async function resolveAssignments(
   return assignments;
 }
 
+type SplittableLine = Pick<
+  LineRecord,
+  "id" | "sessionId" | "stallId" | "tongTypeId" | "quantity" | "isBox"
+>;
+
 async function splitAndAssignLine(
   tx: Prisma.TransactionClient,
-  line: LineRecord,
+  line: SplittableLine,
   assignQty: number
 ): Promise<string> {
   if (assignQty <= 0) throw new Error("分配数量无效 Invalid assignment quantity");
-  if (assignQty >= line.quantity) return line.id;
+  if (assignQty > line.quantity) {
+    throw new Error(
+      `分配数量不能超过可用数量 ${line.quantity} Cannot assign more than available quantity`
+    );
+  }
+  if (assignQty === line.quantity) return line.id;
 
   const remainder = line.quantity - assignQty;
   await tx.inboundLine.update({
@@ -435,6 +445,27 @@ async function assignLinesToOrder(
   date: Date,
   assignments: StallAssignment[]
 ): Promise<void> {
+  if (assignments.length === 0) return;
+
+  const lineIds = Array.from(
+    new Set(assignments.map((a) => a.inboundLineId))
+  );
+  const lines = await tx.inboundLine.findMany({
+    where: {
+      id: { in: lineIds },
+      ...unassignedLineWhere(date),
+    },
+    select: {
+      id: true,
+      sessionId: true,
+      stallId: true,
+      tongTypeId: true,
+      quantity: true,
+      isBox: true,
+    },
+  });
+  const lineMap = new Map(lines.map((line) => [line.id, line]));
+
   const dispatchLineRows: {
     dispatchOrderId: string;
     inboundLineId: string;
@@ -442,14 +473,7 @@ async function assignLinesToOrder(
   const assignedLineIds: string[] = [];
 
   for (const assignment of assignments) {
-    const line = await tx.inboundLine.findFirst({
-      where: {
-        id: assignment.inboundLineId,
-        ...unassignedLineWhere(date),
-      },
-      include: lineInclude,
-    });
-
+    const line = lineMap.get(assignment.inboundLineId);
     if (!line) {
       throw new Error(
         "所选货物不可用或已被分配 Selected cargo unavailable or already assigned"
@@ -471,6 +495,23 @@ async function assignLinesToOrder(
     await tx.inboundLine.updateMany({
       where: { id: { in: batch } },
       data: { dispatchStatus: "assigned", truckId },
+    });
+  }
+}
+
+async function releaseDispatchLines(
+  tx: Prisma.TransactionClient,
+  dispatchOrderId: string,
+  inboundLineIds: string[]
+): Promise<void> {
+  await tx.dispatchLine.deleteMany({ where: { dispatchOrderId } });
+  if (inboundLineIds.length === 0) return;
+
+  for (let i = 0; i < inboundLineIds.length; i += DISPATCH_BATCH_SIZE) {
+    const batch = inboundLineIds.slice(i, i + DISPATCH_BATCH_SIZE);
+    await tx.inboundLine.updateMany({
+      where: { id: { in: batch } },
+      data: { dispatchStatus: "unassigned", truckId: null },
     });
   }
 }
@@ -538,13 +579,11 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         },
       });
 
-      for (const dl of existing.lines) {
-        await tx.dispatchLine.delete({ where: { id: dl.id } });
-        await tx.inboundLine.update({
-          where: { id: dl.inboundLineId },
-          data: { dispatchStatus: "unassigned", truckId: null },
-        });
-      }
+      await releaseDispatchLines(
+        tx,
+        input.dispatchOrderId!,
+        existing.lines.map((dl) => dl.inboundLineId)
+      );
 
       await assignLinesToOrder(
         tx,

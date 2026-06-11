@@ -161,7 +161,7 @@ export function DispatchForm({
             const updated = { ...q };
             for (const stall of item.stalls) {
               if (!(stall.inboundLineId in updated)) {
-                updated[stall.inboundLineId] = String(stall.quantity);
+                updated[stall.inboundLineId] = "";
               }
             }
             return updated;
@@ -181,10 +181,16 @@ export function DispatchForm({
 
       if (isSplit) {
         const stallAssignments = item.stalls
-          .map((stall) => ({
-            inboundLineId: stall.inboundLineId,
-            quantity: parseInt(splitQty[stall.inboundLineId] ?? "0", 10) || 0,
-          }))
+          .map((stall) => {
+            const quantity =
+              parseInt(splitQty[stall.inboundLineId] ?? "0", 10) || 0;
+            if (quantity > stall.quantity) {
+              throw new Error(
+                `${item.shipperName} ${stall.stallCode} 此车数量不能超过 ${stall.quantity}`
+              );
+            }
+            return { inboundLineId: stall.inboundLineId, quantity };
+          })
           .filter((s) => s.quantity > 0);
 
         if (stallAssignments.length > 0) {
@@ -209,7 +215,13 @@ export function DispatchForm({
 
   function handleSave() {
     setError(null);
-    const selections = buildSelections();
+    let selections: DispatchSelection[];
+    try {
+      selections = buildSelections();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "拆分数量无效 Invalid split quantity");
+      return;
+    }
 
     startTransition(async () => {
       try {
