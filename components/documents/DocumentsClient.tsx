@@ -5,18 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { DeliveryOrderPrint } from "@/components/documents/DeliveryOrderPrint";
-import { MarketDOPrint } from "@/components/documents/MarketDOPrint";
 import { CrateByTypePrint } from "@/components/documents/CrateByTypePrint";
 import { PrintPreviewDialog } from "@/components/documents/PrintPreviewDialog";
-import {
-  getDeliveryOrderData,
-  getMultiMarketDOData,
-  getCrateByTypeData,
-  type DeliveryOrderData,
-  type MarketDOData,
-  type CrateByTypeData,
-} from "@/app/actions/documents";
+import { getCrateByTypeData, type CrateByTypeData } from "@/app/actions/documents";
 import { MARKET_ORDER } from "@/lib/markets";
 import {
   Table,
@@ -57,13 +48,6 @@ interface DocumentsClientProps {
   marketTongCombos: MarketTongCombo[];
 }
 
-type PreviewState =
-  | { type: "internal"; data: DeliveryOrderData }
-  | { type: "external"; data: DeliveryOrderData }
-  | { type: "market"; data: MarketDOData }
-  | { type: "crate"; data: CrateByTypeData }
-  | null;
-
 export function DocumentsClient({
   date,
   dispatchOrders,
@@ -76,8 +60,8 @@ export function DocumentsClient({
   const [selectedId, setSelectedId] = useState<string>(
     dispatchOrders[0]?.id ?? ""
   );
-  const [preview, setPreview] = useState<PreviewState>(null);
-  const [previewTitle, setPreviewTitle] = useState("");
+  const [cratePreview, setCratePreview] = useState<CrateByTypeData | null>(null);
+  const [cratePreviewTitle, setCratePreviewTitle] = useState("");
   const [selectedCombos, setSelectedCombos] = useState<Set<string>>(new Set());
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
 
@@ -87,42 +71,20 @@ export function DocumentsClient({
     router.push(`/documents?${params.toString()}`);
   }
 
-  async function openInternalDO(external: boolean) {
+  function openInternalDO(external: boolean) {
     if (!selectedId) return;
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        const data = await getDeliveryOrderData(selectedId);
-        if (!data) {
-          setActionError("无法加载 D/O 数据 Unable to load D/O data");
-          return;
-        }
-        setPreviewTitle(external ? "外部 D/O External D/O" : "内部 D/O Internal D/O");
-        setPreview(external ? { type: "external", data } : { type: "internal", data });
-      } catch (e) {
-        setActionError(e instanceof Error ? e.message : "生成 D/O 失败");
-      }
-    });
+    const path = external
+      ? "/documents/do-external"
+      : "/documents/do-internal";
+    router.push(`${path}?dispatchId=${encodeURIComponent(selectedId)}`);
   }
 
-  async function handleGenerateMarketDO() {
+  function openMarketDO() {
     if (selectedMarkets.length === 0) return;
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        const data = await getMultiMarketDOData(date, selectedMarkets);
-        if (!data || data.rows.length === 0) {
-          setActionError("所选市场当日无货物 No cargo for selected markets");
-          return;
-        }
-        setPreviewTitle(
-          `市场 D/O Market D/O — ${selectedMarkets.join(" / ")}`
-        );
-        setPreview({ type: "market", data });
-      } catch (e) {
-        setActionError(e instanceof Error ? e.message : "生成市场 D/O 失败");
-      }
-    });
+    const params = new URLSearchParams();
+    params.set("date", date);
+    params.set("markets", selectedMarkets.join(","));
+    router.push(`/documents/do-market?${params.toString()}`);
   }
 
   async function openCrateByType(marketCode: string, tongCode: string) {
@@ -134,8 +96,8 @@ export function DocumentsClient({
           setActionError("当日无该桶型记录 No records for this crate type");
           return;
         }
-        setPreviewTitle(`桶型记录 Crate — ${marketCode} / ${tongCode}`);
-        setPreview({ type: "crate", data });
+        setCratePreviewTitle(`桶型记录 Crate — ${marketCode} / ${tongCode}`);
+        setCratePreview(data);
       } catch (e) {
         setActionError(e instanceof Error ? e.message : "生成桶型记录失败");
       }
@@ -151,12 +113,8 @@ export function DocumentsClient({
     });
   }
 
-  const previewDocTitle = preview
-    ? preview.type === "internal" || preview.type === "external"
-      ? `${preview.data.doNumber}-${preview.data.lorryNo}`
-      : preview.type === "market"
-        ? `MarketDO-${preview.data.marketCode}-${date}`
-        : `Crate-${preview.data.marketCode}-${preview.data.tongCode}-${date}`
+  const crateDocTitle = cratePreview
+    ? `Crate-${cratePreview.marketCode}-${cratePreview.tongCode}-${date}`
     : "";
 
   return (
@@ -250,7 +208,7 @@ export function DocumentsClient({
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => openInternalDO(false)}
-            disabled={!selectedId || isPending}
+            disabled={!selectedId}
             className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
           >
             <FileText className="h-4 w-4" />
@@ -258,7 +216,7 @@ export function DocumentsClient({
           </Button>
           <Button
             onClick={() => openInternalDO(true)}
-            disabled={!selectedId || isPending}
+            disabled={!selectedId}
             variant="outline"
             className="min-h-[44px] gap-2"
           >
@@ -301,8 +259,8 @@ export function DocumentsClient({
           ))}
         </div>
         <Button
-          onClick={handleGenerateMarketDO}
-          disabled={selectedMarkets.length === 0 || isPending}
+          onClick={openMarketDO}
+          disabled={selectedMarkets.length === 0}
           className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
         >
           <FileText className="h-4 w-4" />
@@ -363,19 +321,12 @@ export function DocumentsClient({
       </div>
 
       <PrintPreviewDialog
-        open={preview !== null}
-        onClose={() => setPreview(null)}
-        title={previewTitle}
-        documentTitle={previewDocTitle}
+        open={cratePreview !== null}
+        onClose={() => setCratePreview(null)}
+        title={cratePreviewTitle}
+        documentTitle={crateDocTitle}
       >
-        {preview?.type === "internal" && (
-          <DeliveryOrderPrint data={preview.data} showConsignor />
-        )}
-        {preview?.type === "external" && (
-          <DeliveryOrderPrint data={preview.data} showConsignor={false} />
-        )}
-        {preview?.type === "market" && <MarketDOPrint data={preview.data} />}
-        {preview?.type === "crate" && <CrateByTypePrint data={preview.data} />}
+        {cratePreview && <CrateByTypePrint data={cratePreview} />}
       </PrintPreviewDialog>
     </div>
   );
