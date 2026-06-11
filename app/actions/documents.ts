@@ -5,11 +5,17 @@ import { parseDateInput } from "@/lib/inbound-utils";
 import { getDONumber } from "@/lib/documents";
 import { formatDODate } from "@/lib/document-utils";
 import {
+  computeDORowQty,
   DO_TONG_COLUMNS,
   emptyQuantities,
   isBoxColumn,
   mapTongToColumn,
+  sumQuantities,
 } from "@/lib/constants/tong-columns";
+import {
+  CRATE_TYPE_RECORD_BLOCKS,
+  getCrateTypeRecordBlockTitle,
+} from "@/lib/crate-type-record-areas";
 
 export interface DORow {
   lorryNo: string;
@@ -78,6 +84,26 @@ export interface MarketTongCombo {
   tongCode: string;
   tongHeader: string;
   quantity: number;
+}
+
+export interface CrateTypeRecordTruckRow {
+  lorryNo: string;
+  quantities: Record<string, number>;
+  total: number;
+}
+
+export interface CrateTypeRecordBlock {
+  title: string;
+  trucks: CrateTypeRecordTruckRow[];
+  totals: Record<string, number>;
+  total: number;
+}
+
+export interface CrateTypeRecordData {
+  date: string;
+  blocks: CrateTypeRecordBlock[];
+  grandTotals: Record<string, number>;
+  grandTotal: number;
 }
 
 function buildDORow(
@@ -418,4 +444,80 @@ export async function getMarketTongCombos(
       a.marketCode.localeCompare(b.marketCode) ||
       a.tongCode.localeCompare(b.tongCode)
   );
+}
+
+export async function getCrateTypeRecordData(
+  dateStr: string
+): Promise<CrateTypeRecordData | null> {
+  const date = parseDateInput(dateStr);
+  const lines = await fetchAssignedLinesForDate(date);
+  if (lines.length === 0) return null;
+
+  const blockTrucks = new Map<
+    string,
+    Map<string, Record<string, number>>
+  >();
+
+  for (const line of lines) {
+    const marketCode = line.stall.market?.code;
+    if (!marketCode) continue;
+
+    const blockTitle = getCrateTypeRecordBlockTitle(marketCode);
+    if (!blockTitle) continue;
+
+    const dispatchLine = line.dispatchLines[0];
+    if (!dispatchLine) continue;
+
+    const lorryNo = dispatchLine.dispatchOrder.truck.plate;
+    if (!blockTrucks.has(blockTitle)) {
+      blockTrucks.set(blockTitle, new Map());
+    }
+    const truckMap = blockTrucks.get(blockTitle)!;
+
+    if (!truckMap.has(lorryNo)) {
+      truckMap.set(lorryNo, emptyQuantities());
+    }
+    const quantities = truckMap.get(lorryNo)!;
+    const col = mapTongToColumn(line.tongType.code);
+    quantities[col] = (quantities[col] ?? 0) + line.quantity;
+  }
+
+  const blocks: CrateTypeRecordBlock[] = [];
+
+  for (const { title } of CRATE_TYPE_RECORD_BLOCKS) {
+    const truckMap = blockTrucks.get(title);
+    if (!truckMap || truckMap.size === 0) continue;
+
+    const trucks: CrateTypeRecordTruckRow[] = Array.from(truckMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([lorryNo, quantities]) => ({
+        lorryNo,
+        quantities,
+        total: computeDORowQty(quantities),
+      }));
+
+    const totals = sumQuantities(trucks);
+    const total = trucks.reduce((sum, truck) => sum + truck.total, 0);
+
+    blocks.push({ title, trucks, totals, total });
+  }
+
+  if (blocks.length === 0) return null;
+
+  const grandTotals = sumQuantities(
+    blocks.flatMap((block) => block.trucks)
+  );
+  const grandTotal = blocks.reduce((sum, block) => sum + block.total, 0);
+
+  return {
+    date: formatDODate(date),
+    blocks,
+    grandTotals,
+    grandTotal,
+  };
+}
+
+export async function hasCrateTypeRecordData(dateStr: string): Promise<boolean> {
+  const data = await getCrateTypeRecordData(dateStr);
+  return data !== null;
 }

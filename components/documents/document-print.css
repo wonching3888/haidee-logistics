@@ -177,6 +177,54 @@
   font-weight: bold;
 }
 
+.document-print .crate-record-block {
+  margin-top: 16px;
+}
+
+.document-print .crate-record-block-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.document-print table.crate-record-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.document-print .crate-record-sum-table {
+  margin-top: 16px;
+}
+
+.document-print .crate-record-no-col {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+}
+
+.document-print .crate-record-lorry-col {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
+.document-print .crate-record-crate-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  padding: 2px 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.document-print .crate-record-total-col {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  font-weight: bold;
+}
+
 @media print {
   .document-print {
     padding: 0;

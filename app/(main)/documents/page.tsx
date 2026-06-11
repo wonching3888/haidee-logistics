@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import {
   getDocumentDispatchOrders,
   getMarketTongCombos,
+  hasCrateTypeRecordData,
 } from "@/app/actions/documents";
 import { DocumentsClient } from "@/components/documents/DocumentsClient";
 import { PageError } from "@/components/shared/PageError";
@@ -23,10 +24,12 @@ export default async function DocumentsPage({
   const displayDate = formatDisplayDate(parseDateInput(date));
 
   try {
-    const [dispatchOrders, marketTongCombos] = await Promise.all([
-      getDocumentDispatchOrders(date),
-      getMarketTongCombos(date),
-    ]);
+    const [dispatchOrders, marketTongCombos, hasCrateTypeRecord] =
+      await Promise.all([
+        getDocumentDispatchOrders(date),
+        getMarketTongCombos(date),
+        hasCrateTypeRecordData(date),
+      ]);
 
     return (
       <div className="space-y-6">
@@ -35,7 +38,7 @@ export default async function DocumentsPage({
             文件生成 Documents
           </h2>
           <p className="text-sm text-haidee-muted">
-            内部/外部 D/O、市场 D/O、桶型记录 · {displayDate}
+            内部/外部 D/O、市场 D/O、桶型记录、桶型总计 · {displayDate}
           </p>
         </div>
 
@@ -48,6 +51,7 @@ export default async function DocumentsPage({
             date={date}
             dispatchOrders={dispatchOrders}
             marketTongCombos={marketTongCombos}
+            hasCrateTypeRecord={hasCrateTypeRecord}
           />
         </Suspense>
       </div>

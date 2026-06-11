@@ -64,12 +64,14 @@ interface DocumentsClientProps {
   date: string;
   dispatchOrders: DispatchOrderRow[];
   marketTongCombos: MarketTongCombo[];
+  hasCrateTypeRecord: boolean;
 }
 
 export function DocumentsClient({
   date,
   dispatchOrders,
   marketTongCombos,
+  hasCrateTypeRecord,
 }: DocumentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,6 +118,12 @@ export function DocumentsClient({
     params.set("date", date);
     params.set("selections", Array.from(selectedCombos).join(","));
     router.push(`/documents/crate-by-type?${params.toString()}`);
+  }
+
+  function openCrateTypeRecord() {
+    const params = new URLSearchParams();
+    params.set("date", date);
+    router.push(`/documents/crate-type-record?${params.toString()}`);
   }
 
   return (
@@ -271,6 +279,28 @@ export function DocumentsClient({
           <span className="text-sm text-haidee-muted">
             已选 {selectedCombos.size} 组
           </span>
+        </div>
+      </ModuleCard>
+
+      {/* Module 4: Crate Type Record */}
+      <ModuleCard title="桶型总计 Crate Type Record">
+        <p className="mb-3 text-xs text-haidee-muted">
+          按地区与车牌汇总当日派车桶型数量，自动生成总计表
+        </p>
+        {!hasCrateTypeRecord ? (
+          <p className="py-4 text-center text-sm text-haidee-muted">
+            当日暂无派车货物 No dispatched cargo for this date
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-4 border-t border-haidee-border pt-4">
+          <Button
+            onClick={openCrateTypeRecord}
+            disabled={!hasCrateTypeRecord}
+            className={DOCUMENT_ACTION_BTN}
+          >
+            <Printer className="h-4 w-4" />
+            打印总计表 Print
+          </Button>
         </div>
       </ModuleCard>
     </div>
