@@ -317,6 +317,7 @@ model CustomerCrateStock {
   id          String   @id @default(uuid()) @db.Uuid
   shipperId   String   @map("shipper_id") @db.Uuid
   crateTypeId String   @map("tong_type_id") @db.Uuid
+  location    String   @default("")
   quantity    Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -324,7 +325,7 @@ model CustomerCrateStock {
   shipper   Shipper  @relation(fields: [shipperId], references: [id])
   crateType TongType @relation(fields: [crateTypeId], references: [id])
 
-  @@unique([shipperId, crateTypeId])
+  @@unique([shipperId, crateTypeId, location])
   @@map("customer_crate_stock")
 }
 
@@ -332,6 +333,7 @@ model CustomerCrateLedger {
   id          String   @id @default(uuid()) @db.Uuid
   shipperId   String   @map("shipper_id") @db.Uuid
   crateTypeId String   @map("tong_type_id") @db.Uuid
+  location    String   @default("")
   changeType  String   @map("change_type") // manual | export
   quantity    Int
   balance     Int

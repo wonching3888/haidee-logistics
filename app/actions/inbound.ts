@@ -11,6 +11,7 @@ import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
 async function applyInboundCrateDeduction(
   shipperId: string,
+  location: string,
   lines: { tongTypeId: string; quantity: number }[]
 ) {
   if (lines.length === 0) return;
@@ -31,8 +32,9 @@ async function applyInboundCrateDeduction(
     );
   }
 
+  const loc = location?.trim() ?? "";
   for (const [crateTypeId, qty] of Array.from(byCrateType.entries())) {
-    await deductCustomerCrate(shipperId, crateTypeId, qty, "inbound");
+    await deductCustomerCrate(shipperId, crateTypeId, qty, "inbound", loc);
   }
 }
 
@@ -410,7 +412,11 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     if (status === "confirmed" && existing.status === "draft") {
-      await applyInboundCrateDeduction(input.shipperId, allLines);
+      await applyInboundCrateDeduction(
+        input.shipperId,
+        input.areaNote ?? "",
+        allLines
+      );
     }
 
     revalidatePath("/inbound");
@@ -449,7 +455,11 @@ export async function saveInboundSession(input: SaveInboundInput) {
   });
 
   if (status === "confirmed") {
-    await applyInboundCrateDeduction(input.shipperId, allLines);
+    await applyInboundCrateDeduction(
+      input.shipperId,
+      input.areaNote ?? "",
+      allLines
+    );
   }
 
   revalidatePath("/inbound");

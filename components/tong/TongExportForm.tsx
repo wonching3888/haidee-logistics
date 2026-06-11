@@ -49,6 +49,7 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
   const [date, setDate] = useState(toDateInputValue(new Date()));
   const [shipperId, setShipperId] = useState("");
   const [areaNote, setAreaNote] = useState("");
+  const [location, setLocation] = useState("");
   const [thPlate, setThPlate] = useState("");
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<ExportLineState[]>([]);
@@ -128,6 +129,7 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
           shipperId,
           thVehiclePlate: thPlate,
           areaNote,
+          location,
           lines: lines.map((l) => ({
             tongTypeId: l.tongTypeId,
             quantitySuggested: l.suggested,
@@ -143,7 +145,7 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">日期 Date</label>
           <DateInputField value={date} onChange={setDate} />
@@ -173,6 +175,17 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
             value={areaNote}
             onChange={(e) => setAreaNote(e.target.value)}
             placeholder="地区/备注 Area/Note (选填 Optional)"
+            className="min-h-[44px]"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-haidee-text">
+            产地 Location
+          </label>
+          <Input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="如 PHUKET、TOT (选填 Optional)"
             className="min-h-[44px]"
           />
         </div>

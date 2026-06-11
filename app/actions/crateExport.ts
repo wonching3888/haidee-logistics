@@ -23,6 +23,7 @@ export async function saveCrateExport(input: {
   shipperId: string;
   thVehiclePlate: string;
   areaNote?: string;
+  location?: string;
   lines: CrateExportLineInput[];
 }) {
   const user = await getCurrentUser();
@@ -82,6 +83,7 @@ export async function saveCrateExport(input: {
         line.tongTypeId,
         actual,
         "export",
+        input.location ?? "",
         exportNo ? `归还 ${exportNo}` : undefined
       );
     }

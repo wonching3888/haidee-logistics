@@ -16,9 +16,11 @@ import {
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-async function getCustomerQty(shipperId, crateTypeId) {
+async function getCustomerQty(shipperId, crateTypeId, location = "") {
   const row = await prisma.customerCrateStock.findUnique({
-    where: { shipperId_crateTypeId: { shipperId, crateTypeId } },
+    where: {
+      shipperId_crateTypeId_location: { shipperId, crateTypeId, location },
+    },
   });
   return row?.quantity ?? 0;
 }
@@ -45,7 +47,7 @@ async function main() {
   const c0 = await getCustomerQty(shipper.id, abb.id);
 
   // Test 1: inbound deduction
-  await deductCustomerCrate(shipper.id, abb.id, 10, "inbound", tag);
+  await deductCustomerCrate(shipper.id, abb.id, 10, "inbound", "", tag);
   const s1 = (await getSadaoStockByTongType()).ABB?.stock ?? 0;
   const c1 = await getCustomerQty(shipper.id, abb.id);
   console.log("Test1 inbound -10 customer:", c1 === c0 - 10 ? "PASS" : `FAIL (${c0}->${c1})`);
@@ -82,7 +84,7 @@ async function main() {
       notes: tag,
     },
   });
-  await addCustomerCrate(shipper.id, abb.id, 5, "export", tag);
+  await addCustomerCrate(shipper.id, abb.id, 5, "export", "", tag);
   const s3 = (await getSadaoStockByTongType()).ABB?.stock ?? 0;
   const c3 = await getCustomerQty(shipper.id, abb.id);
   console.log("Test3 export -5 SADAO:", s3 === s2 - 5 ? "PASS" : `FAIL (${s2}->${s3})`);
@@ -94,8 +96,19 @@ async function main() {
   await prisma.customerCrateLedger.deleteMany({ where: { notes: tag } });
   // Restore customer stock net: -10 +5 = -5 from test
   await prisma.customerCrateStock.upsert({
-    where: { shipperId_crateTypeId: { shipperId: shipper.id, crateTypeId: abb.id } },
-    create: { shipperId: shipper.id, crateTypeId: abb.id, quantity: c0 },
+    where: {
+      shipperId_crateTypeId_location: {
+        shipperId: shipper.id,
+        crateTypeId: abb.id,
+        location: "",
+      },
+    },
+    create: {
+      shipperId: shipper.id,
+      crateTypeId: abb.id,
+      location: "",
+      quantity: c0,
+    },
     update: { quantity: c0 },
   });
 
