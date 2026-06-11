@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { MarketBadge } from "@/components/shared/MarketBadge";
 
 interface TongTypeOption {
@@ -18,6 +18,7 @@ interface InboundLineRowProps {
   tabIndex: number;
   onTongTypeChange: (tongTypeId: string) => void;
   onQuantityChange: (quantity: string) => void;
+  onDuplicate?: () => void;
   onDelete?: () => void;
   disabled?: boolean;
 }
@@ -31,6 +32,7 @@ export function InboundLineRow({
   tabIndex,
   onTongTypeChange,
   onQuantityChange,
+  onDuplicate,
   onDelete,
   disabled,
 }: InboundLineRowProps) {
@@ -72,16 +74,30 @@ export function InboundLineRow({
           className="min-h-[44px] w-28 rounded-lg border border-haidee-border bg-white px-3 text-right font-mono text-lg text-haidee-text focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:opacity-50"
         />
       </td>
-      {onDelete && (
+      {(onDuplicate || onDelete) && (
         <td className="px-2 py-2">
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded p-2 text-haidee-muted hover:text-haidee-red"
-            title="删除档口"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onDuplicate && (
+              <button
+                type="button"
+                onClick={onDuplicate}
+                className="rounded p-2 text-haidee-muted hover:text-haidee-blue"
+                title="同档口加一行 Add line (same stall)"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded p-2 text-haidee-muted hover:text-haidee-red"
+                title="删除 Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </td>
       )}
     </tr>

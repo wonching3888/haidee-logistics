@@ -27,12 +27,17 @@ interface TongTypeOption {
 }
 
 interface LineState {
+  rowId: string;
   stallId: string;
   stallCode: string;
   marketCode: string;
   tongTypeId: string;
   quantity: string;
   lineId?: string;
+}
+
+function newRowId() {
+  return crypto.randomUUID();
 }
 
 interface MarketOption {
@@ -96,14 +101,14 @@ export function InboundForm({
     tongTypeId: tongTypes[0]?.id ?? "",
   });
   const [pendingNewStalls, setPendingNewStalls] = useState<
-    { code: string; marketId: string; tongTypeId: string; stallId: string }[]
+    {
+      code: string;
+      marketId: string;
+      tongTypeId: string;
+      stallId: string;
+      rowId: string;
+    }[]
   >([]);
-
-  const existingLineMap = useMemo(() => {
-    const map = new Map<string, InitialSession["lines"][0]>();
-    initialSession?.lines.forEach((l) => map.set(l.stallId, l));
-    return map;
-  }, [initialSession]);
 
   const loadStalls = useCallback(
     async (sid: string) => {
@@ -118,24 +123,49 @@ export function InboundForm({
           getThVehiclePlates(sid),
         ]);
         setVehicleSuggestions(vehicles.map((v) => v.plate));
-        setRows(
-          stalls.map((s) => {
-            const existing = existingLineMap.get(s.stallId);
-            return {
+
+        if (initialSession?.lines.length) {
+          const stallIdsWithLines = new Set(
+            initialSession.lines.map((l) => l.stallId)
+          );
+          setRows([
+            ...initialSession.lines.map((l) => ({
+              rowId: l.id,
+              stallId: l.stallId,
+              stallCode: l.stallCode,
+              marketCode: l.marketCode,
+              tongTypeId: l.tongTypeId,
+              quantity: String(l.quantity),
+              lineId: l.id,
+            })),
+            ...stalls
+              .filter((s) => !stallIdsWithLines.has(s.stallId))
+              .map((s) => ({
+                rowId: newRowId(),
+                stallId: s.stallId,
+                stallCode: s.stallCode,
+                marketCode: s.marketCode,
+                tongTypeId: s.defaultTongTypeId,
+                quantity: "",
+              })),
+          ]);
+        } else {
+          setRows(
+            stalls.map((s) => ({
+              rowId: newRowId(),
               stallId: s.stallId,
               stallCode: s.stallCode,
               marketCode: s.marketCode,
-              tongTypeId: existing?.tongTypeId ?? s.defaultTongTypeId,
-              quantity: existing ? String(existing.quantity) : "",
-              lineId: existing?.id,
-            };
-          })
-        );
+              tongTypeId: s.defaultTongTypeId,
+              quantity: "",
+            }))
+          );
+        }
       } finally {
         setLoadingStalls(false);
       }
     },
-    [existingLineMap]
+    [initialSession]
   );
 
   useEffect(() => {
@@ -159,6 +189,23 @@ export function InboundForm({
     setRows((prev) =>
       prev.map((r, i) => (i === index ? { ...r, ...patch } : r))
     );
+  }
+
+  function duplicateRow(index: number) {
+    const source = rows[index];
+    if (!source) return;
+    setRows((prev) => [
+      ...prev.slice(0, index + 1),
+      {
+        rowId: newRowId(),
+        stallId: source.stallId,
+        stallCode: source.stallCode,
+        marketCode: source.marketCode,
+        tongTypeId: source.tongTypeId,
+        quantity: "",
+      },
+      ...prev.slice(index + 1),
+    ]);
   }
 
   function handleSave(asDraft: boolean) {
@@ -187,7 +234,7 @@ export function InboundForm({
           lines,
           removedStallIds,
           newStalls: pendingNewStalls.map((s) => {
-            const row = rows.find((r) => r.stallId === s.stallId);
+            const row = rows.find((r) => r.rowId === s.rowId);
             return {
               code: s.code,
               marketId: s.marketId,
@@ -294,7 +341,7 @@ export function InboundForm({
                 <tbody>
                   {rows.map((row, i) => (
                     <InboundLineRow
-                      key={row.stallId}
+                      key={row.rowId}
                       stallCode={row.stallCode}
                       marketCode={row.marketCode}
                       tongTypes={tongTypes}
@@ -303,7 +350,20 @@ export function InboundForm({
                       tabIndex={i + 1}
                       onTongTypeChange={(v) => updateRow(i, { tongTypeId: v })}
                       onQuantityChange={(v) => updateRow(i, { quantity: v })}
+                      onDuplicate={() => duplicateRow(i)}
                       onDelete={() => {
+                        const sameStallRows = rows.filter(
+                          (r) => r.stallId === row.stallId
+                        ).length;
+                        if (sameStallRows > 1) {
+                          if (row.stallId.startsWith("new-")) {
+                            setPendingNewStalls((prev) =>
+                              prev.filter((s) => s.rowId !== row.rowId)
+                            );
+                          }
+                          setRows((prev) => prev.filter((_, idx) => idx !== i));
+                          return;
+                        }
                         if (
                           !confirm(
                             `确定要永久删除档口 ${row.stallCode} 吗？\nAre you sure to permanently delete stall ${row.stallCode}?`
@@ -312,7 +372,7 @@ export function InboundForm({
                           return;
                         if (row.stallId.startsWith("new-")) {
                           setPendingNewStalls((prev) =>
-                            prev.filter((s) => s.stallId !== row.stallId)
+                            prev.filter((s) => s.rowId !== row.rowId)
                           );
                         } else {
                           setRemovedStallIds((prev) => [...prev, row.stallId]);
@@ -389,13 +449,15 @@ export function InboundForm({
                   if (!newStall.code.trim()) return;
                   const market = markets.find((m) => m.id === newStall.marketId);
                   const tempId = `new-${crypto.randomUUID()}`;
+                  const rowId = newRowId();
                   setPendingNewStalls((prev) => [
                     ...prev,
-                    { ...newStall, stallId: tempId },
+                    { ...newStall, stallId: tempId, rowId },
                   ]);
                   setRows((prev) => [
                     ...prev,
                     {
+                      rowId,
                       stallId: tempId,
                       stallCode: newStall.code,
                       marketCode: market?.code ?? "",
