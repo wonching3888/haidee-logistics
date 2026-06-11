@@ -49,6 +49,22 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
     [data.columns, data.trucks]
   );
 
+  const columnSubtotals = useMemo(() => {
+    const totals: Record<string, { crateQty: number; boxQty: number }> = {};
+    for (const col of columns) {
+      totals[col.key] = { crateQty: 0, boxQty: 0 };
+    }
+    for (const row of data.rows) {
+      for (const col of columns) {
+        const cell = row.cells[col.key];
+        if (!cell) continue;
+        totals[col.key].crateQty += cell.crateQty;
+        totals[col.key].boxQty += cell.boxQty;
+      }
+    }
+    return totals;
+  }, [columns, data.rows]);
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `loading-list-${date}`,
@@ -96,7 +112,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             <thead>
               <tr>
                 <th
-                  rowSpan={2}
+                  rowSpan={3}
                   className="border border-haidee-border bg-haidee-surface px-3 py-2 text-left align-bottom font-medium text-haidee-muted"
                 >
                   寄货人 / 地区
@@ -122,6 +138,19 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     {col.marketCode}
                   </th>
                 ))}
+              </tr>
+              <tr className="bg-gray-50">
+                {columns.map((col) => {
+                  const subtotal = columnSubtotals[col.key];
+                  return (
+                    <th
+                      key={`sub-${col.key}`}
+                      className="border border-haidee-border px-2 py-1 text-center font-mono text-[11px] font-semibold text-haidee-muted"
+                    >
+                      {cellDisplay(subtotal.crateQty, subtotal.boxQty)}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
