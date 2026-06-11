@@ -43,7 +43,7 @@ const TONG_TYPES = [
 
 async function main() {
   const MARKET_ORDER_SEED = [
-    "KL", "BP", "MP", "MC", "A", "BM", "P", "TP", "NT", "KD", "SL", "KT", "SA", "JB",
+    "KL", "BP", "MP", "SL", "MC", "A", "BM", "P", "TP", "NT", "KD", "KT", "SA", "JB",
   ];
 
   console.log("Seeding markets...");

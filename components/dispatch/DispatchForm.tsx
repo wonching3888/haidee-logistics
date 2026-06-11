@@ -77,6 +77,9 @@ export function DispatchForm({
   const [splitKeys, setSplitKeys] = useState<Set<string>>(new Set());
   const [splitQty, setSplitQty] = useState<Record<string, string>>({});
   const [loadingItems, setLoadingItems] = useState(false);
+  const [marketsWithCargo, setMarketsWithCargo] = useState<Set<string>>(
+    new Set()
+  );
 
   const selectedTruck = trucks.find((t) => t.id === truckId);
   const capacity = selectedTruck?.capacityTong ?? 0;
@@ -101,6 +104,24 @@ export function DispatchForm({
 
   const loadColor =
     loadPct > 100 ? "#E63946" : loadPct >= 90 ? "#FF9800" : "#2E7D32";
+
+  const visibleMarketOptions = useMemo(
+    () =>
+      marketOptions.filter(
+        (code) => marketsWithCargo.has(code) || markets.includes(code)
+      ),
+    [marketOptions, marketsWithCargo, markets]
+  );
+
+  useEffect(() => {
+    if (marketOptions.length === 0) {
+      setMarketsWithCargo(new Set());
+      return;
+    }
+    getAssignableItems(date, marketOptions, initialOrder?.id).then((data) => {
+      setMarketsWithCargo(new Set(data.map((item) => item.marketCode)));
+    });
+  }, [date, marketOptions.join(","), initialOrder?.id]);
 
   useEffect(() => {
     if (markets.length === 0) {
@@ -293,7 +314,7 @@ export function DispatchForm({
           目的市场 Markets
         </label>
         <div className="flex flex-wrap gap-2">
-          {marketOptions.map((code) => {
+          {visibleMarketOptions.map((code) => {
             const checked = markets.includes(code);
             return (
               <label

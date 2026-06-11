@@ -2,6 +2,7 @@ export const MARKET_ORDER = [
   "KL",
   "BP",
   "MP",
+  "SL",
   "MC",
   "A",
   "BM",
@@ -9,26 +10,13 @@ export const MARKET_ORDER = [
   "TP",
   "NT",
   "KD",
-  "SL",
   "KT",
   "SA",
   "JB",
 ] as const;
 
 /** Primary columns for dispatch matrix & daily summary */
-export const DISPATCH_MARKET_ORDER = [
-  "KL",
-  "BP",
-  "MP",
-  "MC",
-  "A",
-  "BM",
-  "P",
-  "TP",
-  "NT",
-  "KD",
-  "SL",
-] as const;
+export const DISPATCH_MARKET_ORDER = [...MARKET_ORDER] as const;
 
 export type MarketCode = (typeof MARKET_ORDER)[number];
 
