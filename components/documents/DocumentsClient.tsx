@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText, Package } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { CrateByTypePrint } from "@/components/documents/CrateByTypePrint";
-import { PrintPreviewDialog } from "@/components/documents/PrintPreviewDialog";
-import { getCrateByTypeData, type CrateByTypeData } from "@/app/actions/documents";
+import { CrateByTypePicker } from "@/components/documents/CrateByTypePicker";
 import { MARKET_ORDER } from "@/lib/markets";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -55,13 +54,9 @@ export function DocumentsClient({
 }: DocumentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(
     dispatchOrders[0]?.id ?? ""
   );
-  const [cratePreview, setCratePreview] = useState<CrateByTypeData | null>(null);
-  const [cratePreviewTitle, setCratePreviewTitle] = useState("");
   const [selectedCombos, setSelectedCombos] = useState<Set<string>>(new Set());
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
 
@@ -87,23 +82,6 @@ export function DocumentsClient({
     router.push(`/documents/do-market?${params.toString()}`);
   }
 
-  async function openCrateByType(marketCode: string, tongCode: string) {
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        const data = await getCrateByTypeData(date, marketCode, tongCode);
-        if (!data || data.rows.length === 0) {
-          setActionError("当日无该桶型记录 No records for this crate type");
-          return;
-        }
-        setCratePreviewTitle(`桶型记录 Crate — ${marketCode} / ${tongCode}`);
-        setCratePreview(data);
-      } catch (e) {
-        setActionError(e instanceof Error ? e.message : "生成桶型记录失败");
-      }
-    });
-  }
-
   function toggleCombo(key: string) {
     setSelectedCombos((prev) => {
       const next = new Set(prev);
@@ -113,12 +91,21 @@ export function DocumentsClient({
     });
   }
 
-  const crateDocTitle = cratePreview
-    ? `Crate-${cratePreview.marketCode}-${cratePreview.tongCode}-${date}`
-    : "";
+  function openCratePrint() {
+    if (selectedCombos.size === 0) return;
+    const params = new URLSearchParams();
+    params.set("date", date);
+    params.set("selections", Array.from(selectedCombos).join(","));
+    router.push(`/documents/crate-by-type?${params.toString()}`);
+  }
 
   return (
-    <div className="space-y-6">
+    <div
+      className={cn(
+        "space-y-6",
+        selectedCombos.size > 0 && "pb-24"
+      )}
+    >
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
@@ -127,12 +114,6 @@ export function DocumentsClient({
           <DateInputField value={date} onChange={changeDate} />
         </div>
       </div>
-
-      {actionError && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
-          {actionError}
-        </p>
-      )}
 
       {/* Dispatch orders list */}
       <div className="rounded-xl border border-haidee-border bg-white">
@@ -273,60 +254,16 @@ export function DocumentsClient({
         <h3 className="font-semibold text-haidee-text">
           桶型记录 Crate by Type
         </h3>
-        {marketTongCombos.length === 0 ? (
-          <p className="text-sm text-haidee-muted">当日无已分配货物</p>
-        ) : (
-          <>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {marketTongCombos.map((c) => {
-                const key = `${c.marketCode}:${c.tongCode}`;
-                return (
-                  <label
-                    key={key}
-                    className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border border-haidee-border px-3 py-2 hover:bg-haidee-surface/60"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedCombos.has(key)}
-                      onChange={() => toggleCombo(key)}
-                      className="h-4 w-4 accent-haidee-blue"
-                    />
-                    <MarketLabel code={c.marketCode} />
-                    <span className="font-mono text-sm">{c.tongHeader}</span>
-                    <span className="ml-auto font-mono text-sm text-haidee-muted">
-                      {c.quantity}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {marketTongCombos.map((c) => (
-                <Button
-                  key={`${c.marketCode}:${c.tongCode}`}
-                  variant="outline"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={() => openCrateByType(c.marketCode, c.tongCode)}
-                  className="gap-1"
-                >
-                  <Package className="h-3 w-3" />
-                  {c.marketCode}/{c.tongHeader}
-                </Button>
-              ))}
-            </div>
-          </>
-        )}
+        <p className="text-xs text-haidee-muted">
+          按桶型分列勾选市场，可跨桶型多选后打印统计单
+        </p>
+        <CrateByTypePicker
+          combos={marketTongCombos}
+          selectedKeys={selectedCombos}
+          onToggle={toggleCombo}
+          onPrint={openCratePrint}
+        />
       </div>
-
-      <PrintPreviewDialog
-        open={cratePreview !== null}
-        onClose={() => setCratePreview(null)}
-        title={cratePreviewTitle}
-        documentTitle={crateDocTitle}
-      >
-        {cratePreview && <CrateByTypePrint data={cratePreview} />}
-      </PrintPreviewDialog>
     </div>
   );
 }

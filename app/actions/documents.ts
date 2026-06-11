@@ -60,6 +60,18 @@ export interface CrateByTypeData {
   rows: CrateByTypeRow[];
 }
 
+export interface CrateByTypeSection {
+  marketCode: string;
+  tongCode: string;
+  tongHeader: string;
+  rows: CrateByTypeRow[];
+}
+
+export interface CrateByTypeMergedData {
+  date: string;
+  sections: CrateByTypeSection[];
+}
+
 export interface MarketTongCombo {
   marketCode: string;
   tongCode: string;
@@ -333,6 +345,35 @@ export async function getCrateByTypeData(
       a.stallCode.localeCompare(b.stallCode)
     ),
   };
+}
+
+export async function getMultiCrateByTypeData(
+  dateStr: string,
+  selections: { marketCode: string; tongCode: string }[]
+): Promise<CrateByTypeMergedData | null> {
+  if (selections.length === 0) return null;
+
+  const sections: CrateByTypeSection[] = [];
+  let date = "";
+
+  for (const sel of selections) {
+    const data = await getCrateByTypeData(
+      dateStr,
+      sel.marketCode,
+      sel.tongCode
+    );
+    if (!data || data.rows.length === 0) continue;
+    date = data.date;
+    sections.push({
+      marketCode: data.marketCode,
+      tongCode: data.tongCode,
+      tongHeader: data.tongHeader,
+      rows: data.rows,
+    });
+  }
+
+  if (sections.length === 0) return null;
+  return { date, sections };
 }
 
 export async function getMarketTongCombos(
