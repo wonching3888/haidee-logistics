@@ -20,7 +20,6 @@ export function DeliveryOrderPrint({
   const totals = sumQuantities(data.rows);
   const activeColumns = getActiveDOColumns(data.rows);
   const grandQty = data.rows.reduce((s, r) => s + r.qty, 0);
-  const showRemarks = showConsignor;
 
   return (
     <div className="document-print">
@@ -55,9 +54,7 @@ export function DeliveryOrderPrint({
                   </th>
                 ))}
                 <th className="do-qty-col">Qty</th>
-                {showRemarks && (
-                  <th className="do-remarks-col">备注 Remarks</th>
-                )}
+                <th className="do-remarks-col">备注</th>
               </tr>
             </thead>
             <tbody>
@@ -78,7 +75,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
-                  {showRemarks && <td className="do-remarks-col">&nbsp;</td>}
+                  <td className="do-remarks-col">&nbsp;</td>
                 </tr>
               ))}
               {pageIdx === pages.length - 1 && (
@@ -95,7 +92,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{grandQty}</td>
-                  {showRemarks && <td className="do-remarks-col">&nbsp;</td>}
+                  <td className="do-remarks-col">&nbsp;</td>
                 </tr>
               )}
             </tbody>
