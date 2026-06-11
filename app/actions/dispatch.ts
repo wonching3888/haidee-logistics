@@ -520,8 +520,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
 
-  if (input.markets.length === 0 || input.markets.length > 4) {
-    throw new Error("请选择1至4个目的市场 Select 1-4 destination markets");
+  if (input.markets.length === 0) {
+    throw new Error("请至少选择一个目的市场 Select at least one destination market");
   }
 
   if (input.selections.length === 0) {

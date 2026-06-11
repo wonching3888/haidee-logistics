@@ -27,6 +27,7 @@ export const DISPATCH_MARKET_ORDER = [
   "TP",
   "NT",
   "KD",
+  "SL",
 ] as const;
 
 export type MarketCode = (typeof MARKET_ORDER)[number];

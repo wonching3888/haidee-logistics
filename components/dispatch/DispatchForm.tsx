@@ -134,7 +134,6 @@ export function DispatchForm({
   function toggleMarket(code: string) {
     setMarkets((prev) => {
       if (prev.includes(code)) return prev.filter((m) => m !== code);
-      if (prev.length >= 4) return prev;
       return [...prev, code];
     });
   }
@@ -290,23 +289,19 @@ export function DispatchForm({
 
       <div className="rounded-xl border border-haidee-border bg-white p-4">
         <label className="mb-3 block text-sm font-medium text-haidee-text">
-          目的市场 Markets <span className="text-haidee-muted">(最多4个 max 4)</span>
+          目的市场 Markets
         </label>
         <div className="flex flex-wrap gap-2">
           {DISPATCH_MARKET_ORDER.map((code) => {
             const checked = markets.includes(code);
-            const disabled = !checked && markets.length >= 4;
             return (
               <label
                 key={code}
-                className={`flex min-h-[40px] cursor-pointer items-center gap-2 ${
-                  disabled ? "cursor-not-allowed opacity-40" : ""
-                }`}
+                className="flex min-h-[40px] cursor-pointer items-center gap-2"
               >
                 <input
                   type="checkbox"
                   checked={checked}
-                  disabled={disabled}
                   onChange={() => toggleMarket(code)}
                   className="h-4 w-4 accent-haidee-navy"
                 />
