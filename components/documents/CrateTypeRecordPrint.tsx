@@ -1,8 +1,5 @@
 import type { CrateTypeRecordData } from "@/app/actions/documents";
-import {
-  formatDOCrateQuantity,
-  getActiveDOColumns,
-} from "@/lib/constants/tong-columns";
+import { formatDOCrateQuantity } from "@/lib/constants/tong-columns";
 import "./document-print.css";
 
 interface CrateTypeRecordPrintProps {
@@ -10,8 +7,7 @@ interface CrateTypeRecordPrintProps {
 }
 
 export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
-  const allTrucks = data.blocks.flatMap((block) => block.trucks);
-  const activeColumns = getActiveDOColumns(allTrucks);
+  const { activeColumns } = data;
   return (
     <div className="document-print">
       <div className="header-title">海利物流有限公司</div>

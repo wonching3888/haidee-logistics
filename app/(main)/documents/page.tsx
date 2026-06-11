@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import {
+  getCrateTypeRecordOptions,
   getDocumentDispatchOrders,
   getMarketTongCombos,
-  hasCrateTypeRecordData,
 } from "@/app/actions/documents";
 import { DocumentsClient } from "@/components/documents/DocumentsClient";
 import { PageError } from "@/components/shared/PageError";
@@ -24,11 +24,11 @@ export default async function DocumentsPage({
   const displayDate = formatDisplayDate(parseDateInput(date));
 
   try {
-    const [dispatchOrders, marketTongCombos, hasCrateTypeRecord] =
+    const [dispatchOrders, marketTongCombos, crateTypeRecordOptions] =
       await Promise.all([
         getDocumentDispatchOrders(date),
         getMarketTongCombos(date),
-        hasCrateTypeRecordData(date),
+        getCrateTypeRecordOptions(date),
       ]);
 
     return (
@@ -51,7 +51,7 @@ export default async function DocumentsPage({
             date={date}
             dispatchOrders={dispatchOrders}
             marketTongCombos={marketTongCombos}
-            hasCrateTypeRecord={hasCrateTypeRecord}
+            crateTypeRecordOptions={crateTypeRecordOptions}
           />
         </Suspense>
       </div>

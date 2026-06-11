@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Printer } from "lucide-react";
+import type { CrateTypeRecordOptions } from "@/app/actions/documents";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { CrateByTypePicker } from "@/components/documents/CrateByTypePicker";
+import { CrateTypeRecordPicker } from "@/components/documents/CrateTypeRecordPicker";
 import { MARKET_ORDER } from "@/lib/markets";
 import {
   Table,
@@ -64,14 +66,14 @@ interface DocumentsClientProps {
   date: string;
   dispatchOrders: DispatchOrderRow[];
   marketTongCombos: MarketTongCombo[];
-  hasCrateTypeRecord: boolean;
+  crateTypeRecordOptions: CrateTypeRecordOptions;
 }
 
 export function DocumentsClient({
   date,
   dispatchOrders,
   marketTongCombos,
-  hasCrateTypeRecord,
+  crateTypeRecordOptions,
 }: DocumentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -80,6 +82,17 @@ export function DocumentsClient({
   );
   const [selectedCombos, setSelectedCombos] = useState<Set<string>>(new Set());
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
+  const [recordMarkets, setRecordMarkets] = useState<string[]>([]);
+  const [recordTongCodes, setRecordTongCodes] = useState<string[]>([]);
+
+  const hasCrateTypeRecord = crateTypeRecordOptions.markets.length > 0;
+
+  useEffect(() => {
+    setRecordMarkets(crateTypeRecordOptions.markets);
+    setRecordTongCodes(
+      crateTypeRecordOptions.crateTypes.map((crateType) => crateType.code)
+    );
+  }, [crateTypeRecordOptions]);
 
   function changeDate(newDate: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -121,9 +134,24 @@ export function DocumentsClient({
   }
 
   function openCrateTypeRecord() {
+    if (recordMarkets.length === 0 || recordTongCodes.length === 0) return;
     const params = new URLSearchParams();
     params.set("date", date);
+    params.set("markets", recordMarkets.join(","));
+    params.set("tongTypes", recordTongCodes.join(","));
     router.push(`/documents/crate-type-record?${params.toString()}`);
+  }
+
+  function toggleRecordMarket(code: string) {
+    setRecordMarkets((prev) =>
+      prev.includes(code) ? prev.filter((m) => m !== code) : [...prev, code]
+    );
+  }
+
+  function toggleRecordTongCode(code: string) {
+    setRecordTongCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   }
 
   return (
@@ -285,17 +313,44 @@ export function DocumentsClient({
       {/* Module 4: Crate Type Record */}
       <ModuleCard title="桶型总计 Crate Type Record">
         <p className="mb-3 text-xs text-haidee-muted">
-          按地区与车牌汇总当日派车桶型数量，自动生成总计表
+          勾选目的市场与桶型，按地区与车牌汇总打印总计表
         </p>
         {!hasCrateTypeRecord ? (
           <p className="py-4 text-center text-sm text-haidee-muted">
             当日暂无派车货物 No dispatched cargo for this date
           </p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-4 border-t border-haidee-border pt-4">
+        ) : (
+          <CrateTypeRecordPicker
+            markets={crateTypeRecordOptions.markets}
+            crateTypes={crateTypeRecordOptions.crateTypes}
+            selectedMarkets={recordMarkets}
+            selectedTongCodes={recordTongCodes}
+            onToggleMarket={toggleRecordMarket}
+            onToggleTongCode={toggleRecordTongCode}
+            onSelectAllMarkets={(selectAll) =>
+              setRecordMarkets(
+                selectAll ? [...crateTypeRecordOptions.markets] : []
+              )
+            }
+            onSelectAllTongCodes={(selectAll) =>
+              setRecordTongCodes(
+                selectAll
+                  ? crateTypeRecordOptions.crateTypes.map(
+                      (crateType) => crateType.code
+                    )
+                  : []
+              )
+            }
+          />
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-haidee-border pt-4">
           <Button
             onClick={openCrateTypeRecord}
-            disabled={!hasCrateTypeRecord}
+            disabled={
+              !hasCrateTypeRecord ||
+              recordMarkets.length === 0 ||
+              recordTongCodes.length === 0
+            }
             className={DOCUMENT_ACTION_BTN}
           >
             <Printer className="h-4 w-4" />

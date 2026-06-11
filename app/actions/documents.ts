@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { getDONumber } from "@/lib/documents";
 import { formatDODate } from "@/lib/document-utils";
+import { MARKET_ORDER } from "@/lib/markets";
 import {
   computeDORowQty,
   DO_TONG_COLUMNS,
@@ -99,11 +100,27 @@ export interface CrateTypeRecordBlock {
   total: number;
 }
 
+export interface CrateTypeRecordCrateOption {
+  code: string;
+  header: string;
+}
+
+export interface CrateTypeRecordOptions {
+  markets: string[];
+  crateTypes: CrateTypeRecordCrateOption[];
+}
+
+export interface CrateTypeRecordFilters {
+  marketCodes: string[];
+  tongCodes: string[];
+}
+
 export interface CrateTypeRecordData {
   date: string;
   blocks: CrateTypeRecordBlock[];
   grandTotals: Record<string, number>;
   grandTotal: number;
+  activeColumns: { code: string; header: string }[];
 }
 
 function buildDORow(
@@ -446,21 +463,67 @@ export async function getMarketTongCombos(
   );
 }
 
-export async function getCrateTypeRecordData(
+export async function getCrateTypeRecordOptions(
   dateStr: string
+): Promise<CrateTypeRecordOptions> {
+  const date = parseDateInput(dateStr);
+  const lines = await fetchAssignedLinesForDate(date);
+
+  const marketSet = new Set<string>();
+  const tongMap = new Map<string, string>();
+  const marketOrder = new Map<string, number>(
+    MARKET_ORDER.map((code, index) => [code, index])
+  );
+  const tongOrder = new Map<string, number>(
+    DO_TONG_COLUMNS.map((col, index) => [col.code, index])
+  );
+
+  for (const line of lines) {
+    const marketCode = line.stall.market?.code;
+    if (marketCode) marketSet.add(marketCode);
+
+    const col = DO_TONG_COLUMNS.find((c) => c.code === line.tongType.code);
+    tongMap.set(
+      line.tongType.code,
+      col?.header ?? line.tongType.name
+    );
+  }
+
+  const markets = Array.from(marketSet).sort(
+    (a, b) => (marketOrder.get(a) ?? 999) - (marketOrder.get(b) ?? 999)
+  );
+
+  const crateTypes = Array.from(tongMap.entries())
+    .sort(
+      ([a], [b]) => (tongOrder.get(a) ?? 999) - (tongOrder.get(b) ?? 999)
+    )
+    .map(([code, header]) => ({ code, header }));
+
+  return { markets, crateTypes };
+}
+
+export async function getCrateTypeRecordData(
+  dateStr: string,
+  filters: CrateTypeRecordFilters
 ): Promise<CrateTypeRecordData | null> {
   const date = parseDateInput(dateStr);
   const lines = await fetchAssignedLinesForDate(date);
   if (lines.length === 0) return null;
 
-  const blockTrucks = new Map<
-    string,
-    Map<string, Record<string, number>>
-  >();
+  const marketFilter = new Set(filters.marketCodes);
+  const tongFilter = new Set(filters.tongCodes);
+  if (marketFilter.size === 0 || tongFilter.size === 0) return null;
+
+  const allowedColumns = new Set(
+    filters.tongCodes.map((code) => mapTongToColumn(code))
+  );
+
+  const blockTrucks = new Map<string, Map<string, Record<string, number>>>();
 
   for (const line of lines) {
     const marketCode = line.stall.market?.code;
-    if (!marketCode) continue;
+    if (!marketCode || !marketFilter.has(marketCode)) continue;
+    if (!tongFilter.has(line.tongType.code)) continue;
 
     const blockTitle = getCrateTypeRecordBlockTitle(marketCode);
     if (!blockTitle) continue;
@@ -469,6 +532,9 @@ export async function getCrateTypeRecordData(
     if (!dispatchLine) continue;
 
     const lorryNo = dispatchLine.dispatchOrder.truck.plate;
+    const col = mapTongToColumn(line.tongType.code);
+    if (!allowedColumns.has(col)) continue;
+
     if (!blockTrucks.has(blockTitle)) {
       blockTrucks.set(blockTitle, new Map());
     }
@@ -478,7 +544,6 @@ export async function getCrateTypeRecordData(
       truckMap.set(lorryNo, emptyQuantities());
     }
     const quantities = truckMap.get(lorryNo)!;
-    const col = mapTongToColumn(line.tongType.code);
     quantities[col] = (quantities[col] ?? 0) + line.quantity;
   }
 
@@ -494,7 +559,10 @@ export async function getCrateTypeRecordData(
         lorryNo,
         quantities,
         total: computeDORowQty(quantities),
-      }));
+      }))
+      .filter((truck) => truck.total > 0);
+
+    if (trucks.length === 0) continue;
 
     const totals = sumQuantities(trucks);
     const total = trucks.reduce((sum, truck) => sum + truck.total, 0);
@@ -504,20 +572,20 @@ export async function getCrateTypeRecordData(
 
   if (blocks.length === 0) return null;
 
-  const grandTotals = sumQuantities(
-    blocks.flatMap((block) => block.trucks)
-  );
+  const allTrucks = blocks.flatMap((block) => block.trucks);
+  const grandTotals = sumQuantities(allTrucks);
   const grandTotal = blocks.reduce((sum, block) => sum + block.total, 0);
+
+  const activeColumns = DO_TONG_COLUMNS.filter(
+    (col) =>
+      allowedColumns.has(col.code) && (grandTotals[col.code] ?? 0) > 0
+  ).map((col) => ({ code: col.code, header: col.header }));
 
   return {
     date: formatDODate(date),
     blocks,
     grandTotals,
     grandTotal,
+    activeColumns,
   };
-}
-
-export async function hasCrateTypeRecordData(dateStr: string): Promise<boolean> {
-  const data = await getCrateTypeRecordData(dateStr);
-  return data !== null;
 }

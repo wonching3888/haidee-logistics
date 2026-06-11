@@ -5,7 +5,19 @@ import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
 import { resolveDateParam } from "@/lib/date-utils";
 
 interface CrateTypeRecordPageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{
+    date?: string;
+    markets?: string;
+    tongTypes?: string;
+  }>;
+}
+
+function parseList(raw?: string): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 export default async function CrateTypeRecordPage({
@@ -13,7 +25,12 @@ export default async function CrateTypeRecordPage({
 }: CrateTypeRecordPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
-  const data = await getCrateTypeRecordData(date);
+  const marketCodes = parseList(params.markets);
+  const tongCodes = parseList(params.tongTypes);
+
+  if (marketCodes.length === 0 || tongCodes.length === 0) notFound();
+
+  const data = await getCrateTypeRecordData(date, { marketCodes, tongCodes });
   if (!data) notFound();
 
   return (

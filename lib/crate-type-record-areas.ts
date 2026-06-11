@@ -1,9 +1,9 @@
-/** Area blocks for the Crate Type Record summary report. */
+/** Area block titles for the Crate Type Record summary report. */
 export const CRATE_TYPE_RECORD_BLOCKS: {
   title: string;
   codes: string[];
 }[] = [
-  { title: "SELAYANG / KUALA LUMPUR", codes: ["KL", "BP", "MP", "SL"] },
+  { title: "KUALA LUMPUR", codes: ["KL", "BP", "MP", "SL"] },
   { title: "MELAKA", codes: ["MC"] },
   { title: "IPOH", codes: ["A"] },
   { title: "BUKIT MERTAJAM", codes: ["BM"] },
