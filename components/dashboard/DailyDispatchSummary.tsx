@@ -1,11 +1,5 @@
-import type { CSSProperties } from "react";
 import type { DailyDispatchSummaryData, DepotQty } from "@/app/actions/dashboard";
 import "./daily-dispatch-summary.css";
-
-const dailySummaryOuterScrollStyle: CSSProperties = {
-  overflowX: "auto",
-  WebkitOverflowScrolling: "touch",
-};
 
 const stickyFirstColHeader =
   "max-md:sticky max-md:left-0 max-md:z-20 max-md:bg-[#c8e6c9]";
@@ -46,11 +40,16 @@ function DepotCells({
 
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
-    <section className="w-full min-w-0">
-      <div
-        className="daily-summary-print min-w-0 max-w-full rounded-xl border border-haidee-border bg-white"
-        style={dailySummaryOuterScrollStyle}
-      >
+    <div
+      className="daily-summary-print rounded-xl border border-haidee-border bg-white"
+      style={{
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+      }}
+    >
         <div className="daily-summary-header px-4 py-3 text-center">
           <p className="text-base font-bold tracking-wide text-gray-900">
             WTL EXPRESS SDN BHD
@@ -67,7 +66,10 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             当日暂无派车数据 No dispatch data for this date
           </p>
         ) : (
-            <table className="daily-summary-table w-full min-w-max border-collapse text-sm md:min-w-0">
+            <table
+              className="daily-summary-table border-collapse text-sm md:w-full"
+              style={{ minWidth: "max-content", width: "100%" }}
+            >
               <thead>
                 <tr>
                   <th
@@ -157,7 +159,6 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
               </tfoot>
             </table>
         )}
-      </div>
-    </section>
+    </div>
   );
 }

@@ -80,18 +80,18 @@ export function DashboardView({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         {statCards.map((card) => (
-          <Link key={card.title} href={card.href} className="block h-full">
-            <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-haidee-border bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md max-md:min-h-[132px] max-md:py-6">
-              <p className="text-sm font-medium leading-snug text-haidee-muted max-md:text-base max-md:whitespace-normal">
+          <Link key={card.title} href={card.href} className="block min-w-0">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-haidee-border bg-white px-2 py-3 text-center shadow-sm transition-shadow hover:shadow-md max-md:min-h-0 md:min-h-[120px] md:p-5">
+              <p className="text-xs font-medium leading-tight text-haidee-muted max-md:whitespace-normal md:text-sm">
                 <span className="md:hidden">{card.title}</span>
                 <span className="hidden md:inline">
                   {card.title} {card.titleEn}
                 </span>
               </p>
               <p
-                className={`mt-2 font-mono text-3xl font-bold max-md:mt-3 max-md:text-5xl ${
+                className={`mt-1 font-mono text-3xl font-bold md:mt-2 ${
                   card.highlight === "orange"
                     ? "text-haidee-orange"
                     : "text-haidee-text"
