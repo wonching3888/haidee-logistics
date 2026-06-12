@@ -1,6 +1,7 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { useRef } from "react";
+import { CalendarDays } from "lucide-react";
 import { formatDisplay } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
@@ -14,8 +15,8 @@ interface DateInputFieldProps {
 }
 
 /**
- * Native date picker (type="date") with dd/MM/yyyy display overlay.
- * Hides browser-native date text; overlay is pointer-events-none so clicks reach the input.
+ * Pure dd/MM/yyyy label on a button; hidden type="date" opens via showPicker().
+ * Avoids native date-input caret / webkit edit artifacts in the visible text.
  */
 export function DateInputField({
   value,
@@ -25,38 +26,59 @@ export function DateInputField({
   id,
   disabled,
 }: DateInputFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const display = formatDisplay(value);
+
+  function openPicker() {
+    if (disabled) return;
+    const input = inputRef.current;
+    if (!input) return;
+    try {
+      input.showPicker();
+    } catch {
+      input.click();
+    }
+  }
 
   return (
     <div className={cn("relative inline-block w-full max-w-[11.5rem]", className)}>
-      <Input
+      <button
+        type="button"
         id={id}
+        onClick={openPicker}
+        disabled={disabled}
+        aria-label={display ? `Date ${display}` : "Select date"}
+        className={cn(
+          "flex min-h-[44px] w-full cursor-pointer select-none items-center gap-2 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none transition-colors md:text-sm",
+          "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50",
+          "font-mono tabular-nums",
+          inputClassName
+        )}
+      >
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-left",
+            display ? "text-haidee-text" : "text-haidee-muted"
+          )}
+        >
+          {display || "DD/MM/YYYY"}
+        </span>
+        <CalendarDays
+          className="h-4 w-4 shrink-0 text-haidee-muted"
+          aria-hidden
+        />
+      </button>
+      <input
+        ref={inputRef}
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        aria-label={display ? `Date ${display}` : "Select date"}
-        className={cn(
-          "min-h-[44px] w-full cursor-pointer font-mono tabular-nums text-transparent caret-transparent",
-          "[&::-webkit-datetime-edit]:hidden",
-          "[&::-webkit-datetime-edit-fields-wrapper]:hidden",
-          "[&::-webkit-datetime-edit-text]:hidden",
-          "[&::-webkit-datetime-edit-month-field]:hidden",
-          "[&::-webkit-datetime-edit-day-field]:hidden",
-          "[&::-webkit-datetime-edit-year-field]:hidden",
-          "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer",
-          inputClassName
-        )}
-      />
-      <span
-        className={cn(
-          "pointer-events-none absolute inset-y-0 left-3 right-10 flex items-center font-mono text-sm tabular-nums",
-          display ? "text-haidee-text" : "text-haidee-muted"
-        )}
+        tabIndex={-1}
         aria-hidden="true"
-      >
-        {display || "DD/MM/YYYY"}
-      </span>
+        className="sr-only"
+      />
     </div>
   );
 }
