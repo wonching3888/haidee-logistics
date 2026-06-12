@@ -27,6 +27,26 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
   const areaGroups = groupMarketDORows(data.rows);
   const colSpan = 3 + activeColumns.length + 1;
 
+  if (data.rows.length === 0) {
+    return (
+      <div className="document-print">
+        <div className="header-title">海利物流有限公司</div>
+        <div className="header-sub">HAI DEE LOGISTICS CO., LTD,</div>
+        <div className="header-title" style={{ marginTop: 8 }}>
+          *** 每日渔桶寄至 {titleMarkets} ***
+        </div>
+        <div className="header-sub">Despatch List by Area Details</div>
+        <div className="header-sub">日期：{data.date}</div>
+        <p
+          className="text-center text-haidee-muted"
+          style={{ marginTop: 24, padding: 24 }}
+        >
+          当日暂无派车货物 No dispatched cargo for this date
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="document-print">
       <div className="header-title">海利物流有限公司</div>

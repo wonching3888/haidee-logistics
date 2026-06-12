@@ -330,10 +330,7 @@ export async function getMultiMarketDOData(
     )
   ).flat();
 
-  if (allLines.length === 0) return null;
-
-  const rows = buildMarketDORows(allLines);
-  if (rows.length === 0) return null;
+  const rows = allLines.length > 0 ? buildMarketDORows(allLines) : [];
 
   const primaryCode = uniqueCodes[0];
   const market = await prisma.market.findUnique({
