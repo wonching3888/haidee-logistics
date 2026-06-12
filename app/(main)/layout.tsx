@@ -24,11 +24,10 @@ export default async function MainLayout({
         style={{ overflowX: "clip", overflowY: "hidden" }}
       >
         <Header user={user} />
-        <main
-          className="min-w-0 flex-1 bg-haidee-surface p-6"
-          style={{ overflowX: "clip", overflowY: "auto" }}
-        >
-          {children}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-haidee-surface p-6">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto">
+            {children}
+          </div>
         </main>
         <footer className="shrink-0 border-t border-haidee-border bg-white px-6 py-2 text-center text-xs text-haidee-muted">
           © 2026 DMC SYSTEM. All Rights Reserved.

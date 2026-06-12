@@ -33,11 +33,12 @@ interface InboundListTableProps {
 }
 
 const tableScrollStyle: CSSProperties = {
-  height: "calc(100vh - 280px)",
   overflow: "auto",
   WebkitOverflowScrolling: "touch",
   width: "100%",
   maxWidth: "100%",
+  height: "100%",
+  minHeight: 0,
 };
 
 const tableStyle: CSSProperties = {
@@ -59,8 +60,8 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
 
   return (
     <div
-      className="rounded-xl border border-haidee-border bg-white"
-      style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
+      className="flex h-full min-h-0 flex-col rounded-xl border border-haidee-border bg-white"
+      style={{ width: "100%", maxWidth: "100%" }}
     >
       <div data-inbound-table-scroll style={tableScrollStyle}>
         <table style={tableStyle} className="text-sm">
