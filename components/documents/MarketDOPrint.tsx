@@ -95,7 +95,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
             renderTruckSubtotal={(truck) => {
               const lorryQty = truck.rows.reduce((sum, row) => sum + row.qty, 0);
               return (
-                <tr className="area-subtotal-row">
+                <tr className="lorry-subtotal-row">
                   <td colSpan={3} className="text-left">
                     小计 Subtotal
                   </td>
@@ -114,9 +114,9 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
                 0
               );
               return (
-                <tr className="area-subtotal-row">
+                <tr className="area-total-row">
                   <td colSpan={3} className="text-left">
-                    小计 Subtotal
+                    {areaGroup.areaName} 合计
                   </td>
                   {activeColumns.map((c) => (
                     <td key={c.code} className="market-do-crate-col">
@@ -130,7 +130,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
           />
           <tr className="totals-row">
             <td colSpan={3} className="text-left">
-              总计
+              总计 Grand Total
             </td>
             {activeColumns.map((c) => (
               <td key={c.code} className="market-do-crate-col">

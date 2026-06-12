@@ -78,7 +78,7 @@ function CrateTongTable({
               0
             );
             return (
-              <tr className="area-subtotal-row">
+              <tr className="lorry-subtotal-row">
                 <td colSpan={3} className="text-left">
                   小计 Subtotal
                 </td>
@@ -93,9 +93,9 @@ function CrateTongTable({
               0
             );
             return (
-              <tr className="area-subtotal-row">
+              <tr className="area-total-row">
                 <td colSpan={3} className="text-left">
-                  小计 Subtotal
+                  {areaGroup.areaName} 合计
                 </td>
                 <td className="market-do-crate-col">&nbsp;</td>
                 <td className="market-do-qty-col">{areaQty}桶</td>
@@ -105,9 +105,9 @@ function CrateTongTable({
         />
         <tr className="totals-row">
           <td colSpan={3} className="text-left">
-            总计
+            总计 Grand Total
           </td>
-          <td className="market-do-crate-col">{total}</td>
+          <td className="market-do-crate-col">&nbsp;</td>
           <td className="market-do-qty-col">{total}桶</td>
         </tr>
       </tbody>

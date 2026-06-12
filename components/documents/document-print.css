@@ -173,6 +173,25 @@
   page-break-after: always;
 }
 
+/* Per-lorry subtotal within an area group */
+.document-print tr.lorry-subtotal-row td {
+  background: #f0f0f0;
+  font-weight: bold;
+}
+
+/* Per-area total (distinct from lorry subtotal) */
+.document-print tr.area-total-row td {
+  background: #c8c8c8;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.document-print tr.area-total-row td.market-do-qty-col,
+.document-print tr.area-total-row td.do-qty-col {
+  font-size: 13px;
+}
+
+/** @deprecated Use lorry-subtotal-row or area-total-row */
 .document-print tr.area-subtotal-row td {
   background: #f0f0f0;
   font-weight: bold;
