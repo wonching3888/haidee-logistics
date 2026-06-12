@@ -2,19 +2,22 @@ import { Suspense } from "react";
 import { searchInbound } from "@/app/actions/search";
 import { PageError } from "@/components/shared/PageError";
 import { SearchView } from "@/components/search/SearchView";
-import { resolveDateParam } from "@/lib/date-utils";
+import { normalizeDateRange, resolveDateRangeParams } from "@/lib/date-utils";
 
 interface SearchPageProps {
-  searchParams: Promise<{ date?: string; q?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; date?: string; q?: string }>;
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
-  const date = resolveDateParam(params.date);
+  const range = resolveDateRangeParams(params.from, params.to, params.date);
+  const { from: fromDate, to: toDate } = normalizeDateRange(range.from, range.to);
   const query = params.q?.trim() ?? "";
 
   try {
-    const data = query ? await searchInbound({ date, query }) : { rows: [], truckHeader: null };
+    const data = query
+      ? await searchInbound({ fromDate, toDate, query })
+      : { rows: [], truckHeader: null };
 
     return (
       <div className="space-y-6">
@@ -30,7 +33,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <div className="h-24 animate-pulse rounded-xl bg-haidee-border/30" />
           }
         >
-          <SearchView date={date} query={query} data={data} />
+          <SearchView fromDate={fromDate} toDate={toDate} query={query} data={data} />
         </Suspense>
       </div>
     );

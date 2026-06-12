@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { normalizeDateRange } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,27 +18,33 @@ import {
 } from "@/components/ui/table";
 
 interface SearchViewProps {
-  date: string;
+  fromDate: string;
+  toDate: string;
   query: string;
   data: SearchResult;
 }
 
-export function SearchView({ date, query, data }: SearchViewProps) {
+export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const [localDate, setLocalDate] = useState(date);
+  const [localFrom, setLocalFrom] = useState(fromDate);
+  const [localTo, setLocalTo] = useState(toDate);
   const [localQuery, setLocalQuery] = useState(query);
 
   useEffect(() => {
-    setLocalDate(date);
+    setLocalFrom(fromDate);
+    setLocalTo(toDate);
     setLocalQuery(query);
-  }, [date, query]);
+  }, [fromDate, toDate, query]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    const { from, to } = normalizeDateRange(localFrom, localTo);
     const params = new URLSearchParams(searchParams.toString());
-    params.set("date", localDate);
+    params.set("from", from);
+    params.set("to", to);
+    params.delete("date");
     if (localQuery.trim()) {
       params.set("q", localQuery.trim());
     } else {
@@ -52,13 +59,22 @@ export function SearchView({ date, query, data }: SearchViewProps) {
     <div className="space-y-6">
       <form
         onSubmit={handleSearch}
-        className="grid gap-3 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto]"
+        className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4"
       >
         <div className="space-y-1">
-          <label className="text-xs font-medium text-haidee-muted">日期 Date</label>
-          <DateInputField value={localDate} onChange={setLocalDate} />
+          <label className="text-xs font-medium text-haidee-muted">
+            开始日期 Date From
+          </label>
+          <DateInputField value={localFrom} onChange={setLocalFrom} />
         </div>
+        <span className="pb-2 text-sm text-haidee-muted">至 to</span>
         <div className="space-y-1">
+          <label className="text-xs font-medium text-haidee-muted">
+            结束日期 Date To
+          </label>
+          <DateInputField value={localTo} onChange={setLocalTo} />
+        </div>
+        <div className="min-w-[200px] flex-1 space-y-1">
           <label className="text-xs font-medium text-haidee-muted">
             关键字 Keyword
           </label>
@@ -69,16 +85,14 @@ export function SearchView({ date, query, data }: SearchViewProps) {
             className="min-h-[44px]"
           />
         </div>
-        <div className="flex items-end">
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="min-h-[44px] w-full gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90 sm:w-auto"
-          >
-            <Search className="h-4 w-4" />
-            {isPending ? "查询中…" : "查询 Search"}
-          </Button>
-        </div>
+        <Button
+          type="submit"
+          disabled={isPending}
+          className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
+        >
+          <Search className="h-4 w-4" />
+          {isPending ? "查询中…" : "查询 Search"}
+        </Button>
       </form>
 
       {data.truckHeader && (

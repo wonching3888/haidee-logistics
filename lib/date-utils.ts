@@ -77,6 +77,28 @@ export function resolveDateParam(dateParam?: string): string {
   return toDateInputValue(parseDateInput(dateParam));
 }
 
+/** Resolve from/to URL params; supports legacy single `date` param. */
+export function resolveDateRangeParams(
+  fromParam?: string,
+  toParam?: string,
+  legacyDateParam?: string
+): { from: string; to: string } {
+  if (legacyDateParam && !fromParam && !toParam) {
+    const date = resolveDateParam(legacyDateParam);
+    return { from: date, to: date };
+  }
+  return {
+    from: resolveDateParam(fromParam),
+    to: resolveDateParam(toParam),
+  };
+}
+
+/** Ensure from <= to (ISO yyyy-MM-dd strings). */
+export function normalizeDateRange(from: string, to: string): { from: string; to: string } {
+  if (from <= to) return { from, to };
+  return { from: to, to: from };
+}
+
 /** Malaysia / Thailand business timezone (UTC+8) */
 const BUSINESS_TIMEZONE = "Asia/Kuala_Lumpur";
 

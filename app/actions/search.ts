@@ -28,17 +28,23 @@ export interface SearchResult {
 }
 
 export async function searchInbound(input: {
-  date: string;
+  fromDate: string;
+  toDate: string;
   query?: string;
 }): Promise<SearchResult> {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
 
-  const date = parseDateInput(input.date);
+  const fromDate = parseDateInput(input.fromDate);
+  const toDate = parseDateInput(input.toDate);
+  const rangeStart = fromDate <= toDate ? fromDate : toDate;
+  const rangeEnd = fromDate <= toDate ? toDate : fromDate;
   const q = input.query?.trim() ?? "";
 
+  const sessionDateFilter = { gte: rangeStart, lte: rangeEnd };
+
   const baseWhere: Prisma.InboundLineWhereInput = {
-    session: { date, status: "confirmed" },
+    session: { date: sessionDateFilter, status: "confirmed" },
   };
 
   const where: Prisma.InboundLineWhereInput = q
@@ -66,7 +72,7 @@ export async function searchInbound(input: {
             dispatchLines: {
               some: {
                 dispatchOrder: {
-                  date,
+                  date: sessionDateFilter,
                   status: { notIn: ["draft", "cancelled"] },
                   truck: { plate: { contains: q, mode: "insensitive" } },
                 },
@@ -78,7 +84,7 @@ export async function searchInbound(input: {
     : baseWhere;
 
   const dispatchOrderFilter = {
-    date,
+    date: sessionDateFilter,
     status: { notIn: ["draft", "cancelled"] },
   };
 
@@ -98,6 +104,7 @@ export async function searchInbound(input: {
       },
     },
     orderBy: [
+      { session: { date: "asc" } },
       { session: { shipper: { name: "asc" } } },
       { stall: { code: "asc" } },
       { tongType: { code: "asc" } },
@@ -107,9 +114,9 @@ export async function searchInbound(input: {
   let truckHeader: TruckSearchHeader | null = null;
 
   if (q) {
-    const dispatchOrder = await prisma.dispatchOrder.findFirst({
+    const dispatchOrders = await prisma.dispatchOrder.findMany({
       where: {
-        date,
+        date: sessionDateFilter,
         status: { notIn: ["draft", "cancelled"] },
         truck: { plate: { contains: q, mode: "insensitive" } },
       },
@@ -117,18 +124,24 @@ export async function searchInbound(input: {
         truck: true,
         lines: { include: { inboundLine: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     });
 
-    if (dispatchOrder) {
-      const totalCrates = dispatchOrder.lines.reduce(
-        (sum, dl) =>
-          sum + (dl.inboundLine.isBox ? 0 : dl.inboundLine.quantity),
+    if (dispatchOrders.length > 0) {
+      const latest = dispatchOrders[0];
+      const totalCrates = dispatchOrders.reduce(
+        (sum, order) =>
+          sum +
+          order.lines.reduce(
+            (lineSum, dl) =>
+              lineSum + (dl.inboundLine.isBox ? 0 : dl.inboundLine.quantity),
+            0
+          ),
         0
       );
       truckHeader = {
-        plate: dispatchOrder.truck.plate,
-        driverName: dispatchOrder.driverName ?? "—",
+        plate: latest.truck.plate,
+        driverName: latest.driverName ?? "—",
         totalCrates,
       };
     } else {
