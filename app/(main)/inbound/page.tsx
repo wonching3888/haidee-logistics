@@ -54,7 +54,15 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
         <InboundFilters shippers={shippers} />
       </Suspense>
 
-      <InboundListTable sessions={sessions} />
+      <div
+        style={{
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+          width: "100%",
+        }}
+      >
+        <InboundListTable sessions={sessions} />
+      </div>
     </div>
     );
   } catch (error) {

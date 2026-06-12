@@ -41,9 +41,14 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
   }
 
   return (
-    <div className="min-w-0 max-w-full rounded-xl border border-haidee-border bg-white">
-      <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
-        <table className="min-w-max w-full text-sm">
+    <div className="rounded-xl border border-haidee-border bg-white">
+      <div
+        style={{
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <table style={{ minWidth: "800px" }} className="w-full text-sm">
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>日期 Date</TableHead>
