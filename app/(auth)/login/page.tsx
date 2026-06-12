@@ -33,7 +33,7 @@ export default function LoginPage() {
     }
 
     await router.refresh();
-    window.location.assign(DEFAULT_AUTHED_ROUTE);
+    router.replace(DEFAULT_AUTHED_ROUTE);
   }
 
   return (
