@@ -24,8 +24,8 @@ export function DeliveryOrderPrint({
   const totals = sumQuantities(data.rows);
   const grandQty = data.rows.reduce((s, r) => s + r.qty, 0);
   const areaGroups = groupRowsByAreaAndTruck(data.rows);
-  const fixedColCount =
-    2 + (showConsignor ? 1 : 0) + activeColumns.length + 2;
+  const colsBeforeCrates = showConsignor ? 5 : 4;
+  const totalColSpan = colsBeforeCrates + activeColumns.length + 2;
   let rowNo = 0;
 
   return (
@@ -63,7 +63,7 @@ export function DeliveryOrderPrint({
         <tbody>
           <GroupedAreaTruckRows
             areaGroups={areaGroups}
-            colSpan={fixedColCount}
+            colSpan={totalColSpan}
             rowKey={(row) => `${row.lorryNo}:${row.store}:${row.consignor}`}
             renderRow={(row) => {
               rowNo += 1;
@@ -98,7 +98,7 @@ export function DeliveryOrderPrint({
               );
               return (
                 <tr className="area-subtotal-row">
-                  <td colSpan={showConsignor ? 5 : 4} className="text-left">
+                  <td colSpan={colsBeforeCrates} className="text-left">
                     小计 Subtotal
                   </td>
                   {activeColumns.map((c) => (
@@ -113,7 +113,7 @@ export function DeliveryOrderPrint({
             }}
           />
           <tr className="totals-row">
-            <td colSpan={showConsignor ? 5 : 4} className="text-left">
+            <td colSpan={colsBeforeCrates} className="text-left">
               Total:
             </td>
             {activeColumns.map((c) => (

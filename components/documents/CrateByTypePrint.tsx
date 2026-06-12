@@ -1,9 +1,6 @@
 import type { CrateByTypeMergedData, CrateByTypeRow } from "@/app/actions/documents";
-import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
-import {
-  flattenAreaGroupRows,
-  GroupedAreaTruckRows,
-} from "@/components/documents/GroupedAreaTruckRows";
+import { GroupedLorryRows } from "@/components/documents/GroupedLorryRows";
+import { groupRowsByLorry } from "@/lib/market-do-grouping";
 import "./document-print.css";
 
 interface CrateByTypePrintProps {
@@ -43,7 +40,7 @@ function CrateTongTable({
   tongHeader: string;
   rows: CrateByTypeRow[];
 }) {
-  const areaGroups = groupRowsByAreaAndTruck(rows);
+  const lorryGroups = groupRowsByLorry(rows);
   const total = rows.reduce((sum, row) => sum + row.quantity, 0);
   const colSpan = 5;
 
@@ -59,8 +56,8 @@ function CrateTongTable({
         </tr>
       </thead>
       <tbody>
-        <GroupedAreaTruckRows
-          areaGroups={areaGroups}
+        <GroupedLorryRows
+          lorryGroups={lorryGroups}
           colSpan={colSpan}
           rowKey={(row) => `${row.lorryNo}:${row.stallCode}`}
           renderRow={(row) => (
@@ -72,8 +69,8 @@ function CrateTongTable({
               <td className="market-do-qty-col">{row.quantity}桶</td>
             </tr>
           )}
-          renderAreaSubtotal={(areaGroup) => {
-            const areaQty = flattenAreaGroupRows(areaGroup).reduce(
+          renderLorrySubtotal={(group) => {
+            const lorryQty = group.rows.reduce(
               (sum, row) => sum + row.quantity,
               0
             );
@@ -83,7 +80,7 @@ function CrateTongTable({
                   小计 Subtotal
                 </td>
                 <td className="market-do-crate-col">&nbsp;</td>
-                <td className="market-do-qty-col">{areaQty}桶</td>
+                <td className="market-do-qty-col">{lorryQty}桶</td>
               </tr>
             );
           }}

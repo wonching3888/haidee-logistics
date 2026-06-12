@@ -78,3 +78,31 @@ export function groupMarketDORows(
 ): ReportAreaGroup<MarketDORow>[] {
   return groupRowsByAreaAndTruck(rows);
 }
+
+export interface ReportLorryGroup<T> {
+  lorryNo: string;
+  rows: T[];
+}
+
+/** Group rows by lorry plate (for crate-by-type reports). */
+export function groupRowsByLorry<T extends AreaTruckRow>(
+  rows: T[]
+): ReportLorryGroup<T>[] {
+  const lorryMap = new Map<string, T[]>();
+
+  for (const row of rows) {
+    if (!lorryMap.has(row.lorryNo)) {
+      lorryMap.set(row.lorryNo, []);
+    }
+    lorryMap.get(row.lorryNo)!.push(row);
+  }
+
+  return Array.from(lorryMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([lorryNo, lorryRows]) => ({
+      lorryNo,
+      rows: lorryRows.sort((a, b) =>
+        rowStallKey(a).localeCompare(rowStallKey(b))
+      ),
+    }));
+}
