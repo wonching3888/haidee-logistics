@@ -26,15 +26,12 @@ const tableScrollStyle: CSSProperties = {
   height: "calc(100vh - 220px)",
   maxHeight: "100%",
   minHeight: 0,
-  overflow: "auto",
+  overflowX: "auto",
+  overflowY: "auto",
   WebkitOverflowScrolling: "touch",
   width: "100%",
   maxWidth: "100%",
-};
-
-const tableStyle: CSSProperties = {
-  minWidth: "max-content",
-  width: "100%",
+  minWidth: 0,
 };
 
 const stickyHeadRow1 =
@@ -48,9 +45,9 @@ const stickyHeadCorner =
 const consignorColClass =
   "max-md:min-w-[140px] max-md:whitespace-normal max-md:break-words";
 const stickyFirstColBody =
-  "max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-white";
+  "sticky left-0 z-10 border border-haidee-border bg-white";
 const stickyFirstColFooter =
-  "max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-haidee-navy/5";
+  "sticky left-0 z-10 border border-haidee-border bg-haidee-navy/5";
 
 function sortColumnsByMarketOrder(
   columns: LoadingMatrixColumn[],
@@ -125,7 +122,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
   const colSpan = columns.length + 1;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
       <div className="flex shrink-0 flex-col gap-3 max-md:items-stretch md:flex-row md:flex-wrap md:items-end md:gap-4">
         <div className="space-y-1 max-md:w-full">
           <label className="text-sm font-medium">日期 Date</label>
@@ -150,7 +147,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
       <div
         ref={printRef}
-        className="summary-print flex min-h-0 flex-1 flex-col rounded-xl border border-haidee-border bg-white"
+        className="summary-print flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-haidee-border bg-white"
       >
         <div className="hidden border-b border-haidee-border px-4 py-3 print:block">
           <h3 className="text-lg font-bold text-haidee-text">
@@ -161,11 +158,11 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
         <div
           data-summary-table-scroll
-          className="summary-table-scroll min-h-0 flex-1 max-md:touch-pan-x max-md:[-webkit-overflow-scrolling:touch]"
+          className="summary-table-scroll min-h-0 min-w-0 flex-1"
           style={tableScrollStyle}
         >
           <table
-            style={tableStyle}
+            style={{ minWidth: "max-content" }}
             className="border-collapse text-sm"
           >
             <thead>
@@ -237,7 +234,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 data.rows.map((row) => (
                   <tr key={row.id}>
                     <td
-                      className={`border border-haidee-border px-3 py-2 align-top font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
+                      className={`px-3 py-2 align-top font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
                     >
                       <MobileTruncatedName text={row.label} />
                     </td>
@@ -262,7 +259,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               <tfoot>
                 <tr className="bg-haidee-navy/5 font-bold">
                   <td
-                    className={`border border-haidee-border px-3 py-2 text-haidee-text ${consignorColClass} ${stickyFirstColFooter}`}
+                    className={`px-3 py-2 text-haidee-text ${consignorColClass} ${stickyFirstColFooter}`}
                   >
                     各车总计 Truck Totals
                   </td>
