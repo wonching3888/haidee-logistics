@@ -1,3 +1,14 @@
+const MOBILE_NAME_MAX_LEN = 15;
+
+/** Truncate consignor/customer names on mobile (full text via title attribute). */
+export function truncateNameForMobile(
+  name: string,
+  maxLen = MOBILE_NAME_MAX_LEN
+): string {
+  if (name.length <= maxLen) return name;
+  return `${name.slice(0, maxLen)}...`;
+}
+
 /** Consignor row label: no area → "C P"; with area → "C P (TOT)" */
 export function buildConsignorAreaLabel(
   shipperName: string,

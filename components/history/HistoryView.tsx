@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import {
   Table,
   TableBody,
@@ -88,7 +89,9 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                   <TableCell className="font-mono text-sm">
                     {rec.sessionDate}
                   </TableCell>
-                  <TableCell>{rec.shipperName}</TableCell>
+                  <TableCell>
+                    <MobileTruncatedName text={rec.shipperName} />
+                  </TableCell>
                   <TableCell className="font-mono text-sm text-haidee-muted">
                     {rec.modifiedAt}
                   </TableCell>

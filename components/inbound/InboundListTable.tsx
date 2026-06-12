@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,9 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                     <span className="text-haidee-muted">草稿 Draft</span>
                   )}
                 </TableCell>
-                <TableCell className="font-medium">{s.shipperName}</TableCell>
+                <TableCell className="font-medium">
+                  <MobileTruncatedName text={s.shipperName} />
+                </TableCell>
                 <TableCell className="font-mono text-haidee-muted">
                   {s.areaNote?.trim() || "—"}
                 </TableCell>

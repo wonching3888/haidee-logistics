@@ -8,6 +8,7 @@ import {
   type CrateTypeColumn,
   type CustomerCrateStockRow,
 } from "@/app/actions/customerCrateStock";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -219,7 +220,9 @@ export function CustomerCrateStockView({
                           )}
                         </button>
                       </TableCell>
-                      <TableCell className="font-medium">{row.shipperName}</TableCell>
+                      <TableCell className="font-medium">
+                        <MobileTruncatedName text={row.shipperName} />
+                      </TableCell>
                       {crateTypes.map((ct) => {
                         const qty = row.quantities[ct.id] ?? 0;
                         return (
@@ -251,7 +254,7 @@ export function CustomerCrateStockView({
                         >
                           <div className="px-4 py-3 font-mono text-sm">
                             <p className="mb-2 text-xs font-semibold text-haidee-muted">
-                              {row.shipperName}
+                              <MobileTruncatedName text={row.shipperName} />
                               <span className="ml-3">
                                 总 Total:{" "}
                                 <span className={qtyClass(grandTotal)}>

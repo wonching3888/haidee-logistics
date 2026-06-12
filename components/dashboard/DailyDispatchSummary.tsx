@@ -2,15 +2,17 @@ import type { CSSProperties } from "react";
 import type { DailyDispatchSummaryData, DepotQty } from "@/app/actions/dashboard";
 import "./daily-dispatch-summary.css";
 
-const dailySummaryScrollStyle: CSSProperties = {
+const dailySummaryOuterScrollStyle: CSSProperties = {
   overflowX: "auto",
-  overflowY: "hidden",
   WebkitOverflowScrolling: "touch",
-  touchAction: "pan-x",
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
 };
+
+const stickyFirstColHeader =
+  "max-md:sticky max-md:left-0 max-md:z-20 max-md:bg-[#c8e6c9]";
+const stickyFirstColEven = "max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-white";
+const stickyFirstColOdd = "max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-[#f1f8f4]";
+const stickyFirstColTotal =
+  "max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-[#e8f5e9]";
 
 interface DailyDispatchSummaryProps {
   data: DailyDispatchSummaryData;
@@ -45,7 +47,10 @@ function DepotCells({
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
     <section className="w-full min-w-0">
-      <div className="daily-summary-print min-w-0 max-w-full rounded-xl border border-haidee-border bg-white max-md:overflow-visible md:overflow-hidden">
+      <div
+        className="daily-summary-print min-w-0 max-w-full rounded-xl border border-haidee-border bg-white"
+        style={dailySummaryOuterScrollStyle}
+      >
         <div className="daily-summary-header px-4 py-3 text-center">
           <p className="text-base font-bold tracking-wide text-gray-900">
             WTL EXPRESS SDN BHD
@@ -62,17 +67,12 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             当日暂无派车数据 No dispatch data for this date
           </p>
         ) : (
-          <div
-            data-daily-summary-scroll
-            className="daily-summary-table-scroll w-full min-w-0 max-w-full"
-            style={dailySummaryScrollStyle}
-          >
             <table className="daily-summary-table w-full min-w-max border-collapse text-sm md:min-w-0">
               <thead>
                 <tr>
                   <th
                     rowSpan={2}
-                    className="daily-summary-th daily-summary-col-lorry text-left"
+                    className={`daily-summary-th daily-summary-col-lorry text-left ${stickyFirstColHeader}`}
                   >
                     Lorry No
                   </th>
@@ -121,7 +121,11 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
                         : "daily-summary-row-odd"
                     }
                   >
-                    <td className="daily-summary-td daily-summary-col-lorry font-mono font-medium text-left">
+                    <td
+                      className={`daily-summary-td daily-summary-col-lorry font-mono font-medium text-left ${
+                        index % 2 === 0 ? stickyFirstColEven : stickyFirstColOdd
+                      }`}
+                    >
                       {row.lorryNo}
                     </td>
                     {data.activeDepots.map((depot) => (
@@ -136,7 +140,9 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
               </tbody>
               <tfoot>
                 <tr className="daily-summary-total-row">
-                  <td className="daily-summary-td daily-summary-col-lorry font-bold text-left">
+                  <td
+                    className={`daily-summary-td daily-summary-col-lorry font-bold text-left ${stickyFirstColTotal}`}
+                  >
                     Total
                   </td>
                   {data.activeDepots.map((depot) => (
@@ -150,7 +156,6 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
                 </tr>
               </tfoot>
             </table>
-          </div>
         )}
       </div>
     </section>

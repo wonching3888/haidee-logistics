@@ -2,6 +2,7 @@
 
 import type { DispatchMatrixData } from "@/app/actions/dispatch";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { cellDisplay } from "@/lib/consignor-label";
 import { cn } from "@/lib/utils";
 
@@ -118,8 +119,8 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                     key={shipper.id}
                     className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
                   >
-                    <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-3 py-2.5 font-medium text-haidee-text">
-                      {shipper.name}
+                    <td className="sticky left-0 z-10 max-md:whitespace-normal bg-white px-3 py-2.5 font-medium text-haidee-text md:whitespace-nowrap">
+                      <MobileTruncatedName text={shipper.name} />
                     </td>
                     {markets.map((code) => {
                       const qty = cells[shipper.id]?.[code] ?? emptyQty();

@@ -6,6 +6,7 @@ import { useReactToPrint } from "react-to-print";
 import { Printer, Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatDisplay, normalizeDateRange } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,7 +221,7 @@ function SearchResults({
                   {formatDisplay(row.date)}
                 </p>
                 <p className="mt-1 font-medium text-haidee-text">
-                  {row.shipperName}
+                  <MobileTruncatedName text={row.shipperName} />
                 </p>
                 {row.areaNote?.trim() && (
                   <p className="text-xs text-haidee-muted">

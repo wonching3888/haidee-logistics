@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
   Table,
@@ -130,7 +131,9 @@ export function TongStockView({
             <TableBody>
               {shortages.map((s, i) => (
                 <TableRow key={i}>
-                  <TableCell>{s.shipperName}</TableCell>
+                  <TableCell>
+                    <MobileTruncatedName text={s.shipperName} />
+                  </TableCell>
                   <TableCell className="font-mono">
                     {s.tongCode} — {s.tongName}
                   </TableCell>
@@ -204,7 +207,9 @@ export function TongStockView({
                       </span>
                     </TableCell>
                     <TableCell className="font-mono">{e.plate}</TableCell>
-                    <TableCell>{e.party}</TableCell>
+                    <TableCell>
+                      <MobileTruncatedName text={e.party} />
+                    </TableCell>
                     <TableCell className="font-mono">{e.tongCode}</TableCell>
                     <TableCell className="text-right font-mono font-semibold">
                       {e.signedQty}
