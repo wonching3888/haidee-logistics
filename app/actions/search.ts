@@ -3,9 +3,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { parseDateInput } from "@/lib/inbound-utils";
+import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 
 export interface SearchResultRow {
+  date: string;
   shipperName: string;
   areaNote: string | null;
   stallCode: string;
@@ -175,6 +176,7 @@ export async function searchInbound(input: {
       line.dispatchLines[0]?.dispatchOrder.truck.plate ?? "未派车";
 
     return {
+      date: toDateInputValue(line.session.date),
       shipperName: line.session.shipper.name,
       areaNote: line.session.areaNote,
       stallCode: line.stall.code,

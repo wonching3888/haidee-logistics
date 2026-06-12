@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { normalizeDateRange } from "@/lib/date-utils";
+import { formatDisplay, normalizeDateRange } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,6 +140,7 @@ function SearchResults({
       <Table>
         <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+            <TableHead>日期 Date</TableHead>
             <TableHead>寄货人 Consignor</TableHead>
             <TableHead>收货人 Store</TableHead>
             <TableHead>桶型 Crate Type</TableHead>
@@ -151,8 +152,11 @@ function SearchResults({
         <TableBody>
           {rows.map((row, i) => (
             <TableRow
-              key={`${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
+              key={`${row.date}-${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
             >
+              <TableCell className="font-mono whitespace-nowrap">
+                {formatDisplay(row.date)}
+              </TableCell>
               <TableCell>
                 <div className="font-medium text-haidee-text">{row.shipperName}</div>
                 {row.areaNote?.trim() && (
