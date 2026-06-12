@@ -11,7 +11,7 @@ export default async function NewInboundPage() {
     ]);
 
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             新增进货 New Inbound
@@ -26,7 +26,7 @@ export default async function NewInboundPage() {
     );
   } catch (error) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             新增进货 New Inbound

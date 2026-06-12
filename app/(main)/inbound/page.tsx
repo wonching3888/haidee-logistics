@@ -31,7 +31,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     ]);
 
     return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
@@ -59,7 +59,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     );
   } catch (error) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             进货录入 Inbound Entry

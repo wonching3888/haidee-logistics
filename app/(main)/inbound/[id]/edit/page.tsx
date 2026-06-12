@@ -27,7 +27,7 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
     if (!session) notFound();
 
     return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">
           编辑进货 Edit Inbound
@@ -61,7 +61,7 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
     );
   } catch (error) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             编辑进货 Edit Inbound

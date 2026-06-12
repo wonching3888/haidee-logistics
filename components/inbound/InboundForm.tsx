@@ -259,7 +259,7 @@ export function InboundForm({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto min-w-0 w-full max-w-4xl space-y-6">
       {/* Header fields */}
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
@@ -320,7 +320,7 @@ export function InboundForm({
 
       {/* Entry table */}
       {shipperId && (
-        <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white touch-pan-x">
+        <div className="min-w-0 max-w-full rounded-xl border border-haidee-border bg-white">
           {loadingStalls ? (
             <p className="p-8 text-center text-haidee-muted">加载档口… Loading stalls…</p>
           ) : rows.length === 0 ? (
@@ -330,7 +330,8 @@ export function InboundForm({
               No default stalls for this consignor.
             </p>
           ) : (
-              <table className="w-max min-w-full text-sm">
+            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
+              <table className="min-w-max w-full text-sm">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
                     <th className="whitespace-nowrap px-3 py-3 font-medium">档口 Store</th>
@@ -387,6 +388,7 @@ export function InboundForm({
                   ))}
                 </tbody>
               </table>
+            </div>
           )}
         </div>
       )}
