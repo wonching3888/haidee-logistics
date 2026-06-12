@@ -33,10 +33,9 @@ interface InboundListTableProps {
 }
 
 const tableScrollStyle: CSSProperties = {
-  overflowX: "auto",
-  overflowY: "visible",
+  height: "calc(100vh - 280px)",
+  overflow: "auto",
   WebkitOverflowScrolling: "touch",
-  touchAction: "pan-x",
   width: "100%",
   maxWidth: "100%",
 };
@@ -45,6 +44,9 @@ const tableStyle: CSSProperties = {
   minWidth: "max-content",
   width: "100%",
 };
+
+const stickyHeadClass =
+  "sticky top-0 z-10 border-b border-haidee-border bg-haidee-surface";
 
 export function InboundListTable({ sessions }: InboundListTableProps) {
   if (sessions.length === 0) {
@@ -64,15 +66,21 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
         <table style={tableStyle} className="text-sm">
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>日期 Date</TableHead>
-              <TableHead>批次号 Batch No.</TableHead>
-              <TableHead>寄货人 Consignor</TableHead>
-              <TableHead>地区 Area</TableHead>
-              <TableHead>泰国车牌 TH Plate</TableHead>
-              <TableHead className="text-right">总数量 Total</TableHead>
-              <TableHead className="text-right">未分配 Unassigned</TableHead>
-              <TableHead>状态 Status</TableHead>
-              <TableHead className="text-right">操作 Actions</TableHead>
+              <TableHead className={stickyHeadClass}>日期 Date</TableHead>
+              <TableHead className={stickyHeadClass}>批次号 Batch No.</TableHead>
+              <TableHead className={stickyHeadClass}>寄货人 Consignor</TableHead>
+              <TableHead className={stickyHeadClass}>地区 Area</TableHead>
+              <TableHead className={stickyHeadClass}>泰国车牌 TH Plate</TableHead>
+              <TableHead className={`${stickyHeadClass} text-right`}>
+                总数量 Total
+              </TableHead>
+              <TableHead className={`${stickyHeadClass} text-right`}>
+                未分配 Unassigned
+              </TableHead>
+              <TableHead className={stickyHeadClass}>状态 Status</TableHead>
+              <TableHead className={`${stickyHeadClass} text-right`}>
+                操作 Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

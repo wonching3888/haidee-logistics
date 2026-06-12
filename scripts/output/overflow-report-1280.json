@@ -1,0 +1,172 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 844
+  },
+  "inspection": {
+    "chain": [
+      {
+        "tag": "table",
+        "className": "w-full text-sm",
+        "overflowX": "visible",
+        "width": 1250,
+        "scrollWidth": 1250,
+        "clientWidth": 1250,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "overflowX": "auto",
+        "width": 990,
+        "scrollWidth": 1250,
+        "clientWidth": 990,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "className": "rounded-xl border border-haidee-border bg-white",
+        "overflowX": "visible",
+        "width": 992,
+        "scrollWidth": 990,
+        "clientWidth": 990,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "overflowX": "auto",
+        "width": 992,
+        "scrollWidth": 992,
+        "clientWidth": 992,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "min-w-0 space-y-6",
+        "overflowX": "visible",
+        "width": 992,
+        "scrollWidth": 992,
+        "clientWidth": 992,
+        "canScrollX": false
+      },
+      {
+        "tag": "main",
+        "className": "min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-haidee-surface p-6",
+        "overflowX": "auto",
+        "width": 1040,
+        "scrollWidth": 1040,
+        "clientWidth": 1040,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "flex min-w-0 flex-1 flex-col overflow-x-auto",
+        "overflowX": "auto",
+        "width": 1040,
+        "scrollWidth": 1040,
+        "clientWidth": 1040,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "flex h-screen overflow-x-auto",
+        "overflowX": "auto",
+        "width": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "canScrollX": false
+      },
+      {
+        "tag": "body",
+        "className": "__variable_c8daab __variable_595324 min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased",
+        "overflowX": "auto",
+        "width": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "canScrollX": false
+      },
+      {
+        "tag": "html",
+        "className": "",
+        "overflowX": "auto",
+        "width": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "canScrollX": false
+      }
+    ]
+  },
+  "scrollTest": {
+    "candidates": [
+      {
+        "tag": "div",
+        "className": "",
+        "overflowX": "auto",
+        "scrollWidth": 1250,
+        "clientWidth": 990,
+        "scrollLeftAfter": 200,
+        "scrollWorked": true
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "overflowX": "auto",
+        "scrollWidth": 992,
+        "clientWidth": 992,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      },
+      {
+        "tag": "main",
+        "className": "min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-haidee-surface p-6",
+        "overflowX": "auto",
+        "scrollWidth": 1040,
+        "clientWidth": 1040,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      },
+      {
+        "tag": "div",
+        "className": "flex min-w-0 flex-1 flex-col overflow-x-auto",
+        "overflowX": "auto",
+        "scrollWidth": 1040,
+        "clientWidth": 1040,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      },
+      {
+        "tag": "div",
+        "className": "flex h-screen overflow-x-auto",
+        "overflowX": "auto",
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      },
+      {
+        "tag": "body",
+        "className": "__variable_c8daab __variable_595324 min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased",
+        "overflowX": "auto",
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      },
+      {
+        "tag": "html",
+        "className": "",
+        "overflowX": "auto",
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "scrollLeftAfter": 0,
+        "scrollWorked": false
+      }
+    ]
+  },
+  "touchTest": {
+    "before": 0,
+    "after": 0,
+    "touchWorked": false
+  }
+}

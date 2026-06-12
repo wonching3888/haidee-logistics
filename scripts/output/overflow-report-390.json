@@ -1,0 +1,132 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "inspection": {
+    "chain": [
+      {
+        "tag": "table",
+        "className": "text-sm",
+        "dataset": "",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "touchAction": "auto",
+        "width": 1250,
+        "scrollWidth": 1250,
+        "clientWidth": 1250,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "dataset": "inbound-table-scroll",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "touchAction": "pan-x",
+        "width": 100,
+        "scrollWidth": 1250,
+        "clientWidth": 100,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "className": "rounded-xl border border-haidee-border bg-white",
+        "dataset": "",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "touchAction": "auto",
+        "width": 102,
+        "scrollWidth": 100,
+        "clientWidth": 100,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "className": "min-w-0 w-full space-y-6",
+        "dataset": "",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "touchAction": "auto",
+        "width": 102,
+        "scrollWidth": 163,
+        "clientWidth": 102,
+        "canScrollX": true
+      },
+      {
+        "tag": "main",
+        "className": "min-w-0 flex-1 bg-haidee-surface p-6",
+        "dataset": "",
+        "overflowX": "hidden",
+        "overflowY": "auto",
+        "touchAction": "auto",
+        "width": 150,
+        "scrollWidth": 187,
+        "clientWidth": 150,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "className": "flex min-w-0 flex-1 flex-col",
+        "dataset": "",
+        "overflowX": "hidden",
+        "overflowY": "hidden",
+        "touchAction": "auto",
+        "width": 150,
+        "scrollWidth": 358,
+        "clientWidth": 150,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "className": "flex h-screen",
+        "dataset": "",
+        "overflowX": "hidden",
+        "overflowY": "hidden",
+        "touchAction": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      },
+      {
+        "tag": "body",
+        "className": "__variable_c8daab __variable_595324 min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased",
+        "dataset": "",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "touchAction": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      },
+      {
+        "tag": "html",
+        "className": "",
+        "dataset": "",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "touchAction": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      }
+    ]
+  },
+  "scrollTest": {
+    "overflowX": "auto",
+    "touchAction": "pan-x",
+    "scrollWidth": 1250,
+    "clientWidth": 100,
+    "scrollLeftAfter": 250,
+    "scrollWorked": true
+  },
+  "touchTest": {
+    "before": 0,
+    "after": 0,
+    "touchWorked": false
+  },
+  "passed": true
+}

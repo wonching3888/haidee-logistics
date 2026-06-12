@@ -1,0 +1,134 @@
+{
+  "url": "http://localhost:3001/inbound",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "inspection": {
+    "chain": [
+      {
+        "tag": "table",
+        "id": null,
+        "className": "w-full text-sm",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "width": 1250,
+        "scrollWidth": 1250,
+        "clientWidth": 1250,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 100,
+        "scrollWidth": 1250,
+        "clientWidth": 100,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "rounded-xl border border-haidee-border bg-white",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "width": 102,
+        "scrollWidth": 100,
+        "clientWidth": 100,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 102,
+        "scrollWidth": 102,
+        "clientWidth": 102,
+        "canScrollX": false
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "min-w-0 space-y-6",
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "width": 102,
+        "scrollWidth": 163,
+        "clientWidth": 102,
+        "canScrollX": true
+      },
+      {
+        "tag": "main",
+        "id": null,
+        "className": "min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-haidee-surface p-6",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 150,
+        "scrollWidth": 187,
+        "clientWidth": 150,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "flex min-w-0 flex-1 flex-col overflow-x-auto",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 150,
+        "scrollWidth": 358,
+        "clientWidth": 150,
+        "canScrollX": true
+      },
+      {
+        "tag": "div",
+        "id": null,
+        "className": "flex h-screen overflow-x-auto",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      },
+      {
+        "tag": "body",
+        "id": null,
+        "className": "__variable_c8daab __variable_595324 min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      },
+      {
+        "tag": "html",
+        "id": null,
+        "className": "",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "canScrollX": false
+      }
+    ]
+  },
+  "scrollTest": {
+    "scrollContainer": {
+      "tag": "div",
+      "className": "",
+      "overflowX": "auto",
+      "scrollWidth": 1250,
+      "clientWidth": 100,
+      "scrollLeftBefore": 0,
+      "scrollLeftAfter": 120,
+      "scrollWorked": true
+    }
+  },
+  "timestamp": "2026-06-12T03:37:12.681Z"
+}
