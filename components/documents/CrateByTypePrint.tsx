@@ -1,6 +1,9 @@
 import type { CrateByTypeMergedData, CrateByTypeRow } from "@/app/actions/documents";
-import { GroupedLorryRows } from "@/components/documents/GroupedLorryRows";
-import { groupRowsByLorry } from "@/lib/market-do-grouping";
+import {
+  flattenAreaGroupRows,
+  GroupedAreaTruckRows,
+} from "@/components/documents/GroupedAreaTruckRows";
+import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
 import "./document-print.css";
 
 interface CrateByTypePrintProps {
@@ -40,7 +43,7 @@ function CrateTongTable({
   tongHeader: string;
   rows: CrateByTypeRow[];
 }) {
-  const lorryGroups = groupRowsByLorry(rows);
+  const areaGroups = groupRowsByAreaAndTruck(rows);
   const total = rows.reduce((sum, row) => sum + row.quantity, 0);
   const colSpan = 5;
 
@@ -56,8 +59,8 @@ function CrateTongTable({
         </tr>
       </thead>
       <tbody>
-        <GroupedLorryRows
-          lorryGroups={lorryGroups}
+        <GroupedAreaTruckRows
+          areaGroups={areaGroups}
           colSpan={colSpan}
           rowKey={(row) => `${row.lorryNo}:${row.stallCode}`}
           renderRow={(row) => (
@@ -69,8 +72,8 @@ function CrateTongTable({
               <td className="market-do-qty-col">{row.quantity}桶</td>
             </tr>
           )}
-          renderLorrySubtotal={(group) => {
-            const lorryQty = group.rows.reduce(
+          renderTruckSubtotal={(truck) => {
+            const lorryQty = truck.rows.reduce(
               (sum, row) => sum + row.quantity,
               0
             );
@@ -81,6 +84,21 @@ function CrateTongTable({
                 </td>
                 <td className="market-do-crate-col">&nbsp;</td>
                 <td className="market-do-qty-col">{lorryQty}桶</td>
+              </tr>
+            );
+          }}
+          renderAreaSubtotal={(areaGroup) => {
+            const areaQty = flattenAreaGroupRows(areaGroup).reduce(
+              (sum, row) => sum + row.quantity,
+              0
+            );
+            return (
+              <tr className="area-subtotal-row">
+                <td colSpan={3} className="text-left">
+                  小计 Subtotal
+                </td>
+                <td className="market-do-crate-col">&nbsp;</td>
+                <td className="market-do-qty-col">{areaQty}桶</td>
               </tr>
             );
           }}

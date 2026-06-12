@@ -1,5 +1,9 @@
 import { Fragment, type ReactNode } from "react";
-import type { AreaTruckRow, ReportAreaGroup } from "@/lib/market-do-grouping";
+import type {
+  AreaTruckRow,
+  ReportAreaGroup,
+  ReportTruckGroup,
+} from "@/lib/market-do-grouping";
 
 export function ReportSpacerRow({ colSpan }: { colSpan: number }) {
   return (
@@ -14,6 +18,10 @@ interface GroupedAreaTruckRowsProps<T extends AreaTruckRow> {
   colSpan: number;
   rowKey: (row: T) => string;
   renderRow: (row: T) => ReactNode;
+  renderTruckSubtotal?: (
+    truck: ReportTruckGroup<T>,
+    areaGroup: ReportAreaGroup<T>
+  ) => ReactNode;
   renderAreaSubtotal?: (areaGroup: ReportAreaGroup<T>) => ReactNode;
 }
 
@@ -27,6 +35,7 @@ export function GroupedAreaTruckRows<T extends AreaTruckRow>({
   colSpan,
   rowKey,
   renderRow,
+  renderTruckSubtotal,
   renderAreaSubtotal,
 }: GroupedAreaTruckRowsProps<T>) {
   return (
@@ -44,6 +53,7 @@ export function GroupedAreaTruckRows<T extends AreaTruckRow>({
               {truck.rows.map((row) => (
                 <Fragment key={rowKey(row)}>{renderRow(row)}</Fragment>
               ))}
+              {renderTruckSubtotal?.(truck, areaGroup)}
             </Fragment>
           ))}
           {renderAreaSubtotal?.(areaGroup)}

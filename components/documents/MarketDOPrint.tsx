@@ -72,6 +72,22 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
                 <td className="market-do-qty-col">{row.qty}</td>
               </tr>
             )}
+            renderTruckSubtotal={(truck) => {
+              const lorryQty = truck.rows.reduce((sum, row) => sum + row.qty, 0);
+              return (
+                <tr className="area-subtotal-row">
+                  <td colSpan={3} className="text-left">
+                    小计 Subtotal
+                  </td>
+                  {activeColumns.map((c) => (
+                    <td key={c.code} className="market-do-crate-col">
+                      &nbsp;
+                    </td>
+                  ))}
+                  <td className="market-do-qty-col">{lorryQty}</td>
+                </tr>
+              );
+            }}
             renderAreaSubtotal={(areaGroup) => {
               const areaQty = flattenAreaGroupRows(areaGroup).reduce(
                 (sum, row) => sum + row.qty,
