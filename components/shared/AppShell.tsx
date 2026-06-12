@@ -37,13 +37,10 @@ export function AppShell({ user, role, children }: AppShellProps) {
         onNavigate={() => setMenuOpen(false)}
       />
 
-      <div
-        className="flex min-w-0 flex-1 flex-col"
-        style={{ overflowX: "clip", overflowY: "hidden" }}
-      >
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header user={user} onMenuToggle={() => setMenuOpen((open) => !open)} />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-haidee-surface p-6">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-haidee-surface p-4 md:p-6">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-auto">
             {children}
           </div>
         </main>

@@ -62,7 +62,7 @@ export function DashboardView({
 
   return (
     <div
-      className={`mx-auto min-w-0 max-w-6xl space-y-6 ${isPending ? "opacity-60" : ""}`}
+      className={`w-full min-w-0 space-y-6 md:mx-auto md:max-w-6xl ${isPending ? "opacity-60" : ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -80,18 +80,22 @@ export function DashboardView({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 md:gap-4">
+      <div className="flex w-full min-w-0 gap-1.5 md:grid md:grid-cols-3 md:gap-4">
         {statCards.map((card) => (
-          <Link key={card.title} href={card.href} className="block min-w-0">
-            <div className="flex flex-col items-center justify-center rounded-xl border border-haidee-border bg-white px-2 py-3 text-center shadow-sm transition-shadow hover:shadow-md max-md:min-h-0 md:min-h-[120px] md:p-5">
-              <p className="text-xs font-medium leading-tight text-haidee-muted max-md:whitespace-normal md:text-sm">
+          <Link
+            key={card.title}
+            href={card.href}
+            className="min-w-0 flex-1 md:block"
+          >
+            <div className="flex h-full flex-col items-center justify-center rounded-xl border border-haidee-border bg-white px-1.5 py-2.5 text-center shadow-sm transition-shadow hover:shadow-md md:min-h-[120px] md:p-5">
+              <p className="w-full text-xs font-medium leading-tight text-haidee-muted max-md:whitespace-normal md:text-sm">
                 <span className="md:hidden">{card.title}</span>
                 <span className="hidden md:inline">
                   {card.title} {card.titleEn}
                 </span>
               </p>
               <p
-                className={`mt-1 font-mono text-3xl font-bold md:mt-2 ${
+                className={`mt-1 w-full font-mono text-3xl font-bold max-md:leading-none md:mt-2 ${
                   card.highlight === "orange"
                     ? "text-haidee-orange"
                     : "text-haidee-text"
