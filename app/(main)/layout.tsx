@@ -17,11 +17,17 @@ export default async function MainLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-x-auto">
+    <div className="flex h-screen" style={{ overflow: "hidden" }}>
       <Sidebar role={user.role} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-auto">
+      <div
+        className="flex min-w-0 flex-1 flex-col"
+        style={{ overflowX: "clip", overflowY: "hidden" }}
+      >
         <Header user={user} />
-        <main className="min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-haidee-surface p-6">
+        <main
+          className="min-w-0 flex-1 bg-haidee-surface p-6"
+          style={{ overflowX: "clip", overflowY: "auto" }}
+        >
           {children}
         </main>
         <footer className="shrink-0 border-t border-haidee-border bg-white px-6 py-2 text-center text-xs text-haidee-muted">

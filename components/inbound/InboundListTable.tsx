@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
@@ -31,6 +32,20 @@ interface InboundListTableProps {
   sessions: SessionRow[];
 }
 
+const tableScrollStyle: CSSProperties = {
+  overflowX: "auto",
+  overflowY: "visible",
+  WebkitOverflowScrolling: "touch",
+  touchAction: "pan-x",
+  width: "100%",
+  maxWidth: "100%",
+};
+
+const tableStyle: CSSProperties = {
+  minWidth: "max-content",
+  width: "100%",
+};
+
 export function InboundListTable({ sessions }: InboundListTableProps) {
   if (sessions.length === 0) {
     return (
@@ -41,14 +56,12 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
   }
 
   return (
-    <div className="rounded-xl border border-haidee-border bg-white">
-      <div
-        style={{
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-        }}
-      >
-        <table style={{ minWidth: "800px" }} className="w-full text-sm">
+    <div
+      className="rounded-xl border border-haidee-border bg-white"
+      style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
+    >
+      <div data-inbound-table-scroll style={tableScrollStyle}>
+        <table style={tableStyle} className="text-sm">
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>日期 Date</TableHead>

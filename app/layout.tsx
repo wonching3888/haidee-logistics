@@ -25,10 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" style={{ overflowX: "auto" }}>
+    <html lang="zh-CN">
       <body
         className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased`}
-        style={{ overflowX: "auto" }}
       >
         {children}
       </body>

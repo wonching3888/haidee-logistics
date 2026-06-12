@@ -31,7 +31,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     ]);
 
     return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 w-full space-y-6" style={{ maxWidth: "100%" }}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
@@ -54,20 +54,12 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
         <InboundFilters shippers={shippers} />
       </Suspense>
 
-      <div
-        style={{
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-          width: "100%",
-        }}
-      >
-        <InboundListTable sessions={sessions} />
-      </div>
+      <InboundListTable sessions={sessions} />
     </div>
     );
   } catch (error) {
     return (
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 w-full space-y-6" style={{ maxWidth: "100%" }}>
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             进货录入 Inbound Entry
