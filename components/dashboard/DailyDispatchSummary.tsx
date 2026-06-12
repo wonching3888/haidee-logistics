@@ -41,7 +41,7 @@ function DepotCells({
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
     <div
-      className="daily-summary-print rounded-xl border border-haidee-border bg-white"
+      className="daily-summary-print rounded-xl border border-haidee-border"
       style={{
         overflowX: "auto",
         WebkitOverflowScrolling: "touch",
