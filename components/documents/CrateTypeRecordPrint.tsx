@@ -6,6 +6,23 @@ interface CrateTypeRecordPrintProps {
   data: CrateTypeRecordData;
 }
 
+function CrateRecordColGroup({
+  activeColumns,
+}: {
+  activeColumns: CrateTypeRecordData["activeColumns"];
+}) {
+  return (
+    <colgroup>
+      <col className="crate-record-no-col" />
+      <col className="crate-record-lorry-col" />
+      {activeColumns.map((col) => (
+        <col key={col.code} className="crate-record-crate-col" />
+      ))}
+      <col className="crate-record-total-col" />
+    </colgroup>
+  );
+}
+
 export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
   const { activeColumns } = data;
   return (
@@ -22,6 +39,7 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
         <div key={block.title} className="crate-record-block">
           <div className="crate-record-block-title">{block.title}</div>
           <table className="crate-record-table">
+            <CrateRecordColGroup activeColumns={activeColumns} />
             <thead>
               <tr>
                 <th className="crate-record-no-col">No</th>
@@ -51,9 +69,8 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
                 </tr>
               ))}
               <tr className="area-subtotal-row">
-                <td colSpan={2} className="text-left">
-                  小计 Subtotal
-                </td>
+                <td className="crate-record-no-col text-left">小计 Subtotal</td>
+                <td className="crate-record-lorry-col">&nbsp;</td>
                 {activeColumns.map((col) => (
                   <td key={col.code} className="crate-record-crate-col">
                     &nbsp;
@@ -67,11 +84,23 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
       ))}
 
       <table className="crate-record-table crate-record-sum-table">
+        <CrateRecordColGroup activeColumns={activeColumns} />
+        <thead className="crate-record-sum-thead" aria-hidden="true">
+          <tr>
+            <th className="crate-record-no-col">No</th>
+            <th className="crate-record-lorry-col">Lorry No</th>
+            {activeColumns.map((col) => (
+              <th key={col.code} className="crate-record-crate-col">
+                {col.header}
+              </th>
+            ))}
+            <th className="crate-record-total-col">Total</th>
+          </tr>
+        </thead>
         <tbody>
           <tr className="totals-row">
-            <td colSpan={2} className="text-left">
-              Sum Total
-            </td>
+            <td className="crate-record-no-col text-left">Sum Total</td>
+            <td className="crate-record-lorry-col">&nbsp;</td>
             {activeColumns.map((col) => (
               <td key={col.code} className="crate-record-crate-col">
                 {formatDOCrateQuantity(

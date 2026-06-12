@@ -217,8 +217,38 @@
   width: 100%;
 }
 
+.document-print table.crate-record-table col.crate-record-no-col {
+  width: 28px;
+}
+
+.document-print table.crate-record-table col.crate-record-lorry-col {
+  width: 72px;
+}
+
+.document-print table.crate-record-table col.crate-record-crate-col {
+  width: 40px;
+}
+
+.document-print table.crate-record-table col.crate-record-total-col {
+  width: 44px;
+}
+
 .document-print .crate-record-sum-table {
   margin-top: 16px;
+}
+
+.document-print .crate-record-sum-table thead.crate-record-sum-thead {
+  visibility: collapse;
+  height: 0;
+  line-height: 0;
+}
+
+.document-print .crate-record-sum-table thead.crate-record-sum-thead th {
+  padding: 0;
+  border: none;
+  height: 0;
+  overflow: hidden;
+  font-size: 0;
 }
 
 .document-print .crate-record-no-col {
