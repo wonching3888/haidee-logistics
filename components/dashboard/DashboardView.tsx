@@ -104,7 +104,7 @@ export function DashboardView({
         ))}
       </div>
 
-      <div className="space-y-3">
+      <div className="min-w-0 space-y-3">
         <h3 className="text-lg font-semibold text-haidee-text">
           每日派车总结 Daily Summary
         </h3>

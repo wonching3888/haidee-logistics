@@ -1,5 +1,16 @@
+import type { CSSProperties } from "react";
 import type { DailyDispatchSummaryData, DepotQty } from "@/app/actions/dashboard";
 import "./daily-dispatch-summary.css";
+
+const dailySummaryScrollStyle: CSSProperties = {
+  overflowX: "auto",
+  overflowY: "hidden",
+  WebkitOverflowScrolling: "touch",
+  touchAction: "pan-x",
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+};
 
 interface DailyDispatchSummaryProps {
   data: DailyDispatchSummaryData;
@@ -34,7 +45,7 @@ function DepotCells({
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
     <section className="w-full min-w-0">
-      <div className="daily-summary-print min-w-0 max-w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
+      <div className="daily-summary-print min-w-0 max-w-full rounded-xl border border-haidee-border bg-white max-md:overflow-visible md:overflow-hidden">
         <div className="daily-summary-header px-4 py-3 text-center">
           <p className="text-base font-bold tracking-wide text-gray-900">
             WTL EXPRESS SDN BHD
@@ -52,8 +63,9 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
           </p>
         ) : (
           <div
-            className="w-full min-w-0 max-w-full overflow-x-auto max-md:touch-pan-x"
-            style={{ WebkitOverflowScrolling: "touch" }}
+            data-daily-summary-scroll
+            className="daily-summary-table-scroll w-full min-w-0 max-w-full"
+            style={dailySummaryScrollStyle}
           >
             <table className="daily-summary-table w-full min-w-max border-collapse text-sm md:min-w-0">
               <thead>

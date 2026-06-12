@@ -44,6 +44,8 @@ const stickyHeadRow3 =
   "sticky top-[5.25rem] z-20 border border-haidee-border bg-gray-50";
 const stickyHeadCorner =
   "sticky top-0 z-30 border border-haidee-border bg-haidee-surface";
+const consignorColClass =
+  "max-md:min-w-[140px] max-md:whitespace-normal max-md:break-words";
 
 function sortColumnsByMarketOrder(
   columns: LoadingMatrixColumn[],
@@ -229,7 +231,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               ) : (
                 data.rows.map((row) => (
                   <tr key={row.id}>
-                    <td className="border border-haidee-border px-3 py-2 font-medium text-haidee-text">
+                    <td
+                      className={`border border-haidee-border px-3 py-2 align-top font-medium text-haidee-text ${consignorColClass}`}
+                    >
                       {row.label}
                     </td>
                     {columns.map((col) => {
@@ -252,7 +256,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             {data.hasDispatches && (
               <tfoot>
                 <tr className="bg-haidee-navy/5 font-bold">
-                  <td className="border border-haidee-border px-3 py-2 text-haidee-text">
+                  <td
+                    className={`border border-haidee-border px-3 py-2 text-haidee-text ${consignorColClass}`}
+                  >
                     各车总计 Truck Totals
                   </td>
                   {columns.map((col) => {

@@ -52,7 +52,20 @@
   border-top: 2px solid #66bb6a;
 }
 
+.daily-summary-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 767px) {
+  .daily-summary-print {
+    overflow: visible;
+  }
+
   .daily-summary-table {
     table-layout: auto;
     width: max-content;
