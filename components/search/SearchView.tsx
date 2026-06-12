@@ -86,22 +86,22 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
     <div className="space-y-6">
       <form
         onSubmit={handleSearch}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4 print:hidden"
+        className="flex flex-col gap-3 rounded-xl border border-haidee-border bg-white p-4 print:hidden max-md:gap-4 md:flex-row md:flex-wrap md:items-end"
       >
-        <div className="space-y-1">
+        <div className="space-y-1 max-md:w-full">
           <label className="text-xs font-medium text-haidee-muted">
             开始日期 Date From
           </label>
           <DateInputField value={localFrom} onChange={setLocalFrom} />
         </div>
-        <span className="pb-2 text-sm text-haidee-muted">至 to</span>
-        <div className="space-y-1">
+        <span className="pb-2 text-sm text-haidee-muted max-md:hidden">至 to</span>
+        <div className="space-y-1 max-md:w-full">
           <label className="text-xs font-medium text-haidee-muted">
             结束日期 Date To
           </label>
           <DateInputField value={localTo} onChange={setLocalTo} />
         </div>
-        <div className="min-w-[200px] flex-1 space-y-1">
+        <div className="min-w-[200px] flex-1 space-y-1 max-md:w-full max-md:min-w-0">
           <label className="text-xs font-medium text-haidee-muted">
             关键字 Keyword
           </label>
@@ -112,11 +112,11 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
             className="min-h-[44px]"
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 max-md:w-full md:flex-row md:flex-wrap">
           <Button
             type="submit"
             disabled={isPending}
-            className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
+            className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90 max-md:w-full"
           >
             <Search className="h-4 w-4" />
             {isPending ? "查询中…" : "查询 Search"}
@@ -126,7 +126,7 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
             variant="outline"
             disabled={!canPrint}
             onClick={() => handlePrint()}
-            className="min-h-[44px] gap-2"
+            className="min-h-[44px] gap-2 max-md:w-full"
           >
             <Printer className="h-4 w-4" />
             打印 Print
@@ -208,54 +208,119 @@ function SearchResults({
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-            <TableHead>日期 Date</TableHead>
-            <TableHead>寄货人 Consignor</TableHead>
-            <TableHead>收货人 Store</TableHead>
-            <TableHead>桶型 Crate Type</TableHead>
-            <TableHead className="text-right">数量 Qty</TableHead>
-            <TableHead>市场 Market</TableHead>
-            <TableHead>车牌 Plate</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, i) => (
-            <TableRow
-              key={`${row.date}-${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
-            >
-              <TableCell className="font-mono whitespace-nowrap">
-                {formatDisplay(row.date)}
-              </TableCell>
-              <TableCell>
-                <div className="font-medium text-haidee-text">{row.shipperName}</div>
+      <div className="divide-y divide-haidee-border md:hidden print:hidden">
+        {rows.map((row, i) => (
+          <div
+            key={`${row.date}-${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
+            className="space-y-3 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-sm text-haidee-muted">
+                  {formatDisplay(row.date)}
+                </p>
+                <p className="mt-1 font-medium text-haidee-text">
+                  {row.shipperName}
+                </p>
                 {row.areaNote?.trim() && (
-                  <div className="text-xs text-haidee-muted">
+                  <p className="text-xs text-haidee-muted">
                     ({row.areaNote.trim()})
-                  </div>
+                  </p>
                 )}
-              </TableCell>
-              <TableCell className="font-mono">{row.stallCode}</TableCell>
-              <TableCell className="font-mono">{row.tongTypeCode}</TableCell>
-              <TableCell className="text-right font-mono">
+              </div>
+              <p className="shrink-0 font-mono text-lg font-bold text-haidee-blue">
                 {row.quantity}
                 {row.isBox ? " 盒" : " 桶"}
-              </TableCell>
-              <TableCell className="font-mono">{row.marketCode}</TableCell>
-              <TableCell
-                className={
-                  row.truckPlate === "未派车"
-                    ? "text-haidee-muted"
-                    : "font-mono"
-                }
-              >
-                {row.truckPlate}
-              </TableCell>
+              </p>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <dt className="text-xs text-haidee-muted">档口 Store</dt>
+                <dd className="font-mono font-medium text-haidee-text">
+                  {row.stallCode}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-haidee-muted">桶型 Type</dt>
+                <dd className="font-mono font-medium text-haidee-text">
+                  {row.tongTypeCode}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-haidee-muted">市场 Market</dt>
+                <dd className="font-mono font-medium text-haidee-text">
+                  {row.marketCode}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-haidee-muted">车牌 Plate</dt>
+                <dd
+                  className={
+                    row.truckPlate === "未派车"
+                      ? "text-haidee-muted"
+                      : "font-mono font-medium text-haidee-text"
+                  }
+                >
+                  {row.truckPlate}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block print:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+              <TableHead>日期 Date</TableHead>
+              <TableHead>寄货人 Consignor</TableHead>
+              <TableHead>收货人 Store</TableHead>
+              <TableHead>桶型 Crate Type</TableHead>
+              <TableHead className="text-right">数量 Qty</TableHead>
+              <TableHead>市场 Market</TableHead>
+              <TableHead>车牌 Plate</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, i) => (
+              <TableRow
+                key={`${row.date}-${row.shipperName}-${row.stallCode}-${row.tongTypeCode}-${row.truckPlate}-${i}`}
+              >
+                <TableCell className="font-mono whitespace-nowrap">
+                  {formatDisplay(row.date)}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-haidee-text">
+                    {row.shipperName}
+                  </div>
+                  {row.areaNote?.trim() && (
+                    <div className="text-xs text-haidee-muted">
+                      ({row.areaNote.trim()})
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono">{row.stallCode}</TableCell>
+                <TableCell className="font-mono">{row.tongTypeCode}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {row.quantity}
+                  {row.isBox ? " 盒" : " 桶"}
+                </TableCell>
+                <TableCell className="font-mono">{row.marketCode}</TableCell>
+                <TableCell
+                  className={
+                    row.truckPlate === "未派车"
+                      ? "text-haidee-muted"
+                      : "font-mono"
+                  }
+                >
+                  {row.truckPlate}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       {(crateTotal > 0 || boxTotal > 0) && (
         <div className="border-t border-haidee-border px-4 py-3 text-sm font-semibold text-haidee-text">
           {crateTotal > 0 && <div>总计 {crateTotal} 桶</div>}

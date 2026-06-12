@@ -51,8 +51,8 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             当日暂无派车数据 No dispatch data for this date
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="daily-summary-table w-full border-collapse text-sm">
+          <div className="overflow-x-auto max-md:touch-pan-x max-md:[-webkit-overflow-scrolling:touch]">
+            <table className="daily-summary-table w-full min-w-max border-collapse text-sm md:min-w-0">
               <thead>
                 <tr>
                   <th

@@ -119,8 +119,8 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex shrink-0 flex-wrap items-end gap-4">
-        <div className="space-y-1">
+      <div className="flex shrink-0 flex-col gap-3 max-md:items-stretch md:flex-row md:flex-wrap md:items-end md:gap-4">
+        <div className="space-y-1 max-md:w-full">
           <label className="text-sm font-medium">日期 Date</label>
           <DateInputField
             value={date}
@@ -134,7 +134,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
         <Button
           onClick={handlePrint}
           disabled={!data.hasDispatches}
-          className="gap-2 bg-haidee-blue text-white"
+          className="gap-2 bg-haidee-blue text-white max-md:min-h-[44px] max-md:w-full md:w-auto"
         >
           <Printer className="h-4 w-4" />
           打印装车清单 Print
@@ -154,7 +154,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
         <div
           data-summary-table-scroll
-          className="summary-table-scroll min-h-0 flex-1"
+          className="summary-table-scroll min-h-0 flex-1 max-md:touch-pan-x max-md:[-webkit-overflow-scrolling:touch]"
           style={tableScrollStyle}
         >
           <table

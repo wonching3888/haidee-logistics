@@ -80,15 +80,15 @@ export function DashboardView({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {statCards.map((card) => (
           <Link key={card.title} href={card.href} className="block h-full">
-            <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-haidee-border bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md">
-              <p className="text-sm font-medium text-haidee-muted">
+            <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-haidee-border bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md max-md:min-h-[132px] max-md:py-6">
+              <p className="text-sm font-medium text-haidee-muted max-md:text-base">
                 {card.title} {card.titleEn}
               </p>
               <p
-                className={`mt-2 font-mono text-3xl font-bold ${
+                className={`mt-2 font-mono text-3xl font-bold max-md:mt-3 max-md:text-5xl ${
                   card.highlight === "orange"
                     ? "text-haidee-orange"
                     : "text-haidee-text"
@@ -120,7 +120,43 @@ export function DashboardView({
               当日暂无派车单 No dispatch orders for this date
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 p-4 max-md:block md:hidden">
+                {dispatchOrders.map((o) => (
+                  <Link
+                    key={o.id}
+                    href={`/dispatch/${o.id}`}
+                    className="block rounded-xl border border-haidee-border bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-mono text-xl font-bold text-haidee-text">
+                        {o.truckPlate}
+                      </p>
+                      <p className="shrink-0 font-mono text-2xl font-bold text-haidee-blue">
+                        {o.totalQty}
+                        <span className="ml-1 text-sm font-medium text-haidee-muted">
+                          桶
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {o.markets.length > 0 ? (
+                        o.markets.map((code) => (
+                          <DispatchMarketLabel key={code} code={code} />
+                        ))
+                      ) : (
+                        <span className="text-sm text-haidee-muted">—</span>
+                      )}
+                    </div>
+                    {o.dispatchNo && (
+                      <p className="mt-2 font-mono text-xs text-haidee-muted">
+                        {o.dispatchNo}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
@@ -165,6 +201,7 @@ export function DashboardView({
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
