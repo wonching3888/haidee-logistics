@@ -29,7 +29,7 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
             桶库存 Crate Stock
           </h2>
           <p className="text-sm text-haidee-muted">
-            SADAO 实时库存、欠桶记录及流水 · {displayDate}
+            SADAO 实时库存、欠桶记录及流水
           </p>
         </div>
 
@@ -49,7 +49,9 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
           <h2 className="text-2xl font-bold text-haidee-text">
             桶库存 Crate Stock
           </h2>
-          <p className="text-sm text-haidee-muted">{displayDate}</p>
+          <p className="text-sm text-haidee-muted">
+            SADAO 实时库存、欠桶记录及流水
+          </p>
         </div>
         <PageError error={error} />
       </div>

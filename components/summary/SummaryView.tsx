@@ -244,7 +244,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
       <style jsx global>{`
         @media print {
           @page {
-            size: landscape;
+            size: A4 portrait;
             margin: 8mm;
           }
           .summary-print {

@@ -50,16 +50,13 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
                   <td className="crate-record-total-col">{truck.total}</td>
                 </tr>
               ))}
-              <tr className="totals-row">
+              <tr className="area-subtotal-row">
                 <td colSpan={2} className="text-left">
-                  Total
+                  小计 Subtotal
                 </td>
                 {activeColumns.map((col) => (
                   <td key={col.code} className="crate-record-crate-col">
-                    {formatDOCrateQuantity(
-                      col.code,
-                      block.totals[col.code] ?? 0
-                    )}
+                    &nbsp;
                   </td>
                 ))}
                 <td className="crate-record-total-col">{block.total}</td>

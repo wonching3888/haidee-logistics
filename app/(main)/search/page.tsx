@@ -2,11 +2,7 @@ import { Suspense } from "react";
 import { searchInbound } from "@/app/actions/search";
 import { PageError } from "@/components/shared/PageError";
 import { SearchView } from "@/components/search/SearchView";
-import {
-  formatDisplayDate,
-  parseDateInput,
-  resolveDateParam,
-} from "@/lib/date-utils";
+import { resolveDateParam } from "@/lib/date-utils";
 
 interface SearchPageProps {
   searchParams: Promise<{ date?: string; q?: string }>;
@@ -16,7 +12,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
   const query = params.q?.trim() ?? "";
-  const displayDate = formatDisplayDate(parseDateInput(date));
 
   try {
     const data = query ? await searchInbound({ date, query }) : { rows: [], truckHeader: null };
@@ -26,7 +21,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">查询 Search</h2>
           <p className="text-sm text-haidee-muted">
-            按寄货人、档口、车牌、桶型、备注查询 Query inbound records · {displayDate}
+            按寄货人、档口、车牌、桶型、备注查询 Query inbound records
           </p>
         </div>
 
@@ -44,7 +39,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">查询 Search</h2>
-          <p className="text-sm text-haidee-muted">{displayDate}</p>
+          <p className="text-sm text-haidee-muted">
+            按寄货人、档口、车牌、桶型、备注查询 Query inbound records
+          </p>
         </div>
         <PageError error={error} />
       </div>

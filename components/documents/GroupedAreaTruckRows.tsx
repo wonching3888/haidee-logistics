@@ -14,6 +14,11 @@ interface GroupedAreaTruckRowsProps<T extends AreaTruckRow> {
   colSpan: number;
   rowKey: (row: T) => string;
   renderRow: (row: T) => ReactNode;
+  renderAreaSubtotal?: (areaGroup: ReportAreaGroup<T>) => ReactNode;
+}
+
+export function flattenAreaGroupRows<T>(areaGroup: ReportAreaGroup<T>): T[] {
+  return areaGroup.trucks.flatMap((truck) => truck.rows);
 }
 
 /** Shared tbody rows: area header → truck groups (spacer between trucks) → area gap (2 rows). */
@@ -22,6 +27,7 @@ export function GroupedAreaTruckRows<T extends AreaTruckRow>({
   colSpan,
   rowKey,
   renderRow,
+  renderAreaSubtotal,
 }: GroupedAreaTruckRowsProps<T>) {
   return (
     <>
@@ -40,6 +46,7 @@ export function GroupedAreaTruckRows<T extends AreaTruckRow>({
               ))}
             </Fragment>
           ))}
+          {renderAreaSubtotal?.(areaGroup)}
           {areaIndex < areaGroups.length - 1 && (
             <>
               <ReportSpacerRow

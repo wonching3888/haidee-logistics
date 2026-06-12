@@ -1,6 +1,9 @@
 import type { CrateByTypeMergedData, CrateByTypeRow } from "@/app/actions/documents";
 import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
-import { GroupedAreaTruckRows } from "@/components/documents/GroupedAreaTruckRows";
+import {
+  flattenAreaGroupRows,
+  GroupedAreaTruckRows,
+} from "@/components/documents/GroupedAreaTruckRows";
 import "./document-print.css";
 
 interface CrateByTypePrintProps {
@@ -69,6 +72,21 @@ function CrateTongTable({
               <td className="market-do-qty-col">{row.quantity}桶</td>
             </tr>
           )}
+          renderAreaSubtotal={(areaGroup) => {
+            const areaQty = flattenAreaGroupRows(areaGroup).reduce(
+              (sum, row) => sum + row.quantity,
+              0
+            );
+            return (
+              <tr className="area-subtotal-row">
+                <td colSpan={3} className="text-left">
+                  小计 Subtotal
+                </td>
+                <td className="market-do-crate-col">&nbsp;</td>
+                <td className="market-do-qty-col">{areaQty}桶</td>
+              </tr>
+            );
+          }}
         />
         <tr className="totals-row">
           <td colSpan={3} className="text-left">

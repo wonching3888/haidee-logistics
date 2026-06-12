@@ -5,7 +5,10 @@ import {
   sumQuantities,
 } from "@/lib/constants/tong-columns";
 import { groupRowsByAreaAndTruck } from "@/lib/market-do-grouping";
-import { GroupedAreaTruckRows } from "@/components/documents/GroupedAreaTruckRows";
+import {
+  flattenAreaGroupRows,
+  GroupedAreaTruckRows,
+} from "@/components/documents/GroupedAreaTruckRows";
 import "./document-print.css";
 
 interface DeliveryOrderPrintProps {
@@ -84,6 +87,26 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
+                  <td className="do-remarks-col">&nbsp;</td>
+                </tr>
+              );
+            }}
+            renderAreaSubtotal={(areaGroup) => {
+              const areaQty = flattenAreaGroupRows(areaGroup).reduce(
+                (sum, row) => sum + row.qty,
+                0
+              );
+              return (
+                <tr className="area-subtotal-row">
+                  <td colSpan={showConsignor ? 5 : 4} className="text-left">
+                    小计 Subtotal
+                  </td>
+                  {activeColumns.map((c) => (
+                    <td key={c.code} className="do-crate-col">
+                      &nbsp;
+                    </td>
+                  ))}
+                  <td className="do-qty-col">{areaQty}</td>
                   <td className="do-remarks-col">&nbsp;</td>
                 </tr>
               );

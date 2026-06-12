@@ -10,11 +10,7 @@ import { DispatchMatrix } from "@/components/dispatch/DispatchMatrix";
 import { DispatchOrderList } from "@/components/dispatch/DispatchOrderList";
 import { DispatchDateFilter } from "@/components/dispatch/DispatchDateFilter";
 import { PageError } from "@/components/shared/PageError";
-import {
-  formatDisplayDate,
-  parseDateInput,
-  resolveDateParam,
-} from "@/lib/date-utils";
+import { resolveDateParam } from "@/lib/date-utils";
 
 interface DispatchPageProps {
   searchParams: Promise<{ date?: string }>;
@@ -23,7 +19,6 @@ interface DispatchPageProps {
 export default async function DispatchPage({ searchParams }: DispatchPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
-  const displayDate = formatDisplayDate(parseDateInput(date));
 
   try {
     const [matrix, orders, trucks] = await Promise.all([
@@ -40,7 +35,7 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
               派车调度 Dispatch
             </h2>
             <p className="text-sm text-haidee-muted">
-              今日未分配货物矩阵 Unassigned cargo matrix · {displayDate}
+              今日未分配货物矩阵 Unassigned cargo matrix
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -72,7 +67,9 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
           <h2 className="text-2xl font-bold text-haidee-text">
             派车调度 Dispatch
           </h2>
-          <p className="text-sm text-haidee-muted">{displayDate}</p>
+          <p className="text-sm text-haidee-muted">
+            今日未分配货物矩阵 Unassigned cargo matrix
+          </p>
         </div>
         <PageError error={error} />
       </div>

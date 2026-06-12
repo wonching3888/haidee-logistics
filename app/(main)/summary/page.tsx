@@ -26,7 +26,7 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
             装车清单 Vehicle Loading List
           </h2>
           <p className="text-sm text-haidee-muted">
-            派车后每辆车装载明细 Post-dispatch loading by truck · {displayDate}
+            派车后每辆车装载明细 Post-dispatch loading by truck
           </p>
         </div>
         <SummaryView date={date} displayDate={displayDate} data={data} />
@@ -39,7 +39,9 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
           <h2 className="text-2xl font-bold text-haidee-text">
             装车清单 Vehicle Loading List
           </h2>
-          <p className="text-sm text-haidee-muted">{displayDate}</p>
+          <p className="text-sm text-haidee-muted">
+            派车后每辆车装载明细 Post-dispatch loading by truck
+          </p>
         </div>
         <PageError error={error} />
       </div>

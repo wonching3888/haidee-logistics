@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { formatDisplay } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,10 @@ interface DateInputFieldProps {
   disabled?: boolean;
 }
 
+/**
+ * Shows a single dd/MM/yyyy label; invisible native date input on top opens the picker.
+ * Avoids double date text on iPad/Safari where webkit datetime-edit cannot be fully hidden.
+ */
 export function DateInputField({
   value,
   onChange,
@@ -21,34 +26,37 @@ export function DateInputField({
   id,
   disabled,
 }: DateInputFieldProps) {
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
   const display = formatDisplay(value);
 
   return (
     <div className={cn("relative inline-block w-full max-w-[11.5rem]", className)}>
       <Input
-        id={id}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        id={fieldId}
+        type="text"
+        readOnly
+        value={display}
+        placeholder="DD/MM/YYYY"
         disabled={disabled}
-        aria-label={display ? `Date ${display}` : "Select date"}
+        tabIndex={-1}
         className={cn(
-          "min-h-[44px] w-full font-mono",
-          "[&::-webkit-datetime-edit]:opacity-0",
-          "[&::-webkit-datetime-edit-fields-wrapper]:opacity-0",
-          "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2",
+          "min-h-[44px] w-full cursor-default font-mono tabular-nums",
           inputClassName
         )}
-      />
-      <span
-        className={cn(
-          "pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm tabular-nums",
-          display ? "text-haidee-text" : "text-haidee-muted"
-        )}
         aria-hidden="true"
-      >
-        {display || "DD/MM/YYYY"}
-      </span>
+      />
+      <input
+        type="date"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={display ? `Date ${display}` : "Select date"}
+        className={cn(
+          "absolute inset-0 z-10 min-h-[44px] w-full cursor-pointer opacity-0",
+          disabled && "pointer-events-none"
+        )}
+      />
     </div>
   );
 }

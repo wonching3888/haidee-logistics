@@ -173,6 +173,11 @@
   page-break-after: always;
 }
 
+.document-print tr.area-subtotal-row td {
+  background: #f0f0f0;
+  font-weight: bold;
+}
+
 .document-print .totals-row td {
   font-weight: bold;
 }
@@ -226,6 +231,10 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+  }
+
   .document-print {
     padding: 0;
   }

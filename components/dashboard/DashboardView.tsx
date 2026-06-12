@@ -23,7 +23,6 @@ interface DashboardViewProps extends DashboardData {
 
 export function DashboardView({
   dateInput,
-  dateStr,
   stats,
   dailySummary,
   dispatchOrders,
@@ -105,9 +104,6 @@ export function DashboardView({
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-haidee-text">
           每日派车总结 Daily Summary
-          <span className="ml-2 text-sm font-normal text-haidee-muted">
-            {dateStr}
-          </span>
         </h3>
         <DailyDispatchSummary data={dailySummary} />
       </div>
@@ -116,9 +112,6 @@ export function DashboardView({
         <CardHeader>
           <CardTitle className="text-haidee-text">
             派车单 Dispatch Orders
-            <span className="ml-2 text-sm font-normal text-haidee-muted">
-              {dateStr}
-            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">

@@ -1,5 +1,6 @@
 import { format, isValid, parse } from "date-fns";
 
+/** User-facing date: dd/mm/yyyy e.g. 11/06/2026 */
 export const DISPLAY_DATE_FORMAT = "dd/MM/yyyy";
 const ISO_DATE_FORMAT = "yyyy-MM-dd";
 

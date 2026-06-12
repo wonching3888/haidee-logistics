@@ -6,7 +6,10 @@ import {
   sumQuantities,
 } from "@/lib/constants/tong-columns";
 import { groupMarketDORows } from "@/lib/market-do-grouping";
-import { GroupedAreaTruckRows } from "@/components/documents/GroupedAreaTruckRows";
+import {
+  flattenAreaGroupRows,
+  GroupedAreaTruckRows,
+} from "@/components/documents/GroupedAreaTruckRows";
 import "./document-print.css";
 
 interface MarketDOPrintProps {
@@ -69,6 +72,25 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
                 <td className="market-do-qty-col">{row.qty}</td>
               </tr>
             )}
+            renderAreaSubtotal={(areaGroup) => {
+              const areaQty = flattenAreaGroupRows(areaGroup).reduce(
+                (sum, row) => sum + row.qty,
+                0
+              );
+              return (
+                <tr className="area-subtotal-row">
+                  <td colSpan={3} className="text-left">
+                    小计 Subtotal
+                  </td>
+                  {activeColumns.map((c) => (
+                    <td key={c.code} className="market-do-crate-col">
+                      &nbsp;
+                    </td>
+                  ))}
+                  <td className="market-do-qty-col">{areaQty}</td>
+                </tr>
+              );
+            }}
           />
           <tr className="totals-row">
             <td colSpan={3} className="text-left">
