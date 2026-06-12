@@ -20,8 +20,8 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
     const data = await getDailySummary(date);
 
     return (
-      <div className="space-y-6">
-        <div>
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
+        <div className="shrink-0">
           <h2 className="text-2xl font-bold text-haidee-text">
             装车清单 Vehicle Loading List
           </h2>
@@ -29,12 +29,14 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
             派车后每辆车装载明细 Post-dispatch loading by truck
           </p>
         </div>
-        <SummaryView date={date} displayDate={displayDate} data={data} />
+        <div className="min-h-0 min-w-0 flex-1">
+          <SummaryView date={date} displayDate={displayDate} data={data} />
+        </div>
       </div>
     );
   } catch (error) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             装车清单 Vehicle Loading List

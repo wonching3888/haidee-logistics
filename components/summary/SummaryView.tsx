@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -19,6 +20,30 @@ interface SummaryViewProps {
   displayDate: string;
   data: VehicleLoadingListData;
 }
+
+const tableScrollStyle: CSSProperties = {
+  height: "calc(100vh - 220px)",
+  maxHeight: "100%",
+  minHeight: 0,
+  overflow: "auto",
+  WebkitOverflowScrolling: "touch",
+  width: "100%",
+  maxWidth: "100%",
+};
+
+const tableStyle: CSSProperties = {
+  minWidth: "max-content",
+  width: "100%",
+};
+
+const stickyHeadRow1 =
+  "sticky top-0 z-20 border border-haidee-border bg-haidee-surface";
+const stickyHeadRow2 =
+  "sticky top-[3.25rem] z-20 border border-haidee-border bg-haidee-surface";
+const stickyHeadRow3 =
+  "sticky top-[5.25rem] z-20 border border-haidee-border bg-gray-50";
+const stickyHeadCorner =
+  "sticky top-0 z-30 border border-haidee-border bg-haidee-surface";
 
 function sortColumnsByMarketOrder(
   columns: LoadingMatrixColumn[],
@@ -93,8 +118,8 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
   const colSpan = columns.length + 1;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium">日期 Date</label>
           <DateInputField
@@ -118,7 +143,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
 
       <div
         ref={printRef}
-        className="summary-print overflow-hidden rounded-xl border border-haidee-border bg-white"
+        className="summary-print flex min-h-0 flex-1 flex-col rounded-xl border border-haidee-border bg-white"
       >
         <div className="hidden border-b border-haidee-border px-4 py-3 print:block">
           <h3 className="text-lg font-bold text-haidee-text">
@@ -127,13 +152,20 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
           <p className="text-sm text-haidee-muted">{displayDate}</p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+        <div
+          data-summary-table-scroll
+          className="summary-table-scroll min-h-0 flex-1"
+          style={tableScrollStyle}
+        >
+          <table
+            style={tableStyle}
+            className="border-collapse text-sm"
+          >
             <thead>
               <tr>
                 <th
                   rowSpan={3}
-                  className="border border-haidee-border bg-haidee-surface px-3 py-2 text-left align-bottom font-medium text-haidee-muted"
+                  className={`${stickyHeadCorner} px-3 py-2 text-left align-bottom font-medium text-haidee-muted`}
                 >
                   寄货人 / 地区
                   <br />
@@ -148,7 +180,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     <th
                       key={truck.orderId}
                       colSpan={truck.markets.length}
-                      className="border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-mono text-base font-bold text-haidee-text"
+                      className={`${stickyHeadRow1} px-2 py-2 text-center font-mono text-base font-bold text-haidee-text`}
                     >
                       <div>{truck.truckPlate}</div>
                       {totalLabel && (
@@ -164,19 +196,19 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 {columns.map((col) => (
                   <th
                     key={`m-${col.key}`}
-                    className="border border-haidee-border bg-haidee-surface px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text"
+                    className={`${stickyHeadRow2} px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text`}
                   >
                     {col.marketCode}
                   </th>
                 ))}
               </tr>
-              <tr className="bg-gray-50">
+              <tr>
                 {columns.map((col) => {
                   const subtotal = columnSubtotals[col.key];
                   return (
                     <th
                       key={`sub-${col.key}`}
-                      className="border border-haidee-border px-2 py-1 text-center font-mono text-[11px] font-semibold text-haidee-muted"
+                      className={`${stickyHeadRow3} px-2 py-1 text-center font-mono text-[11px] font-semibold text-haidee-muted`}
                     >
                       {cellDisplay(subtotal.crateQty, subtotal.boxQty)}
                     </th>
@@ -252,6 +284,11 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
           }
           .summary-print table {
             font-size: 9px !important;
+          }
+          .summary-table-scroll {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
           }
         }
       `}</style>
