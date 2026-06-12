@@ -42,8 +42,8 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-      <Table>
+    <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white touch-pan-x">
+      <Table className="w-max min-w-full">
         <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
             <TableHead>日期 Date</TableHead>

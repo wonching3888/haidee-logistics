@@ -38,18 +38,18 @@ export function InboundLineRow({
 }: InboundLineRowProps) {
   return (
     <tr className="border-b border-haidee-border hover:bg-white/60">
-      <td className="px-3 py-2 font-mono font-medium text-haidee-text">
+      <td className="whitespace-nowrap px-3 py-2 font-mono font-medium text-haidee-text">
         {stallCode}
       </td>
-      <td className="px-3 py-2">
+      <td className="whitespace-nowrap px-3 py-2">
         {marketCode ? <MarketBadge code={marketCode} /> : "—"}
       </td>
-      <td className="px-3 py-2">
+      <td className="whitespace-nowrap px-3 py-2">
         <select
           value={tongTypeId}
           onChange={(e) => onTongTypeChange(e.target.value)}
           disabled={disabled}
-          className="min-h-[44px] w-full min-w-[120px] rounded-lg border border-haidee-border bg-white px-3 text-sm text-haidee-text focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:opacity-50"
+          className="min-h-[44px] min-w-[180px] rounded-lg border border-haidee-border bg-white px-3 text-sm text-haidee-text focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:opacity-50"
         >
           {tongTypes.map((t) => (
             <option key={t.id} value={t.id}>
@@ -58,7 +58,7 @@ export function InboundLineRow({
           ))}
         </select>
       </td>
-      <td className="px-3 py-2">
+      <td className="whitespace-nowrap px-3 py-2">
         <input
           type="text"
           inputMode="numeric"
@@ -75,7 +75,7 @@ export function InboundLineRow({
         />
       </td>
       {(onDuplicate || onDelete) && (
-        <td className="px-2 py-2">
+        <td className="whitespace-nowrap px-2 py-2">
           <div className="flex items-center gap-1">
             {onDuplicate && (
               <button

@@ -320,7 +320,7 @@ export function InboundForm({
 
       {/* Entry table */}
       {shipperId && (
-        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+        <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white touch-pan-x">
           {loadingStalls ? (
             <p className="p-8 text-center text-haidee-muted">加载档口… Loading stalls…</p>
           ) : rows.length === 0 ? (
@@ -330,17 +330,16 @@ export function InboundForm({
               No default stalls for this consignor.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-sm">
+              <table className="w-max min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
-                    <th className="px-3 py-3 font-medium">档口 Store</th>
-                    <th className="px-3 py-3 font-medium">地区 Area</th>
-                    <th className="px-3 py-3 font-medium">桶型 Crate Type</th>
-                    <th className="px-3 py-3 font-medium text-right">
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">档口 Store</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">地区 Area</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">桶型 Crate Type</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium text-right">
                       桶数 Crates
                     </th>
-                    <th className="px-2 py-3 w-10"></th>
+                    <th className="w-10 whitespace-nowrap px-2 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,7 +387,6 @@ export function InboundForm({
                   ))}
                 </tbody>
               </table>
-            </div>
           )}
         </div>
       )}
