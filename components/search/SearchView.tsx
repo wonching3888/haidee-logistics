@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import { Printer, Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { formatDisplay, normalizeDateRange } from "@/lib/date-utils";
@@ -24,13 +25,34 @@ interface SearchViewProps {
   data: SearchResult;
 }
 
+function sumQuantities(rows: SearchResult["rows"]) {
+  let crateTotal = 0;
+  let boxTotal = 0;
+  for (const row of rows) {
+    if (row.isBox) {
+      boxTotal += row.quantity;
+    } else {
+      crateTotal += row.quantity;
+    }
+  }
+  return { crateTotal, boxTotal };
+}
+
 export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const printRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const [localFrom, setLocalFrom] = useState(fromDate);
   const [localTo, setLocalTo] = useState(toDate);
   const [localQuery, setLocalQuery] = useState(query);
+
+  const canPrint = !!query.trim() && data.rows.length > 0;
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `search-${fromDate}-${toDate}`,
+  });
 
   useEffect(() => {
     setLocalFrom(fromDate);
@@ -55,11 +77,16 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
     });
   }
 
+  const displayFrom = formatDisplay(fromDate);
+  const displayTo = formatDisplay(toDate);
+  const dateRangeLabel =
+    fromDate === toDate ? displayFrom : `${displayFrom} — ${displayTo}`;
+
   return (
     <div className="space-y-6">
       <form
         onSubmit={handleSearch}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4"
+        className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4 print:hidden"
       >
         <div className="space-y-1">
           <label className="text-xs font-medium text-haidee-muted">
@@ -85,18 +112,30 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
             className="min-h-[44px]"
           />
         </div>
-        <Button
-          type="submit"
-          disabled={isPending}
-          className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
-        >
-          <Search className="h-4 w-4" />
-          {isPending ? "查询中…" : "查询 Search"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="min-h-[44px] gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
+          >
+            <Search className="h-4 w-4" />
+            {isPending ? "查询中…" : "查询 Search"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canPrint}
+            onClick={() => handlePrint()}
+            className="min-h-[44px] gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            打印 Print
+          </Button>
+        </div>
       </form>
 
       {data.truckHeader && (
-        <div className="rounded-xl border border-haidee-blue/30 bg-haidee-blue/5 px-4 py-3 text-sm">
+        <div className="rounded-xl border border-haidee-blue/30 bg-haidee-blue/5 px-4 py-3 text-sm print:hidden">
           <span className="font-medium text-haidee-text">
             车牌 Plate:{" "}
             <span className="font-mono">{data.truckHeader.plate}</span>
@@ -113,7 +152,37 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
         </div>
       )}
 
-      <SearchResults rows={data.rows} hasQuery={!!query.trim()} />
+      <div
+        ref={printRef}
+        className="search-print overflow-hidden rounded-xl border border-haidee-border bg-white"
+      >
+        <div className="hidden border-b border-haidee-border px-4 py-3 print:block">
+          <h3 className="text-lg font-bold text-haidee-text">查询结果 Search Results</h3>
+          <p className="text-sm text-haidee-muted">日期 Date：{dateRangeLabel}</p>
+          {query.trim() && (
+            <p className="text-sm text-haidee-muted">关键字 Keyword：{query.trim()}</p>
+          )}
+        </div>
+
+        <SearchResults rows={data.rows} hasQuery={!!query.trim()} />
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          .search-print {
+            font-size: 10px !important;
+            border: none !important;
+            border-radius: 0 !important;
+          }
+          .search-print table {
+            font-size: 9px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -125,9 +194,11 @@ function SearchResults({
   rows: SearchResult["rows"];
   hasQuery: boolean;
 }) {
+  const { crateTotal, boxTotal } = useMemo(() => sumQuantities(rows), [rows]);
+
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
+      <div className="p-12 text-center text-haidee-muted print:hidden">
         {hasQuery
           ? "无匹配结果 No matching records"
           : "请输入关键字开始查询 Enter a keyword to search"}
@@ -136,7 +207,7 @@ function SearchResults({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+    <>
       <Table>
         <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
@@ -185,9 +256,15 @@ function SearchResults({
           ))}
         </TableBody>
       </Table>
+      {(crateTotal > 0 || boxTotal > 0) && (
+        <div className="border-t border-haidee-border px-4 py-3 text-sm font-semibold text-haidee-text">
+          {crateTotal > 0 && <div>总计 {crateTotal} 桶</div>}
+          {boxTotal > 0 && <div>总计 {boxTotal} 盒</div>}
+        </div>
+      )}
       <p className="border-t border-haidee-border px-4 py-2 text-xs text-haidee-muted">
         共 {rows.length} 条记录 {rows.length} record(s)
       </p>
-    </div>
+    </>
   );
 }
