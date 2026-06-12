@@ -62,7 +62,7 @@ export function DashboardView({
 
   return (
     <div
-      className={`mx-auto max-w-6xl space-y-6 ${isPending ? "opacity-60" : ""}`}
+      className={`mx-auto min-w-0 max-w-6xl space-y-6 ${isPending ? "opacity-60" : ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -84,8 +84,11 @@ export function DashboardView({
         {statCards.map((card) => (
           <Link key={card.title} href={card.href} className="block h-full">
             <div className="flex h-full min-h-[120px] flex-col items-center justify-center rounded-xl border border-haidee-border bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md max-md:min-h-[132px] max-md:py-6">
-              <p className="text-sm font-medium text-haidee-muted max-md:text-base">
-                {card.title} {card.titleEn}
+              <p className="text-sm font-medium leading-snug text-haidee-muted max-md:text-base max-md:whitespace-normal">
+                <span className="md:hidden">{card.title}</span>
+                <span className="hidden md:inline">
+                  {card.title} {card.titleEn}
+                </span>
               </p>
               <p
                 className={`mt-2 font-mono text-3xl font-bold max-md:mt-3 max-md:text-5xl ${

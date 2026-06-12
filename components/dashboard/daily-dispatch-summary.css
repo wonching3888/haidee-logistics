@@ -52,6 +52,14 @@
   border-top: 2px solid #66bb6a;
 }
 
+@media (max-width: 767px) {
+  .daily-summary-table {
+    table-layout: auto;
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;

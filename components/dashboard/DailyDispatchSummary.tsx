@@ -33,8 +33,8 @@ function DepotCells({
 
 export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
-    <section className="w-full">
-      <div className="daily-summary-print overflow-hidden rounded-xl border border-haidee-border bg-white">
+    <section className="w-full min-w-0">
+      <div className="daily-summary-print min-w-0 max-w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
         <div className="daily-summary-header px-4 py-3 text-center">
           <p className="text-base font-bold tracking-wide text-gray-900">
             WTL EXPRESS SDN BHD
@@ -51,7 +51,10 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             当日暂无派车数据 No dispatch data for this date
           </p>
         ) : (
-          <div className="overflow-x-auto max-md:touch-pan-x max-md:[-webkit-overflow-scrolling:touch]">
+          <div
+            className="w-full min-w-0 max-w-full overflow-x-auto max-md:touch-pan-x"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <table className="daily-summary-table w-full min-w-max border-collapse text-sm md:min-w-0">
               <thead>
                 <tr>
