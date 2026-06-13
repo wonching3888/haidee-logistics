@@ -38,6 +38,9 @@ import {
   saveUser,
   deleteUser,
 } from "@/app/actions/settings";
+import type { FreightSettingsData } from "@/components/settings/FreightRatesSection";
+import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
+import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 
 interface MarketOption {
   id: string;
@@ -111,6 +114,14 @@ interface SettingsData {
 
 interface SettingsClientProps {
   data: SettingsData;
+  freightData: FreightSettingsData & {
+    exchangeRates: { id: string; yearMonth: string; rate: number }[];
+    exchangeAlert: {
+      currentYearMonth: string;
+      missing: boolean;
+      currentRate: number | null;
+    };
+  };
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -136,7 +147,7 @@ function ShipperCurrencyBadge({ currency }: { currency: string }) {
   );
 }
 
-export function SettingsClient({ data }: SettingsClientProps) {
+export function SettingsClient({ data, freightData }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +236,12 @@ export function SettingsClient({ data }: SettingsClientProps) {
           </TabsTrigger>
           <TabsTrigger value="users" className="min-h-[40px] px-3">
             用户 Users
+          </TabsTrigger>
+          <TabsTrigger value="freight-rates" className="min-h-[40px] px-3">
+            车力费率 Freight Rates
+          </TabsTrigger>
+          <TabsTrigger value="exchange-rate" className="min-h-[40px] px-3">
+            汇率 Exchange Rate
           </TabsTrigger>
         </TabsList>
 
@@ -556,6 +573,22 @@ export function SettingsClient({ data }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
+        </TabsContent>
+
+        <TabsContent value="freight-rates" className="w-full p-4">
+          <FreightRatesSection data={freightData} />
+        </TabsContent>
+
+        <TabsContent value="exchange-rate" className="w-full p-4">
+          {freightData.exchangeAlert.missing && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              提醒：{freightData.exchangeAlert.currentYearMonth} 当月汇率尚未设定。
+            </div>
+          )}
+          <ExchangeRateSection
+            exchangeRates={freightData.exchangeRates}
+            exchangeAlert={freightData.exchangeAlert}
+          />
         </TabsContent>
       </Tabs>
       </div>

@@ -38,6 +38,7 @@ model Market {
 
   stalls       Stall[]
   freightRates FreightRate[]
+  consigneeFreightRates ConsigneeFreightRate[]
   tongImports  TongImport[]
 
   @@map("markets")
@@ -93,6 +94,7 @@ model Shipper {
   defaultTongType      TongType?             @relation(fields: [defaultTongTypeId], references: [id])
   stalls               ShipperStallDefault[]
   freightRates         FreightRate[]
+  paymentRelations     PaymentRelation[]
   thVehicles           ThVehicle[]
   inboundSessions      InboundSession[]
   tongExports          TongExport[]
@@ -143,8 +145,59 @@ model FreightRate {
   shipper Shipper @relation(fields: [shipperId], references: [id])
   market  Market  @relation(fields: [marketId], references: [id])
 
-  @@unique([shipperId, marketId])
+  @@unique([shipperId, marketId, effectiveDate])
   @@map("freight_rates")
+}
+
+model Consignee {
+  id             String   @id @default(uuid()) @db.Uuid
+  code           String   @unique
+  name           String
+  billingCompany String   @default("haidee") @map("billing_company")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  freightRates     ConsigneeFreightRate[]
+  paymentRelations PaymentRelation[]
+
+  @@map("consignees")
+}
+
+model ConsigneeFreightRate {
+  id            String   @id @default(uuid()) @db.Uuid
+  consigneeId   String   @map("consignee_id") @db.Uuid
+  marketId      String   @map("market_id") @db.Uuid
+  rateTong      Decimal? @map("rate_tong") @db.Decimal(10, 2)
+  rateBox       Decimal? @map("rate_box") @db.Decimal(10, 2)
+  effectiveDate DateTime @map("effective_date") @db.Date
+
+  consignee Consignee @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
+  market    Market    @relation(fields: [marketId], references: [id])
+
+  @@unique([consigneeId, marketId, effectiveDate])
+  @@map("consignee_freight_rates")
+}
+
+model PaymentRelation {
+  id          String @id @default(uuid()) @db.Uuid
+  shipperId   String @map("shipper_id") @db.Uuid
+  consigneeId String @map("consignee_id") @db.Uuid
+  paymentMode String @map("payment_mode")
+
+  shipper   Shipper   @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+  consignee Consignee @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
+
+  @@unique([shipperId, consigneeId])
+  @@map("payment_relations")
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid()) @db.Uuid
+  yearMonth String   @unique @map("year_month")
+  rate      Decimal  @default(8.20) @db.Decimal(10, 4)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("exchange_rates")
 }
 
 model Driver {

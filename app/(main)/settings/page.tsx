@@ -1,8 +1,12 @@
 import { getSettingsData } from "@/app/actions/settings";
+import { getFreightSettingsData } from "@/app/actions/freight-settings";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {
-  const data = await getSettingsData();
+  const [data, freightData] = await Promise.all([
+    getSettingsData(),
+    getFreightSettingsData(),
+  ]);
 
   return (
     <div className="w-full space-y-6">
@@ -14,7 +18,7 @@ export default async function SettingsPage() {
           主数据管理 Master data management（仅管理员）
         </p>
       </div>
-      <SettingsClient data={data} />
+      <SettingsClient data={data} freightData={freightData} />
     </div>
   );
 }
