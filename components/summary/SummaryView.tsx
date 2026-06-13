@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -16,6 +15,7 @@ import { cellDisplay } from "@/lib/consignor-label";
 import { MARKET_ORDER } from "@/lib/constants";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { toDateInputValue } from "@/lib/date-utils";
+import { getMatrixTableScrollStyle } from "@/lib/table-scroll";
 
 interface SummaryViewProps {
   date: string;
@@ -23,17 +23,7 @@ interface SummaryViewProps {
   data: VehicleLoadingListData;
 }
 
-const tableScrollStyle: CSSProperties = {
-  height: "calc(100vh - 220px)",
-  maxHeight: "100%",
-  minHeight: 0,
-  overflowX: "auto",
-  overflowY: "auto",
-  WebkitOverflowScrolling: "touch",
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-};
+const tableScrollStyle = getMatrixTableScrollStyle(220);
 
 const stickyHeadRow1 =
   "sticky top-0 z-20 border border-haidee-border bg-haidee-surface";

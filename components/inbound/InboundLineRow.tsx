@@ -2,6 +2,8 @@
 
 import { Copy, Trash2 } from "lucide-react";
 import { MarketBadge } from "@/components/shared/MarketBadge";
+import { STICKY_BODY_FIRST } from "@/lib/table-scroll";
+import { cn } from "@/lib/utils";
 
 interface TongTypeOption {
   id: string;
@@ -38,7 +40,7 @@ export function InboundLineRow({
 }: InboundLineRowProps) {
   return (
     <tr className="border-b border-haidee-border hover:bg-white/60">
-      <td className="whitespace-nowrap px-3 py-2 font-mono font-medium text-haidee-text">
+      <td className={cn(STICKY_BODY_FIRST, "whitespace-nowrap px-3 py-2 font-mono font-medium text-haidee-text")}>
         {stallCode}
       </td>
       <td className="whitespace-nowrap px-3 py-2">

@@ -6,6 +6,8 @@ import { FileText, Printer } from "lucide-react";
 import type { CrateTypeRecordOptions } from "@/app/actions/documents";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { CrateByTypePicker } from "@/components/documents/CrateByTypePicker";
 import { CrateTypeRecordPicker } from "@/components/documents/CrateTypeRecordPicker";
 import { MARKET_ORDER } from "@/lib/markets";
@@ -170,8 +172,8 @@ export function DocumentsClient({
             当日暂无派车单 No dispatch orders for this date
           </p>
         ) : (
-          <div className="-mx-4 overflow-x-auto">
-            <Table>
+          <ScrollMatrixTable heightOffset={360}>
+            <Table noScrollContainer className={stickyFirstColTableClass}>
               <TableHeader>
                 <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                   <TableHead className="w-10" />
@@ -221,7 +223,7 @@ export function DocumentsClient({
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollMatrixTable>
         )}
 
         <div className="mt-4 flex flex-wrap gap-3 border-t border-haidee-border pt-4">

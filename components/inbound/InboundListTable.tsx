@@ -2,8 +2,15 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
+import {
+  STICKY_BODY_FIRST,
+  STICKY_HEAD_FIRST,
+  STICKY_HEAD_TOP,
+} from "@/lib/table-scroll";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   TableBody,
@@ -34,22 +41,12 @@ interface InboundListTableProps {
   sessions: SessionRow[];
 }
 
-const tableScrollStyle: CSSProperties = {
-  overflow: "auto",
-  WebkitOverflowScrolling: "touch",
-  width: "100%",
-  maxWidth: "100%",
-  height: "100%",
-  minHeight: 0,
-};
-
 const tableStyle: CSSProperties = {
   minWidth: "max-content",
   width: "100%",
 };
 
-const stickyHeadClass =
-  "sticky top-0 z-10 border-b border-haidee-border bg-haidee-surface";
+const stickyHeadTopClass = cn(STICKY_HEAD_TOP, "border-b border-haidee-border");
 
 export function InboundListTable({ sessions }: InboundListTableProps) {
   if (sessions.length === 0) {
@@ -61,28 +58,26 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
   }
 
   return (
-    <div
-      className="flex h-full min-h-0 flex-col rounded-xl border border-haidee-border bg-white"
-      style={{ width: "100%", maxWidth: "100%" }}
-    >
-      <div data-inbound-table-scroll style={tableScrollStyle}>
-        <table style={tableStyle} className="text-sm">
+    <ScrollMatrixTable heightOffset={280} className="rounded-xl">
+      <table data-inbound-table-scroll style={tableStyle} className="text-sm">
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead className={stickyHeadClass}>日期 Date</TableHead>
-              <TableHead className={stickyHeadClass}>批次号 Batch No.</TableHead>
-              <TableHead className={stickyHeadClass}>寄货人 Consignor</TableHead>
-              <TableHead className={stickyHeadClass}>收货地点 Pickup</TableHead>
-              <TableHead className={stickyHeadClass}>地区 Area</TableHead>
-              <TableHead className={stickyHeadClass}>泰国车牌 TH Plate</TableHead>
-              <TableHead className={`${stickyHeadClass} text-right`}>
+              <TableHead className={cn(STICKY_HEAD_FIRST, "border-b border-haidee-border")}>
+                日期 Date
+              </TableHead>
+              <TableHead className={stickyHeadTopClass}>批次号 Batch No.</TableHead>
+              <TableHead className={stickyHeadTopClass}>寄货人 Consignor</TableHead>
+              <TableHead className={stickyHeadTopClass}>收货地点 Pickup</TableHead>
+              <TableHead className={stickyHeadTopClass}>地区 Area</TableHead>
+              <TableHead className={stickyHeadTopClass}>泰国车牌 TH Plate</TableHead>
+              <TableHead className={cn(stickyHeadTopClass, "text-right")}>
                 总数量 Total
               </TableHead>
-              <TableHead className={`${stickyHeadClass} text-right`}>
+              <TableHead className={cn(stickyHeadTopClass, "text-right")}>
                 未分配 Unassigned
               </TableHead>
-              <TableHead className={stickyHeadClass}>状态 Status</TableHead>
-              <TableHead className={`${stickyHeadClass} text-right`}>
+              <TableHead className={stickyHeadTopClass}>状态 Status</TableHead>
+              <TableHead className={cn(stickyHeadTopClass, "text-right")}>
                 操作 Actions
               </TableHead>
             </TableRow>
@@ -90,7 +85,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
           <TableBody>
             {sessions.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="font-mono">
+                <TableCell className={cn(STICKY_BODY_FIRST, "font-mono")}>
                   {formatDisplayDate(new Date(s.date))}
                 </TableCell>
                 <TableCell className="font-mono text-sm">
@@ -161,7 +156,6 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
             ))}
           </TableBody>
         </table>
-      </div>
-    </div>
+    </ScrollMatrixTable>
   );
 }

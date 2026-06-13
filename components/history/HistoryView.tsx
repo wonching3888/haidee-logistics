@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import {
   Table,
   TableBody,
@@ -62,13 +64,13 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+      <ScrollMatrixTable heightOffset={260}>
         {records.length === 0 ? (
           <p className="p-8 text-center text-haidee-muted">
             暂无修改记录 No modification records
           </p>
         ) : (
-          <Table>
+          <Table noScrollContainer className={stickyFirstColTableClass}>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>进货单号 Session</TableHead>
@@ -125,7 +127,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
             </TableBody>
           </Table>
         )}
-      </div>
+      </ScrollMatrixTable>
 
       <p className="text-xs text-haidee-muted">
         显示已确认进货单的修改记录，含修改时间与修改人。

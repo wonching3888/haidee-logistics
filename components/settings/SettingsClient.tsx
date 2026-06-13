@@ -38,6 +38,8 @@ import {
   saveUser,
   deleteUser,
 } from "@/app/actions/settings";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import type { FreightSettingsData } from "@/components/settings/FreightRatesSection";
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
@@ -898,9 +900,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
 
 function DataTable({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-haidee-border">
-      <Table>{children}</Table>
-    </div>
+    <ScrollMatrixTable heightOffset={320} className="rounded-lg">
+      <Table noScrollContainer className={stickyFirstColTableClass}>
+        {children}
+      </Table>
+    </ScrollMatrixTable>
   );
 }
 

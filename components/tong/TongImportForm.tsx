@@ -10,6 +10,7 @@ import {
   saveTongImport,
 } from "@/app/actions/tong";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import type {
   CrateImportLoadedRow,
   CrateTypeOption,
@@ -28,6 +29,12 @@ import {
   CRATE_IMPORT_OTHER_COLUMN,
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
+import {
+  STICKY_BODY_FIRST,
+  STICKY_HEAD_FIRST,
+  STICKY_HEAD_TOP,
+} from "@/lib/table-scroll";
+import { cn } from "@/lib/utils";
 
 interface TruckOption {
   id: string;
@@ -382,12 +389,11 @@ export function TongImportForm({
           />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-xs">
-              <thead>
-                <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                  <th className="px-2 py-2 text-left">车牌 Plate</th>
+        <ScrollMatrixTable heightOffset={320}>
+          <table className="w-full min-w-[900px] text-xs">
+            <thead>
+              <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
+                <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>车牌 Plate</th>
                   <th className="px-2 py-2 text-left">来源市场 Market</th>
                   {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                     <th key={c.key} className="px-1 py-2 font-mono">
@@ -434,7 +440,7 @@ export function TongImportForm({
                       row.status === "on_the_way" ? "bg-yellow-50/80" : ""
                     }`}
                   >
-                    <td className="px-1 py-1">
+                    <td className={cn(STICKY_BODY_FIRST, "px-1 py-1")}>
                       <select
                         value={row.truckPlate}
                         onChange={(e) =>
@@ -561,8 +567,7 @@ export function TongImportForm({
                 </tr>
               </tfoot>
             </table>
-          </div>
-        </div>
+        </ScrollMatrixTable>
 
         <Button
           type="button"
@@ -595,13 +600,12 @@ export function TongImportForm({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-            <div className="overflow-x-auto">
+          <ScrollMatrixTable heightOffset={320}>
               <table className="w-full min-w-[960px] text-xs">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                    <th className="px-2 py-2 text-left">车牌 Plate</th>
-                    <th className="px-2 py-2 text-left">日期 Date</th>
+                    <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>车牌 Plate</th>
+                    <th className={cn(STICKY_HEAD_TOP, "px-2 py-2 text-left")}>日期 Date</th>
                     <th className="px-2 py-2 text-left">来源市场 Market</th>
                     {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                       <th key={c.key} className="px-1 py-2 font-mono">
@@ -624,7 +628,7 @@ export function TongImportForm({
                       key={`${row.dateInput}-${row.truckPlate}-${row.marketCode}`}
                       className="border-b border-haidee-border/60 bg-yellow-50/80"
                     >
-                      <td className="px-2 py-1 font-mono">{row.truckPlate}</td>
+                      <td className={cn(STICKY_BODY_FIRST, "px-2 py-1 font-mono")}>{row.truckPlate}</td>
                       <td className="px-2 py-1 font-mono">{row.dateStr}</td>
                       <td className="px-2 py-1 font-mono">{row.marketCode}</td>
                       {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
@@ -669,8 +673,7 @@ export function TongImportForm({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
+          </ScrollMatrixTable>
         </section>
       )}
 

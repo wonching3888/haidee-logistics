@@ -7,6 +7,8 @@ import { Printer, Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { formatDisplay, normalizeDateRange } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,8 +275,8 @@ function SearchResults({
         ))}
       </div>
 
-      <div className="hidden md:block print:block">
-        <Table>
+      <ScrollMatrixTable heightOffset={280} className="hidden md:block print:block">
+        <Table noScrollContainer className={stickyFirstColTableClass}>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>日期 Date</TableHead>
@@ -326,7 +328,7 @@ function SearchResults({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollMatrixTable>
       {(crateTotal > 0 || boxTotal > 0) && (
         <div className="border-t border-haidee-border px-4 py-3 text-sm font-semibold text-haidee-text">
           {crateTotal > 0 && <div>总计 {crateTotal} 桶</div>}

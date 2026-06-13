@@ -6,6 +6,8 @@ import { useTransition } from "react";
 import type { DashboardData } from "@/app/actions/dashboard";
 import { DailyDispatchSummary } from "@/components/dashboard/DailyDispatchSummary";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -163,8 +165,8 @@ export function DashboardView({
                   </Link>
                 ))}
               </div>
-              <div className="hidden overflow-x-auto md:block">
-              <Table>
+              <ScrollMatrixTable heightOffset={360} className="hidden md:block">
+              <Table noScrollContainer className={stickyFirstColTableClass}>
                 <TableHeader>
                   <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                     <TableHead>单号 DO</TableHead>
@@ -207,7 +209,7 @@ export function DashboardView({
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </ScrollMatrixTable>
             </>
           )}
         </CardContent>

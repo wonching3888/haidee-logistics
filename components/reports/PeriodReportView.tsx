@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -11,6 +10,7 @@ import type {
 } from "@/lib/reports/period-report-shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getMatrixTableScrollStyle } from "@/lib/table-scroll";
 
 interface PeriodReportViewProps {
   basePath: string;
@@ -29,16 +29,7 @@ const YEAR_OPTIONS = Array.from({ length: 11 }, (_, index) => 2020 + index);
 const PERIOD_COL_CLASS = "min-w-[120px] max-w-[120px] w-[120px]";
 const TOTAL_COL_CLASS = "min-w-[72px] max-w-[72px] w-[72px]";
 
-const tableScrollStyle: CSSProperties = {
-  height: "calc(100vh - 260px)",
-  maxHeight: "100%",
-  minHeight: 0,
-  overflowX: "auto",
-  overflowY: "auto",
-  WebkitOverflowScrolling: "touch",
-  width: "100%",
-  maxWidth: "100%",
-};
+const tableScrollStyle = getMatrixTableScrollStyle(260);
 
 function formatCell(value: number): string {
   return value > 0 ? String(value) : "";

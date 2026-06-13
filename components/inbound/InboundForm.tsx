@@ -6,7 +6,13 @@ import { Plus } from "lucide-react";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { isOtherMarket } from "@/lib/markets";
+import {
+  STICKY_HEAD_FIRST,
+  STICKY_HEAD_TOP,
+} from "@/lib/table-scroll";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -394,17 +400,23 @@ export function InboundForm({
               No default stalls for this consignor.
             </p>
           ) : (
-            <div className="overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
+            <ScrollMatrixTable heightOffset={340} className="rounded-xl border-0">
               <table className="min-w-max w-full text-sm">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">档口 Store</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">地区 Area</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">桶型 Crate Type</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium text-right">
+                    <th className={cn(STICKY_HEAD_FIRST, "whitespace-nowrap px-3 py-3 font-medium")}>
+                      档口 Store
+                    </th>
+                    <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
+                      地区 Area
+                    </th>
+                    <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
+                      桶型 Crate Type
+                    </th>
+                    <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium text-right")}>
                       桶数 Crates
                     </th>
-                    <th className="w-10 whitespace-nowrap px-2 py-3"></th>
+                    <th className={cn(STICKY_HEAD_TOP, "w-10 whitespace-nowrap px-2 py-3")}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,7 +464,7 @@ export function InboundForm({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollMatrixTable>
           )}
         </div>
       )}

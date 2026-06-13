@@ -29,6 +29,7 @@ import {
   PAYMENT_MODES,
 } from "@/lib/constants/freight-settings";
 import { getNextMonthFirstDayInput, parseOptionalRate, type RateCell } from "@/lib/freight-rates";
+import { cn } from "@/lib/utils";
 import {
   deleteConsignee,
   deletePaymentRelation,
@@ -37,6 +38,15 @@ import {
   savePaymentRelation,
   saveShipperFreightRates,
 } from "@/app/actions/freight-settings";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import {
+  FIRST_COL_WIDTH,
+  STICKY_BODY_ACTIONS,
+  STICKY_BODY_FIRST,
+  STICKY_HEAD_ACTIONS,
+  STICKY_HEAD_FIRST,
+  STICKY_HEAD_TOP,
+} from "@/lib/table-scroll";
 
 interface FreightMarket {
   id: string;
@@ -131,24 +141,26 @@ function RateMatrixTable({
   onEdit: (row: (typeof rows)[number]) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-haidee-border">
-      <Table>
+    <ScrollMatrixTable heightOffset={380} className="rounded-lg">
+      <Table noScrollContainer>
         <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-            <TableHead className="sticky left-0 z-10 min-w-[160px] bg-haidee-surface">
+            <TableHead className={cn(STICKY_HEAD_FIRST, FIRST_COL_WIDTH)}>
               名称 Name
             </TableHead>
-            {currencyColumn && <TableHead>币种</TableHead>}
-            {extraColumn && <TableHead>开单公司</TableHead>}
+            {currencyColumn && (
+              <TableHead className={STICKY_HEAD_TOP}>币种</TableHead>
+            )}
+            {extraColumn && <TableHead className={STICKY_HEAD_TOP}>开单公司</TableHead>}
             {markets.map((market) => (
-              <TableHead key={market.id} colSpan={2} className="text-center">
+              <TableHead key={market.id} colSpan={2} className={cn(STICKY_HEAD_TOP, "text-center")}>
                 <div className="font-semibold">{market.code}</div>
                 <div className="text-[10px] font-normal text-haidee-muted">
                   TONG / BOX
                 </div>
               </TableHead>
             ))}
-            <TableHead className="sticky right-0 z-10 bg-haidee-surface text-right">
+            <TableHead className={cn(STICKY_HEAD_ACTIONS, "text-right")}>
               操作
             </TableHead>
           </TableRow>
@@ -166,7 +178,7 @@ function RateMatrixTable({
           ) : (
             rows.map((row) => (
               <TableRow key={row.id}>
-                <TableCell className="sticky left-0 z-10 bg-white">
+                <TableCell className={cn(STICKY_BODY_FIRST, FIRST_COL_WIDTH)}>
                   <div className="font-medium">{row.name}</div>
                   <div className="font-mono text-xs text-haidee-muted">
                     {row.code}
@@ -183,7 +195,7 @@ function RateMatrixTable({
                     <RateCellDisplay cell={row.matrix[market.code]} />
                   </TableCell>
                 ))}
-                <TableCell className="sticky right-0 z-10 bg-white text-right">
+                <TableCell className={cn(STICKY_BODY_ACTIONS, "text-right")}>
                   <Button
                     type="button"
                     variant="outline"
@@ -200,7 +212,7 @@ function RateMatrixTable({
           )}
         </TableBody>
       </Table>
-    </div>
+    </ScrollMatrixTable>
   );
 }
 

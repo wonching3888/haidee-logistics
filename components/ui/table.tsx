@@ -4,17 +4,29 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  noScrollContainer,
+  ...props
+}: React.ComponentProps<"table"> & { noScrollContainer?: boolean }) {
+  const tableEl = (
+    <table
+      data-slot="table"
+      className={cn("min-w-max w-full caption-bottom text-sm", className)}
+      {...props}
+    />
+  )
+
+  if (noScrollContainer) {
+    return tableEl
+  }
+
   return (
     <div
       data-slot="table-container"
       className="relative min-w-0 max-w-full w-full overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]"
     >
-      <table
-        data-slot="table"
-        className={cn("min-w-max w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+      {tableEl}
     </div>
   )
 }

@@ -28,6 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import {
+  stickyActionsColTableClass,
+  stickyFirstTwoColTableClass,
+} from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 
 interface CustomerCrateStockViewProps {
@@ -178,8 +183,11 @@ export function CustomerCrateStockView({
         欠桶（负数）以红色显示 · 点击行首展开各产地明细
       </p>
 
-      <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white">
-        <Table>
+      <ScrollMatrixTable heightOffset={280}>
+        <Table
+          noScrollContainer
+          className={cn(stickyFirstTwoColTableClass, stickyActionsColTableClass)}
+        >
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead className="w-8" />
@@ -344,7 +352,7 @@ export function CustomerCrateStockView({
             )}
           </TableBody>
         </Table>
-      </div>
+      </ScrollMatrixTable>
 
       <Dialog
         open={editRow !== null}

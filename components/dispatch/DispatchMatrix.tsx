@@ -3,6 +3,8 @@
 import type { DispatchMatrixData } from "@/app/actions/dispatch";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { STICKY_BODY_FIRST, STICKY_HEAD_FIRST, STICKY_HEAD_TOP } from "@/lib/table-scroll";
 import { cellDisplay } from "@/lib/consignor-label";
 import { cn } from "@/lib/utils";
 
@@ -47,31 +49,30 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
   const colSpan = markets.length + 2;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
-      <div className="max-h-[70vh] overflow-x-auto overflow-y-auto">
+    <ScrollMatrixTable heightOffset={280}>
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface">
-              <th className="sticky left-0 top-0 z-30 whitespace-nowrap bg-haidee-surface px-3 py-3 text-left font-medium text-haidee-muted">
+              <th className={cn(STICKY_HEAD_FIRST, "whitespace-nowrap px-3 py-3 text-left font-medium text-haidee-muted")}>
                 寄货人 / 地区 Consignor / Area
               </th>
               {markets.map((code) => (
                 <th
                   key={code}
-                  className="sticky top-0 z-20 min-w-[56px] whitespace-nowrap bg-haidee-surface px-2 py-3 text-center"
+                  className={cn(STICKY_HEAD_TOP, "min-w-[56px] whitespace-nowrap px-2 py-3 text-center")}
                 >
                   <div className="flex justify-center">
                     <DispatchMarketLabel code={code} className="font-mono" showDisplayName />
                   </div>
                 </th>
               ))}
-              <th className="sticky top-0 z-20 whitespace-nowrap bg-haidee-surface px-3 py-3 text-right font-medium text-haidee-muted">
+              <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 text-right font-medium text-haidee-muted")}>
                 合计 Total
               </th>
             </tr>
             <tr className="border-b-2 border-haidee-border bg-gray-100 font-semibold">
               <th
-                className="sticky left-0 z-40 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-left text-haidee-text"
+                className={cn(STICKY_BODY_FIRST, "z-40 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-left text-haidee-text")}
                 style={{ top: MARKET_HEADER_ROW_TOP }}
               >
                 各市场总计 Market Totals
@@ -81,7 +82,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                 return (
                   <th
                     key={code}
-                    className="sticky z-20 min-w-[56px] whitespace-nowrap bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text"
+                    className={cn(STICKY_HEAD_TOP, "z-20 min-w-[56px] whitespace-nowrap bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text")}
                     style={{ top: MARKET_HEADER_ROW_TOP }}
                   >
                     <TotalsCellDisplay crate={qty.crate} box={qty.box} />
@@ -89,7 +90,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                 );
               })}
               <th
-                className="sticky z-20 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy"
+                className={cn(STICKY_HEAD_TOP, "z-20 whitespace-nowrap bg-gray-100 px-3 py-2.5 text-right font-mono text-lg text-haidee-navy")}
                 style={{ top: MARKET_HEADER_ROW_TOP }}
               >
                 <TotalsCellDisplay
@@ -119,7 +120,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                     key={shipper.id}
                     className="border-b border-haidee-border/60 hover:bg-haidee-surface/50"
                   >
-                    <td className="sticky left-0 z-10 max-md:whitespace-normal bg-white px-3 py-2.5 font-medium text-haidee-text md:whitespace-nowrap">
+                    <td className={cn(STICKY_BODY_FIRST, "max-md:whitespace-normal px-3 py-2.5 font-medium text-haidee-text md:whitespace-nowrap")}>
                       <MobileTruncatedName text={shipper.name} />
                     </td>
                     {markets.map((code) => {
@@ -146,7 +147,6 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
             )}
           </tbody>
         </table>
-      </div>
-    </div>
+    </ScrollMatrixTable>
   );
 }
