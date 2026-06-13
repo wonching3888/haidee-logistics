@@ -79,6 +79,27 @@ export function sumQuantities(
   return totals;
 }
 
+export function sumColumnQuantities(
+  rows: { quantities: Record<string, number> }[],
+  columnCode: string
+): number {
+  return rows.reduce(
+    (sum, row) => sum + (row.quantities[columnCode] ?? 0),
+    0
+  );
+}
+
+export function computeBlockSubtotals(
+  rows: { quantities: Record<string, number> }[],
+  columnCodes: readonly string[]
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const code of columnCodes) {
+    totals[code] = sumColumnQuantities(rows, code);
+  }
+  return totals;
+}
+
 /** D/O columns that have quantity on at least one row */
 export function getActiveDOColumns(
   rows: { quantities: Record<string, number> }[]

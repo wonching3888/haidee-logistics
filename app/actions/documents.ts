@@ -13,6 +13,7 @@ import {
   isBoxColumn,
   mapTongToColumn,
   sumQuantities,
+  computeBlockSubtotals,
 } from "@/lib/constants/tong-columns";
 import {
   CRATE_TYPE_RECORD_BLOCKS,
@@ -559,10 +560,9 @@ export async function getCrateTypeRecordData(
 
     if (trucks.length === 0) continue;
 
-    const totals = sumQuantities(trucks);
     const total = trucks.reduce((sum, truck) => sum + truck.total, 0);
 
-    blocks.push({ title, trucks, totals, total });
+    blocks.push({ title, trucks, totals: {}, total });
   }
 
   if (blocks.length === 0) return null;
@@ -575,6 +575,11 @@ export async function getCrateTypeRecordData(
     (col) =>
       allowedColumns.has(col.code) && (grandTotals[col.code] ?? 0) > 0
   ).map((col) => ({ code: col.code, header: col.header }));
+
+  const activeColumnCodes = activeColumns.map((col) => col.code);
+  for (const block of blocks) {
+    block.totals = computeBlockSubtotals(block.trucks, activeColumnCodes);
+  }
 
   return {
     date: formatDODate(date),
