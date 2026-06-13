@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -16,6 +17,20 @@ interface MarketReportViewProps {
 }
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, index) => 2020 + index);
+
+const PERIOD_COL_CLASS = "min-w-[120px] max-w-[120px] w-[120px]";
+const TOTAL_COL_CLASS = "min-w-[72px] max-w-[72px] w-[72px]";
+
+const tableScrollStyle: CSSProperties = {
+  height: "calc(100vh - 260px)",
+  maxHeight: "100%",
+  minHeight: 0,
+  overflowX: "auto",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  width: "100%",
+  maxWidth: "100%",
+};
 
 function formatCell(value: number): string {
   return value > 0 ? String(value) : "";
@@ -50,6 +65,13 @@ export function MarketReportView({
   }
 
   const periodHeader = mode === "monthly" ? "日期 Date" : "月份 Month";
+
+  const stickyPeriodHead =
+    "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface px-3 py-2 text-left font-semibold";
+  const stickyTotalHead =
+    "sticky left-[120px] top-0 z-30 border border-haidee-border bg-haidee-surface px-3 py-2 text-center font-semibold";
+  const stickyMarketHead =
+    "sticky top-0 z-20 border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-semibold";
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
@@ -147,9 +169,9 @@ export function MarketReportView({
 
       <div
         ref={printRef}
-        className="market-report-print min-h-0 min-w-0 flex-1 overflow-auto rounded-xl border border-haidee-border bg-white"
+        className="market-report-print flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white"
       >
-        <div className="hidden border-b border-haidee-border px-4 py-3 print:block">
+        <div className="hidden shrink-0 border-b border-haidee-border px-4 py-3 print:block">
           <h3 className="text-lg font-bold text-haidee-text">
             市场报表 Market Report
           </h3>
@@ -164,58 +186,72 @@ export function MarketReportView({
             所选期间暂无派车货量 No dispatch quantities for this period
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-text">
-                  <th className="sticky left-0 z-10 min-w-[72px] border border-haidee-border bg-haidee-surface px-3 py-2 text-center font-semibold">
-                    合计 Total
-                  </th>
-                  <th className="min-w-[120px] border border-haidee-border px-3 py-2 text-left font-semibold">
-                    {periodHeader}
-                  </th>
-                  {data.columns.map((column) => (
-                    <th
-                      key={column.code}
-                      className="min-w-[72px] border border-haidee-border px-2 py-2 text-center font-semibold"
-                      title={column.header}
-                    >
-                      {column.code}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="market-report-scroll" style={tableScrollStyle}>
+              <table className="min-w-max border-collapse text-sm">
+                <thead>
+                  <tr className="text-haidee-text">
+                    <th className={cn(stickyPeriodHead, PERIOD_COL_CLASS)}>
+                      {periodHeader}
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.rows.map((row) => (
-                  <tr
-                    key={row.key}
-                    className={cn(
-                      row.isTotal && "bg-haidee-navy/5 font-bold"
-                    )}
-                  >
-                    <td
-                      className={cn(
-                        "sticky left-0 z-10 border border-haidee-border px-3 py-2 text-center font-mono",
-                        row.isTotal ? "bg-haidee-navy/5" : "bg-white"
-                      )}
-                    >
-                      {row.rowTotal > 0 ? row.rowTotal : ""}
-                    </td>
-                    <td className="border border-haidee-border px-3 py-2 text-left">
-                      {row.label}
-                    </td>
+                    <th className={cn(stickyTotalHead, TOTAL_COL_CLASS)}>
+                      合计 Total
+                    </th>
                     {data.columns.map((column) => (
-                      <td
+                      <th
                         key={column.code}
-                        className="border border-haidee-border px-2 py-2 text-center font-mono"
+                        className={cn(stickyMarketHead, "min-w-[72px]")}
+                        title={column.header}
                       >
-                        {formatCell(row.markets[column.code] ?? 0)}
-                      </td>
+                        {column.code}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.rows.map((row) => {
+                    const stickyBg = row.isTotal ? "bg-haidee-navy/5" : "bg-white";
+
+                    return (
+                      <tr
+                        key={row.key}
+                        className={cn(row.isTotal && "font-bold")}
+                      >
+                        <td
+                          className={cn(
+                            "sticky left-0 z-10 border border-haidee-border px-3 py-2 text-left",
+                            PERIOD_COL_CLASS,
+                            stickyBg
+                          )}
+                        >
+                          {row.label}
+                        </td>
+                        <td
+                          className={cn(
+                            "sticky left-[120px] z-10 border border-haidee-border px-3 py-2 text-center font-mono",
+                            TOTAL_COL_CLASS,
+                            stickyBg
+                          )}
+                        >
+                          {row.rowTotal > 0 ? row.rowTotal : ""}
+                        </td>
+                        {data.columns.map((column) => (
+                          <td
+                            key={column.code}
+                            className={cn(
+                              "border border-haidee-border px-2 py-2 text-center font-mono",
+                              row.isTotal && "bg-haidee-navy/5"
+                            )}
+                          >
+                            {formatCell(row.markets[column.code] ?? 0)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -227,6 +263,12 @@ export function MarketReportView({
             overflow: visible !important;
           }
 
+          .market-report-scroll {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+
           .market-report-print table {
             font-size: 10pt;
           }
@@ -234,6 +276,7 @@ export function MarketReportView({
           .market-report-print th,
           .market-report-print td {
             color: #000 !important;
+            position: static !important;
           }
         }
       `}</style>
