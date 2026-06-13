@@ -8,7 +8,7 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 const MARKETS = [
-  { code: "KL", name: "Pasar Borong Selayang", state: "Selangor" },
+  { code: "KL", name: "SELAYANG", state: "Selangor" },
   { code: "BM", name: "Pasar Borong Bukit Mertajam", state: "Penang" },
   { code: "A", name: "Pasar Borong Ipoh", state: "Perak" },
   { code: "KD", name: "Pasar Borong Alor Setar", state: "Kedah" },
@@ -17,7 +17,7 @@ const MARKETS = [
   { code: "BP", name: "Pasar Borong Batu Pahat", state: "Johor" },
   { code: "MP", name: "Pasar Borong Muar", state: "Johor" },
   { code: "TP", name: "Pasar Borong Taiping", state: "Perak" },
-  { code: "SL", name: "Selangor", state: "Selangor" },
+  { code: "SL", name: "SEREMBAN", state: "Negeri Sembilan" },
   { code: "KT", name: "Tanjung Piandang", state: "Perak" },
   { code: "NT", name: "N'Tebal", state: "Penang" },
   { code: "SA", name: "Simpang Ampat", state: "Penang" },

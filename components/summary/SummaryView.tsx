@@ -14,6 +14,7 @@ import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
 import { MARKET_ORDER } from "@/lib/constants";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { toDateInputValue } from "@/lib/date-utils";
 
 interface SummaryViewProps {
@@ -203,6 +204,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     className={`${stickyHeadRow2} px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text`}
                   >
                     {col.marketCode}
+                    <span className="mt-0.5 block text-[10px] font-bold leading-tight text-haidee-text">
+                      {getMarketDisplayName(col.marketCode)}
+                    </span>
                   </th>
                 ))}
               </tr>

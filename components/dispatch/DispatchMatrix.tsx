@@ -61,7 +61,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                   className="sticky top-0 z-20 min-w-[56px] whitespace-nowrap bg-haidee-surface px-2 py-3 text-center"
                 >
                   <div className="flex justify-center">
-                    <DispatchMarketLabel code={code} className="font-mono" />
+                    <DispatchMarketLabel code={code} className="font-mono" showDisplayName />
                   </div>
                 </th>
               ))}

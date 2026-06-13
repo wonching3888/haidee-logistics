@@ -38,6 +38,7 @@ interface MarketOption {
   id: string;
   code: string;
   name: string;
+  displayName?: string;
 }
 
 interface ImportRow {
@@ -460,7 +461,7 @@ export function TongImportForm({
                         <option value="">—</option>
                         {markets.map((m) => (
                           <option key={m.id} value={m.code}>
-                            {m.code}
+                            {m.code} — {m.displayName ?? m.name}
                           </option>
                         ))}
                       </select>

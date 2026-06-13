@@ -1,9 +1,9 @@
 /** Full display names for market / area codes (one name per market). */
 export const MARKET_DISPLAY_NAMES: Record<string, string> = {
-  KL: "KUALA LUMPUR",
+  KL: "SELAYANG",
   BP: "BATU PAHAT",
   MP: "MUAR",
-  SL: "SELANGOR",
+  SL: "SEREMBAN",
   MC: "MELAKA",
   A: "IPOH",
   BM: "BUKIT MERTAJAM",

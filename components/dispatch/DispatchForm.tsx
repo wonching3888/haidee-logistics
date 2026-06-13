@@ -327,7 +327,7 @@ export function DispatchForm({
                   onChange={() => toggleMarket(code)}
                   className="h-4 w-4 accent-haidee-navy"
                 />
-                <DispatchMarketLabel code={code} selected={checked} />
+                <DispatchMarketLabel code={code} selected={checked} showDisplayName />
               </label>
             );
           })}

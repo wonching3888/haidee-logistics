@@ -18,6 +18,7 @@ import {
   IMPORT_MARKET_ORDER,
   sortMarketsForImport,
 } from "@/lib/constants/import-markets";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   saveCrateExport,
   type CrateExportLineInput,
@@ -43,7 +44,10 @@ export async function getMarketsForImport() {
     },
     select: { id: true, code: true, name: true },
   });
-  return sortMarketsForImport(markets);
+  return sortMarketsForImport(markets).map((market) => ({
+    ...market,
+    displayName: getMarketDisplayName(market.code),
+  }));
 }
 
 export async function getCrateImportPageData(dateStr: string) {

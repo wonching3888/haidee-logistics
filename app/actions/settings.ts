@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -108,7 +108,11 @@ export async function getSettingsData() {
       role: u.role,
       active: u.active,
     })),
-    markets,
+    markets: markets.map((m) => ({
+      id: m.id,
+      code: m.code,
+      name: getMarketDisplayName(m.code),
+    })),
     tongTypes,
   };
 }

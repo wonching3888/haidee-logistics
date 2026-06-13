@@ -49,6 +49,7 @@ interface MarketOption {
   id: string;
   code: string;
   name: string;
+  displayName?: string;
 }
 
 interface InitialSession {
@@ -427,7 +428,7 @@ export function InboundForm({
                 >
                   {markets.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.code}
+                      {m.code} — {m.displayName ?? m.name}
                     </option>
                   ))}
                 </select>

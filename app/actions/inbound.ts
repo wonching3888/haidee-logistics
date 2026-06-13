@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/customerCrateStock";
 import { generateSessionNo, isSessionNoUniqueViolation, SESSION_NO_MAX_RETRIES } from "@/lib/inbound";
 import { MARKET_ORDER } from "@/lib/constants";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
 function aggregateCrateQuantities(
@@ -274,7 +275,11 @@ export async function getMarkets() {
     .sort(
       (a, b) =>
         (orderMap.get(a.code) ?? 999) - (orderMap.get(b.code) ?? 999)
-    );
+    )
+    .map((market) => ({
+      ...market,
+      displayName: getMarketDisplayName(market.code),
+    }));
 }
 
 export async function removeShipperStallDefault(
@@ -321,7 +326,9 @@ export async function getShipperStalls(shipperId: string) {
     stallCode: d.stall.code,
     stallName: d.stall.name,
     marketCode: d.stall.market?.code ?? "",
-    marketName: d.stall.market?.name ?? "",
+    marketName: d.stall.market?.code
+      ? getMarketDisplayName(d.stall.market.code)
+      : "",
     defaultTongTypeId: d.tongTypeId,
     defaultTongTypeCode: d.tongType.code,
     defaultTongTypeName: d.tongType.name,

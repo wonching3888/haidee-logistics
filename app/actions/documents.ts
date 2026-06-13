@@ -5,6 +5,7 @@ import { parseDateInput } from "@/lib/inbound-utils";
 import { getDONumber } from "@/lib/documents";
 import { formatDODate } from "@/lib/document-utils";
 import { MARKET_ORDER } from "@/lib/markets";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   computeDORowQty,
   DO_TONG_COLUMNS,
@@ -333,14 +334,11 @@ export async function getMultiMarketDOData(
   const rows = allLines.length > 0 ? buildMarketDORows(allLines) : [];
 
   const primaryCode = uniqueCodes[0];
-  const market = await prisma.market.findUnique({
-    where: { code: primaryCode },
-  });
 
   return {
     marketCode: primaryCode,
     marketCodes: uniqueCodes,
-    marketName: market?.name ?? primaryCode,
+    marketName: getMarketDisplayName(primaryCode),
     date: formatDODate(date),
     rows,
   };

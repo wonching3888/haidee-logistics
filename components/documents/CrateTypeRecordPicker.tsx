@@ -111,7 +111,7 @@ export function CrateTypeRecordPicker({
                   onChange={() => onToggleMarket(code)}
                   className="h-4 w-4 accent-haidee-blue"
                 />
-                <DispatchMarketLabel code={code} />
+                <DispatchMarketLabel code={code} showDisplayName />
               </label>
             );
           })}

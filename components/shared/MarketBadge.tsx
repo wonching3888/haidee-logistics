@@ -1,4 +1,5 @@
 import { getMarketColor } from "@/lib/markets";
+import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { cn } from "@/lib/utils";
 
 interface MarketBadgeProps {
@@ -20,6 +21,7 @@ export function MarketBadge({ code, className }: MarketBadgeProps) {
         color: colors.text,
         border: `1px solid ${colors.border}`,
       }}
+      title={getMarketDisplayName(code)}
     >
       {code}
     </span>
