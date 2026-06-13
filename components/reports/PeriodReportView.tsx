@@ -5,15 +5,23 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { Printer } from "lucide-react";
-import type { MarketReportData, MarketReportMode } from "@/app/actions/market-report";
+import type {
+  PeriodReportData,
+  PeriodReportMode,
+} from "@/lib/reports/period-report-shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface MarketReportViewProps {
-  mode: MarketReportMode;
+interface PeriodReportViewProps {
+  basePath: string;
+  reportTitle: string;
+  reportTitleEn: string;
+  emptyMessage: string;
+  documentTitlePrefix: string;
+  mode: PeriodReportMode;
   year: number;
   month: number;
-  data: MarketReportData;
+  data: PeriodReportData;
 }
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, index) => 2020 + index);
@@ -36,22 +44,27 @@ function formatCell(value: number): string {
   return value > 0 ? String(value) : "";
 }
 
-export function MarketReportView({
+export function PeriodReportView({
+  basePath,
+  reportTitle,
+  reportTitleEn,
+  emptyMessage,
+  documentTitlePrefix,
   mode,
   year,
   month,
   data,
-}: MarketReportViewProps) {
+}: PeriodReportViewProps) {
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `MarketReport-${data.mode}-${data.periodLabel}`,
+    documentTitle: `${documentTitlePrefix}-${data.mode}-${data.periodLabel}`,
   });
 
   function updateParams(next: {
-    mode?: MarketReportMode;
+    mode?: PeriodReportMode;
     year?: number;
     month?: number;
   }) {
@@ -61,7 +74,7 @@ export function MarketReportView({
     if ((next.mode ?? mode) === "monthly") {
       params.set("month", String(next.month ?? month));
     }
-    router.push(`/market-report?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   }
 
   const periodHeader = mode === "monthly" ? "日期 Date" : "月份 Month";
@@ -70,7 +83,7 @@ export function MarketReportView({
     "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface px-3 py-2 text-left font-semibold";
   const stickyTotalHead =
     "sticky left-[120px] top-0 z-30 border border-haidee-border bg-haidee-surface px-3 py-2 text-center font-semibold";
-  const stickyMarketHead =
+  const stickyDataHead =
     "sticky top-0 z-20 border border-haidee-border bg-haidee-surface px-2 py-2 text-center font-semibold";
 
   return (
@@ -108,13 +121,13 @@ export function MarketReportView({
 
         <div className="space-y-1">
           <label
-            htmlFor="market-report-year"
+            htmlFor={`${documentTitlePrefix}-year`}
             className="text-sm font-medium text-haidee-text"
           >
             年份 Year
           </label>
           <select
-            id="market-report-year"
+            id={`${documentTitlePrefix}-year`}
             value={year}
             onChange={(event) =>
               updateParams({ year: Number(event.target.value) })
@@ -132,13 +145,13 @@ export function MarketReportView({
         {mode === "monthly" && (
           <div className="space-y-1">
             <label
-              htmlFor="market-report-month"
+              htmlFor={`${documentTitlePrefix}-month`}
               className="text-sm font-medium text-haidee-text"
             >
               月份 Month
             </label>
             <select
-              id="market-report-month"
+              id={`${documentTitlePrefix}-month`}
               value={month}
               onChange={(event) =>
                 updateParams({ month: Number(event.target.value) })
@@ -169,11 +182,11 @@ export function MarketReportView({
 
       <div
         ref={printRef}
-        className="market-report-print flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white"
+        className="period-report-print flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white"
       >
         <div className="hidden shrink-0 border-b border-haidee-border px-4 py-3 print:block">
           <h3 className="text-lg font-bold text-haidee-text">
-            市场报表 Market Report
+            {reportTitle} {reportTitleEn}
           </h3>
           <p className="text-sm text-haidee-muted">
             {mode === "monthly" ? "月度 Monthly" : "年度 Yearly"} ·{" "}
@@ -182,12 +195,10 @@ export function MarketReportView({
         </div>
 
         {data.columns.length === 0 ? (
-          <p className="p-8 text-center text-haidee-muted">
-            所选期间暂无派车货量 No dispatch quantities for this period
-          </p>
+          <p className="p-8 text-center text-haidee-muted">{emptyMessage}</p>
         ) : (
           <div className="min-h-0 flex-1 overflow-hidden">
-            <div className="market-report-scroll" style={tableScrollStyle}>
+            <div className="period-report-scroll" style={tableScrollStyle}>
               <table className="min-w-max border-collapse text-sm">
                 <thead>
                   <tr className="text-haidee-text">
@@ -200,7 +211,7 @@ export function MarketReportView({
                     {data.columns.map((column) => (
                       <th
                         key={column.code}
-                        className={cn(stickyMarketHead, "min-w-[72px]")}
+                        className={cn(stickyDataHead, "min-w-[72px]")}
                         title={column.header}
                       >
                         {column.code}
@@ -243,7 +254,7 @@ export function MarketReportView({
                               row.isTotal && "bg-haidee-navy/5"
                             )}
                           >
-                            {formatCell(row.markets[column.code] ?? 0)}
+                            {formatCell(row.values[column.code] ?? 0)}
                           </td>
                         ))}
                       </tr>
@@ -258,23 +269,23 @@ export function MarketReportView({
 
       <style jsx global>{`
         @media print {
-          .market-report-print {
+          .period-report-print {
             border: none !important;
             overflow: visible !important;
           }
 
-          .market-report-scroll {
+          .period-report-scroll {
             height: auto !important;
             max-height: none !important;
             overflow: visible !important;
           }
 
-          .market-report-print table {
+          .period-report-print table {
             font-size: 10pt;
           }
 
-          .market-report-print th,
-          .market-report-print td {
+          .period-report-print th,
+          .period-report-print td {
             color: #000 !important;
             position: static !important;
           }

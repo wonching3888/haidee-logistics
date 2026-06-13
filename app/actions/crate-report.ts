@@ -1,9 +1,11 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { getMarketDisplayName } from "@/lib/constants/market-names";
-import { MARKET_ORDER, getActiveMarkets } from "@/lib/markets";
-import { fetchMarketDispatchEntries } from "@/lib/reports/fetch-dispatch-quantities";
+import {
+  DO_TONG_COLUMNS,
+  mapTongToColumn,
+} from "@/lib/constants/tong-columns";
+import { fetchCrateDispatchEntries } from "@/lib/reports/fetch-dispatch-quantities";
 import {
   buildPeriodReport,
   getMonthDateRange,
@@ -12,17 +14,19 @@ import {
   type PeriodReportMode,
 } from "@/lib/reports/period-report-shared";
 
-export type { PeriodReportMode as MarketReportMode };
-export type MarketReportData = PeriodReportData;
+export type { PeriodReportMode as CrateReportMode };
+export type CrateReportData = PeriodReportData;
 
-function buildMarketColumns(columnTotals: Record<string, number>) {
-  return getActiveMarkets(columnTotals, MARKET_ORDER).map((code) => ({
-    code,
-    header: getMarketDisplayName(code),
+function buildCrateColumns(columnTotals: Record<string, number>) {
+  return DO_TONG_COLUMNS.filter(
+    (column) => (columnTotals[column.code] ?? 0) > 0
+  ).map((column) => ({
+    code: column.code,
+    header: column.header,
   }));
 }
 
-export async function getMarketReport(input: {
+export async function getCrateReport(input: {
   mode: PeriodReportMode;
   year: number;
   month?: number;
@@ -42,13 +46,17 @@ export async function getMarketReport(input: {
       ? getMonthDateRange(year, month)
       : getYearDateRange(year);
 
-  const entries = await fetchMarketDispatchEntries(range.start, range.end);
+  const entries = await fetchCrateDispatchEntries(
+    range.start,
+    range.end,
+    mapTongToColumn
+  );
 
   return buildPeriodReport({
     mode,
     year,
     month,
     entries,
-    buildColumns: buildMarketColumns,
+    buildColumns: buildCrateColumns,
   });
 }

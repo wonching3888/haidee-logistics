@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   PackageSearch,
@@ -16,6 +17,8 @@ import {
   Search,
   Settings,
   Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -28,16 +31,17 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
+interface NavGroup {
+  label: string;
+  labelEn: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: Omit<NavItem, "icon">[];
+}
+
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "总览", labelEn: "Dashboard", icon: LayoutDashboard },
   { href: "/inbound", label: "进货录入", labelEn: "Inbound", icon: PackageSearch },
   { href: "/summary", label: "每日总单", labelEn: "Daily Summary", icon: TableProperties },
-  {
-    href: "/market-report",
-    label: "市场报表",
-    labelEn: "Market Report",
-    icon: BarChart3,
-  },
   { href: "/search", label: "查询", labelEn: "Search", icon: Search },
   { href: "/dispatch", label: "派车调度", labelEn: "Dispatch", icon: Truck },
   { href: "/documents", label: "文件生成", labelEn: "Documents", icon: FileText },
@@ -54,6 +58,16 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/settings", label: "系统设置", labelEn: "Settings", icon: Settings, adminOnly: true },
 ];
 
+const REPORTS_GROUP: NavGroup = {
+  label: "报表",
+  labelEn: "Reports",
+  icon: BarChart3,
+  children: [
+    { href: "/reports/market", label: "市场报表", labelEn: "Market Report" },
+    { href: "/reports/crate", label: "桶型报表", labelEn: "Crate Report" },
+  ],
+};
+
 interface SidebarProps {
   role: UserRole;
   isOpen?: boolean;
@@ -63,6 +77,18 @@ interface SidebarProps {
 export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const reportsActive = pathname.startsWith("/reports/");
+  const [reportsOpen, setReportsOpen] = useState(reportsActive);
+
+  useEffect(() => {
+    if (reportsActive) setReportsOpen(true);
+  }, [reportsActive]);
+
+  const summaryIndex = items.findIndex((item) => item.href === "/summary");
+  const beforeReports = items.slice(0, summaryIndex + 1);
+  const afterReports = items.slice(summaryIndex + 1);
+
+  const ReportsIcon = REPORTS_GROUP.icon;
 
   return (
     <aside
@@ -80,32 +106,77 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="m-0 list-none space-y-1 p-0">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+          {beforeReports.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ))}
 
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                    isActive
-                      ? "bg-haidee-accent/20 text-haidee-accent"
-                      : "text-white/75 hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span>
-                    {item.label}{" "}
-                    <span className="text-xs text-white/50">{item.labelEn}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          <li>
+            <button
+              type="button"
+              onClick={() => setReportsOpen((open) => !open)}
+              className={cn(
+                "flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                reportsActive
+                  ? "bg-haidee-accent/20 text-haidee-accent"
+                  : "text-white/75 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              <ReportsIcon className="h-5 w-5 shrink-0" />
+              <span className="flex-1 text-left">
+                {REPORTS_GROUP.label}{" "}
+                <span className="text-xs text-white/50">{REPORTS_GROUP.labelEn}</span>
+              </span>
+              {reportsOpen ? (
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+              )}
+            </button>
+
+            {reportsOpen && (
+              <ul className="m-0 mt-1 list-none space-y-1 p-0 pl-4">
+                {REPORTS_GROUP.children.map((child) => {
+                  const isActive =
+                    pathname === child.href ||
+                    pathname.startsWith(child.href + "/");
+
+                  return (
+                    <li key={child.href}>
+                      <Link
+                        href={child.href}
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex min-h-[40px] items-center rounded-lg px-3 py-2 text-sm transition-colors",
+                          isActive
+                            ? "bg-haidee-accent/20 text-haidee-accent"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <span>
+                          {child.label}{" "}
+                          <span className="text-xs text-white/50">{child.labelEn}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+
+          {afterReports.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ))}
         </ul>
       </nav>
 
@@ -117,5 +188,40 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
         </p>
       </div>
     </aside>
+  );
+}
+
+function NavLink({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  const isActive =
+    pathname === item.href || pathname.startsWith(item.href + "/");
+
+  return (
+    <li>
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+          isActive
+            ? "bg-haidee-accent/20 text-haidee-accent"
+            : "text-white/75 hover:bg-white/10 hover:text-white"
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        <span>
+          {item.label}{" "}
+          <span className="text-xs text-white/50">{item.labelEn}</span>
+        </span>
+      </Link>
+    </li>
   );
 }
