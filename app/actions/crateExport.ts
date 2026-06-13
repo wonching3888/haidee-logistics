@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { generateExportNo, getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
+import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 
 export interface CrateExportLineInput {
   tongTypeId: string;
@@ -47,7 +48,7 @@ export async function saveCrateExport(input: {
     generateExportNo(date),
     prisma.shipper.findUnique({
       where: { id: input.shipperId },
-      select: { name: true },
+      select: { name: true, code: true },
     }),
     prisma.tongType.findMany({
       where: { id: { in: tongTypeIds } },
@@ -56,6 +57,10 @@ export async function saveCrateExport(input: {
   ]);
 
   if (!shipper) throw new Error("寄货人不存在 Shipper not found");
+
+  const poolStockLocation = stockLocationForPoolShipperCode(shipper.code);
+  const customerStockLocation =
+    poolStockLocation ?? input.location?.trim() ?? "";
 
   const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
   const exportRows: Prisma.TongExportCreateManyInput[] = [];
@@ -113,7 +118,7 @@ export async function saveCrateExport(input: {
       input.shipperId,
       crateAdditions,
       "export",
-      input.location ?? "",
+      customerStockLocation,
       exportNo ? `归还 ${exportNo}` : undefined
     );
   }

@@ -3,10 +3,15 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   getTodayInboundByShipper,
+  getTodayInboundByPickupLocation,
   getSadaoStock,
   getThVehiclesForShipper,
   saveTongExport,
 } from "@/app/actions/tong";
+import {
+  isLocationPoolShipperCode,
+  stockLocationForPoolShipperCode,
+} from "@/lib/constants/location-pool-shippers";
 import { PrintPreviewDialog } from "@/components/documents/PrintPreviewDialog";
 import {
   TongExportReceipt,
@@ -56,44 +61,64 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
+  const selectedShipper = shippers.find((s) => s.id === shipperId);
+  const poolStockLocation = selectedShipper
+    ? stockLocationForPoolShipperCode(selectedShipper.code)
+    : null;
+  const isLocationPoolShipper = selectedShipper
+    ? isLocationPoolShipperCode(selectedShipper.code)
+    : false;
+
   useEffect(() => {
-    if (!shipperId) {
+    if (!shipperId || !selectedShipper) {
       setLines([]);
       setVehicleSuggestions([]);
+      setLocation("");
       return;
     }
 
-    Promise.all([
-      getTodayInboundByShipper(date, shipperId),
-      getSadaoStock(),
-      getThVehiclesForShipper(shipperId),
-    ]).then(([inbound, stock, vehicles]) => {
-      setVehicleSuggestions(vehicles.map((v) => v.plate));
+    if (poolStockLocation) {
+      setLocation(poolStockLocation);
+    }
 
-      const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
-      const inboundMap = Object.fromEntries(
-        inbound.map((i) => [i.code, i.quantity])
-      );
+    const inboundPromise = poolStockLocation
+      ? getTodayInboundByPickupLocation(date, poolStockLocation)
+      : getTodayInboundByShipper(date, shipperId);
 
-      setLines(
-        tongTypes.map((t) => {
-          const suggested = inboundMap[t.code] ?? 0;
-          const stockQty = stockMap[t.code] ?? 0;
-          const actual = suggested > 0 ? String(Math.min(suggested, stockQty)) : "0";
-          const actualNum = parseInt(actual, 10) || 0;
-          return {
-            tongTypeId: t.id,
-            code: t.code,
-            name: t.name,
-            suggested,
-            stock: stockQty,
-            actual,
-            shortage: Math.max(0, suggested - actualNum),
-          };
-        })
-      );
-    });
-  }, [shipperId, date, tongTypes]);
+    const vehiclePromise = isLocationPoolShipper
+      ? Promise.resolve([])
+      : getThVehiclesForShipper(shipperId);
+
+    Promise.all([inboundPromise, getSadaoStock(), vehiclePromise]).then(
+      ([inbound, stock, vehicles]) => {
+        setVehicleSuggestions(vehicles.map((v) => v.plate));
+
+        const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
+        const inboundMap = Object.fromEntries(
+          inbound.map((i) => [i.code, i.quantity])
+        );
+
+        setLines(
+          tongTypes.map((t) => {
+            const suggested = inboundMap[t.code] ?? 0;
+            const stockQty = stockMap[t.code] ?? 0;
+            const actual =
+              suggested > 0 ? String(Math.min(suggested, stockQty)) : "0";
+            const actualNum = parseInt(actual, 10) || 0;
+            return {
+              tongTypeId: t.id,
+              code: t.code,
+              name: t.name,
+              suggested,
+              stock: stockQty,
+              actual,
+              shortage: Math.max(0, suggested - actualNum),
+            };
+          })
+        );
+      }
+    );
+  }, [shipperId, date, tongTypes, selectedShipper, poolStockLocation, isLocationPoolShipper]);
 
   function updateActual(tongTypeId: string, value: string) {
     if (value !== "" && !/^\d+$/.test(value)) return;
@@ -156,7 +181,10 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
           </label>
           <select
             value={shipperId}
-            onChange={(e) => setShipperId(e.target.value)}
+            onChange={(e) => {
+              setShipperId(e.target.value);
+              setLocation("");
+            }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
           >
             <option value="">— 选择 Select —</option>
@@ -182,12 +210,18 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
           <label className="text-sm font-medium text-haidee-text">
             产地 Location
           </label>
-          <Input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="如 PHUKET、TOT (选填 Optional)"
-            className="min-h-[44px]"
-          />
+          {isLocationPoolShipper && poolStockLocation ? (
+            <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
+              {poolStockLocation}
+            </div>
+          ) : (
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="如 PHUKET、TOT (选填 Optional)"
+              className="min-h-[44px]"
+            />
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">

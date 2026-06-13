@@ -20,6 +20,11 @@ import {
 } from "@/lib/constants/import-markets";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
+  LOCATION_POOL_SHIPPER_CODES,
+  LOCATION_POOL_SHIPPER_LIST,
+} from "@/lib/constants/location-pool-shippers";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import {
   saveCrateExport,
   type CrateExportLineInput,
 } from "@/app/actions/crateExport";
@@ -86,12 +91,48 @@ export async function getTongTypesForExport() {
   });
 }
 
+export async function ensureLocationPoolShippers() {
+  const shippers = [];
+  for (const spec of LOCATION_POOL_SHIPPER_LIST) {
+    const shipper = await prisma.shipper.upsert({
+      where: { code: spec.code },
+      create: {
+        code: spec.code,
+        name: spec.name,
+        pickupLocation: spec.pickupLocation,
+        active: true,
+      },
+      update: {
+        name: spec.name,
+        pickupLocation: spec.pickupLocation,
+        active: true,
+      },
+      select: { id: true, code: true, name: true },
+    });
+    shippers.push(shipper);
+  }
+  return shippers;
+}
+
 export async function getShippersForExport() {
-  return prisma.shipper.findMany({
-    where: { active: true },
-    orderBy: { name: "asc" },
-    select: { id: true, code: true, name: true },
-  });
+  const [poolShippers, shippers] = await Promise.all([
+    ensureLocationPoolShippers(),
+    prisma.shipper.findMany({
+      where: {
+        active: true,
+        code: {
+          notIn: [
+            LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
+            LOCATION_POOL_SHIPPER_CODES.PATTANI,
+          ],
+        },
+      },
+      orderBy: { name: "asc" },
+      select: { id: true, code: true, name: true },
+    }),
+  ]);
+
+  return [...poolShippers, ...shippers];
 }
 
 export async function getThVehiclesForShipper(shipperId: string) {
@@ -131,6 +172,52 @@ export async function getTodayInboundByShipper(
         name: line.tongType.name,
         quantity: line.quantity,
       });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    a.code.localeCompare(b.code)
+  );
+}
+
+export async function getTodayInboundByPickupLocation(
+  dateStr: string,
+  pickupLocation: "SONGKHLA" | "PATTANI"
+) {
+  const date = parseDateInput(dateStr);
+  const sessions = await prisma.inboundSession.findMany({
+    where: { date, status: "confirmed" },
+    include: {
+      shipper: { select: { pickupLocation: true } },
+      lines: { include: { tongType: true } },
+    },
+  });
+
+  const map = new Map<
+    string,
+    { tongTypeId: string; code: string; name: string; quantity: number }
+  >();
+
+  for (const session of sessions) {
+    const effective = resolveSessionPickupLocation(
+      session.pickupLocation,
+      session.shipper.pickupLocation
+    );
+    if (effective !== pickupLocation) continue;
+
+    for (const line of session.lines) {
+      if (!line.tongType.trackInventory || line.tongType.isBox) continue;
+      const existing = map.get(line.tongTypeId);
+      if (existing) {
+        existing.quantity += line.quantity;
+      } else {
+        map.set(line.tongTypeId, {
+          tongTypeId: line.tongTypeId,
+          code: line.tongType.code,
+          name: line.tongType.name,
+          quantity: line.quantity,
+        });
+      }
     }
   }
 

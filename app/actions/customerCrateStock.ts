@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import {
+  LOCATION_POOL_SHIPPER_CODES,
+} from "@/lib/constants/location-pool-shippers";
+import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
 } from "@/lib/constants/pickup-locations";
@@ -123,6 +126,12 @@ export async function getCustomerCrateStock(search?: string) {
   const shippers = await prisma.shipper.findMany({
     where: {
       active: true,
+      code: {
+        notIn: [
+          LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
+          LOCATION_POOL_SHIPPER_CODES.PATTANI,
+        ],
+      },
       ...(search?.trim()
         ? {
             OR: [

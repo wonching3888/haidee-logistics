@@ -17,6 +17,7 @@ import {
   resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
+import { LOCATION_POOL_SHIPPER_CODES } from "@/lib/constants/location-pool-shippers";
 import {
   getStallDisplayLabel,
   isOtherMarket,
@@ -339,7 +340,15 @@ export async function removeShipperStallDefault(
 
 export async function getShippers() {
   return prisma.shipper.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      code: {
+        notIn: [
+          LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
+          LOCATION_POOL_SHIPPER_CODES.PATTANI,
+        ],
+      },
+    },
     orderBy: { name: "asc" },
     select: {
       id: true,
