@@ -80,3 +80,15 @@ export function normalizeSessionPickupInput(
   }
   return value;
 }
+
+/** Customer crate stock bucket for inbound deductions. */
+export function resolveInboundCrateStockLocation(
+  pickupLocation: PickupLocation,
+  areaNote: string | null | undefined
+): string {
+  if (pickupLocation === "SONGKHLA") return "SONGKHLA";
+  if (pickupLocation === "PATTANI") return "PATTANI";
+  return areaNote?.trim() ?? "";
+}
+
+export const PICKUP_CRATE_STOCK_LOCATIONS = ["SONGKHLA", "PATTANI"] as const;

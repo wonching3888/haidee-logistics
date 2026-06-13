@@ -21,9 +21,9 @@ import {
 } from "@/lib/inbound-utils";
 import {
   DEFAULT_PICKUP_LOCATION,
-  isPickupLocation,
+  PICKUP_LOCATIONS,
   PICKUP_LOCATION_LABELS,
-  SESSION_PICKUP_USE_DEFAULT,
+  resolveSessionPickupLocation,
   tripPickupSaveValue,
   tripPickupSelectValue,
 } from "@/lib/constants/pickup-locations";
@@ -33,6 +33,12 @@ interface ShipperOption {
   code: string;
   name: string;
   pickupLocation: string;
+}
+
+function shipperDefaultPickup(
+  shipper: ShipperOption | undefined
+): typeof DEFAULT_PICKUP_LOCATION {
+  return resolveSessionPickupLocation(null, shipper?.pickupLocation);
 }
 
 interface TongTypeOption {
@@ -109,12 +115,12 @@ export function InboundForm({
   );
   const [areaNote, setAreaNote] = useState(initialSession?.areaNote ?? "");
   const [sessionPickupLocation, setSessionPickupLocation] = useState(() =>
-    initialSession
+    initialSession?.shipperId
       ? tripPickupSelectValue(
           initialSession.pickupLocation,
           initialSession.shipperPickupLocation
         )
-      : DEFAULT_PICKUP_LOCATION
+      : ""
   );
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [rows, setRows] = useState<LineState[]>([]);
@@ -252,6 +258,10 @@ export function InboundForm({
         lineId: r.lineId,
       }));
 
+    const shipper = shippers.find((s) => s.id === shipperId);
+    const selectedPickup =
+      sessionPickupLocation || shipperDefaultPickup(shipper);
+
     startTransition(async () => {
       try {
         await saveInboundSession({
@@ -260,8 +270,8 @@ export function InboundForm({
           thVehiclePlate: thVehiclePlate || undefined,
           areaNote: areaNote || undefined,
           pickupLocation: tripPickupSaveValue(
-            sessionPickupLocation,
-            shippers.find((s) => s.id === shipperId)?.pickupLocation
+            selectedPickup,
+            shipper?.pickupLocation
           ),
           lines,
           removedStallIds,
@@ -307,11 +317,7 @@ export function InboundForm({
               const nextShipperId = e.target.value;
               setShipperId(nextShipperId);
               const shipper = shippers.find((s) => s.id === nextShipperId);
-              setSessionPickupLocation(
-                shipper && isPickupLocation(shipper.pickupLocation)
-                  ? shipper.pickupLocation
-                  : DEFAULT_PICKUP_LOCATION
-              );
+              setSessionPickupLocation(shipperDefaultPickup(shipper));
             }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
           >
@@ -334,10 +340,14 @@ export function InboundForm({
             disabled={!shipperId}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:cursor-not-allowed disabled:bg-haidee-surface/60"
           >
-            <option value={SESSION_PICKUP_USE_DEFAULT}>按顾客默认</option>
-            <option value="SADAO">{PICKUP_LOCATION_LABELS.SADAO}</option>
-            <option value="SONGKHLA">{PICKUP_LOCATION_LABELS.SONGKHLA}</option>
-            <option value="PATTANI">{PICKUP_LOCATION_LABELS.PATTANI}</option>
+            {!shipperId && (
+              <option value="">— 选择寄货人 Select —</option>
+            )}
+            {PICKUP_LOCATIONS.map((code) => (
+              <option key={code} value={code}>
+                {PICKUP_LOCATION_LABELS[code]}
+              </option>
+            ))}
           </select>
         </div>
 

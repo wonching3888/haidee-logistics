@@ -14,7 +14,8 @@ export default async function CustomerCrateStockPage({
   const search = params.q?.trim() ?? "";
 
   try {
-    const { crateTypes, rows } = await getCustomerCrateStock(search);
+    const { crateTypes, rows, pickupLocationSummaries } =
+      await getCustomerCrateStock(search);
 
     return (
       <div className="space-y-6">
@@ -35,6 +36,7 @@ export default async function CustomerCrateStockPage({
           <CustomerCrateStockView
             crateTypes={crateTypes}
             rows={rows}
+            pickupLocationSummaries={pickupLocationSummaries}
             initialSearch={search}
           />
         </Suspense>

@@ -14,6 +14,7 @@ import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   formatPickupLocationLabel,
   normalizeSessionPickupInput,
+  resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
 import {
@@ -559,6 +560,18 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
   const date = parseDateInput(input.date);
   const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: input.shipperId },
+    select: { pickupLocation: true },
+  });
+  const effectivePickup = resolveSessionPickupLocation(
+    sessionPickupLocation,
+    shipper?.pickupLocation
+  );
+  const crateStockLocation = resolveInboundCrateStockLocation(
+    effectivePickup,
+    input.areaNote
+  );
   const activeLines = input.lines.filter(
     (l) => l.quantity > 0 && !l.stallId.startsWith("new-")
   );
@@ -679,7 +692,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     if (status === "confirmed" && existing.status === "draft") {
       await applyInboundCrateDeduction(
         input.shipperId,
-        input.areaNote ?? "",
+        crateStockLocation,
         allLines,
         typeMap
       );
@@ -763,7 +776,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   if (status === "confirmed") {
     await applyInboundCrateDeduction(
       input.shipperId,
-      input.areaNote ?? "",
+      crateStockLocation,
       allLines,
       typeMap
     );
@@ -781,6 +794,7 @@ export async function deleteInboundSession(sessionId: string) {
   const session = await prisma.inboundSession.findUnique({
     where: { id: sessionId },
     include: {
+      shipper: { select: { pickupLocation: true } },
       lines: {
         select: {
           id: true,
@@ -804,9 +818,16 @@ export async function deleteInboundSession(sessionId: string) {
   );
 
   if (session.status === "confirmed") {
+    const crateStockLocation = resolveInboundCrateStockLocation(
+      resolveSessionPickupLocation(
+        session.pickupLocation,
+        session.shipper.pickupLocation
+      ),
+      session.areaNote
+    );
     await reverseInboundCrateDeduction(
       session.shipperId,
-      session.areaNote ?? "",
+      crateStockLocation,
       session.lines
     );
   }

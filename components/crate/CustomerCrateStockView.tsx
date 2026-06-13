@@ -7,8 +7,11 @@ import {
   updateCustomerCrateStock,
   type CrateTypeColumn,
   type CustomerCrateStockRow,
+  type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
+import { PickupLocationStockBlocks } from "@/components/crate/PickupLocationStockBlocks";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { formatPickupLocationLabel } from "@/lib/constants/pickup-locations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,6 +34,7 @@ import { cn } from "@/lib/utils";
 interface CustomerCrateStockViewProps {
   crateTypes: CrateTypeColumn[];
   rows: CustomerCrateStockRow[];
+  pickupLocationSummaries: PickupLocationStockSummary[];
   initialSearch: string;
 }
 
@@ -39,6 +43,9 @@ function qtyClass(qty: number) {
 }
 
 function formatLocationLabel(location: string) {
+  if (location === "SONGKHLA" || location === "PATTANI") {
+    return formatPickupLocationLabel(location);
+  }
   return location || "未注明";
 }
 
@@ -52,6 +59,7 @@ function rowGrandTotal(
 export function CustomerCrateStockView({
   crateTypes,
   rows,
+  pickupLocationSummaries,
   initialSearch,
 }: CustomerCrateStockViewProps) {
   const router = useRouter();
@@ -166,6 +174,11 @@ export function CustomerCrateStockView({
           搜索 Search
         </Button>
       </div>
+
+      <PickupLocationStockBlocks
+        crateTypes={crateTypes}
+        summaries={pickupLocationSummaries}
+      />
 
       <p className="text-xs text-haidee-muted">
         欠桶（负数）以红色显示 · 点击行首展开各产地明细

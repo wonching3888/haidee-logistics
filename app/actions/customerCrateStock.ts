@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
+import {
+  formatPickupLocationLabel,
+  PICKUP_CRATE_STOCK_LOCATIONS,
+} from "@/lib/constants/pickup-locations";
 
 export interface CrateTypeColumn {
   id: string;
@@ -22,6 +27,12 @@ export interface CustomerCrateStockRow {
   shipperName: string;
   quantities: Record<string, number>;
   locations: CustomerCrateLocationStock[];
+}
+
+export interface PickupLocationStockSummary {
+  location: (typeof PICKUP_CRATE_STOCK_LOCATIONS)[number];
+  title: string;
+  quantities: Record<string, number>;
 }
 
 export interface CustomerCrateLedgerEntry {
@@ -55,11 +66,45 @@ function stockWhere(
 }
 
 async function getTrackedCrateTypes(): Promise<CrateTypeColumn[]> {
-  return prisma.tongType.findMany({
+  const crateTypes = await prisma.tongType.findMany({
     where: { active: true, trackInventory: true, isBox: false },
-    orderBy: { displayOrder: "asc" },
     select: { id: true, code: true, name: true },
   });
+  const order = new Map(
+    sortTongColumnCodes(crateTypes.map((crateType) => crateType.code)).map(
+      (code, index) => [code, index]
+    )
+  );
+  return crateTypes.sort(
+    (a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999)
+  );
+}
+
+async function getPickupLocationStockSummaries(
+  crateTypes: CrateTypeColumn[]
+): Promise<PickupLocationStockSummary[]> {
+  const stockRows = await prisma.customerCrateStock.findMany({
+    where: {
+      location: { in: [...PICKUP_CRATE_STOCK_LOCATIONS] },
+      shipper: { active: true },
+    },
+    select: { crateTypeId: true, location: true, quantity: true },
+  });
+
+  const summaries = PICKUP_CRATE_STOCK_LOCATIONS.map((location) => ({
+    location,
+    title: formatPickupLocationLabel(location),
+    quantities: initQuantities(crateTypes),
+  }));
+
+  for (const row of stockRows) {
+    const summary = summaries.find((item) => item.location === row.location);
+    if (!summary) continue;
+    summary.quantities[row.crateTypeId] =
+      (summary.quantities[row.crateTypeId] ?? 0) + row.quantity;
+  }
+
+  return summaries;
 }
 
 function initQuantities(crateTypes: CrateTypeColumn[]): Record<string, number> {
@@ -72,6 +117,8 @@ function initQuantities(crateTypes: CrateTypeColumn[]): Record<string, number> {
 
 export async function getCustomerCrateStock(search?: string) {
   const crateTypes = await getTrackedCrateTypes();
+  const pickupLocationSummaries =
+    await getPickupLocationStockSummaries(crateTypes);
 
   const shippers = await prisma.shipper.findMany({
     where: {
@@ -128,7 +175,7 @@ export async function getCustomerCrateStock(search?: string) {
     };
   });
 
-  return { crateTypes, rows };
+  return { crateTypes, rows, pickupLocationSummaries };
 }
 
 export async function updateCustomerCrateStock(
