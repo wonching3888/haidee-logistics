@@ -8,7 +8,7 @@ import {
   addCustomerCratesBatch,
   deductCustomerCratesBatch,
 } from "@/app/actions/customerCrateStock";
-import { generateSessionNo } from "@/lib/inbound";
+import { generateSessionNo, isSessionNoUniqueViolation, SESSION_NO_MAX_RETRIES } from "@/lib/inbound";
 import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
@@ -538,31 +538,64 @@ export async function saveInboundSession(input: SaveInboundInput) {
     });
     if (!existing) throw new Error("进货单不存在 Session not found");
 
-    const sessionNo =
-      status === "confirmed" && !existing.sessionNo
-        ? await generateSessionNo(date)
-        : existing.sessionNo;
+    let sessionNo = existing.sessionNo;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.inboundSession.update({
-        where: { id: input.sessionId },
-        data: {
-          date,
-          shipperId: input.shipperId,
-          thVehiclePlate: input.thVehiclePlate || null,
-          areaNote: input.areaNote || null,
-          status,
-          sessionNo,
-        },
+    if (status === "confirmed" && !existing.sessionNo) {
+      for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            sessionNo = await generateSessionNo(date, tx);
+            await tx.inboundSession.update({
+              where: { id: input.sessionId },
+              data: {
+                date,
+                shipperId: input.shipperId,
+                thVehiclePlate: input.thVehiclePlate || null,
+                areaNote: input.areaNote || null,
+                status,
+                sessionNo,
+              },
+            });
+            await syncInboundLines(
+              input.sessionId!,
+              allLines,
+              existing.lines,
+              typeMap,
+              tx
+            );
+          });
+          break;
+        } catch (error) {
+          if (
+            !isSessionNoUniqueViolation(error) ||
+            attempt === SESSION_NO_MAX_RETRIES - 1
+          ) {
+            throw error;
+          }
+        }
+      }
+    } else {
+      await prisma.$transaction(async (tx) => {
+        await tx.inboundSession.update({
+          where: { id: input.sessionId },
+          data: {
+            date,
+            shipperId: input.shipperId,
+            thVehiclePlate: input.thVehiclePlate || null,
+            areaNote: input.areaNote || null,
+            status,
+            sessionNo,
+          },
+        });
+        await syncInboundLines(
+          input.sessionId!,
+          allLines,
+          existing.lines,
+          typeMap,
+          tx
+        );
       });
-      await syncInboundLines(
-        input.sessionId!,
-        allLines,
-        existing.lines,
-        typeMap,
-        tx
-      );
-    });
+    }
 
     if (status === "confirmed" && existing.status === "draft") {
       await applyInboundCrateDeduction(
@@ -578,28 +611,73 @@ export async function saveInboundSession(input: SaveInboundInput) {
     return { id: input.sessionId, sessionNo };
   }
 
-  const sessionNo =
-    status === "confirmed" ? await generateSessionNo(date) : null;
+  let session: { id: string; sessionNo: string | null };
 
-  const session = await prisma.inboundSession.create({
-    data: {
-      date,
-      shipperId: input.shipperId,
-      thVehiclePlate: input.thVehiclePlate || null,
-      areaNote: input.areaNote || null,
-      status,
-      sessionNo,
-      createdById: user.id,
-      lines: {
-        create: allLines.map((line) => ({
-          stallId: line.stallId,
-          tongTypeId: line.tongTypeId,
-          quantity: line.quantity,
-          isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
-        })),
+  if (status === "confirmed") {
+    let created: { id: string; sessionNo: string | null } | undefined;
+
+    for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
+      try {
+        created = await prisma.$transaction(async (tx) => {
+          const sessionNo = await generateSessionNo(date, tx);
+          return tx.inboundSession.create({
+            data: {
+              date,
+              shipperId: input.shipperId,
+              thVehiclePlate: input.thVehiclePlate || null,
+              areaNote: input.areaNote || null,
+              status,
+              sessionNo,
+              createdById: user.id,
+              lines: {
+                create: allLines.map((line) => ({
+                  stallId: line.stallId,
+                  tongTypeId: line.tongTypeId,
+                  quantity: line.quantity,
+                  isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+                })),
+              },
+            },
+            select: { id: true, sessionNo: true },
+          });
+        });
+        break;
+      } catch (error) {
+        if (
+          !isSessionNoUniqueViolation(error) ||
+          attempt === SESSION_NO_MAX_RETRIES - 1
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    if (!created) {
+      throw new Error("无法生成唯一进货编号 Failed to generate unique session number");
+    }
+    session = created;
+  } else {
+    session = await prisma.inboundSession.create({
+      data: {
+        date,
+        shipperId: input.shipperId,
+        thVehiclePlate: input.thVehiclePlate || null,
+        areaNote: input.areaNote || null,
+        status,
+        sessionNo: null,
+        createdById: user.id,
+        lines: {
+          create: allLines.map((line) => ({
+            stallId: line.stallId,
+            tongTypeId: line.tongTypeId,
+            quantity: line.quantity,
+            isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+          })),
+        },
       },
-    },
-  });
+      select: { id: true, sessionNo: true },
+    });
+  }
 
   if (status === "confirmed") {
     await applyInboundCrateDeduction(
