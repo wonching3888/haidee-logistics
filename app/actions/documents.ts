@@ -13,7 +13,7 @@ import {
   isBoxColumn,
   mapTongToColumn,
   sumQuantities,
-  computeBlockSubtotals,
+  sumColumnQuantities,
 } from "@/lib/constants/tong-columns";
 import {
   CRATE_TYPE_RECORD_BLOCKS,
@@ -577,16 +577,25 @@ export async function getCrateTypeRecordData(
   ).map((col) => ({ code: col.code, header: col.header }));
 
   const activeColumnCodes = activeColumns.map((col) => col.code);
-  const serializedBlocks: CrateTypeRecordBlock[] = blocks.map((block) => ({
-    title: block.title,
-    trucks: block.trucks.map((truck) => ({
-      lorryNo: truck.lorryNo,
-      quantities: { ...truck.quantities },
-      total: truck.total,
-    })),
-    totals: computeBlockSubtotals(block.trucks, activeColumnCodes),
-    total: block.total,
-  }));
+  const serializedBlocks: CrateTypeRecordBlock[] = blocks.map((block) => {
+    const totals = Object.fromEntries(
+      activeColumnCodes.map((code) => [
+        code,
+        sumColumnQuantities(block.trucks, code),
+      ])
+    );
+
+    return {
+      title: block.title,
+      trucks: block.trucks.map((truck) => ({
+        lorryNo: truck.lorryNo,
+        quantities: { ...truck.quantities },
+        total: truck.total,
+      })),
+      totals,
+      total: block.total,
+    };
+  });
 
   return {
     date: formatDODate(date),

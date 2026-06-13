@@ -1,9 +1,24 @@
 import type { CrateTypeRecordData } from "@/app/actions/documents";
-import { formatDOCrateQuantity } from "@/lib/constants/tong-columns";
+import {
+  formatDOCrateQuantity,
+  sumColumnQuantities,
+} from "@/lib/constants/tong-columns";
 import "./document-print.css";
 
 interface CrateTypeRecordPrintProps {
   data: CrateTypeRecordData;
+}
+
+/** Prefer server-computed block.totals; fall back to summing truck rows. */
+function blockSubtotalQty(
+  block: CrateTypeRecordData["blocks"][number],
+  columnCode: string
+): number {
+  const fromTotals = block.totals?.[columnCode];
+  if (typeof fromTotals === "number" && Number.isFinite(fromTotals)) {
+    return fromTotals;
+  }
+  return sumColumnQuantities(block.trucks, columnCode);
 }
 
 function CrateRecordColGroup({
@@ -71,14 +86,14 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
               <tr className="area-subtotal-row">
                 <td className="crate-record-no-col text-left">小计 Subtotal</td>
                 <td className="crate-record-lorry-col">&nbsp;</td>
-                {activeColumns.map((col) => (
-                  <td key={col.code} className="crate-record-crate-col">
-                    {formatDOCrateQuantity(
-                      col.code,
-                      block.totals[col.code] ?? 0
-                    )}
-                  </td>
-                ))}
+                {activeColumns.map((col) => {
+                  const qty = blockSubtotalQty(block, col.code);
+                  return (
+                    <td key={col.code} className="crate-record-crate-col">
+                      {formatDOCrateQuantity(col.code, qty)}
+                    </td>
+                  );
+                })}
                 <td className="crate-record-total-col">{block.total}</td>
               </tr>
             </tbody>
