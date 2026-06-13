@@ -41,7 +41,6 @@ export async function getSettingsData() {
           stall: {
             include: { market: { select: { code: true } } },
           },
-          tongType: { select: { id: true, code: true, name: true } },
         },
         orderBy: [{ shipper: { name: "asc" } }],
       }),
@@ -100,8 +99,6 @@ export async function getSettingsData() {
       stallId: d.stallId,
       stallCode: d.stall.code,
       marketCode: d.stall.market?.code ?? "",
-      tongTypeId: d.tongTypeId,
-      tongTypeCode: d.tongType.code,
     })),
     trucks: trucks.map((t) => ({
       id: t.id,
@@ -236,27 +233,32 @@ export async function saveShipperStallDefault(input: {
   id?: string;
   shipperId: string;
   stallId: string;
-  tongTypeId: string;
 }) {
   await requireAdmin();
+
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: input.shipperId },
+    select: { defaultTongTypeId: true },
+  });
+  if (!shipper?.defaultTongTypeId) {
+    throw new Error(
+      "请先在寄货人主数据中设定默认桶型 Please set default crate type on the consignor first"
+    );
+  }
+
+  const data = {
+    shipperId: input.shipperId,
+    stallId: input.stallId,
+    tongTypeId: shipper.defaultTongTypeId,
+  };
 
   if (input.id) {
     await prisma.shipperStallDefault.update({
       where: { id: input.id },
-      data: {
-        shipperId: input.shipperId,
-        stallId: input.stallId,
-        tongTypeId: input.tongTypeId,
-      },
+      data,
     });
   } else {
-    await prisma.shipperStallDefault.create({
-      data: {
-        shipperId: input.shipperId,
-        stallId: input.stallId,
-        tongTypeId: input.tongTypeId,
-      },
-    });
+    await prisma.shipperStallDefault.create({ data });
   }
 
   revalidatePath("/settings");

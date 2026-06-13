@@ -89,8 +89,6 @@ interface SettingsData {
     stallId: string;
     stallCode: string;
     marketCode: string;
-    tongTypeId: string;
-    tongTypeCode: string;
   }[];
   trucks: {
     id: string;
@@ -182,7 +180,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
   const [defaultForm, setDefaultForm] = useState({
     shipperId: "",
     stallId: "",
-    tongTypeId: "",
   });
   const [truckForm, setTruckForm] = useState({
     plate: "",
@@ -410,7 +407,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                 setDefaultForm({
                   shipperId: data.shippers[0]?.id ?? "",
                   stallId: data.stalls[0]?.id ?? "",
-                  tongTypeId: data.tongTypes[0]?.id ?? "",
                 });
                 setDialog("default");
               }}
@@ -425,7 +421,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                 <TableHead>寄货人 Consignor</TableHead>
                 <TableHead>市场 Market</TableHead>
                 <TableHead>档口 Stall</TableHead>
-                <TableHead>默认桶型 Default Crate Type</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -435,7 +430,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                   <TableCell>{d.shipperName}</TableCell>
                   <TableCell className="font-mono">{d.marketCode}</TableCell>
                   <TableCell className="font-mono">{d.stallCode}</TableCell>
-                  <TableCell className="font-mono">{d.tongTypeCode}</TableCell>
                   <TableCell className="text-right">
                     <RowActions
                       onEdit={() => {
@@ -443,7 +437,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                         setDefaultForm({
                           shipperId: d.shipperId,
                           stallId: d.stallId,
-                          tongTypeId: d.tongTypeId,
                         });
                         setDialog("default");
                       }}
@@ -785,17 +778,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               <option key={s.id} value={s.id}>
                 {s.marketCode}/{s.code}
               </option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="默认桶型 Default Crate Type">
-          <select
-            value={defaultForm.tongTypeId}
-            onChange={(e) => setDefaultForm({ ...defaultForm, tongTypeId: e.target.value })}
-            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
-          >
-            {data.tongTypes.map((t) => (
-              <option key={t.id} value={t.id}>{t.code} — {t.name}</option>
             ))}
           </select>
         </FormField>
