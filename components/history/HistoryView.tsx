@@ -21,6 +21,7 @@ interface ModificationRecord {
   shipperName: string;
   pickupLocationLabel: string;
   modifiedAt: string;
+  modifiedBy: string;
   changes: { field: string; from: string; to: string }[];
 }
 
@@ -75,6 +76,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                 <TableHead>寄货人 Consignor</TableHead>
                 <TableHead>收货地点 Pickup</TableHead>
                 <TableHead>修改时间 Modified</TableHead>
+                <TableHead>修改人 Modified By</TableHead>
                 <TableHead>变更内容 Changes</TableHead>
               </TableRow>
             </TableHeader>
@@ -98,6 +100,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                   <TableCell className="font-mono text-sm text-haidee-muted">
                     {rec.modifiedAt}
                   </TableCell>
+                  <TableCell className="text-sm">{rec.modifiedBy}</TableCell>
                   <TableCell>
                     <div className="space-y-2">
                       {rec.changes.map((c, i) => (
@@ -125,7 +128,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
       </div>
 
       <p className="text-xs text-haidee-muted">
-        仅显示已修改的进货明细行。编辑进货单后，原始值会自动保留。
+        显示已确认进货单的修改记录，含修改时间与修改人。
         <Link href="/inbound" className="ml-1 text-haidee-blue hover:underline">
           前往进货录入 →
         </Link>

@@ -10,17 +10,88 @@ import {
 } from "@/lib/constants/pickup-locations";
 import { format } from "date-fns";
 
-export async function getInboundModifications(dateStr?: string) {
-  const where: Prisma.InboundLineWhereInput = {
-    originalQuantity: { not: null },
-  };
+export interface InboundModificationRecord {
+  id: string;
+  sessionNo: string | null;
+  sessionDate: string;
+  shipperName: string;
+  pickupLocationLabel: string;
+  modifiedAt: string;
+  modifiedBy: string;
+  changes: { field: string; from: string; to: string }[];
+}
 
-  if (dateStr) {
-    where.session = { date: parseDateInput(dateStr) };
+export async function getInboundModifications(
+  dateStr?: string
+): Promise<InboundModificationRecord[]> {
+  const dateFilter = dateStr ? parseDateInput(dateStr) : undefined;
+  const sessionDateWhere = dateFilter ? { date: dateFilter } : undefined;
+
+  const changeLogs = await prisma.inboundChangeLog.findMany({
+    where: sessionDateWhere ? { session: sessionDateWhere } : {},
+    include: {
+      session: {
+        select: {
+          sessionNo: true,
+          date: true,
+          pickupLocation: true,
+          shipper: { select: { name: true, pickupLocation: true } },
+        },
+      },
+      user: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const groupedChangeLogs = new Map<string, InboundModificationRecord>();
+  for (const log of changeLogs) {
+    const key = `${log.sessionId}:${log.userId ?? "unknown"}:${format(
+      log.createdAt,
+      "yyyy-MM-dd HH:mm:ss"
+    )}`;
+    const existing = groupedChangeLogs.get(key);
+    const change = {
+      field: log.field,
+      from: log.fromValue,
+      to: log.toValue,
+    };
+
+    if (existing) {
+      existing.changes.push(change);
+      continue;
+    }
+
+    groupedChangeLogs.set(key, {
+      id: log.id,
+      sessionNo: log.session.sessionNo,
+      sessionDate: formatDisplayDate(log.session.date),
+      shipperName: log.session.shipper.name,
+      pickupLocationLabel: formatPickupLocationLabel(
+        resolveSessionPickupLocation(
+          log.session.pickupLocation,
+          log.session.shipper.pickupLocation
+        )
+      ),
+      modifiedAt: format(log.createdAt, "dd/MM/yyyy HH:mm"),
+      modifiedBy: log.user?.name ?? "—",
+      changes: [change],
+    });
   }
 
-  const lines = await prisma.inboundLine.findMany({
-    where,
+  const sessionsWithChangeLogs = new Set(
+    changeLogs.map((log) => log.sessionId)
+  );
+
+  const legacyWhere: Prisma.InboundLineWhereInput = {
+    originalQuantity: { not: null },
+    sessionId: { notIn: Array.from(sessionsWithChangeLogs) },
+  };
+  if (sessionDateWhere) {
+    legacyWhere.session = sessionDateWhere;
+  }
+
+  const legacyLines = await prisma.inboundLine.findMany({
+    where: legacyWhere,
     include: {
       session: {
         select: {
@@ -39,23 +110,39 @@ export async function getInboundModifications(dateStr?: string) {
     orderBy: [{ modifiedAt: "desc" }, { createdAt: "desc" }],
   });
 
-  return lines.map((l) => ({
-    id: l.id,
-    sessionNo: l.session.sessionNo,
-    sessionDate: formatDisplayDate(l.session.date),
-    shipperName: l.session.shipper.name,
+  const legacyRecords: InboundModificationRecord[] = legacyLines.map((line) => ({
+    id: line.id,
+    sessionNo: line.session.sessionNo,
+    sessionDate: formatDisplayDate(line.session.date),
+    shipperName: line.session.shipper.name,
     pickupLocationLabel: formatPickupLocationLabel(
       resolveSessionPickupLocation(
-        l.session.pickupLocation,
-        l.session.shipper.pickupLocation
+        line.session.pickupLocation,
+        line.session.shipper.pickupLocation
       )
     ),
-    modifiedAt: l.modifiedAt ? format(l.modifiedAt, "dd/MM/yyyy HH:mm") : "—",
-    changes: buildChanges(l),
+    modifiedAt: line.modifiedAt
+      ? format(line.modifiedAt, "dd/MM/yyyy HH:mm")
+      : "—",
+    modifiedBy: "—",
+    changes: buildLegacyChanges(line),
   }));
+
+  return [...Array.from(groupedChangeLogs.values()), ...legacyRecords].sort(
+    (a, b) => {
+      const parseSortTime = (value: string) => {
+        if (value === "—") return 0;
+        const [datePart, timePart] = value.split(" ");
+        const [day, month, year] = datePart.split("/").map(Number);
+        const [hour, minute] = timePart.split(":").map(Number);
+        return new Date(year, month - 1, day, hour, minute).getTime();
+      };
+      return parseSortTime(b.modifiedAt) - parseSortTime(a.modifiedAt);
+    }
+  );
 }
 
-function buildChanges(line: {
+function buildLegacyChanges(line: {
   originalQuantity: number | null;
   quantity: number;
   originalTongType: { code: string; name: string } | null;

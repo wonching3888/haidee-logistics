@@ -20,6 +20,7 @@ model User {
   dispatchOrders  DispatchOrder[]
   tongImports     TongImport[]
   tongExports     TongExport[]
+  inboundChangeLogs InboundChangeLog[]
 
   @@map("users")
 }
@@ -204,6 +205,7 @@ model InboundSession {
   shipper  Shipper       @relation(fields: [shipperId], references: [id])
   createdBy User?        @relation(fields: [createdById], references: [id])
   lines    InboundLine[]
+  changeLogs InboundChangeLog[]
 
   @@map("inbound_sessions")
 }
@@ -230,8 +232,26 @@ model InboundLine {
   originalTongType TongType?      @relation("OriginalTongType", fields: [originalTongTypeId], references: [id])
   originalStall    Stall?         @relation("OriginalStall", fields: [originalStallId], references: [id])
   dispatchLines    DispatchLine[]
+  changeLogs       InboundChangeLog[]
 
   @@map("inbound_lines")
+}
+
+model InboundChangeLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  lineId    String?  @map("line_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  field     String
+  fromValue String   @map("from_value")
+  toValue   String   @map("to_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session InboundSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  line    InboundLine?   @relation(fields: [lineId], references: [id], onDelete: SetNull)
+  user    User?          @relation(fields: [userId], references: [id])
+
+  @@map("inbound_change_logs")
 }
 
 model DispatchOrder {

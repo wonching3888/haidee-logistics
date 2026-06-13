@@ -23,6 +23,12 @@ import {
   isOtherMarket,
 } from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
+import {
+  buildInboundChangeLogs,
+  computeCrateStockAdjustments,
+  resolveCrateStockBucket,
+  type InboundSessionSnapshot,
+} from "@/lib/inbound-edit-sync";
 
 function aggregateCrateQuantities(
   lines: { tongTypeId: string; quantity: number }[],
@@ -40,13 +46,166 @@ function aggregateCrateQuantities(
   return byCrateType;
 }
 
+async function loadLineMeta(lines: InboundLineInput[]) {
+  const stallIds = Array.from(new Set(lines.map((line) => line.stallId)));
+  const tongTypeIds = Array.from(new Set(lines.map((line) => line.tongTypeId)));
+
+  const [stalls, tongTypes] = await Promise.all([
+    prisma.stall.findMany({
+      where: { id: { in: stallIds } },
+      include: { market: { select: { code: true } } },
+    }),
+    prisma.tongType.findMany({
+      where: { id: { in: tongTypeIds } },
+      select: { id: true, code: true, name: true },
+    }),
+  ]);
+
+  return {
+    stallMeta: new Map(
+      stalls.map((stall) => [
+        stall.id,
+        {
+          stallCode: stall.code,
+          marketCode: stall.market?.code ?? "",
+        },
+      ])
+    ),
+    tongMeta: new Map(
+      tongTypes.map((tongType) => [
+        tongType.id,
+        {
+          tongTypeCode: tongType.code,
+          tongTypeName: tongType.name,
+        },
+      ])
+    ),
+  };
+}
+
+async function cleanupEmptyDispatchOrders(
+  tx: Prisma.TransactionClient,
+  dispatchOrderIds: string[]
+) {
+  if (dispatchOrderIds.length === 0) return;
+
+  const remaining = await tx.dispatchLine.groupBy({
+    by: ["dispatchOrderId"],
+    where: { dispatchOrderId: { in: dispatchOrderIds } },
+    _count: { _all: true },
+  });
+  const ordersWithLines = new Set(remaining.map((row) => row.dispatchOrderId));
+  const emptyOrderIds = dispatchOrderIds.filter(
+    (orderId) => !ordersWithLines.has(orderId)
+  );
+  if (emptyOrderIds.length > 0) {
+    await tx.dispatchOrder.deleteMany({ where: { id: { in: emptyOrderIds } } });
+  }
+}
+
+async function removeDispatchLinksForLines(
+  tx: Prisma.TransactionClient,
+  lineIds: string[]
+) {
+  if (lineIds.length === 0) return;
+
+  const links = await tx.dispatchLine.findMany({
+    where: { inboundLineId: { in: lineIds } },
+    select: { dispatchOrderId: true },
+  });
+  const dispatchOrderIds = Array.from(
+    new Set(links.map((link) => link.dispatchOrderId))
+  );
+
+  await tx.dispatchLine.deleteMany({
+    where: { inboundLineId: { in: lineIds } },
+  });
+  await cleanupEmptyDispatchOrders(tx, dispatchOrderIds);
+}
+
+async function applyCrateStockAdjustments(
+  adjustments: ReturnType<typeof computeCrateStockAdjustments>,
+  note: string
+) {
+  const bucketKey = (shipperId: string, location: string) =>
+    `${shipperId}:${location}`;
+
+  const additionsByBucket = new Map<
+    string,
+    { shipperId: string; location: string; items: { crateTypeId: string; quantity: number }[] }
+  >();
+  const deductionsByBucket = new Map<
+    string,
+    { shipperId: string; location: string; items: { crateTypeId: string; quantity: number }[] }
+  >();
+
+  for (const adjustment of adjustments) {
+    const key = bucketKey(adjustment.shipperId, adjustment.location);
+    if (adjustment.delta > 0) {
+      const bucket = additionsByBucket.get(key) ?? {
+        shipperId: adjustment.shipperId,
+        location: adjustment.location,
+        items: [],
+      };
+      bucket.items.push({
+        crateTypeId: adjustment.crateTypeId,
+        quantity: adjustment.delta,
+      });
+      additionsByBucket.set(key, bucket);
+    } else if (adjustment.delta < 0) {
+      const bucket = deductionsByBucket.get(key) ?? {
+        shipperId: adjustment.shipperId,
+        location: adjustment.location,
+        items: [],
+      };
+      bucket.items.push({
+        crateTypeId: adjustment.crateTypeId,
+        quantity: Math.abs(adjustment.delta),
+      });
+      deductionsByBucket.set(key, bucket);
+    }
+  }
+
+  for (const bucket of Array.from(additionsByBucket.values())) {
+    await addCustomerCratesBatch(
+      bucket.shipperId,
+      bucket.items,
+      "inbound-edit",
+      bucket.location,
+      note
+    );
+  }
+
+  for (const bucket of Array.from(deductionsByBucket.values())) {
+    await deductCustomerCratesBatch(
+      bucket.shipperId,
+      bucket.items,
+      "inbound-edit",
+      bucket.location,
+      note
+    );
+  }
+}
+
+function revalidateInboundRelatedPaths() {
+  revalidatePath("/inbound");
+  revalidatePath("/dispatch");
+  revalidatePath("/summary");
+  revalidatePath("/documents");
+  revalidatePath("/history");
+  revalidatePath("/reports/market");
+  revalidatePath("/reports/crate");
+  revalidatePath("/crate/customer-stock");
+  revalidatePath("/dashboard");
+}
+
 async function loadTongTypeMap(tongTypeIds: string[]) {
-  if (tongTypeIds.length === 0) return new Map();
+  if (tongTypeIds.length === 0) return new Map<string, TongTypeMeta>();
   const tongTypes = await prisma.tongType.findMany({
     where: { id: { in: tongTypeIds } },
     select: { id: true, trackInventory: true, isBox: true },
   });
-  return new Map(tongTypes.map((t) => [t.id, t]));
+  return new Map(tongTypes.map((tongType) => [tongType.id, tongType]));
 }
 
 type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
@@ -240,6 +399,7 @@ async function syncInboundLines(
     .filter((line) => !inputLineIds.has(line.id))
     .map((line) => line.id);
   if (deleteIds.length > 0) {
+    await removeDispatchLinksForLines(tx, deleteIds);
     await tx.inboundLine.deleteMany({ where: { id: { in: deleteIds } } });
   }
 
@@ -621,23 +781,119 @@ export async function saveInboundSession(input: SaveInboundInput) {
   if (input.sessionId) {
     const existing = await prisma.inboundSession.findUnique({
       where: { id: input.sessionId },
-      select: {
-        sessionNo: true,
-        status: true,
+      include: {
+        shipper: {
+          select: { id: true, name: true, pickupLocation: true },
+        },
         lines: {
-          select: {
-            id: true,
-            quantity: true,
-            tongTypeId: true,
-            stallId: true,
-            originalQuantity: true,
+          include: {
+            stall: { include: { market: { select: { code: true } } } },
+            tongType: { select: { code: true, name: true } },
           },
         },
       },
     });
     if (!existing) throw new Error("进货单不存在 Session not found");
 
+    if (status === "draft" && existing.status === "confirmed") {
+      const hasAssigned = existing.lines.some(
+        (line) => line.dispatchStatus === "assigned"
+      );
+      if (hasAssigned) {
+        throw new Error(
+          "已派车的进货单不能改回草稿 Cannot revert dispatched inbound to draft"
+        );
+      }
+    }
+
+    const afterShipper =
+      input.shipperId === existing.shipperId
+        ? existing.shipper
+        : await prisma.shipper.findUnique({
+            where: { id: input.shipperId },
+            select: { id: true, name: true, pickupLocation: true },
+          });
+    if (!afterShipper) throw new Error("寄货人不存在 Shipper not found");
+
+    const beforeSnapshot: InboundSessionSnapshot = {
+      date: existing.date,
+      shipperId: existing.shipperId,
+      shipperName: existing.shipper.name,
+      shipperPickupLocation: existing.shipper.pickupLocation,
+      pickupLocation: existing.pickupLocation,
+      areaNote: existing.areaNote,
+      thVehiclePlate: existing.thVehiclePlate,
+      lines: existing.lines.map((line) => ({
+        id: line.id,
+        quantity: line.quantity,
+        tongTypeId: line.tongTypeId,
+        stallId: line.stallId,
+        originalQuantity: line.originalQuantity,
+        stallCode: line.stall.code,
+        marketCode: line.stall.market?.code ?? "",
+        tongTypeCode: line.tongType.code,
+        tongTypeName: line.tongType.name,
+      })),
+    };
+
+    const beforeBucket = resolveCrateStockBucket(
+      existing.shipperId,
+      existing.shipper.pickupLocation,
+      existing.pickupLocation,
+      existing.areaNote
+    );
+    const afterBucket = resolveCrateStockBucket(
+      input.shipperId,
+      afterShipper.pickupLocation,
+      sessionPickupLocation,
+      input.areaNote
+    );
+
+    const beforeLinesForCrate =
+      existing.status === "confirmed"
+        ? existing.lines.map((line) => ({
+            tongTypeId: line.tongTypeId,
+            quantity: line.quantity,
+          }))
+        : [];
+    const afterLinesForCrate =
+      status === "confirmed"
+        ? allLines.map((line) => ({
+            tongTypeId: line.tongTypeId,
+            quantity: line.quantity,
+          }))
+        : [];
+
+    const { stallMeta, tongMeta } = await loadLineMeta(allLines);
+    const changeLogs =
+      existing.status === "confirmed" && status === "confirmed"
+        ? buildInboundChangeLogs({
+            sessionId: input.sessionId,
+            userId: user.id,
+            before: beforeSnapshot,
+            after: {
+              date,
+              shipperId: input.shipperId,
+              shipperName: afterShipper.name,
+              shipperPickupLocation: afterShipper.pickupLocation,
+              pickupLocation: sessionPickupLocation,
+              areaNote: input.areaNote || null,
+              thVehiclePlate: input.thVehiclePlate || null,
+              lines: allLines,
+            },
+            afterLineMeta: stallMeta,
+            afterTongMeta: tongMeta,
+          })
+        : [];
+
     let sessionNo = existing.sessionNo;
+    const existingLinesForSync = existing.lines.map((line) => ({
+      id: line.id,
+      quantity: line.quantity,
+      tongTypeId: line.tongTypeId,
+      stallId: line.stallId,
+      originalQuantity: line.originalQuantity,
+    }));
 
     if (status === "confirmed" && !existing.sessionNo) {
       for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
@@ -659,7 +915,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             await syncInboundLines(
               input.sessionId!,
               allLines,
-              existing.lines,
+              existingLinesForSync,
               typeMap,
               tx
             );
@@ -691,24 +947,54 @@ export async function saveInboundSession(input: SaveInboundInput) {
         await syncInboundLines(
           input.sessionId!,
           allLines,
-          existing.lines,
+          existingLinesForSync,
           typeMap,
           tx
         );
       });
     }
 
-    if (status === "confirmed" && existing.status === "draft") {
+    const editNote = `进货单修改 ${sessionNo ?? input.sessionId}`;
+
+    if (existing.status === "confirmed" && status === "confirmed") {
+      const adjustments = computeCrateStockAdjustments({
+        beforeLines: beforeLinesForCrate,
+        afterLines: afterLinesForCrate,
+        beforeBucket,
+        afterBucket,
+        typeMap,
+      });
+      await applyCrateStockAdjustments(adjustments, editNote);
+    } else if (existing.status === "confirmed" && status === "draft") {
+      await reverseInboundCrateDeduction(
+        existing.shipperId,
+        beforeBucket.location,
+        beforeLinesForCrate,
+        typeMap
+      );
+    } else if (existing.status === "draft" && status === "confirmed") {
       await applyInboundCrateDeduction(
         input.shipperId,
-        crateStockLocation,
+        afterBucket.location,
         allLines,
         typeMap
       );
     }
 
-    revalidatePath("/inbound");
-    revalidatePath("/crate/customer-stock");
+    if (changeLogs.length > 0) {
+      await prisma.inboundChangeLog.createMany({
+        data: changeLogs.map((log) => ({
+          sessionId: log.sessionId,
+          lineId: log.lineId ?? null,
+          userId: log.userId,
+          field: log.field,
+          fromValue: log.fromValue,
+          toValue: log.toValue,
+        })),
+      });
+    }
+
+    revalidateInboundRelatedPaths();
     return { id: input.sessionId, sessionNo };
   }
 
@@ -791,8 +1077,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     );
   }
 
-  revalidatePath("/inbound");
-  revalidatePath("/crate/customer-stock");
+  revalidateInboundRelatedPaths();
   return { id: session.id, sessionNo: session.sessionNo };
 }
 
