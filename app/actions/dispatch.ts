@@ -7,6 +7,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { buildConsignorSessionLabel } from "@/lib/consignor-label";
+import { computeDriverAllowanceAmount } from "@/lib/driver-allowance";
+import { decimalToNumber } from "@/lib/freight-rates";
 import {
   DISPATCH_MARKET_ORDER,
   MARKET_ORDER,
@@ -556,6 +558,44 @@ async function releaseDispatchLines(
   }
 }
 
+async function syncDispatchDriverAllowance(
+  tx: Prisma.TransactionClient,
+  dispatchOrderId: string
+) {
+  const [settings, lines] = await Promise.all([
+    tx.freightOperationalSettings.findUnique({ where: { id: "default" } }),
+    tx.dispatchLine.findMany({
+      where: { dispatchOrderId },
+      include: {
+        inboundLine: {
+          include: {
+            stall: { include: { market: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const allowanceLines = lines.map((row) => ({
+    marketCode: row.inboundLine.stall.market?.code ?? "",
+    quantity: row.inboundLine.quantity,
+    isBox: row.inboundLine.isBox,
+  }));
+
+  const { crates, amount } = computeDriverAllowanceAmount(
+    allowanceLines,
+    decimalToNumber(settings?.driverAllowancePerCrate)
+  );
+
+  await tx.dispatchOrder.update({
+    where: { id: dispatchOrderId },
+    data: {
+      driverAllowanceCrates: crates,
+      driverAllowanceAmount: amount,
+    },
+  });
+}
+
 export async function saveDispatchOrder(input: SaveDispatchInput) {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
@@ -643,6 +683,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         date,
         assignments
       );
+      await syncDispatchDriverAllowance(tx, input.dispatchOrderId!);
     }, DISPATCH_TRANSACTION_OPTIONS);
 
     revalidatePath("/dispatch");
@@ -683,6 +724,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
       date,
       assignments
     );
+    await syncDispatchDriverAllowance(tx, created.id);
 
     return created;
   }, DISPATCH_TRANSACTION_OPTIONS);

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { getRoleLabel } from "@/lib/auth-roles";
 import type { AppUser } from "@/types";
 
 interface HeaderProps {
@@ -21,7 +22,7 @@ export function Header({ user, onMenuToggle }: HeaderProps) {
     router.refresh();
   }
 
-  const roleLabel = user.role === "admin" ? "管理员 Admin" : "书记 Clerk";
+  const roleLabel = getRoleLabel(user.role);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-haidee-border bg-white px-4 md:px-6">

@@ -1,12 +1,22 @@
 import type { PaymentMode } from "@/lib/constants/freight-settings";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
+import type { PickupLocation } from "@/lib/constants/pickup-locations";
+import { usesThSegmentSplit } from "@/lib/constants/pickup-locations";
 import {
+  convertMyrToThb,
   convertThbToMyr,
   decimalToNumber,
   pickEffectiveRates,
 } from "@/lib/freight-rates";
 
 export type McDeliveryMode = "self" | "third_party";
+
+export interface OperationalFreightSettings {
+  mcThirdPartyRateTong: number | null;
+  mcThirdPartyRateBox: number | null;
+  mySegmentRateTong: number | null;
+  mySegmentRateBox: number | null;
+}
 
 export interface InboundLineFreightInput {
   stallId: string;
@@ -26,6 +36,10 @@ export interface InboundLineFreightSnapshot {
   exchangeRate: number;
   mcDeliveryMode: McDeliveryMode | null;
   thirdPartyFee: number | null;
+  mySegmentFreightRate: number | null;
+  mySegmentFreightAmount: number | null;
+  thFreightRate: number | null;
+  thFreightAmount: number | null;
 }
 
 interface RateRow {
@@ -51,6 +65,8 @@ export interface InboundFreightContext {
     company: string;
   };
   exchangeRate: number;
+  pickupLocation: PickupLocation;
+  operationalSettings: OperationalFreightSettings;
   stalls: Map<
     string,
     {
@@ -116,6 +132,34 @@ function pickUnitRate(
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function mcThirdPartyUnitRate(
+  isBox: boolean,
+  settings: OperationalFreightSettings
+) {
+  return pickUnitRate(isBox, {
+    rateTong: settings.mcThirdPartyRateTong,
+    rateBox: settings.mcThirdPartyRateBox,
+  });
+}
+
+function mySegmentUnitRate(isBox: boolean, settings: OperationalFreightSettings) {
+  return pickUnitRate(isBox, {
+    rateTong: settings.mySegmentRateTong,
+    rateBox: settings.mySegmentRateBox,
+  });
+}
+
+function customerUnitRateInThb(
+  unitRate: number,
+  currency: string,
+  exchangeRate: number
+) {
+  if (currency === "MYR") {
+    return roundMoney(convertMyrToThb(unitRate, exchangeRate));
+  }
+  return unitRate;
 }
 
 export function buildInboundFreightMaps(input: {
@@ -219,7 +263,7 @@ export function computeInboundLineFreight(
     ? ctx.consignees.get(consigneeId!)?.billingCompany ?? "haidee"
     : ctx.shipper.company;
 
-  const isMcMarket = marketCode === "MC";
+  const isMcMarket = marketCode === MC_MARKET_CODE;
   const mcDeliveryMode: McDeliveryMode | null = isMcMarket
     ? line.mcDeliveryMode ?? "self"
     : null;
@@ -233,13 +277,50 @@ export function computeInboundLineFreight(
       freightAmount = 0;
       thirdPartyFee = null;
     } else if (isMcMarket && mcDeliveryMode === "third_party") {
-      thirdPartyFee = baseAmount;
-      freightAmount = baseAmount;
+      freightAmount = 0;
+      const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
+      if (mcRate != null) {
+        thirdPartyFee = roundMoney(line.quantity * mcRate);
+      }
     } else {
       freightAmount = baseAmount;
     }
-  } else if (isMcMarket && mcDeliveryMode === "self") {
+  } else if (isMcMarket) {
     freightAmount = 0;
+    if (mcDeliveryMode === "third_party" && line.quantity > 0) {
+      const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
+      if (mcRate != null) {
+        thirdPartyFee = roundMoney(line.quantity * mcRate);
+      }
+    }
+  }
+
+  let mySegmentFreightRate: number | null = null;
+  let mySegmentFreightAmount: number | null = null;
+  let thFreightRate: number | null = null;
+  let thFreightAmount: number | null = null;
+
+  if (
+    !isMcMarket &&
+    usesThSegmentSplit(ctx.pickupLocation) &&
+    line.quantity > 0 &&
+    unitRate != null
+  ) {
+    const myRate = mySegmentUnitRate(isBox, ctx.operationalSettings);
+    if (myRate != null) {
+      mySegmentFreightRate = myRate;
+      mySegmentFreightAmount = roundMoney(line.quantity * myRate);
+
+      const customerThb = customerUnitRateInThb(
+        unitRate,
+        currency,
+        ctx.exchangeRate
+      );
+      const myThb = roundMoney(convertMyrToThb(myRate, ctx.exchangeRate));
+      const thUnit = roundMoney(customerThb - myThb);
+      thFreightRate = thUnit;
+      thFreightAmount = roundMoney(line.quantity * thUnit);
+    }
   }
 
   return {
@@ -253,6 +334,10 @@ export function computeInboundLineFreight(
     exchangeRate: ctx.exchangeRate,
     mcDeliveryMode,
     thirdPartyFee,
+    mySegmentFreightRate,
+    mySegmentFreightAmount,
+    thFreightRate,
+    thFreightAmount,
   };
 }
 
@@ -278,4 +363,20 @@ export function normalizeMcDeliveryMode(
 ): McDeliveryMode | null {
   if (marketCode !== MC_MARKET_CODE) return null;
   return value === "third_party" ? "third_party" : "self";
+}
+
+export function serializeOperationalSettings(row: {
+  mcThirdPartyRateTong: unknown;
+  mcThirdPartyRateBox: unknown;
+  mySegmentRateTong: unknown;
+  mySegmentRateBox: unknown;
+  driverAllowancePerCrate?: unknown;
+} | null): OperationalFreightSettings & { driverAllowancePerCrate: number | null } {
+  return {
+    mcThirdPartyRateTong: decimalToNumber(row?.mcThirdPartyRateTong),
+    mcThirdPartyRateBox: decimalToNumber(row?.mcThirdPartyRateBox),
+    mySegmentRateTong: decimalToNumber(row?.mySegmentRateTong),
+    mySegmentRateBox: decimalToNumber(row?.mySegmentRateBox),
+    driverAllowancePerCrate: decimalToNumber(row?.driverAllowancePerCrate),
+  };
 }

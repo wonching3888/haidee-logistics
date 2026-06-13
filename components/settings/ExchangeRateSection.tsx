@@ -20,7 +20,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { saveExchangeRate, saveFuelPrice } from "@/app/actions/freight-settings";
+import { saveExchangeRate, saveFuelPrice, saveOperationalFreightSettings } from "@/app/actions/freight-settings";
+import type { OperationalSettingsValues } from "@/lib/constants/operational-settings";
 
 interface ExchangeRateRow {
   id: string;
@@ -41,6 +42,7 @@ interface ExchangeRateSectionProps {
     myrPerLiter: number;
     thbPerLiter: number;
   };
+  operationalSettings: OperationalSettingsValues;
 }
 
 function formatYearMonthLabel(yearMonth: string) {
@@ -52,6 +54,7 @@ export function ExchangeRateSection({
   exchangeRates,
   exchangeAlert,
   fuelPrice,
+  operationalSettings,
 }: ExchangeRateSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -62,10 +65,54 @@ export function ExchangeRateSection({
     myrPerLiter: String(fuelPrice.myrPerLiter),
     thbPerLiter: String(fuelPrice.thbPerLiter),
   });
+  const [operationalForm, setOperationalForm] = useState({
+    mcThirdPartyRateTong: "",
+    mcThirdPartyRateBox: "",
+    mySegmentRateTong: "",
+    mySegmentRateBox: "",
+    driverAllowancePerCrate: "",
+  });
+
   const [form, setForm] = useState({
     yearMonth: exchangeAlert.currentYearMonth,
     rate: String(DEFAULT_EXCHANGE_RATE),
   });
+
+  function optionalRateString(value: number | null | undefined) {
+    return value != null ? String(value) : "";
+  }
+
+  function parseOptionalRateInput(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new Error("费率不能为负数 Rate cannot be negative");
+    }
+    return parsed;
+  }
+
+  useEffect(() => {
+    setOperationalForm({
+      mcThirdPartyRateTong: optionalRateString(
+        operationalSettings.mcThirdPartyRateTong
+      ),
+      mcThirdPartyRateBox: optionalRateString(
+        operationalSettings.mcThirdPartyRateBox
+      ),
+      mySegmentRateTong: optionalRateString(operationalSettings.mySegmentRateTong),
+      mySegmentRateBox: optionalRateString(operationalSettings.mySegmentRateBox),
+      driverAllowancePerCrate: optionalRateString(
+        operationalSettings.driverAllowancePerCrate
+      ),
+    });
+  }, [
+    operationalSettings.mcThirdPartyRateTong,
+    operationalSettings.mcThirdPartyRateBox,
+    operationalSettings.mySegmentRateTong,
+    operationalSettings.mySegmentRateBox,
+    operationalSettings.driverAllowancePerCrate,
+  ]);
 
   function refresh() {
     router.refresh();
@@ -161,6 +208,119 @@ export function ExchangeRateSection({
             }
           >
             保存油价 Save Fuel Prices
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-haidee-border bg-white p-4">
+        <div className="mb-3">
+          <h4 className="text-sm font-semibold text-haidee-text">
+            车力运营设定 Operational Freight
+          </h4>
+          <p className="text-xs text-haidee-muted">
+            MC 转第三方固定费率、宋卡/北大年马来西亚段车力、司机津贴（不含 MC 市场）。
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="block space-y-1 text-sm">
+            MC 第三方费率/桶 Tong
+            <Input
+              value={operationalForm.mcThirdPartyRateTong}
+              onChange={(e) =>
+                setOperationalForm({
+                  ...operationalForm,
+                  mcThirdPartyRateTong: e.target.value,
+                })
+              }
+              placeholder="留空不计算"
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            MC 第三方费率/箱 Box
+            <Input
+              value={operationalForm.mcThirdPartyRateBox}
+              onChange={(e) =>
+                setOperationalForm({
+                  ...operationalForm,
+                  mcThirdPartyRateBox: e.target.value,
+                })
+              }
+              placeholder="留空不计算"
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            马来西亚段车力/桶 MY (MYR)
+            <Input
+              value={operationalForm.mySegmentRateTong}
+              onChange={(e) =>
+                setOperationalForm({
+                  ...operationalForm,
+                  mySegmentRateTong: e.target.value,
+                })
+              }
+              placeholder="宋卡/北大年拆分"
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            马来西亚段车力/箱 MY (MYR)
+            <Input
+              value={operationalForm.mySegmentRateBox}
+              onChange={(e) =>
+                setOperationalForm({
+                  ...operationalForm,
+                  mySegmentRateBox: e.target.value,
+                })
+              }
+              placeholder="宋卡/北大年拆分"
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            司机津贴/桶 Driver Allowance
+            <Input
+              value={operationalForm.driverAllowancePerCrate}
+              onChange={(e) =>
+                setOperationalForm({
+                  ...operationalForm,
+                  driverAllowancePerCrate: e.target.value,
+                })
+              }
+              placeholder="不含 MC 市场"
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            className="bg-haidee-blue text-white"
+            disabled={isPending}
+            onClick={() =>
+              runAction(async () => {
+                await saveOperationalFreightSettings({
+                  mcThirdPartyRateTong: parseOptionalRateInput(
+                    operationalForm.mcThirdPartyRateTong
+                  ),
+                  mcThirdPartyRateBox: parseOptionalRateInput(
+                    operationalForm.mcThirdPartyRateBox
+                  ),
+                  mySegmentRateTong: parseOptionalRateInput(
+                    operationalForm.mySegmentRateTong
+                  ),
+                  mySegmentRateBox: parseOptionalRateInput(
+                    operationalForm.mySegmentRateBox
+                  ),
+                  driverAllowancePerCrate: parseOptionalRateInput(
+                    operationalForm.driverAllowancePerCrate
+                  ),
+                });
+              })
+            }
+          >
+            保存运营设定 Save Operational Settings
           </Button>
         </div>
       </div>

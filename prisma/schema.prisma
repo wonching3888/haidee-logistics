@@ -12,7 +12,7 @@ model User {
   id        String   @id @default(uuid()) @db.Uuid
   email     String   @unique
   name      String?
-  role      String   @default("clerk") // admin | clerk
+  role String   @default("clerk") // admin | clerk | accounting | owner
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -213,6 +213,18 @@ model FuelPrice {
   @@map("fuel_prices")
 }
 
+model FreightOperationalSettings {
+  id                      String   @id @default("default")
+  mcThirdPartyRateTong    Decimal? @map("mc_third_party_rate_tong") @db.Decimal(10, 2)
+  mcThirdPartyRateBox     Decimal? @map("mc_third_party_rate_box") @db.Decimal(10, 2)
+  mySegmentRateTong       Decimal? @map("my_segment_rate_tong") @db.Decimal(10, 2)
+  mySegmentRateBox        Decimal? @map("my_segment_rate_box") @db.Decimal(10, 2)
+  driverAllowancePerCrate Decimal? @map("driver_allowance_per_crate") @db.Decimal(10, 2)
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("freight_operational_settings")
+}
+
 model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique
@@ -316,8 +328,12 @@ model InboundLine {
   freightRate        Decimal? @map("freight_rate") @db.Decimal(10, 2)
   freightAmount      Decimal? @map("freight_amount") @db.Decimal(10, 2)
   exchangeRate       Decimal? @map("exchange_rate") @db.Decimal(10, 4)
-  mcDeliveryMode     String?  @map("mc_delivery_mode")
-  thirdPartyFee      Decimal? @map("third_party_fee") @db.Decimal(10, 2)
+  mcDeliveryMode         String?  @map("mc_delivery_mode")
+  thirdPartyFee          Decimal? @map("third_party_fee") @db.Decimal(10, 2)
+  mySegmentFreightRate   Decimal? @map("my_segment_freight_rate") @db.Decimal(10, 2)
+  mySegmentFreightAmount Decimal? @map("my_segment_freight_amount") @db.Decimal(10, 2)
+  thFreightRate          Decimal? @map("th_freight_rate") @db.Decimal(10, 2)
+  thFreightAmount        Decimal? @map("th_freight_amount") @db.Decimal(10, 2)
 
   session          InboundSession @relation(fields: [sessionId], references: [id])
   stall            Stall          @relation(fields: [stallId], references: [id])
@@ -357,6 +373,8 @@ model DispatchOrder {
   driverName         String?  @map("driver_name")
   markets            String[]
   status             String   @default("draft")
+  driverAllowanceCrates Int?  @map("driver_allowance_crates")
+  driverAllowanceAmount Decimal? @map("driver_allowance_amount") @db.Decimal(10, 2)
   originalTruckId    String?  @map("original_truck_id") @db.Uuid
   originalDriverName String?  @map("original_driver_name")
   modifiedAt         DateTime? @map("modified_at")

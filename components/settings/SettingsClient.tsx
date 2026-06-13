@@ -51,6 +51,7 @@ import {
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
 import { calcTotalCostPerKm } from "@/lib/truck-cost";
+import { getRoleLabel } from "@/lib/auth-roles";
 import {
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
@@ -149,6 +150,13 @@ interface SettingsClientProps {
     fuelPrice: {
       myrPerLiter: number;
       thbPerLiter: number;
+    };
+    operationalSettings: {
+      mcThirdPartyRateTong: number | null;
+      mcThirdPartyRateBox: number | null;
+      mySegmentRateTong: number | null;
+      mySegmentRateBox: number | null;
+      driverAllowancePerCrate: number | null;
     };
   };
 }
@@ -592,7 +600,7 @@ export function SettingsClient({
                   <TableCell>{u.name ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                      {u.role}
+                      {getRoleLabel(u.role as "admin" | "clerk" | "accounting" | "owner")}
                     </Badge>
                   </TableCell>
                   <TableCell><ActiveBadge active={u.active} /></TableCell>
@@ -637,6 +645,7 @@ export function SettingsClient({
             exchangeRates={freightData.exchangeRates}
             exchangeAlert={freightData.exchangeAlert}
             fuelPrice={freightData.fuelPrice}
+            operationalSettings={freightData.operationalSettings}
           />
           </>
         )}
@@ -881,8 +890,10 @@ export function SettingsClient({
             onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
           >
-            <option value="clerk">文员 Clerk</option>
+            <option value="clerk">书记 Operation</option>
             <option value="admin">管理员 Admin</option>
+            <option value="accounting">会计 Accounting</option>
+            <option value="owner">老板 Owner</option>
           </select>
         </FormField>
         <FormField label={editId ? "新密码 New Password (留空不改)" : "密码 Password"}>

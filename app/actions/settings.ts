@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { isUserRole } from "@/lib/auth-roles";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   DEFAULT_PICKUP_LOCATION,
@@ -377,6 +378,11 @@ export async function saveUser(input: {
   password?: string;
 }) {
   await requireAdmin();
+
+  if (!isUserRole(input.role)) {
+    throw new Error("无效的角色 Invalid role");
+  }
+
   const supabase = createAdminClient();
 
   if (input.id) {

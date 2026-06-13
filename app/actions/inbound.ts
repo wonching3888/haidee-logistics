@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewFreightInfo } from "@/lib/auth-roles";
+import type { UserRole } from "@/types";
 import {
   addCustomerCratesBatch,
   deductCustomerCratesBatch,
@@ -34,9 +36,11 @@ import {
   computeInboundLineFreight,
   defaultExchangeRate,
   normalizeMcDeliveryMode,
+  serializeOperationalSettings,
   type InboundFreightContext,
   type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
+import type { PickupLocation } from "@/lib/constants/pickup-locations";
 import { getCurrentYearMonth } from "@/lib/freight-rates";
 
 function aggregateCrateQuantities(
@@ -404,6 +408,10 @@ function freightFields(snapshot: InboundLineFreightSnapshot) {
     exchangeRate: snapshot.exchangeRate,
     mcDeliveryMode: snapshot.mcDeliveryMode,
     thirdPartyFee: snapshot.thirdPartyFee,
+    mySegmentFreightRate: snapshot.mySegmentFreightRate,
+    mySegmentFreightAmount: snapshot.mySegmentFreightAmount,
+    thFreightRate: snapshot.thFreightRate,
+    thFreightAmount: snapshot.thFreightAmount,
   };
 }
 
@@ -411,13 +419,21 @@ async function loadInboundFreightContext(
   shipperId: string,
   stallIds: string[],
   tongTypeIds: string[],
-  asOfDate: Date
+  asOfDate: Date,
+  pickupLocation: PickupLocation
 ): Promise<{ ctx: InboundFreightContext; shipperCurrency: string }> {
   const yearMonth = getCurrentYearMonth(asOfDate);
   const uniqueStallIds = Array.from(new Set(stallIds));
 
-  const [shipper, stalls, exchangeRateRow, shipperRates, paymentRelations, tongTypes] =
-    await Promise.all([
+  const [
+    shipper,
+    stalls,
+    exchangeRateRow,
+    shipperRates,
+    paymentRelations,
+    tongTypes,
+    operationalRow,
+  ] = await Promise.all([
       prisma.shipper.findUnique({
         where: { id: shipperId },
         select: { id: true, currency: true, company: true },
@@ -443,6 +459,7 @@ async function loadInboundFreightContext(
             select: { id: true, isBox: true },
           })
         : Promise.resolve([]),
+      prisma.freightOperationalSettings.findUnique({ where: { id: "default" } }),
     ]);
 
   if (!shipper) {
@@ -480,6 +497,8 @@ async function loadInboundFreightContext(
     }
   }
 
+  const operational = serializeOperationalSettings(operationalRow);
+
   return {
     shipperCurrency: shipper.currency,
     ctx: {
@@ -487,6 +506,13 @@ async function loadInboundFreightContext(
       exchangeRate: defaultExchangeRate(
         exchangeRateRow ? Number(exchangeRateRow.rate) : null
       ),
+      pickupLocation,
+      operationalSettings: {
+        mcThirdPartyRateTong: operational.mcThirdPartyRateTong,
+        mcThirdPartyRateBox: operational.mcThirdPartyRateBox,
+        mySegmentRateTong: operational.mySegmentRateTong,
+        mySegmentRateBox: operational.mySegmentRateBox,
+      },
       stalls: new Map(
         stalls.map((stall) => [
           stall.id,
@@ -813,6 +839,11 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
 }
 
 export async function getInboundSession(id: string) {
+  const user = await getCurrentUser();
+  const showFreightInfo = user
+    ? canViewFreightInfo(user.role as UserRole)
+    : false;
+
   const session = await prisma.inboundSession.findUnique({
     where: { id },
     include: {
@@ -856,7 +887,33 @@ export async function getInboundSession(id: string) {
       quantity: l.quantity,
       dispatchStatus: l.dispatchStatus,
       mcDeliveryMode: l.mcDeliveryMode as "self" | "third_party" | null,
+      ...(showFreightInfo
+        ? {
+            paymentParty: l.paymentParty as "shipper" | "consignee" | null,
+            paymentMode: l.paymentMode,
+            currency: l.currency,
+            billingCompany: l.billingCompany,
+            freightRate: l.freightRate != null ? Number(l.freightRate) : null,
+            freightAmount:
+              l.freightAmount != null ? Number(l.freightAmount) : null,
+            thirdPartyFee:
+              l.thirdPartyFee != null ? Number(l.thirdPartyFee) : null,
+            mySegmentFreightRate:
+              l.mySegmentFreightRate != null
+                ? Number(l.mySegmentFreightRate)
+                : null,
+            mySegmentFreightAmount:
+              l.mySegmentFreightAmount != null
+                ? Number(l.mySegmentFreightAmount)
+                : null,
+            thFreightRate:
+              l.thFreightRate != null ? Number(l.thFreightRate) : null,
+            thFreightAmount:
+              l.thFreightAmount != null ? Number(l.thFreightAmount) : null,
+          }
+        : {}),
     })),
+    showFreightInfo,
   };
 }
 
@@ -940,7 +997,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     input.shipperId,
     allLines.map((line) => line.stallId),
     allLines.map((line) => line.tongTypeId),
-    date
+    date,
+    effectivePickup
   );
   const freightSnapshots = computeFreightSnapshots(allLines, freightCtx);
 

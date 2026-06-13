@@ -12,6 +12,7 @@ import {
 import {
   DEFAULT_FUEL_PRICES,
 } from "@/lib/constants/truck-cost";
+import { serializeOperationalSettings } from "@/lib/inbound-freight";
 import {
   buildRateMatrix,
   decimalToNumber,
@@ -60,6 +61,7 @@ export async function getFreightSettingsData() {
     paymentRelations,
     exchangeRates,
     fuelPriceRow,
+    operationalRow,
   ] = await Promise.all([
     prisma.shipper.findMany({
       where: { active: true },
@@ -109,6 +111,7 @@ export async function getFreightSettingsData() {
       orderBy: { yearMonth: "desc" },
     }),
     prisma.fuelPrice.findUnique({ where: { id: "default" } }),
+    prisma.freightOperationalSettings.findUnique({ where: { id: "default" } }),
   ]);
 
   const freightMarkets = serializeMarkets(markets);
@@ -199,6 +202,7 @@ export async function getFreightSettingsData() {
         decimalToNumber(fuelPriceRow?.thbPerLiter) ??
         DEFAULT_FUEL_PRICES.thbPerLiter,
     },
+    operationalSettings: serializeOperationalSettings(operationalRow),
   };
 }
 
@@ -432,4 +436,45 @@ export async function saveFuelPrice(input: {
   });
 
   revalidatePath("/settings");
+}
+
+export async function saveOperationalFreightSettings(input: {
+  mcThirdPartyRateTong?: number | null;
+  mcThirdPartyRateBox?: number | null;
+  mySegmentRateTong?: number | null;
+  mySegmentRateBox?: number | null;
+  driverAllowancePerCrate?: number | null;
+}) {
+  await requireAdmin();
+
+  function parseOptionalRate(value: number | null | undefined) {
+    if (value == null || value === undefined) return null;
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error("费率不能为负数 Rate cannot be negative");
+    }
+    return value;
+  }
+
+  await prisma.freightOperationalSettings.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      mcThirdPartyRateTong: parseOptionalRate(input.mcThirdPartyRateTong),
+      mcThirdPartyRateBox: parseOptionalRate(input.mcThirdPartyRateBox),
+      mySegmentRateTong: parseOptionalRate(input.mySegmentRateTong),
+      mySegmentRateBox: parseOptionalRate(input.mySegmentRateBox),
+      driverAllowancePerCrate: parseOptionalRate(input.driverAllowancePerCrate),
+    },
+    update: {
+      mcThirdPartyRateTong: parseOptionalRate(input.mcThirdPartyRateTong),
+      mcThirdPartyRateBox: parseOptionalRate(input.mcThirdPartyRateBox),
+      mySegmentRateTong: parseOptionalRate(input.mySegmentRateTong),
+      mySegmentRateBox: parseOptionalRate(input.mySegmentRateBox),
+      driverAllowancePerCrate: parseOptionalRate(input.driverAllowancePerCrate),
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/inbound");
+  revalidatePath("/dispatch");
 }

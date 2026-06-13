@@ -119,3 +119,7 @@ export function formatYearMonthLabel(yearMonth: string) {
 export function convertThbToMyr(amountThb: number, rate = DEFAULT_EXCHANGE_RATE) {
   return amountThb / rate;
 }
+
+export function convertMyrToThb(amountMyr: number, rate = DEFAULT_EXCHANGE_RATE) {
+  return amountMyr * rate;
+}

@@ -56,6 +56,10 @@ export function resolveSessionPickupLocation(
   return isPickupLocation(raw) ? raw : DEFAULT_PICKUP_LOCATION;
 }
 
+export function usesThSegmentSplit(pickupLocation: PickupLocation) {
+  return pickupLocation === "SONGKHLA" || pickupLocation === "PATTANI";
+}
+
 export function formatPickupLocationLabel(
   code: string | null | undefined
 ): string {

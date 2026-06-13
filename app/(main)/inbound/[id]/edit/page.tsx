@@ -6,6 +6,7 @@ import {
   getTongTypes,
 } from "@/app/actions/inbound";
 import { InboundForm } from "@/components/inbound/InboundForm";
+import { InboundFreightPanel } from "@/components/inbound/InboundFreightPanel";
 import { PageError } from "@/components/shared/PageError";
 import { toDateInputValue } from "@/lib/inbound-utils";
 
@@ -59,6 +60,10 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
           lines: session.lines,
         }}
       />
+
+      {session.showFreightInfo && (
+        <InboundFreightPanel lines={session.lines} />
+      )}
     </div>
     );
   } catch (error) {
