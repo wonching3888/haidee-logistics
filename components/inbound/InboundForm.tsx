@@ -361,7 +361,7 @@ export function InboundForm({
             list="th-vehicles"
             value={thVehiclePlate}
             onChange={(e) => setThVehiclePlate(e.target.value)}
-            placeholder="70-1743"
+            placeholder="88-3888"
             className="min-h-[44px] font-mono"
           />
           <datalist id="th-vehicles">
