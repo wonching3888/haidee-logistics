@@ -9,7 +9,6 @@ import {
   type CustomerCrateStockRow,
   type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
-import { PickupLocationStockBlocks } from "@/components/crate/PickupLocationStockBlocks";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatPickupLocationLabel } from "@/lib/constants/pickup-locations";
 import { Button } from "@/components/ui/button";
@@ -175,11 +174,6 @@ export function CustomerCrateStockView({
         </Button>
       </div>
 
-      <PickupLocationStockBlocks
-        crateTypes={crateTypes}
-        summaries={pickupLocationSummaries}
-      />
-
       <p className="text-xs text-haidee-muted">
         欠桶（负数）以红色显示 · 点击行首展开各产地明细
       </p>
@@ -199,6 +193,26 @@ export function CustomerCrateStockView({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {pickupLocationSummaries.map((summary) => (
+              <TableRow key={`pickup-${summary.location}`}>
+                <TableCell />
+                <TableCell className="font-medium">
+                  <MobileTruncatedName text={summary.title} />
+                </TableCell>
+                {crateTypes.map((ct) => {
+                  const qty = summary.quantities[ct.id] ?? 0;
+                  return (
+                    <TableCell
+                      key={ct.id}
+                      className={cn("text-right", qtyClass(qty))}
+                    >
+                      {qty}
+                    </TableCell>
+                  );
+                })}
+                <TableCell />
+              </TableRow>
+            ))}
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
