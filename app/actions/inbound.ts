@@ -99,7 +99,7 @@ async function processNewStalls(
   const createdLines: InboundLineInput[] = [];
   if (!newStalls?.length) return createdLines;
 
-  const marketIds = [...new Set(newStalls.map((ns) => ns.marketId))];
+  const marketIds = Array.from(new Set(newStalls.map((ns) => ns.marketId)));
   const markets = await prisma.market.findMany({
     where: { id: { in: marketIds } },
     select: { id: true, code: true },

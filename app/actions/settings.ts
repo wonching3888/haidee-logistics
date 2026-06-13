@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { MARKET_ORDER, sortMarkets } from "@/lib/markets";
+import { createAdminClient } from "@/lib/supabase";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
