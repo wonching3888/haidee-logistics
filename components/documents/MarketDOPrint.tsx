@@ -142,7 +142,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
         </tbody>
       </table>
 
-      <div style={{ textAlign: "center", marginTop: 16, fontWeight: "bold" }}>
+      <div className="document-print-footer" style={{ textAlign: "center", marginTop: 16 }}>
         完毕
       </div>
     </div>

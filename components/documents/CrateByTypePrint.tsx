@@ -144,14 +144,7 @@ export function CrateByTypePrint({ data }: CrateByTypePrintProps) {
       ))}
 
       {tongSections.length > 1 && (
-        <div
-          style={{
-            marginTop: 16,
-            textAlign: "right",
-            fontWeight: "bold",
-            fontSize: 12,
-          }}
-        >
+        <div className="grand-total" style={{ marginTop: 16, textAlign: "right" }}>
           全部合计 Grand Total: {grandTotal}桶
         </div>
       )}

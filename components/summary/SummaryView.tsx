@@ -288,10 +288,31 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             margin: 8mm;
           }
           .summary-print {
-            font-size: 10px !important;
+            font-size: 10pt !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
           }
           .summary-print table {
-            font-size: 9px !important;
+            font-size: 10pt !important;
+          }
+          .summary-print th {
+            color: #000000 !important;
+            font-weight: 700 !important;
+            background: #a8a8a8 !important;
+          }
+          .summary-print td {
+            color: #000000 !important;
+            font-weight: 700 !important;
+          }
+          .summary-print .font-mono {
+            font-size: 10pt !important;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700 !important;
+          }
+          .summary-print .text-haidee-text,
+          .summary-print .text-haidee-muted {
+            color: #000000 !important;
+            font-weight: 700 !important;
           }
           .summary-table-scroll {
             height: auto !important;

@@ -73,5 +73,55 @@
   .daily-summary-print {
     border: none !important;
     box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
+  .daily-summary-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #000000 !important;
+  }
+
+  .daily-summary-header p {
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
+  .daily-summary-table {
+    font-size: 10pt !important;
+  }
+
+  .daily-summary-table .daily-summary-th {
+    background: #a8a8a8 !important;
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    font-size: 10pt !important;
+  }
+
+  .daily-summary-table .daily-summary-td {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    font-size: 10pt !important;
+  }
+
+  .daily-summary-col-qty,
+  .daily-summary-table .font-mono {
+    font-size: 10pt !important;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+
+  .daily-summary-row-even,
+  .daily-summary-row-odd,
+  .daily-summary-total-row {
+    background: #ffffff !important;
+  }
+
+  .daily-summary-total-row .daily-summary-td {
+    border-top: 2px solid #000000 !important;
   }
 }
