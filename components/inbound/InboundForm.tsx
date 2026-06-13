@@ -25,6 +25,8 @@ import {
   getDefaultInboundDate,
   toDateInputValue,
 } from "@/lib/inbound-utils";
+import type { McDeliveryMode } from "@/lib/inbound-freight";
+import { MC_MARKET_CODE } from "@/lib/inbound-freight";
 import {
   DEFAULT_PICKUP_LOCATION,
   PICKUP_LOCATIONS,
@@ -61,6 +63,11 @@ interface LineState {
   tongTypeId: string;
   quantity: string;
   lineId?: string;
+  mcDeliveryMode?: McDeliveryMode;
+}
+
+function defaultMcDeliveryMode(marketCode: string): McDeliveryMode | undefined {
+  return marketCode === MC_MARKET_CODE ? "self" : undefined;
 }
 
 function newRowId() {
@@ -90,6 +97,7 @@ interface InitialSession {
     marketCode: string;
     tongTypeId: string;
     quantity: number;
+    mcDeliveryMode?: McDeliveryMode | null;
   }[];
 }
 
@@ -177,6 +185,9 @@ export function InboundForm({
               tongTypeId: l.tongTypeId,
               quantity: String(l.quantity),
               lineId: l.id,
+              mcDeliveryMode:
+                l.mcDeliveryMode ??
+                defaultMcDeliveryMode(l.marketCode),
             })),
             ...stalls
               .filter((s) => !stallIdsWithLines.has(s.stallId))
@@ -187,6 +198,7 @@ export function InboundForm({
                 marketCode: s.marketCode,
                 tongTypeId: s.defaultTongTypeId,
                 quantity: "",
+                mcDeliveryMode: defaultMcDeliveryMode(s.marketCode),
               })),
           ]);
         } else {
@@ -198,6 +210,7 @@ export function InboundForm({
               marketCode: s.marketCode,
               tongTypeId: s.defaultTongTypeId,
               quantity: "",
+              mcDeliveryMode: defaultMcDeliveryMode(s.marketCode),
             }))
           );
         }
@@ -224,6 +237,7 @@ export function InboundForm({
   );
 
   const grandTotal = Object.values(marketTotals).reduce((a, b) => a + b, 0);
+  const hasMcRows = rows.some((row) => row.marketCode === MC_MARKET_CODE);
 
   function updateRow(index: number, patch: Partial<LineState>) {
     setRows((prev) =>
@@ -243,6 +257,7 @@ export function InboundForm({
         marketCode: source.marketCode,
         tongTypeId: source.tongTypeId,
         quantity: "",
+        mcDeliveryMode: source.mcDeliveryMode ?? defaultMcDeliveryMode(source.marketCode),
       },
       ...prev.slice(index + 1),
     ]);
@@ -262,6 +277,7 @@ export function InboundForm({
         tongTypeId: r.tongTypeId,
         quantity: parseInt(r.quantity, 10),
         lineId: r.lineId,
+        mcDeliveryMode: r.mcDeliveryMode,
       }));
 
     const shipper = shippers.find((s) => s.id === shipperId);
@@ -416,6 +432,11 @@ export function InboundForm({
                     <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium text-right")}>
                       桶数 Crates
                     </th>
+                    {hasMcRows && (
+                      <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
+                        MC 配送 Delivery
+                      </th>
+                    )}
                     <th className={cn(STICKY_HEAD_TOP, "w-10 whitespace-nowrap px-2 py-3")}></th>
                   </tr>
                 </thead>
@@ -431,6 +452,11 @@ export function InboundForm({
                       tabIndex={i + 1}
                       onTongTypeChange={(v) => updateRow(i, { tongTypeId: v })}
                       onQuantityChange={(v) => updateRow(i, { quantity: v })}
+                      mcDeliveryMode={row.mcDeliveryMode}
+                      onMcDeliveryModeChange={(mode) =>
+                        updateRow(i, { mcDeliveryMode: mode })
+                      }
+                      showMcDelivery={hasMcRows}
                       onDuplicate={() => duplicateRow(i)}
                       onDelete={() => {
                         const sameStallRows = rows.filter(
@@ -581,6 +607,7 @@ export function InboundForm({
                       marketCode: market?.code ?? "",
                       tongTypeId: newStall.tongTypeId,
                       quantity: "",
+                      mcDeliveryMode: defaultMcDeliveryMode(market?.code ?? ""),
                     },
                   ]);
                   setNewStall({

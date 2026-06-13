@@ -29,6 +29,15 @@ import {
   resolveCrateStockBucket,
   type InboundSessionSnapshot,
 } from "@/lib/inbound-edit-sync";
+import {
+  buildInboundFreightMaps,
+  computeInboundLineFreight,
+  defaultExchangeRate,
+  normalizeMcDeliveryMode,
+  type InboundFreightContext,
+  type InboundLineFreightSnapshot,
+} from "@/lib/inbound-freight";
+import { getCurrentYearMonth } from "@/lib/freight-rates";
 
 function aggregateCrateQuantities(
   lines: { tongTypeId: string; quantity: number }[],
@@ -383,11 +392,152 @@ interface ExistingInboundLine {
   originalQuantity: number | null;
 }
 
+function freightFields(snapshot: InboundLineFreightSnapshot) {
+  return {
+    consigneeId: snapshot.consigneeId,
+    paymentParty: snapshot.paymentParty,
+    paymentMode: snapshot.paymentMode,
+    currency: snapshot.currency,
+    billingCompany: snapshot.billingCompany,
+    freightRate: snapshot.freightRate,
+    freightAmount: snapshot.freightAmount,
+    exchangeRate: snapshot.exchangeRate,
+    mcDeliveryMode: snapshot.mcDeliveryMode,
+    thirdPartyFee: snapshot.thirdPartyFee,
+  };
+}
+
+async function loadInboundFreightContext(
+  shipperId: string,
+  stallIds: string[],
+  tongTypeIds: string[],
+  asOfDate: Date
+): Promise<{ ctx: InboundFreightContext; shipperCurrency: string }> {
+  const yearMonth = getCurrentYearMonth(asOfDate);
+  const uniqueStallIds = Array.from(new Set(stallIds));
+
+  const [shipper, stalls, exchangeRateRow, shipperRates, paymentRelations, tongTypes] =
+    await Promise.all([
+      prisma.shipper.findUnique({
+        where: { id: shipperId },
+        select: { id: true, currency: true, company: true },
+      }),
+      uniqueStallIds.length > 0
+        ? prisma.stall.findMany({
+            where: { id: { in: uniqueStallIds } },
+            include: {
+              market: { select: { id: true, code: true } },
+              consignee: { select: { id: true, billingCompany: true } },
+            },
+          })
+        : Promise.resolve([]),
+      prisma.exchangeRate.findUnique({ where: { yearMonth } }),
+      prisma.freightRate.findMany({ where: { shipperId } }),
+      prisma.paymentRelation.findMany({
+        where: { shipperId },
+        select: { consigneeId: true, paymentMode: true },
+      }),
+      tongTypeIds.length > 0
+        ? prisma.tongType.findMany({
+            where: { id: { in: Array.from(new Set(tongTypeIds)) } },
+            select: { id: true, isBox: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+  if (!shipper) {
+    throw new Error("寄货人不存在 Shipper not found");
+  }
+
+  const consigneeIds = Array.from(
+    new Set(
+      stalls
+        .map((stall) => stall.consigneeId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const consigneeRates =
+    consigneeIds.length > 0
+      ? await prisma.consigneeFreightRate.findMany({
+          where: { consigneeId: { in: consigneeIds } },
+        })
+      : [];
+
+  const { shipperRatesByMarket, consigneeRatesByConsigneeMarket } =
+    buildInboundFreightMaps({
+      shipperRates,
+      consigneeRates,
+      asOfDate,
+    });
+
+  const consignees = new Map<string, { billingCompany: string }>();
+  for (const stall of stalls) {
+    if (stall.consignee) {
+      consignees.set(stall.consignee.id, {
+        billingCompany: stall.consignee.billingCompany,
+      });
+    }
+  }
+
+  return {
+    shipperCurrency: shipper.currency,
+    ctx: {
+      shipper,
+      exchangeRate: defaultExchangeRate(
+        exchangeRateRow ? Number(exchangeRateRow.rate) : null
+      ),
+      stalls: new Map(
+        stalls.map((stall) => [
+          stall.id,
+          {
+            marketId: stall.marketId,
+            marketCode: stall.market?.code ?? "",
+            consigneeId: stall.consigneeId,
+          },
+        ])
+      ),
+      consignees,
+      paymentRelations: new Map(
+        paymentRelations.map((relation) => [
+          `${shipperId}:${relation.consigneeId}`,
+          { paymentMode: relation.paymentMode },
+        ])
+      ),
+      shipperRatesByMarket,
+      consigneeRatesByConsigneeMarket,
+      tongTypes: new Map(tongTypes.map((tong) => [tong.id, { isBox: tong.isBox }])),
+    },
+  };
+}
+
+function computeFreightSnapshots(
+  lines: InboundLineInput[],
+  ctx: InboundFreightContext
+) {
+  return lines.map((line) => {
+    const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
+    return computeInboundLineFreight(
+      {
+        stallId: line.stallId,
+        tongTypeId: line.tongTypeId,
+        quantity: line.quantity,
+        mcDeliveryMode: normalizeMcDeliveryMode(
+          marketCode,
+          line.mcDeliveryMode
+        ),
+      },
+      ctx
+    );
+  });
+}
+
 async function syncInboundLines(
   sessionId: string,
   allLines: InboundLineInput[],
   existingLines: ExistingInboundLine[],
   typeMap: Map<string, TongTypeMeta>,
+  freightSnapshots: InboundLineFreightSnapshot[],
   tx: Prisma.TransactionClient = prisma
 ) {
   const existingLineIds = new Set(existingLines.map((line) => line.id));
@@ -404,7 +554,9 @@ async function syncInboundLines(
   }
 
   const updateOps: Promise<unknown>[] = [];
-  for (const line of allLines) {
+  for (let index = 0; index < allLines.length; index++) {
+    const line = allLines[index];
+    const freight = freightSnapshots[index];
     if (!line.lineId || !existingLineIds.has(line.lineId)) continue;
 
     const prev = existingLines.find((existing) => existing.id === line.lineId)!;
@@ -421,6 +573,7 @@ async function syncInboundLines(
           tongTypeId: line.tongTypeId,
           quantity: line.quantity,
           isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+          ...freightFields(freight),
           ...(changed && !prev.originalQuantity
             ? {
                 originalQuantity: prev.quantity,
@@ -439,17 +592,21 @@ async function syncInboundLines(
     await Promise.all(updateOps);
   }
 
-  const createLines = allLines.filter(
-    (line) => !line.lineId || !existingLineIds.has(line.lineId)
-  );
-  if (createLines.length > 0) {
+  const createLineEntries = allLines
+    .map((line, index) => ({ line, index }))
+    .filter(
+      ({ line }) => !line.lineId || !existingLineIds.has(line.lineId)
+    );
+
+  if (createLineEntries.length > 0) {
     await tx.inboundLine.createMany({
-      data: createLines.map((line) => ({
+      data: createLineEntries.map(({ line, index }) => ({
         sessionId,
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
         isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+        ...freightFields(freightSnapshots[index]),
       })),
     });
   }
@@ -698,6 +855,7 @@ export async function getInboundSession(id: string) {
       tongTypeCode: l.tongType.code,
       quantity: l.quantity,
       dispatchStatus: l.dispatchStatus,
+      mcDeliveryMode: l.mcDeliveryMode as "self" | "third_party" | null,
     })),
   };
 }
@@ -731,7 +889,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
   const shipper = await prisma.shipper.findUnique({
     where: { id: input.shipperId },
-    select: { pickupLocation: true },
+    select: { pickupLocation: true, currency: true },
   });
   const effectivePickup = resolveSessionPickupLocation(
     sessionPickupLocation,
@@ -777,6 +935,14 @@ export async function saveInboundSession(input: SaveInboundInput) {
   const typeMap = await loadTongTypeMap(tongTypeIds);
 
   await syncShipperStallDefaults(input.shipperId, allLines);
+
+  const { ctx: freightCtx, shipperCurrency } = await loadInboundFreightContext(
+    input.shipperId,
+    allLines.map((line) => line.stallId),
+    allLines.map((line) => line.tongTypeId),
+    date
+  );
+  const freightSnapshots = computeFreightSnapshots(allLines, freightCtx);
 
   if (input.sessionId) {
     const existing = await prisma.inboundSession.findUnique({
@@ -910,6 +1076,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
                 pickupLocation: sessionPickupLocation,
                 status,
                 sessionNo,
+                shipperCurrency,
               },
             });
             await syncInboundLines(
@@ -917,6 +1084,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
               allLines,
               existingLinesForSync,
               typeMap,
+              freightSnapshots,
               tx
             );
           });
@@ -942,6 +1110,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             pickupLocation: sessionPickupLocation,
             status,
             sessionNo,
+            shipperCurrency,
           },
         });
         await syncInboundLines(
@@ -949,6 +1118,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
           allLines,
           existingLinesForSync,
           typeMap,
+          freightSnapshots,
           tx
         );
       });
@@ -1016,13 +1186,15 @@ export async function saveInboundSession(input: SaveInboundInput) {
               pickupLocation: sessionPickupLocation,
               status,
               sessionNo,
+              shipperCurrency,
               createdById: user.id,
               lines: {
-                create: allLines.map((line) => ({
+                create: allLines.map((line, index) => ({
                   stallId: line.stallId,
                   tongTypeId: line.tongTypeId,
                   quantity: line.quantity,
                   isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+                  ...freightFields(freightSnapshots[index]),
                 })),
               },
             },
@@ -1054,13 +1226,15 @@ export async function saveInboundSession(input: SaveInboundInput) {
         pickupLocation: sessionPickupLocation,
         status,
         sessionNo: null,
+        shipperCurrency,
         createdById: user.id,
         lines: {
-          create: allLines.map((line) => ({
+          create: allLines.map((line, index) => ({
             stallId: line.stallId,
             tongTypeId: line.tongTypeId,
             quantity: line.quantity,
             isBox: typeMap.get(line.tongTypeId)?.isBox ?? false,
+            ...freightFields(freightSnapshots[index]),
           })),
         },
       },

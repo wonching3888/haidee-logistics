@@ -105,13 +105,15 @@ model Shipper {
 }
 
 model Stall {
-  id       String  @id @default(uuid()) @db.Uuid
-  code     String
-  name     String?
-  marketId String? @map("market_id") @db.Uuid
-  active   Boolean @default(true)
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String
+  name        String?
+  marketId    String? @map("market_id") @db.Uuid
+  consigneeId String? @map("consignee_id") @db.Uuid
+  active      Boolean @default(true)
 
   market               Market?               @relation(fields: [marketId], references: [id])
+  consignee            Consignee?            @relation(fields: [consigneeId], references: [id])
   shipperStallDefaults ShipperStallDefault[]
   inboundLines         InboundLine[]
   inboundLinesOriginal InboundLine[]         @relation("OriginalStall")
@@ -159,6 +161,8 @@ model Consignee {
 
   freightRates     ConsigneeFreightRate[]
   paymentRelations PaymentRelation[]
+  stalls           Stall[]
+  inboundLines     InboundLine[]
 
   @@map("consignees")
 }
@@ -255,6 +259,8 @@ model InboundSession {
   createdById     String?  @map("created_by") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
 
+  shipperCurrency   String?  @map("shipper_currency")
+
   shipper  Shipper       @relation(fields: [shipperId], references: [id])
   createdBy User?        @relation(fields: [createdById], references: [id])
   lines    InboundLine[]
@@ -277,9 +283,20 @@ model InboundLine {
   originalStallId    String?  @map("original_stall_id") @db.Uuid
   modifiedAt         DateTime? @map("modified_at")
   createdAt          DateTime @default(now()) @map("created_at")
+  consigneeId        String?  @map("consignee_id") @db.Uuid
+  paymentParty       String?  @map("payment_party")
+  paymentMode        String?  @map("payment_mode")
+  currency           String?
+  billingCompany     String?  @map("billing_company")
+  freightRate        Decimal? @map("freight_rate") @db.Decimal(10, 2)
+  freightAmount      Decimal? @map("freight_amount") @db.Decimal(10, 2)
+  exchangeRate       Decimal? @map("exchange_rate") @db.Decimal(10, 4)
+  mcDeliveryMode     String?  @map("mc_delivery_mode")
+  thirdPartyFee      Decimal? @map("third_party_fee") @db.Decimal(10, 2)
 
   session          InboundSession @relation(fields: [sessionId], references: [id])
   stall            Stall          @relation(fields: [stallId], references: [id])
+  consignee        Consignee?     @relation(fields: [consigneeId], references: [id])
   tongType         TongType       @relation(fields: [tongTypeId], references: [id])
   truck            Truck?         @relation(fields: [truckId], references: [id])
   originalTongType TongType?      @relation("OriginalTongType", fields: [originalTongTypeId], references: [id])

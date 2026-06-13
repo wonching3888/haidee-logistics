@@ -23,6 +23,7 @@ export interface InboundLineInput {
   tongTypeId: string;
   quantity: number;
   lineId?: string;
+  mcDeliveryMode?: "self" | "third_party" | null;
 }
 
 export function computeMarketTotals(

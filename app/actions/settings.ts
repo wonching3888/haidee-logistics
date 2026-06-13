@@ -30,7 +30,10 @@ export async function getSettingsData() {
       }),
       prisma.stall.findMany({
         orderBy: [{ market: { code: "asc" } }, { code: "asc" }],
-        include: { market: { select: { id: true, code: true, name: true } } },
+        include: {
+          market: { select: { id: true, code: true, name: true } },
+          consignee: { select: { id: true, code: true, name: true } },
+        },
       }),
       prisma.shipperStallDefault.findMany({
         include: {
@@ -85,6 +88,9 @@ export async function getSettingsData() {
       name: s.name,
       marketId: s.marketId,
       marketCode: s.market?.code ?? "",
+      consigneeId: s.consigneeId,
+      consigneeCode: s.consignee?.code ?? "",
+      consigneeName: s.consignee?.name ?? "",
       active: s.active,
     })),
     defaults: defaults.map((d) => ({
@@ -195,6 +201,7 @@ export async function saveStall(input: {
   code: string;
   name?: string;
   marketId?: string;
+  consigneeId?: string | null;
   active: boolean;
 }) {
   await requireAdmin();
@@ -203,6 +210,7 @@ export async function saveStall(input: {
     code: input.code.trim(),
     name: input.name?.trim() || null,
     marketId: input.marketId || null,
+    consigneeId: input.consigneeId || null,
     active: input.active,
   };
 

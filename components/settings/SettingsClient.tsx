@@ -77,6 +77,9 @@ interface SettingsData {
     name: string | null;
     marketId: string | null;
     marketCode: string;
+    consigneeId: string | null;
+    consigneeCode: string;
+    consigneeName: string;
     active: boolean;
   }[];
   defaults: {
@@ -173,6 +176,7 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
     code: "",
     name: "",
     marketId: "",
+    consigneeId: "",
     active: true,
   });
   const [defaultForm, setDefaultForm] = useState({
@@ -341,6 +345,7 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                   code: "",
                   name: "",
                   marketId: data.markets[0]?.id ?? "",
+                  consigneeId: "",
                   active: true,
                 });
                 setDialog("stall");
@@ -356,6 +361,7 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                 <TableHead>代码 Code</TableHead>
                 <TableHead>名称 Name</TableHead>
                 <TableHead>市场 Market</TableHead>
+                <TableHead>收货人 Consignee</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
@@ -366,6 +372,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                   <TableCell className="font-mono">{s.code}</TableCell>
                   <TableCell>{s.name ?? "—"}</TableCell>
                   <TableCell className="font-mono">{s.marketCode || "—"}</TableCell>
+                  <TableCell>
+                    {s.consigneeName
+                      ? `${s.consigneeName} (${s.consigneeCode})`
+                      : "—"}
+                  </TableCell>
                   <TableCell><ActiveBadge active={s.active} /></TableCell>
                   <TableCell className="text-right">
                     <RowActions
@@ -375,6 +386,7 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
                           code: s.code,
                           name: s.name ?? "",
                           marketId: s.marketId ?? "",
+                          consigneeId: s.consigneeId ?? "",
                           active: s.active,
                         });
                         setDialog("stall");
@@ -691,7 +703,15 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
         open={dialog === "stall"}
         onClose={() => setDialog(null)}
         title={editId ? "编辑档口 Edit Stall" : "新增档口 New Stall"}
-        onSave={() => runAction(async () => saveStall({ id: editId, ...stallForm }))}
+        onSave={() =>
+          runAction(async () =>
+            saveStall({
+              id: editId,
+              ...stallForm,
+              consigneeId: stallForm.consigneeId || null,
+            })
+          )
+        }
         isPending={isPending}
       >
         <FormField label="代码 Code">
@@ -710,6 +730,24 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
             {data.markets.map((m) => (
               <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
             ))}
+          </select>
+        </FormField>
+        <FormField label="收货人 Consignee">
+          <select
+            value={stallForm.consigneeId}
+            onChange={(e) =>
+              setStallForm({ ...stallForm, consigneeId: e.target.value })
+            }
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+          >
+            <option value="">— 未关联 None —</option>
+            {freightData.allConsignees
+              .filter((consignee) => consignee.active)
+              .map((consignee) => (
+                <option key={consignee.id} value={consignee.id}>
+                  {consignee.name} ({consignee.code})
+                </option>
+              ))}
           </select>
         </FormField>
         <label className="flex items-center gap-2 text-sm">
