@@ -10,7 +10,39 @@ export const PICKUP_LOCATION_LABELS: Record<PickupLocation, string> = {
   PATTANI: "北大年 PATTANI",
 };
 
-export const SESSION_PICKUP_USE_DEFAULT = "";
+export const SESSION_PICKUP_USE_DEFAULT = "__USE_DEFAULT__";
+
+export function tripPickupSelectValue(
+  sessionPickup: string | null | undefined,
+  shipperPickup: string | null | undefined
+): string {
+  if (sessionPickup && isPickupLocation(sessionPickup)) {
+    return sessionPickup;
+  }
+  if (shipperPickup && isPickupLocation(shipperPickup)) {
+    return shipperPickup;
+  }
+  return DEFAULT_PICKUP_LOCATION;
+}
+
+export function tripPickupSaveValue(
+  selected: string,
+  shipperPickup: string | null | undefined
+): PickupLocation | null {
+  if (
+    !selected ||
+    selected === SESSION_PICKUP_USE_DEFAULT ||
+    selected === ""
+  ) {
+    return null;
+  }
+  const shipperDefault = resolveSessionPickupLocation(null, shipperPickup);
+  if (selected === shipperDefault) return null;
+  if (!isPickupLocation(selected)) {
+    throw new Error("无效的收货地点 Invalid pickup location");
+  }
+  return selected;
+}
 
 export function isPickupLocation(value: string): value is PickupLocation {
   return (PICKUP_LOCATIONS as readonly string[]).includes(value);
@@ -36,7 +68,13 @@ export function formatPickupLocationLabel(
 export function normalizeSessionPickupInput(
   value: string | null | undefined
 ): PickupLocation | null {
-  if (!value || value === SESSION_PICKUP_USE_DEFAULT) return null;
+  if (
+    !value ||
+    value === SESSION_PICKUP_USE_DEFAULT ||
+    value === ""
+  ) {
+    return null;
+  }
   if (!isPickupLocation(value)) {
     throw new Error("无效的收货地点 Invalid pickup location");
   }
