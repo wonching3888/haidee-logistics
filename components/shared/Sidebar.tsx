@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   LayoutDashboard,
   PackageSearch,
@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SettingsSidebarMenu } from "@/components/shared/SettingsSidebarMenu";
 import type { UserRole } from "@/types";
 
 interface NavItem {
@@ -31,11 +32,11 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-interface NavGroup {
+interface NavLinkChild {
+  href: string;
   label: string;
   labelEn: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: Omit<NavItem, "icon">[];
+  isActive: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -55,18 +56,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: Users,
   },
   { href: "/history", label: "修改记录", labelEn: "History", icon: History },
-  { href: "/settings", label: "系统设置", labelEn: "Settings", icon: Settings, adminOnly: true },
 ];
 
-const REPORTS_GROUP: NavGroup = {
-  label: "报表",
-  labelEn: "Reports",
-  icon: BarChart3,
-  children: [
-    { href: "/reports/market", label: "市场报表", labelEn: "Market Report" },
-    { href: "/reports/crate", label: "桶型报表", labelEn: "Crate Report" },
-  ],
-};
+const REPORTS_CHILDREN: Omit<NavLinkChild, "isActive">[] = [
+  { href: "/reports/market", label: "市场报表", labelEn: "Market Report" },
+  { href: "/reports/crate", label: "桶型报表", labelEn: "Crate Report" },
+];
 
 interface SidebarProps {
   role: UserRole;
@@ -77,18 +72,29 @@ interface SidebarProps {
 export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const isAdmin = role === "admin";
+
   const reportsActive = pathname.startsWith("/reports/");
   const [reportsOpen, setReportsOpen] = useState(reportsActive);
 
+  const settingsActive = pathname.startsWith("/settings");
+  const [settingsOpen, setSettingsOpen] = useState(settingsActive);
+
   useEffect(() => {
-    if (reportsActive) setReportsOpen(true);
+    if (reportsActive) {
+      setReportsOpen(true);
+    }
   }, [reportsActive]);
+
+  useEffect(() => {
+    if (settingsActive) {
+      setSettingsOpen(true);
+    }
+  }, [settingsActive]);
 
   const summaryIndex = items.findIndex((item) => item.href === "/summary");
   const beforeReports = items.slice(0, summaryIndex + 1);
   const afterReports = items.slice(summaryIndex + 1);
-
-  const ReportsIcon = REPORTS_GROUP.icon;
 
   return (
     <aside
@@ -115,59 +121,21 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             />
           ))}
 
-          <li>
-            <button
-              type="button"
-              onClick={() => setReportsOpen((open) => !open)}
-              className={cn(
-                "flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                reportsActive
-                  ? "bg-haidee-accent/20 text-haidee-accent"
-                  : "text-white/75 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              <ReportsIcon className="h-5 w-5 shrink-0" />
-              <span className="flex-1 text-left">
-                {REPORTS_GROUP.label}{" "}
-                <span className="text-xs text-white/50">{REPORTS_GROUP.labelEn}</span>
-              </span>
-              {reportsOpen ? (
-                <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-              ) : (
-                <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
-              )}
-            </button>
-
-            {reportsOpen && (
-              <ul className="m-0 mt-1 list-none space-y-1 p-0 pl-4">
-                {REPORTS_GROUP.children.map((child) => {
-                  const isActive =
-                    pathname === child.href ||
-                    pathname.startsWith(child.href + "/");
-
-                  return (
-                    <li key={child.href}>
-                      <Link
-                        href={child.href}
-                        onClick={onNavigate}
-                        className={cn(
-                          "flex min-h-[40px] items-center rounded-lg px-3 py-2 text-sm transition-colors",
-                          isActive
-                            ? "bg-haidee-accent/20 text-haidee-accent"
-                            : "text-white/70 hover:bg-white/10 hover:text-white"
-                        )}
-                      >
-                        <span>
-                          {child.label}{" "}
-                          <span className="text-xs text-white/50">{child.labelEn}</span>
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </li>
+          <ExpandableNavGroup
+            label="报表"
+            labelEn="Reports"
+            icon={BarChart3}
+            open={reportsOpen}
+            onToggle={() => setReportsOpen((open) => !open)}
+            groupActive={reportsActive}
+            onNavigate={onNavigate}
+            items={REPORTS_CHILDREN.map((child) => ({
+              ...child,
+              isActive:
+                pathname === child.href ||
+                pathname.startsWith(`${child.href}/`),
+            }))}
+          />
 
           {afterReports.map((item) => (
             <NavLink
@@ -177,6 +145,23 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
               onNavigate={onNavigate}
             />
           ))}
+
+          {isAdmin && (
+            <ExpandableNavGroup
+              label="系统设置"
+              labelEn="Settings"
+              icon={Settings}
+              open={settingsOpen}
+              onToggle={() => setSettingsOpen((open) => !open)}
+              groupActive={settingsActive}
+              onNavigate={onNavigate}
+              submenu={
+                <Suspense fallback={null}>
+                  <SettingsSidebarMenu onNavigate={onNavigate} />
+                </Suspense>
+              }
+            />
+          )}
         </ul>
       </nav>
 
@@ -191,6 +176,96 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   );
 }
 
+function ExpandableNavGroup({
+  label,
+  labelEn,
+  icon: Icon,
+  open,
+  onToggle,
+  groupActive,
+  items,
+  submenu,
+  onNavigate,
+}: {
+  label: string;
+  labelEn: string;
+  icon: React.ComponentType<{ className?: string }>;
+  open: boolean;
+  onToggle: () => void;
+  groupActive: boolean;
+  items?: NavLinkChild[];
+  submenu?: React.ReactNode;
+  onNavigate?: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+          groupActive
+            ? "bg-haidee-accent/20 text-haidee-accent"
+            : "text-white/75 hover:bg-white/10 hover:text-white"
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="flex-1 text-left">
+          {label} <span className="text-xs text-white/50">{labelEn}</span>
+        </span>
+        {open ? (
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+        )}
+      </button>
+
+      {open &&
+        (submenu ??
+          (items && (
+            <ul className="m-0 mt-1 list-none space-y-1 p-0 pl-4">
+              {items.map((child) => (
+                <li key={child.href}>
+                  <SidebarSubLink
+                    href={child.href}
+                    label={child.label}
+                    labelEn={child.labelEn}
+                    isActive={child.isActive}
+                    onNavigate={onNavigate}
+                  />
+                </li>
+              ))}
+            </ul>
+          )))}
+    </li>
+  );
+}
+
+function SidebarSubLink({
+  href,
+  label,
+  labelEn,
+  isActive,
+  onNavigate,
+}: NavLinkChild & { onNavigate?: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={cn(
+        "flex min-h-[40px] items-center rounded-lg px-3 py-2 text-sm transition-colors",
+        isActive
+          ? "bg-haidee-accent/20 text-haidee-accent"
+          : "text-white/70 hover:bg-white/10 hover:text-white"
+      )}
+    >
+      <span>
+        {label} <span className="text-xs text-white/50">{labelEn}</span>
+      </span>
+    </Link>
+  );
+}
+
 function NavLink({
   item,
   pathname,
@@ -202,7 +277,7 @@ function NavLink({
 }) {
   const Icon = item.icon;
   const isActive =
-    pathname === item.href || pathname.startsWith(item.href + "/");
+    pathname === item.href || pathname.startsWith(`${item.href}/`);
 
   return (
     <li>

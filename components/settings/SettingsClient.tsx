@@ -43,10 +43,9 @@ import type { FreightSettingsData } from "@/components/settings/FreightRatesSect
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 import {
-  SettingsNav,
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
-} from "@/components/settings/SettingsNav";
+} from "@/lib/constants/settings-nav";
 
 interface MarketOption {
   id: string;
@@ -120,6 +119,7 @@ interface SettingsData {
 }
 
 interface SettingsClientProps {
+  activeSection: SettingsSection;
   data: SettingsData;
   freightData: FreightSettingsData & {
     exchangeRates: { id: string; yearMonth: string; rate: number }[];
@@ -154,11 +154,14 @@ function ShipperCurrencyBadge({ currency }: { currency: string }) {
   );
 }
 
-export function SettingsClient({ data, freightData }: SettingsClientProps) {
+export function SettingsClient({
+  activeSection,
+  data,
+  freightData,
+}: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("shippers");
   const [dialog, setDialog] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | undefined>();
 
@@ -229,20 +232,17 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
         </p>
       )}
 
-      <div className="flex min-h-[560px] w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
-        <SettingsNav active={activeSection} onChange={setActiveSection} />
+      <div className="min-h-[560px] w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
+        <div className="border-b border-haidee-border px-4 py-3">
+          <h3 className="text-lg font-semibold text-haidee-text">
+            {sectionTitle.label}{" "}
+            <span className="text-sm font-normal text-haidee-muted">
+              {sectionTitle.labelEn}
+            </span>
+          </h3>
+        </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="border-b border-haidee-border px-4 py-3">
-            <h3 className="text-lg font-semibold text-haidee-text">
-              {sectionTitle.label}{" "}
-              <span className="text-sm font-normal text-haidee-muted">
-                {sectionTitle.labelEn}
-              </span>
-            </h3>
-          </div>
-
-          <div className="p-4">
+        <div className="p-4">
         {activeSection === "shippers" && (
           <>
           <div className="mb-3 flex justify-end">
@@ -601,7 +601,6 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
           />
           </>
         )}
-          </div>
         </div>
       </div>
 
