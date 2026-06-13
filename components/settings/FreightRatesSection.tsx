@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -94,8 +93,14 @@ export interface FreightSettingsData {
   paymentRelations: PaymentRelationRow[];
 }
 
+export type FreightRatesView =
+  | "shipper-rates"
+  | "consignee-rates"
+  | "payment-relations";
+
 interface FreightRatesSectionProps {
   data: FreightSettingsData;
+  view: FreightRatesView;
 }
 
 type RateDialogState =
@@ -216,7 +221,7 @@ function RateMatrixTable({
   );
 }
 
-export function FreightRatesSection({ data }: FreightRatesSectionProps) {
+export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -330,19 +335,8 @@ export function FreightRatesSection({ data }: FreightRatesSectionProps) {
           {error}
         </p>
       )}
-
-      <Tabs defaultValue="shipper-rates" className="w-full">
-        <TabsList className="mb-4 flex h-auto flex-wrap gap-1 bg-haidee-surface p-1">
-          <TabsTrigger value="shipper-rates">寄货人费率 Shipper Rates</TabsTrigger>
-          <TabsTrigger value="consignee-rates">
-            收货人费率 Consignee Rates
-          </TabsTrigger>
-          <TabsTrigger value="payment-relations">
-            付款关系 Payment Relations
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="shipper-rates" className="space-y-3">
+      {view === "shipper-rates" && (
+        <div className="space-y-3">
           <p className="text-sm text-haidee-muted">
             币种按寄货人设定；修改时可选择立即生效或指定生效日期。历史已录入数据不会自动重算。
           </p>
@@ -352,9 +346,11 @@ export function FreightRatesSection({ data }: FreightRatesSectionProps) {
             currencyColumn
             onEdit={(row) => openRateDialog("shipper", row as ShipperRateRow)}
           />
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="consignee-rates" className="space-y-3">
+      {view === "consignee-rates" && (
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-haidee-muted">
               全部 MYR；开单公司标注 HAIDEE / WTL。
@@ -448,9 +444,11 @@ export function FreightRatesSection({ data }: FreightRatesSectionProps) {
             extraColumn={(row) => getBillingCompanyLabel(row.billingCompany ?? "haidee")}
             onEdit={(row) => openRateDialog("consignee", row as ConsigneeRateRow)}
           />
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="payment-relations" className="space-y-3">
+      {view === "payment-relations" && (
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-haidee-muted">
               未设定关系的寄货人/收货人组合默认寄货人付款（1a）。
@@ -545,8 +543,8 @@ export function FreightRatesSection({ data }: FreightRatesSectionProps) {
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       <Dialog open={!!rateDialog} onOpenChange={() => setRateDialog(null)}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">

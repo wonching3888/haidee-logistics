@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,6 +42,11 @@ import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import type { FreightSettingsData } from "@/components/settings/FreightRatesSection";
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
+import {
+  SettingsNav,
+  SETTINGS_SECTION_TITLES,
+  type SettingsSection,
+} from "@/components/settings/SettingsNav";
 
 interface MarketOption {
   id: string;
@@ -154,6 +158,7 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<SettingsSection>("shippers");
   const [dialog, setDialog] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | undefined>();
 
@@ -214,6 +219,8 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
     });
   }
 
+  const sectionTitle = SETTINGS_SECTION_TITLES[activeSection];
+
   return (
     <div className="w-full space-y-4">
       {error && (
@@ -222,34 +229,22 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
         </p>
       )}
 
-      <div className="w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
-      <Tabs defaultValue="shippers" className="w-full">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b border-haidee-border bg-haidee-surface p-2">
-          <TabsTrigger value="shippers" className="min-h-[40px] px-3">
-            寄货人 Shippers
-          </TabsTrigger>
-          <TabsTrigger value="stalls" className="min-h-[40px] px-3">
-            档口 Stalls
-          </TabsTrigger>
-          <TabsTrigger value="defaults" className="min-h-[40px] px-3">
-            档口对应 Defaults
-          </TabsTrigger>
-          <TabsTrigger value="trucks" className="min-h-[40px] px-3">
-            车辆 Trucks
-          </TabsTrigger>
-          <TabsTrigger value="users" className="min-h-[40px] px-3">
-            用户 Users
-          </TabsTrigger>
-          <TabsTrigger value="freight-rates" className="min-h-[40px] px-3">
-            车力费率 Freight Rates
-          </TabsTrigger>
-          <TabsTrigger value="exchange-rate" className="min-h-[40px] px-3">
-            汇率 Exchange Rate
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex min-h-[560px] w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
+        <SettingsNav active={activeSection} onChange={setActiveSection} />
 
-        {/* Shippers */}
-        <TabsContent value="shippers" className="w-full p-4">
+        <div className="min-w-0 flex-1">
+          <div className="border-b border-haidee-border px-4 py-3">
+            <h3 className="text-lg font-semibold text-haidee-text">
+              {sectionTitle.label}{" "}
+              <span className="text-sm font-normal text-haidee-muted">
+                {sectionTitle.labelEn}
+              </span>
+            </h3>
+          </div>
+
+          <div className="p-4">
+        {activeSection === "shippers" && (
+          <>
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -330,10 +325,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
-        </TabsContent>
+          </>
+        )}
 
-        {/* Stalls */}
-        <TabsContent value="stalls" className="w-full p-4">
+        {activeSection === "stalls" && (
+          <>
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -396,10 +392,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
-        </TabsContent>
+          </>
+        )}
 
-        {/* Defaults */}
-        <TabsContent value="defaults" className="w-full p-4">
+        {activeSection === "defaults" && (
+          <>
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -450,10 +447,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
-        </TabsContent>
+          </>
+        )}
 
-        {/* Trucks */}
-        <TabsContent value="trucks" className="w-full p-4">
+        {activeSection === "trucks" && (
+          <>
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -516,10 +514,11 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
-        </TabsContent>
+          </>
+        )}
 
-        {/* Users */}
-        <TabsContent value="users" className="w-full p-4">
+        {activeSection === "users" && (
+          <>
           <div className="mb-3 flex justify-end">
             <Button
               onClick={() => {
@@ -580,13 +579,17 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
               ))}
             </TableBody>
           </DataTable>
-        </TabsContent>
+          </>
+        )}
 
-        <TabsContent value="freight-rates" className="w-full p-4">
-          <FreightRatesSection data={freightData} />
-        </TabsContent>
+        {(activeSection === "shipper-rates" ||
+          activeSection === "consignee-rates" ||
+          activeSection === "payment-relations") && (
+          <FreightRatesSection data={freightData} view={activeSection} />
+        )}
 
-        <TabsContent value="exchange-rate" className="w-full p-4">
+        {activeSection === "exchange-rate" && (
+          <>
           {freightData.exchangeAlert.missing && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               提醒：{freightData.exchangeAlert.currentYearMonth} 当月汇率尚未设定。
@@ -596,8 +599,10 @@ export function SettingsClient({ data, freightData }: SettingsClientProps) {
             exchangeRates={freightData.exchangeRates}
             exchangeAlert={freightData.exchangeAlert}
           />
-        </TabsContent>
-      </Tabs>
+          </>
+        )}
+          </div>
+        </div>
       </div>
 
       {/* Shipper Dialog */}
