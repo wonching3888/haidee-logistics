@@ -9,16 +9,20 @@ interface CrateTypeRecordPrintProps {
   data: CrateTypeRecordData;
 }
 
-/** Prefer server-computed block.totals; fall back to summing truck rows. */
+/** Sum all trucks in this market block for one crate column. */
 function blockSubtotalQty(
   block: CrateTypeRecordData["blocks"][number],
   columnCode: string
 ): number {
+  const fromTrucks = sumColumnQuantities(block.trucks, columnCode);
+  if (fromTrucks > 0) return fromTrucks;
+
   const fromTotals = block.totals?.[columnCode];
   if (typeof fromTotals === "number" && Number.isFinite(fromTotals)) {
     return fromTotals;
   }
-  return sumColumnQuantities(block.trucks, columnCode);
+
+  return 0;
 }
 
 function CrateRecordColGroup({

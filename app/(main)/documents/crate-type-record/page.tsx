@@ -14,7 +14,10 @@ interface CrateTypeRecordPageProps {
   }>;
 }
 
-function parseList(raw?: string): string[] {
+function parseList(raw?: string | string[]): string[] {
+  if (Array.isArray(raw)) {
+    return raw.flatMap((part) => parseList(part));
+  }
   if (!raw?.trim()) return [];
   return raw
     .split(",")
