@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { isOtherMarket } from "@/lib/markets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -103,12 +104,14 @@ export function InboundForm({
   const [showAddStall, setShowAddStall] = useState(false);
   const [newStall, setNewStall] = useState({
     code: "",
+    destination: "",
     marketId: markets[0]?.id ?? "",
     tongTypeId: tongTypes[0]?.id ?? "",
   });
   const [pendingNewStalls, setPendingNewStalls] = useState<
     {
       code: string;
+      name?: string;
       marketId: string;
       tongTypeId: string;
       stallId: string;
@@ -243,6 +246,7 @@ export function InboundForm({
             const row = rows.find((r) => r.rowId === s.rowId);
             return {
               code: s.code,
+              name: s.name,
               marketId: s.marketId,
               tongTypeId: row?.tongTypeId ?? s.tongTypeId,
               quantity: parseInt(row?.quantity ?? "0", 10) || 0,
@@ -405,24 +409,22 @@ export function InboundForm({
             <Plus className="h-4 w-4" />
             新增档口 Add Stall
           </Button>
-          {showAddStall && (
+          {showAddStall && (() => {
+            const selectedMarket = markets.find((m) => m.id === newStall.marketId);
+            const otherSelected = isOtherMarket(selectedMarket?.code);
+            return (
             <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
-              <div className="space-y-1">
-                <label className="text-xs text-haidee-muted">档口代码 Code</label>
-                <Input
-                  value={newStall.code}
-                  onChange={(e) =>
-                    setNewStall({ ...newStall, code: e.target.value })
-                  }
-                  className="min-h-[40px] font-mono"
-                />
-              </div>
               <div className="space-y-1">
                 <label className="text-xs text-haidee-muted">地区 Market</label>
                 <select
                   value={newStall.marketId}
                   onChange={(e) =>
-                    setNewStall({ ...newStall, marketId: e.target.value })
+                    setNewStall({
+                      ...newStall,
+                      marketId: e.target.value,
+                      code: "",
+                      destination: "",
+                    })
                   }
                   className="min-h-[40px] rounded-lg border border-haidee-border px-3 text-sm"
                 >
@@ -433,6 +435,32 @@ export function InboundForm({
                   ))}
                 </select>
               </div>
+              {otherSelected ? (
+                <div className="space-y-1">
+                  <label className="text-xs text-haidee-muted">
+                    目的地 Destination
+                  </label>
+                  <Input
+                    value={newStall.destination}
+                    onChange={(e) =>
+                      setNewStall({ ...newStall, destination: e.target.value })
+                    }
+                    placeholder='例如 Hat Yai、Butterworth'
+                    className="min-h-[40px]"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-xs text-haidee-muted">档口代码 Code</label>
+                  <Input
+                    value={newStall.code}
+                    onChange={(e) =>
+                      setNewStall({ ...newStall, code: e.target.value })
+                    }
+                    className="min-h-[40px] font-mono"
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-xs text-haidee-muted">桶型 Type</label>
                 <select
@@ -452,20 +480,33 @@ export function InboundForm({
               <Button
                 type="button"
                 onClick={() => {
-                  if (!newStall.code.trim()) return;
                   const market = markets.find((m) => m.id === newStall.marketId);
+                  const other = isOtherMarket(market?.code);
+                  const destination = newStall.destination.trim();
+                  const code = other
+                    ? destination.toUpperCase()
+                    : newStall.code.trim();
+                  if (!code) return;
+                  if (other && !destination) return;
                   const tempId = `new-${crypto.randomUUID()}`;
                   const rowId = newRowId();
                   setPendingNewStalls((prev) => [
                     ...prev,
-                    { ...newStall, stallId: tempId, rowId },
+                    {
+                      code,
+                      name: other ? destination : undefined,
+                      marketId: newStall.marketId,
+                      tongTypeId: newStall.tongTypeId,
+                      stallId: tempId,
+                      rowId,
+                    },
                   ]);
                   setRows((prev) => [
                     ...prev,
                     {
                       rowId,
                       stallId: tempId,
-                      stallCode: newStall.code,
+                      stallCode: other ? destination : code,
                       marketCode: market?.code ?? "",
                       tongTypeId: newStall.tongTypeId,
                       quantity: "",
@@ -473,6 +514,7 @@ export function InboundForm({
                   ]);
                   setNewStall({
                     code: "",
+                    destination: "",
                     marketId: markets[0]?.id ?? "",
                     tongTypeId: tongTypes[0]?.id ?? "",
                   });
@@ -483,7 +525,8 @@ export function InboundForm({
                 确认添加 Add
               </Button>
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 

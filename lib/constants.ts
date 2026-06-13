@@ -10,8 +10,9 @@ export const MARKET_ORDER = [
   "P",
   "TP",
   "NT",
-  "KD",
   "KT",
   "SA",
+  "KD",
   "JB",
+  "OTHER",
 ] as const;

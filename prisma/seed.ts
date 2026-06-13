@@ -22,6 +22,7 @@ const MARKETS = [
   { code: "NT", name: "N'Tebal", state: "Penang" },
   { code: "SA", name: "Simpang Ampat", state: "Penang" },
   { code: "JB", name: "Johor Bahru", state: "Johor" },
+  { code: "OTHER", name: "OTHER" },
   { code: "ABIBA", name: "ABIBA" },
   { code: "ALPS", name: "ALPS" },
   { code: "ECONSAVE", name: "ECONSAVE" },
@@ -48,7 +49,7 @@ const TONG_TYPES = [
 
 async function main() {
   const MARKET_ORDER_SEED = [
-    "KL", "BP", "MP", "SL", "MC", "A", "BM", "P", "TP", "NT", "KD", "KT", "SA", "JB",
+    "KL", "BP", "MP", "SL", "MC", "A", "BM", "P", "TP", "NT", "KT", "SA", "KD", "JB", "OTHER",
   ];
 
   console.log("Seeding markets...");

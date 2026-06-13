@@ -1,6 +1,5 @@
 import {
   getMarketDisplayName,
-  MARKET_DISPLAY_NAMES,
 } from "@/lib/constants/market-names";
 import { MARKET_ORDER } from "@/lib/markets";
 
@@ -14,5 +13,8 @@ export const CRATE_TYPE_RECORD_BLOCKS: {
 }));
 
 export function getCrateTypeRecordBlockTitle(marketCode: string): string | null {
-  return MARKET_DISPLAY_NAMES[marketCode] ?? null;
+  if (!(MARKET_ORDER as readonly string[]).includes(marketCode)) {
+    return null;
+  }
+  return getMarketDisplayName(marketCode);
 }

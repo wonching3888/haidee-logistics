@@ -9,11 +9,32 @@ export const MARKET_ORDER = [
   "P",
   "TP",
   "NT",
-  "KD",
   "KT",
   "SA",
+  "KD",
   "JB",
+  "OTHER",
 ] as const;
+
+export const OTHER_MARKET_CODE = "OTHER" as const;
+
+/** Markets excluded from fixed freight / toll master data */
+export const MARKETS_WITHOUT_FREIGHT = [OTHER_MARKET_CODE] as const;
+
+export function isOtherMarket(code: string | null | undefined): boolean {
+  return code === OTHER_MARKET_CODE;
+}
+
+export function getStallDisplayLabel(
+  marketCode: string,
+  stallCode: string,
+  stallName?: string | null
+): string {
+  if (isOtherMarket(marketCode) && stallName?.trim()) {
+    return stallName.trim();
+  }
+  return stallCode;
+}
 
 /** Primary columns for dispatch matrix & daily summary */
 export const DISPATCH_MARKET_ORDER = [...MARKET_ORDER] as const;
@@ -43,6 +64,12 @@ export const MARKET_COLORS: Record<string, MarketColorSet> = {
   P: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
   SA: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
   B: { bg: "#F3F4F6", text: "#1F2937", border: "#1F2937", light: "#F3F4F6" },
+  OTHER: {
+    bg: "#E5E7EB",
+    text: "#374151",
+    border: "#374151",
+    light: "#E5E7EB",
+  },
 };
 
 /** KL子市场（货装KL车但目的地不同） */

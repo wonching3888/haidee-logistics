@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
+import { MARKET_ORDER, sortMarkets } from "@/lib/markets";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -108,11 +109,24 @@ export async function getSettingsData() {
       role: u.role,
       active: u.active,
     })),
-    markets: markets.map((m) => ({
-      id: m.id,
-      code: m.code,
-      name: getMarketDisplayName(m.code),
-    })),
+    markets: sortMarkets(
+      markets.map((market) => market.code),
+      MARKET_ORDER
+    )
+      .concat(
+        markets
+          .map((market) => market.code)
+          .filter((code) => !(MARKET_ORDER as readonly string[]).includes(code))
+          .sort()
+      )
+      .map((code) => {
+        const market = markets.find((item) => item.code === code)!;
+        return {
+          id: market.id,
+          code: market.code,
+          name: getMarketDisplayName(market.code),
+        };
+      }),
     tongTypes,
   };
 }

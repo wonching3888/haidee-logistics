@@ -14,6 +14,7 @@ export const MARKET_DISPLAY_NAMES: Record<string, string> = {
   SA: "SIMPANG AMPAT",
   KD: "KEDAH",
   JB: "JOHOR BAHRU",
+  OTHER: "OTHER",
 };
 
 export function getMarketDisplayName(marketCode: string): string {

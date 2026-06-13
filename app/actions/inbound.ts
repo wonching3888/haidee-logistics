@@ -11,6 +11,10 @@ import {
 import { generateSessionNo, isSessionNoUniqueViolation, SESSION_NO_MAX_RETRIES } from "@/lib/inbound";
 import { MARKET_ORDER } from "@/lib/constants";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
+import {
+  getStallDisplayLabel,
+  isOtherMarket,
+} from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 
 function aggregateCrateQuantities(
@@ -95,6 +99,22 @@ async function processNewStalls(
   const createdLines: InboundLineInput[] = [];
   if (!newStalls?.length) return createdLines;
 
+  const marketIds = [...new Set(newStalls.map((ns) => ns.marketId))];
+  const markets = await prisma.market.findMany({
+    where: { id: { in: marketIds } },
+    select: { id: true, code: true },
+  });
+  const marketCodeById = new Map(markets.map((market) => [market.id, market.code]));
+
+  for (const ns of newStalls) {
+    const marketCode = marketCodeById.get(ns.marketId);
+    if (isOtherMarket(marketCode) && !ns.name?.trim()) {
+      throw new Error(
+        "OTHER 市场请填写目的地 Please enter a destination for OTHER market"
+      );
+    }
+  }
+
   const existingStalls = await prisma.stall.findMany({
     where: {
       OR: newStalls.map((ns) => ({ code: ns.code, marketId: ns.marketId })),
@@ -113,7 +133,11 @@ async function processNewStalls(
       missing.map((ns) =>
         prisma.stall
           .create({
-            data: { code: ns.code, marketId: ns.marketId },
+            data: {
+              code: ns.code.trim(),
+              name: ns.name?.trim() || null,
+              marketId: ns.marketId,
+            },
             select: { id: true, code: true, marketId: true },
           })
           .then((stall) => {
@@ -122,6 +146,18 @@ async function processNewStalls(
       )
     );
   }
+
+  await Promise.all(
+    newStalls
+      .filter((ns) => ns.name?.trim())
+      .map((ns) => {
+        const stall = stallMap.get(`${ns.code}:${ns.marketId}`)!;
+        return prisma.stall.update({
+          where: { id: stall.id },
+          data: { name: ns.name!.trim() },
+        });
+      })
+  );
 
   await Promise.all(
     newStalls.map((ns) => {
@@ -323,7 +359,11 @@ export async function getShipperStalls(shipperId: string) {
 
   return defaults.map((d) => ({
     stallId: d.stallId,
-    stallCode: d.stall.code,
+    stallCode: getStallDisplayLabel(
+      d.stall.market?.code ?? "",
+      d.stall.code,
+      d.stall.name
+    ),
     stallName: d.stall.name,
     marketCode: d.stall.market?.code ?? "",
     marketName: d.stall.market?.code
@@ -455,7 +495,11 @@ export async function getInboundSession(id: string) {
     lines: session.lines.map((l) => ({
       id: l.id,
       stallId: l.stallId,
-      stallCode: l.stall.code,
+      stallCode: getStallDisplayLabel(
+        l.stall.market?.code ?? "",
+        l.stall.code,
+        l.stall.name
+      ),
       marketCode: l.stall.market?.code ?? "",
       tongTypeId: l.tongTypeId,
       tongTypeCode: l.tongType.code,
@@ -467,6 +511,7 @@ export async function getInboundSession(id: string) {
 
 interface NewStallInput {
   code: string;
+  name?: string;
   marketId: string;
   tongTypeId: string;
   quantity?: number;

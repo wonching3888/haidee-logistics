@@ -11,6 +11,7 @@ export const DEPOT_GROUPS: readonly DepotGroup[] = [
   { label: "TP/P/NT", markets: ["P", "TP", "NT", "KT", "SA"] },
   { label: "KD", markets: ["KD"] },
   { label: "OTHERS", markets: ["JB"] },
+  { label: "OTHER", markets: ["OTHER"] },
 ] as const;
 
 const marketToDepotMap = new Map<string, string>(
