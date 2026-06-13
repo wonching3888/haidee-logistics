@@ -1,19 +1,9 @@
 import type { CrateTypeRecordData } from "@/app/actions/documents";
-import {
-  formatDOCrateQuantity,
-  sumColumnQuantities,
-} from "@/lib/constants/tong-columns";
+import { formatDOCrateQuantity } from "@/lib/constants/tong-columns";
 import "./document-print.css";
 
 interface CrateTypeRecordPrintProps {
   data: CrateTypeRecordData;
-}
-
-function blockSubtotalQuantity(
-  block: CrateTypeRecordData["blocks"][number],
-  columnCode: string
-): number {
-  return sumColumnQuantities(block.trucks, columnCode);
 }
 
 function CrateRecordColGroup({
@@ -85,7 +75,7 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
                   <td key={col.code} className="crate-record-crate-col">
                     {formatDOCrateQuantity(
                       col.code,
-                      blockSubtotalQuantity(block, col.code)
+                      block.totals[col.code] ?? 0
                     )}
                   </td>
                 ))}

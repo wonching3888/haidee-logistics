@@ -1,11 +1,14 @@
 -- Sync KL / SL market display names across master data and legacy text fields
 UPDATE markets
 SET name = 'SELAYANG'
-WHERE code = 'KL';
+WHERE code = 'KL'
+   OR name ILIKE 'KUALA LUMPUR'
+   OR name ILIKE 'K.L.%';
 
 UPDATE markets
 SET name = 'SEREMBAN'
-WHERE code = 'SL';
+WHERE code = 'SL'
+   OR name ILIKE 'SELANGOR';
 
 UPDATE inbound_sessions
 SET area_note = 'SELAYANG'

@@ -577,15 +577,22 @@ export async function getCrateTypeRecordData(
   ).map((col) => ({ code: col.code, header: col.header }));
 
   const activeColumnCodes = activeColumns.map((col) => col.code);
-  for (const block of blocks) {
-    block.totals = computeBlockSubtotals(block.trucks, activeColumnCodes);
-  }
+  const serializedBlocks: CrateTypeRecordBlock[] = blocks.map((block) => ({
+    title: block.title,
+    trucks: block.trucks.map((truck) => ({
+      lorryNo: truck.lorryNo,
+      quantities: { ...truck.quantities },
+      total: truck.total,
+    })),
+    totals: computeBlockSubtotals(block.trucks, activeColumnCodes),
+    total: block.total,
+  }));
 
   return {
     date: formatDODate(date),
-    blocks,
-    grandTotals,
+    blocks: serializedBlocks,
+    grandTotals: { ...grandTotals },
     grandTotal,
-    activeColumns,
+    activeColumns: activeColumns.map((col) => ({ ...col })),
   };
 }

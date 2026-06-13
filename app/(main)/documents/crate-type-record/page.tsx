@@ -4,6 +4,8 @@ import { CrateTypeRecordPrint } from "@/components/documents/CrateTypeRecordPrin
 import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
 import { resolveDateParam } from "@/lib/date-utils";
 
+export const dynamic = "force-dynamic";
+
 interface CrateTypeRecordPageProps {
   searchParams: Promise<{
     date?: string;
