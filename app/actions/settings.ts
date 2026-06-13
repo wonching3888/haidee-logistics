@@ -10,6 +10,11 @@ import {
 } from "@/lib/constants/pickup-locations";
 import { MARKET_ORDER, sortMarkets } from "@/lib/markets";
 import { createAdminClient } from "@/lib/supabase";
+import {
+  defaultCostItemsForCountry,
+  isTruckCountry,
+  type TruckCountry,
+} from "@/lib/constants/truck-cost";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -46,7 +51,10 @@ export async function getSettingsData() {
       }),
       prisma.truck.findMany({
         orderBy: [{ sortOrder: "asc" }, { plate: "asc" }],
-        include: { defaultDriver: { select: { id: true, name: true } } },
+        include: {
+          defaultDriver: { select: { id: true, name: true } },
+          costItems: { orderBy: { sortOrder: "asc" } },
+        },
       }),
       prisma.driver.findMany({
         where: { active: true },
@@ -104,10 +112,21 @@ export async function getSettingsData() {
       id: t.id,
       plate: t.plate,
       type: t.type,
+      country: isTruckCountry(t.country) ? t.country : "MY",
       capacityTong: t.capacityTong,
       defaultDriverId: t.defaultDriverId,
       defaultDriverName: t.defaultDriver?.name ?? "",
       sortOrder: t.sortOrder,
+      fuelEfficiencyKmPerL: t.fuelEfficiencyKmPerL
+        ? Number(t.fuelEfficiencyKmPerL)
+        : null,
+      annualMileageKm: t.annualMileageKm,
+      costItems: t.costItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        annualAmount: Number(item.annualAmount),
+        sortOrder: item.sortOrder,
+      })),
       active: t.active,
     })),
     drivers,
@@ -277,27 +296,64 @@ export async function saveTruck(input: {
   id?: string;
   plate: string;
   type: string;
+  country: string;
   capacityTong?: number;
   defaultDriverId?: string | null;
   sortOrder?: number | null;
+  fuelEfficiencyKmPerL?: number | null;
+  annualMileageKm?: number | null;
+  costItems?: { name: string; annualAmount: number }[];
   active: boolean;
 }) {
   await requireAdmin();
 
+  if (!isTruckCountry(input.country)) {
+    throw new Error("无效的国家 Invalid truck country");
+  }
+
+  const country = input.country as TruckCountry;
+  const costItems =
+    input.costItems && input.costItems.length > 0
+      ? input.costItems
+      : defaultCostItemsForCountry(country);
+
+  for (const item of costItems) {
+    if (!item.name.trim()) {
+      throw new Error("成本项目名称不能为空 Cost item name is required");
+    }
+    if (!Number.isFinite(item.annualAmount) || item.annualAmount < 0) {
+      throw new Error("成本项目年度总额无效 Invalid annual amount");
+    }
+  }
+
   const data = {
     plate: input.plate.trim().toUpperCase(),
     type: input.type,
+    country,
     capacityTong: input.capacityTong ?? null,
     defaultDriverId: input.defaultDriverId || null,
     sortOrder: input.sortOrder ?? null,
+    fuelEfficiencyKmPerL:
+      input.fuelEfficiencyKmPerL != null ? input.fuelEfficiencyKmPerL : null,
+    annualMileageKm: input.annualMileageKm ?? null,
     active: input.active,
   };
 
-  if (input.id) {
-    await prisma.truck.update({ where: { id: input.id }, data });
-  } else {
-    await prisma.truck.create({ data });
-  }
+  await prisma.$transaction(async (tx) => {
+    const truck = input.id
+      ? await tx.truck.update({ where: { id: input.id }, data })
+      : await tx.truck.create({ data });
+
+    await tx.truckCostItem.deleteMany({ where: { truckId: truck.id } });
+    await tx.truckCostItem.createMany({
+      data: costItems.map((item, index) => ({
+        truckId: truck.id,
+        name: item.name.trim(),
+        annualAmount: item.annualAmount,
+        sortOrder: index,
+      })),
+    });
+  });
 
   revalidatePath("/settings");
   revalidatePath("/dispatch");

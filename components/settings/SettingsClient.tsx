@@ -43,6 +43,15 @@ import type { FreightSettingsData } from "@/components/settings/FreightRatesSect
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 import {
+  TruckFormDialog,
+  type TruckFormValue,
+} from "@/components/settings/TruckFormDialog";
+import {
+  getTruckCountryMeta,
+  type TruckCountry,
+} from "@/lib/constants/truck-cost";
+import { calcTotalCostPerKm } from "@/lib/truck-cost";
+import {
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
 } from "@/lib/constants/settings-nav";
@@ -97,10 +106,19 @@ interface SettingsData {
     id: string;
     plate: string;
     type: string;
+    country: TruckCountry;
     capacityTong: number | null;
     defaultDriverId: string | null;
     defaultDriverName: string;
     sortOrder: number | null;
+    fuelEfficiencyKmPerL: number | null;
+    annualMileageKm: number | null;
+    costItems: {
+      id: string;
+      name: string;
+      annualAmount: number;
+      sortOrder: number;
+    }[];
     active: boolean;
   }[];
   drivers: {
@@ -127,6 +145,10 @@ interface SettingsClientProps {
       currentYearMonth: string;
       missing: boolean;
       currentRate: number | null;
+    };
+    fuelPrice: {
+      myrPerLiter: number;
+      thbPerLiter: number;
     };
   };
 }
@@ -189,14 +211,9 @@ export function SettingsClient({
     shipperId: "",
     stallId: "",
   });
-  const [truckForm, setTruckForm] = useState({
-    plate: "",
-    type: "big",
-    capacityTong: "",
-    defaultDriverId: "",
-    sortOrder: "",
-    active: true,
-  });
+  const [truckInitialValue, setTruckInitialValue] = useState<
+    TruckFormValue | undefined
+  >(undefined);
   const [userForm, setUserForm] = useState({
     email: "",
     name: "",
@@ -456,14 +473,7 @@ export function SettingsClient({
             <Button
               onClick={() => {
                 setEditId(undefined);
-                setTruckForm({
-                  plate: "",
-                  type: "big",
-                  capacityTong: "",
-                  defaultDriverId: "",
-                  sortOrder: "",
-                  active: true,
-                });
+                setTruckInitialValue(undefined);
                 setDialog("truck");
               }}
               className="gap-2 bg-haidee-blue text-white"
@@ -475,33 +485,60 @@ export function SettingsClient({
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>车牌 Plate</TableHead>
+                <TableHead>国家 Country</TableHead>
                 <TableHead>默认司机 Default Driver</TableHead>
                 <TableHead>类型 Type</TableHead>
                 <TableHead className="text-right">容量 Capacity</TableHead>
+                <TableHead className="text-right">合计/km Total</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.trucks.map((t) => (
+              {data.trucks.map((t) => {
+                const countryMeta = getTruckCountryMeta(t.country);
+                const totalPerKm = calcTotalCostPerKm(
+                  t.costItems,
+                  t.annualMileageKm
+                );
+
+                return (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono font-semibold">{t.plate}</TableCell>
+                  <TableCell>
+                    {countryMeta.label}{" "}
+                    <span className="text-xs text-haidee-muted">
+                      {countryMeta.labelEn}
+                    </span>
+                  </TableCell>
                   <TableCell>{t.defaultDriverName || "—"}</TableCell>
                   <TableCell>{t.type}</TableCell>
                   <TableCell className="text-right font-mono">
                     {t.capacityTong ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {totalPerKm != null
+                      ? `${totalPerKm.toFixed(4)} ${countryMeta.currency}`
+                      : "—"}
                   </TableCell>
                   <TableCell><ActiveBadge active={t.active} /></TableCell>
                   <TableCell className="text-right">
                     <RowActions
                       onEdit={() => {
                         setEditId(t.id);
-                        setTruckForm({
+                        setTruckInitialValue({
                           plate: t.plate,
                           type: t.type,
-                          capacityTong: t.capacityTong?.toString() ?? "",
-                          defaultDriverId: t.defaultDriverId ?? "",
-                          sortOrder: t.sortOrder?.toString() ?? "",
+                          country: t.country,
+                          capacityTong: t.capacityTong ?? undefined,
+                          defaultDriverId: t.defaultDriverId,
+                          sortOrder: t.sortOrder,
+                          fuelEfficiencyKmPerL: t.fuelEfficiencyKmPerL,
+                          annualMileageKm: t.annualMileageKm,
+                          costItems: t.costItems.map((item) => ({
+                            name: item.name,
+                            annualAmount: item.annualAmount,
+                          })),
                           active: t.active,
                         });
                         setDialog("truck");
@@ -511,7 +548,8 @@ export function SettingsClient({
                     />
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </DataTable>
           </>
@@ -598,6 +636,7 @@ export function SettingsClient({
           <ExchangeRateSection
             exchangeRates={freightData.exchangeRates}
             exchangeAlert={freightData.exchangeAlert}
+            fuelPrice={freightData.fuelPrice}
           />
           </>
         )}
@@ -787,82 +826,23 @@ export function SettingsClient({
         </FormField>
       </FormDialog>
 
-      {/* Truck Dialog */}
-      <FormDialog
+      <TruckFormDialog
         open={dialog === "truck"}
         onClose={() => setDialog(null)}
         title={editId ? "编辑车辆 Edit Truck" : "新增车辆 New Truck"}
-        onSave={() =>
+        drivers={data.drivers}
+        fuelPrice={freightData.fuelPrice}
+        initialValue={truckInitialValue}
+        isPending={isPending}
+        onSave={(value) =>
           runAction(async () =>
             saveTruck({
               id: editId,
-              plate: truckForm.plate,
-              type: truckForm.type,
-              capacityTong: truckForm.capacityTong
-                ? parseInt(truckForm.capacityTong, 10)
-                : undefined,
-              defaultDriverId: truckForm.defaultDriverId || null,
-              sortOrder: truckForm.sortOrder
-                ? parseInt(truckForm.sortOrder, 10)
-                : null,
-              active: truckForm.active,
+              ...value,
             })
           )
         }
-        isPending={isPending}
-      >
-        <FormField label="车牌 Plate">
-          <Input value={truckForm.plate} onChange={(e) => setTruckForm({ ...truckForm, plate: e.target.value })} className="min-h-[44px] font-mono" />
-        </FormField>
-        <FormField label="类型 Type">
-          <select
-            value={truckForm.type}
-            onChange={(e) => setTruckForm({ ...truckForm, type: e.target.value })}
-            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
-          >
-            <option value="big">大车 Big</option>
-            <option value="small">小车 Small</option>
-          </select>
-        </FormField>
-        <FormField label="容量 Capacity (crates)">
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={truckForm.capacityTong}
-            onChange={(e) => setTruckForm({ ...truckForm, capacityTong: e.target.value })}
-            className="min-h-[44px] font-mono"
-          />
-        </FormField>
-        <FormField label="默认司机 Default Driver">
-          <select
-            value={truckForm.defaultDriverId}
-            onChange={(e) =>
-              setTruckForm({ ...truckForm, defaultDriverId: e.target.value })
-            }
-            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
-          >
-            <option value="">— 无 None —</option>
-            {data.drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.name}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="排序 Sort Order">
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={truckForm.sortOrder}
-            onChange={(e) => setTruckForm({ ...truckForm, sortOrder: e.target.value })}
-            className="min-h-[44px] font-mono"
-          />
-        </FormField>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={truckForm.active} onChange={(e) => setTruckForm({ ...truckForm, active: e.target.checked })} />
-          启用 Active
-        </label>
-      </FormDialog>
+      />
 
       {/* User Dialog */}
       <FormDialog

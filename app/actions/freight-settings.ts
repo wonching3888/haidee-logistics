@@ -10,6 +10,9 @@ import {
   isPaymentMode,
 } from "@/lib/constants/freight-settings";
 import {
+  DEFAULT_FUEL_PRICES,
+} from "@/lib/constants/truck-cost";
+import {
   buildRateMatrix,
   decimalToNumber,
   getCurrentYearMonth,
@@ -56,6 +59,7 @@ export async function getFreightSettingsData() {
     consigneeRates,
     paymentRelations,
     exchangeRates,
+    fuelPriceRow,
   ] = await Promise.all([
     prisma.shipper.findMany({
       where: { active: true },
@@ -104,6 +108,7 @@ export async function getFreightSettingsData() {
     prisma.exchangeRate.findMany({
       orderBy: { yearMonth: "desc" },
     }),
+    prisma.fuelPrice.findUnique({ where: { id: "default" } }),
   ]);
 
   const freightMarkets = serializeMarkets(markets);
@@ -185,6 +190,14 @@ export async function getFreightSettingsData() {
       currentRate: currentExchangeRate
         ? decimalToNumber(currentExchangeRate.rate)
         : null,
+    },
+    fuelPrice: {
+      myrPerLiter:
+        decimalToNumber(fuelPriceRow?.myrPerLiter) ??
+        DEFAULT_FUEL_PRICES.myrPerLiter,
+      thbPerLiter:
+        decimalToNumber(fuelPriceRow?.thbPerLiter) ??
+        DEFAULT_FUEL_PRICES.thbPerLiter,
     },
   };
 }
@@ -390,4 +403,33 @@ export async function saveExchangeRate(input: {
 
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+}
+
+export async function saveFuelPrice(input: {
+  myrPerLiter: number;
+  thbPerLiter: number;
+}) {
+  await requireAdmin();
+
+  if (!Number.isFinite(input.myrPerLiter) || input.myrPerLiter <= 0) {
+    throw new Error("马来西亚油价必须大于 0 MYR fuel price must be greater than 0");
+  }
+  if (!Number.isFinite(input.thbPerLiter) || input.thbPerLiter <= 0) {
+    throw new Error("泰国油价必须大于 0 THB fuel price must be greater than 0");
+  }
+
+  await prisma.fuelPrice.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      myrPerLiter: input.myrPerLiter,
+      thbPerLiter: input.thbPerLiter,
+    },
+    update: {
+      myrPerLiter: input.myrPerLiter,
+      thbPerLiter: input.thbPerLiter,
+    },
+  });
+
+  revalidatePath("/settings");
 }

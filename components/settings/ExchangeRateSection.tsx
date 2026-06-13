@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { saveExchangeRate } from "@/app/actions/freight-settings";
+import { saveExchangeRate, saveFuelPrice } from "@/app/actions/freight-settings";
 
 interface ExchangeRateRow {
   id: string;
@@ -37,6 +37,10 @@ interface ExchangeAlert {
 interface ExchangeRateSectionProps {
   exchangeRates: ExchangeRateRow[];
   exchangeAlert: ExchangeAlert;
+  fuelPrice: {
+    myrPerLiter: number;
+    thbPerLiter: number;
+  };
 }
 
 function formatYearMonthLabel(yearMonth: string) {
@@ -47,12 +51,17 @@ function formatYearMonthLabel(yearMonth: string) {
 export function ExchangeRateSection({
   exchangeRates,
   exchangeAlert,
+  fuelPrice,
 }: ExchangeRateSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>();
+  const [fuelForm, setFuelForm] = useState({
+    myrPerLiter: String(fuelPrice.myrPerLiter),
+    thbPerLiter: String(fuelPrice.thbPerLiter),
+  });
   const [form, setForm] = useState({
     yearMonth: exchangeAlert.currentYearMonth,
     rate: String(DEFAULT_EXCHANGE_RATE),
@@ -61,6 +70,13 @@ export function ExchangeRateSection({
   function refresh() {
     router.refresh();
   }
+
+  useEffect(() => {
+    setFuelForm({
+      myrPerLiter: String(fuelPrice.myrPerLiter),
+      thbPerLiter: String(fuelPrice.thbPerLiter),
+    });
+  }, [fuelPrice.myrPerLiter, fuelPrice.thbPerLiter]);
 
   function runAction(fn: () => Promise<void>) {
     setError(null);
@@ -89,6 +105,65 @@ export function ExchangeRateSection({
           {error}
         </p>
       )}
+
+      <div className="rounded-lg border border-haidee-border bg-white p-4">
+        <div className="mb-3">
+          <h4 className="text-sm font-semibold text-haidee-text">
+            油价设定 Fuel Prices
+          </h4>
+          <p className="text-xs text-haidee-muted">
+            车辆主数据自动带出当前油价（马来西亚 MYR/升，泰国 THB/升）。
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block space-y-1 text-sm">
+            马来西亚油价 Malaysia (MYR/L)
+            <Input
+              value={fuelForm.myrPerLiter}
+              onChange={(e) =>
+                setFuelForm({ ...fuelForm, myrPerLiter: e.target.value })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            泰国油价 Thailand (THB/L)
+            <Input
+              value={fuelForm.thbPerLiter}
+              onChange={(e) =>
+                setFuelForm({ ...fuelForm, thbPerLiter: e.target.value })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            className="bg-haidee-blue text-white"
+            disabled={isPending}
+            onClick={() =>
+              runAction(async () => {
+                const myrPerLiter = Number(fuelForm.myrPerLiter);
+                const thbPerLiter = Number(fuelForm.thbPerLiter);
+                if (!Number.isFinite(myrPerLiter) || myrPerLiter <= 0) {
+                  throw new Error(
+                    "马来西亚油价必须大于 0 MYR fuel price must be greater than 0"
+                  );
+                }
+                if (!Number.isFinite(thbPerLiter) || thbPerLiter <= 0) {
+                  throw new Error(
+                    "泰国油价必须大于 0 THB fuel price must be greater than 0"
+                  );
+                }
+                await saveFuelPrice({ myrPerLiter, thbPerLiter });
+              })
+            }
+          >
+            保存油价 Save Fuel Prices
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-haidee-muted">

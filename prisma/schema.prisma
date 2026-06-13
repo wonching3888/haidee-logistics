@@ -204,6 +204,15 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
+model FuelPrice {
+  id          String   @id @default("default")
+  myrPerLiter Decimal  @default(2.05) @map("myr_per_liter") @db.Decimal(10, 4)
+  thbPerLiter Decimal  @default(35.00) @map("thb_per_liter") @db.Decimal(10, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("fuel_prices")
+}
+
 model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique
@@ -216,21 +225,37 @@ model Driver {
 }
 
 model Truck {
-  id              String  @id @default(uuid()) @db.Uuid
-  plate           String  @unique
-  type            String  @default("big")
-  capacityTong    Int?    @map("capacity_tong")
-  defaultDriverId String? @map("default_driver_id") @db.Uuid
-  sortOrder       Int?    @map("sort_order")
-  active          Boolean @default(true)
+  id                   String   @id @default(uuid()) @db.Uuid
+  plate                String   @unique
+  type                 String   @default("big")
+  country              String   @default("MY")
+  capacityTong         Int?     @map("capacity_tong")
+  defaultDriverId      String?  @map("default_driver_id") @db.Uuid
+  sortOrder            Int?     @map("sort_order")
+  fuelEfficiencyKmPerL Decimal? @map("fuel_efficiency_km_per_l") @db.Decimal(10, 2)
+  annualMileageKm      Int?     @map("annual_mileage_km")
+  active               Boolean  @default(true)
 
   defaultDriver          Driver?         @relation(fields: [defaultDriverId], references: [id])
+  costItems              TruckCostItem[]
   inboundLines           InboundLine[]
   dispatchOrders         DispatchOrder[]
   dispatchOrdersOriginal DispatchOrder[] @relation("OriginalTruck")
   tongImports            TongImport[]
 
   @@map("trucks")
+}
+
+model TruckCostItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  truckId      String  @map("truck_id") @db.Uuid
+  name         String
+  annualAmount Decimal @default(0) @map("annual_amount") @db.Decimal(12, 2)
+  sortOrder    Int     @default(0) @map("sort_order")
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@map("truck_cost_items")
 }
 
 model ThVehicle {
