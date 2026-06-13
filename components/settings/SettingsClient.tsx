@@ -20,6 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  formatPickupLocationLabel,
+  PICKUP_LOCATIONS,
+  PICKUP_LOCATION_LABELS,
+} from "@/lib/constants/pickup-locations";
 import { Badge } from "@/components/ui/badge";
 import {
   saveShipper,
@@ -58,6 +63,7 @@ interface SettingsData {
     paymentParty: string;
     company: string;
     currency: string;
+    pickupLocation: string;
     active: boolean;
   }[];
   stalls: {
@@ -147,6 +153,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
     paymentParty: "shipper",
     company: "haidee",
     currency: "THB",
+    pickupLocation: "SADAO",
     active: true,
   });
   const [stallForm, setStallForm] = useState({
@@ -236,6 +243,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
                   paymentParty: "shipper",
                   company: "haidee",
                   currency: "THB",
+                  pickupLocation: "SADAO",
                   active: true,
                 });
                 setDialog("shipper");
@@ -253,6 +261,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
                 <TableHead>货币 Currency</TableHead>
                 <TableHead>默认桶型 Default Crate Type</TableHead>
                 <TableHead>付款方 Payment</TableHead>
+                <TableHead>收货地点 Pickup</TableHead>
                 <TableHead>公司 Company</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -268,6 +277,9 @@ export function SettingsClient({ data }: SettingsClientProps) {
                   </TableCell>
                   <TableCell className="font-mono">{s.defaultTongTypeCode || "—"}</TableCell>
                   <TableCell>{s.paymentParty}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {formatPickupLocationLabel(s.pickupLocation)}
+                  </TableCell>
                   <TableCell>{s.company}</TableCell>
                   <TableCell><ActiveBadge active={s.active} /></TableCell>
                   <TableCell className="text-right">
@@ -283,6 +295,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
                           paymentParty: s.paymentParty,
                           company: s.company,
                           currency: s.currency,
+                          pickupLocation: s.pickupLocation,
                           active: s.active,
                         });
                         setDialog("shipper");
@@ -601,6 +614,21 @@ export function SettingsClient({ data }: SettingsClientProps) {
           >
             <option value="haidee">HAI DEE</option>
             <option value="wtl">WTL</option>
+          </select>
+        </FormField>
+        <FormField label="收货地点 Pickup Location">
+          <select
+            value={shipperForm.pickupLocation}
+            onChange={(e) =>
+              setShipperForm({ ...shipperForm, pickupLocation: e.target.value })
+            }
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+          >
+            {PICKUP_LOCATIONS.map((code) => (
+              <option key={code} value={code}>
+                {PICKUP_LOCATION_LABELS[code]}
+              </option>
+            ))}
           </select>
         </FormField>
         <FormField label="货币 Currency">

@@ -16,6 +16,10 @@ import {
   sumColumnQuantities,
 } from "@/lib/constants/tong-columns";
 import {
+  formatPickupLocationLabel,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
+import {
   CRATE_TYPE_RECORD_BLOCKS,
   getCrateTypeRecordBlockTitle,
 } from "@/lib/crate-type-record-areas";
@@ -25,6 +29,7 @@ export interface DORow {
   consignor: string;
   store: string;
   area: string;
+  pickupLocation: string;
   quantities: Record<string, number>;
   qty: number;
 }
@@ -130,6 +135,7 @@ function buildDORow(
   consignor: string,
   store: string,
   area: string,
+  pickupLocation: string,
   tongCode: string,
   quantity: number
 ): DORow {
@@ -141,6 +147,7 @@ function buildDORow(
     consignor,
     store,
     area,
+    pickupLocation,
     quantities,
     qty: isBoxColumn(col) ? 0 : quantity,
   };
@@ -210,7 +217,13 @@ export async function getDeliveryOrderData(
 
   for (const dl of order.lines) {
     const line = dl.inboundLine;
-    const key = `${line.session.shipperId}:${line.stallId}`;
+    const pickupLocation = formatPickupLocationLabel(
+      resolveSessionPickupLocation(
+        line.session.pickupLocation,
+        line.session.shipper.pickupLocation
+      )
+    );
+    const key = `${line.sessionId}:${line.stallId}`;
     const consignor = line.session.shipper.name;
     const store = line.stall.code;
     const area = line.stall.market?.code ?? "";
@@ -226,6 +239,7 @@ export async function getDeliveryOrderData(
           consignor,
           store,
           area,
+          pickupLocation,
           line.tongType.code,
           line.quantity
         )
@@ -258,6 +272,7 @@ async function fetchAssignedLinesForDate(date: Date, marketCode?: string) {
     include: {
       tongType: true,
       stall: { include: { market: true } },
+      session: { include: { shipper: true } },
       dispatchLines: {
         include: {
           dispatchOrder: { include: { truck: true } },

@@ -3,6 +3,10 @@
 import { prisma } from "@/lib/prisma";
 import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput } from "@/lib/inbound-utils";
+import {
+  formatPickupLocationLabel,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
 
 export interface LoadingMatrixTruck {
   orderId: string;
@@ -51,6 +55,7 @@ interface RowAccum {
   shipperId: string;
   shipperName: string;
   areaNote: string | null;
+  pickupLocation: string;
   cells: Record<string, LoadingMatrixCell>;
 }
 
@@ -151,13 +156,25 @@ function sortDispatchOrders(
   });
 }
 
-function rowGroupKey(shipperId: string, areaNote: string | null): string {
-  return `${shipperId}:${(areaNote ?? "").trim()}`;
+function rowGroupKey(
+  shipperId: string,
+  areaNote: string | null,
+  pickupLocation: string
+): string {
+  return `${shipperId}:${(areaNote ?? "").trim()}:${pickupLocation}`;
 }
 
-function formatRowLabel(shipperName: string, areaNote: string | null): string {
+function formatRowLabel(
+  shipperName: string,
+  areaNote: string | null,
+  pickupLocation: string
+): string {
   const area = areaNote?.trim();
-  return area ? `${shipperName} (${area})` : shipperName;
+  const pickupLabel = formatPickupLocationLabel(pickupLocation);
+  if (area) {
+    return `${shipperName} (${area}) · ${pickupLabel}`;
+  }
+  return `${shipperName} · ${pickupLabel}`;
 }
 
 export async function getDailySummary(
@@ -212,7 +229,15 @@ export async function getDailySummary(
       if (!marketCode || !orderMarkets.has(marketCode)) continue;
 
       const session = line.session;
-      const groupKey = rowGroupKey(session.shipperId, session.areaNote);
+      const pickupLocation = resolveSessionPickupLocation(
+        session.pickupLocation,
+        session.shipper.pickupLocation
+      );
+      const groupKey = rowGroupKey(
+        session.shipperId,
+        session.areaNote,
+        pickupLocation
+      );
       const cellKey = matrixCellKey(order.id, marketCode);
 
       let row = rowMap.get(groupKey);
@@ -221,6 +246,7 @@ export async function getDailySummary(
           shipperId: session.shipperId,
           shipperName: session.shipper.name,
           areaNote: session.areaNote,
+          pickupLocation,
           cells: {},
         };
         rowMap.set(groupKey, row);
@@ -234,11 +260,13 @@ export async function getDailySummary(
     .sort((a, b) => {
       const nameCmp = a.shipperName.localeCompare(b.shipperName);
       if (nameCmp !== 0) return nameCmp;
-      return (a.areaNote ?? "").localeCompare(b.areaNote ?? "");
+      const areaCmp = (a.areaNote ?? "").localeCompare(b.areaNote ?? "");
+      if (areaCmp !== 0) return areaCmp;
+      return a.pickupLocation.localeCompare(b.pickupLocation);
     })
     .map((row) => ({
-      id: rowGroupKey(row.shipperId, row.areaNote),
-      label: formatRowLabel(row.shipperName, row.areaNote),
+      id: rowGroupKey(row.shipperId, row.areaNote, row.pickupLocation),
+      label: formatRowLabel(row.shipperName, row.areaNote, row.pickupLocation),
       cells: row.cells,
     }));
 

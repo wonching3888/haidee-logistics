@@ -20,6 +20,7 @@ interface SessionRow {
   status: string;
   shipperName: string;
   areaNote: string | null;
+  pickupLocationLabel: string;
   thVehiclePlate: string | null;
   totalQty: number;
   crateQty: number;
@@ -71,6 +72,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
               <TableHead className={stickyHeadClass}>日期 Date</TableHead>
               <TableHead className={stickyHeadClass}>批次号 Batch No.</TableHead>
               <TableHead className={stickyHeadClass}>寄货人 Consignor</TableHead>
+              <TableHead className={stickyHeadClass}>收货地点 Pickup</TableHead>
               <TableHead className={stickyHeadClass}>地区 Area</TableHead>
               <TableHead className={stickyHeadClass}>泰国车牌 TH Plate</TableHead>
               <TableHead className={`${stickyHeadClass} text-right`}>
@@ -98,6 +100,9 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 </TableCell>
                 <TableCell className="font-medium">
                   <MobileTruncatedName text={s.shipperName} />
+                </TableCell>
+                <TableCell className="text-sm text-haidee-text">
+                  {s.pickupLocationLabel}
                 </TableCell>
                 <TableCell className="font-mono text-haidee-muted">
                   {s.areaNote?.trim() || "—"}

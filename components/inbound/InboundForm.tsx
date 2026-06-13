@@ -19,11 +19,19 @@ import {
   getDefaultInboundDate,
   toDateInputValue,
 } from "@/lib/inbound-utils";
+import {
+  formatPickupLocationLabel,
+  PICKUP_LOCATIONS,
+  PICKUP_LOCATION_LABELS,
+  resolveSessionPickupLocation,
+  SESSION_PICKUP_USE_DEFAULT,
+} from "@/lib/constants/pickup-locations";
 
 interface ShipperOption {
   id: string;
   code: string;
   name: string;
+  pickupLocation: string;
 }
 
 interface TongTypeOption {
@@ -59,6 +67,8 @@ interface InitialSession {
   shipperId: string;
   thVehiclePlate: string | null;
   areaNote?: string | null;
+  pickupLocation?: string | null;
+  shipperPickupLocation?: string;
   status: string;
   lines: {
     id: string;
@@ -97,6 +107,17 @@ export function InboundForm({
     initialSession?.thVehiclePlate ?? ""
   );
   const [areaNote, setAreaNote] = useState(initialSession?.areaNote ?? "");
+  const [sessionPickupLocation, setSessionPickupLocation] = useState(
+    initialSession?.pickupLocation ?? SESSION_PICKUP_USE_DEFAULT
+  );
+  const selectedShipper = useMemo(
+    () => shippers.find((s) => s.id === shipperId),
+    [shippers, shipperId]
+  );
+  const shipperDefaultPickup = selectedShipper?.pickupLocation ?? "SADAO";
+  const effectivePickupLabel = formatPickupLocationLabel(
+    resolveSessionPickupLocation(sessionPickupLocation, shipperDefaultPickup)
+  );
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [rows, setRows] = useState<LineState[]>([]);
   const [removedStallIds, setRemovedStallIds] = useState<string[]>([]);
@@ -240,6 +261,7 @@ export function InboundForm({
           shipperId,
           thVehiclePlate: thVehiclePlate || undefined,
           areaNote: areaNote || undefined,
+          pickupLocation: sessionPickupLocation || null,
           lines,
           removedStallIds,
           newStalls: pendingNewStalls.map((s) => {
@@ -266,7 +288,7 @@ export function InboundForm({
   return (
     <div className="mx-auto min-w-0 w-full max-w-4xl space-y-6">
       {/* Header fields */}
-      <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
             日期 Date
@@ -280,7 +302,10 @@ export function InboundForm({
           </label>
           <select
             value={shipperId}
-            onChange={(e) => setShipperId(e.target.value)}
+            onChange={(e) => {
+              setShipperId(e.target.value);
+              setSessionPickupLocation(SESSION_PICKUP_USE_DEFAULT);
+            }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
           >
             <option value="">— 选择寄货人 Select —</option>
@@ -290,6 +315,45 @@ export function InboundForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            顾客默认收货地点 Default Pickup
+          </label>
+          <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
+            {shipperId ? (
+              formatPickupLocationLabel(shipperDefaultPickup)
+            ) : (
+              <span className="text-haidee-muted">— 选择寄货人后显示 —</span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            本趟收货地点 Trip Pickup
+          </label>
+          <select
+            value={sessionPickupLocation}
+            onChange={(e) => setSessionPickupLocation(e.target.value)}
+            disabled={!shipperId}
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:cursor-not-allowed disabled:bg-haidee-surface/60"
+          >
+            <option value={SESSION_PICKUP_USE_DEFAULT}>
+              按顾客默认 ({shipperId ? formatPickupLocationLabel(shipperDefaultPickup) : "SADAO"})
+            </option>
+            {PICKUP_LOCATIONS.map((code) => (
+              <option key={code} value={code}>
+                {PICKUP_LOCATION_LABELS[code]}
+              </option>
+            ))}
+          </select>
+          {shipperId && (
+            <p className="text-xs text-haidee-muted">
+              生效 Effective: {effectivePickupLabel}
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">

@@ -4,6 +4,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { formatDisplayDate } from "@/lib/date-utils";
+import {
+  formatPickupLocationLabel,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
 import { format } from "date-fns";
 
 export async function getInboundModifications(dateStr?: string) {
@@ -22,7 +26,9 @@ export async function getInboundModifications(dateStr?: string) {
         select: {
           sessionNo: true,
           date: true,
-          shipper: { select: { name: true } },
+          areaNote: true,
+          pickupLocation: true,
+          shipper: { select: { name: true, pickupLocation: true } },
         },
       },
       stall: { include: { market: true } },
@@ -38,6 +44,12 @@ export async function getInboundModifications(dateStr?: string) {
     sessionNo: l.session.sessionNo,
     sessionDate: formatDisplayDate(l.session.date),
     shipperName: l.session.shipper.name,
+    pickupLocationLabel: formatPickupLocationLabel(
+      resolveSessionPickupLocation(
+        l.session.pickupLocation,
+        l.session.shipper.pickupLocation
+      )
+    ),
     modifiedAt: l.modifiedAt ? format(l.modifiedAt, "dd/MM/yyyy HH:mm") : "—",
     changes: buildChanges(l),
   }));

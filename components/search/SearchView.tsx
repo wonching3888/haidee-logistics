@@ -228,6 +228,9 @@ function SearchResults({
                     ({row.areaNote.trim()})
                   </p>
                 )}
+                <p className="text-xs text-haidee-muted">
+                  {row.pickupLocationLabel}
+                </p>
               </div>
               <p className="shrink-0 font-mono text-lg font-bold text-haidee-blue">
                 {row.quantity}
@@ -276,6 +279,7 @@ function SearchResults({
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>日期 Date</TableHead>
               <TableHead>寄货人 Consignor</TableHead>
+              <TableHead>收货地点 Pickup</TableHead>
               <TableHead>收货人 Store</TableHead>
               <TableHead>桶型 Crate Type</TableHead>
               <TableHead className="text-right">数量 Qty</TableHead>
@@ -301,6 +305,7 @@ function SearchResults({
                     </div>
                   )}
                 </TableCell>
+                <TableCell className="text-sm">{row.pickupLocationLabel}</TableCell>
                 <TableCell className="font-mono">{row.stallCode}</TableCell>
                 <TableCell className="font-mono">{row.tongTypeCode}</TableCell>
                 <TableCell className="text-right font-mono">

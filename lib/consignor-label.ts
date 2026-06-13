@@ -1,3 +1,8 @@
+import {
+  formatPickupLocationLabel,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
+
 const MOBILE_NAME_MAX_LEN = 15;
 
 /** Truncate consignor/customer names on mobile (full text via title attribute). */
@@ -19,6 +24,18 @@ export function buildConsignorAreaLabel(
     return `${shipperName} (${area})`;
   }
   return shipperName;
+}
+
+/** Consignor label with resolved pickup location for session displays. */
+export function buildConsignorSessionLabel(
+  shipperName: string,
+  areaNote: string | null | undefined,
+  sessionPickup: string | null | undefined,
+  shipperPickup: string | null | undefined
+): string {
+  const base = buildConsignorAreaLabel(shipperName, areaNote);
+  const pickup = resolveSessionPickupLocation(sessionPickup, shipperPickup);
+  return `${base} · ${formatPickupLocationLabel(pickup)}`;
 }
 
 /** Loading matrix cell: "20", "3盒", "20+3盒", or "" */

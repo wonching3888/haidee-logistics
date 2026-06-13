@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
-import { buildConsignorAreaLabel } from "@/lib/consignor-label";
+import { buildConsignorSessionLabel } from "@/lib/consignor-label";
 import {
   DISPATCH_MARKET_ORDER,
   MARKET_ORDER,
@@ -151,9 +151,11 @@ function aggregateLines(
         key,
         sessionId,
         shipperId,
-        shipperName: buildConsignorAreaLabel(
+        shipperName: buildConsignorSessionLabel(
           line.session.shipper.name,
-          line.session.areaNote
+          line.session.areaNote,
+          line.session.pickupLocation,
+          line.session.shipper.pickupLocation
         ),
         marketCode,
         quantity: line.quantity,
@@ -196,7 +198,12 @@ export async function getUnassignedMatrix(
     const sessionId = line.sessionId;
     sessionMap.set(
       sessionId,
-      buildConsignorAreaLabel(line.session.shipper.name, line.session.areaNote)
+      buildConsignorSessionLabel(
+        line.session.shipper.name,
+        line.session.areaNote,
+        line.session.pickupLocation,
+        line.session.shipper.pickupLocation
+      )
     );
 
     if (!cells[sessionId]) cells[sessionId] = {};

@@ -19,6 +19,7 @@ interface ModificationRecord {
   sessionNo: string | null;
   sessionDate: string;
   shipperName: string;
+  pickupLocationLabel: string;
   modifiedAt: string;
   changes: { field: string; from: string; to: string }[];
 }
@@ -72,6 +73,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                 <TableHead>进货单号 Session</TableHead>
                 <TableHead>日期 Date</TableHead>
                 <TableHead>寄货人 Consignor</TableHead>
+                <TableHead>收货地点 Pickup</TableHead>
                 <TableHead>修改时间 Modified</TableHead>
                 <TableHead>变更内容 Changes</TableHead>
               </TableRow>
@@ -92,6 +94,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                   <TableCell>
                     <MobileTruncatedName text={rec.shipperName} />
                   </TableCell>
+                  <TableCell className="text-sm">{rec.pickupLocationLabel}</TableCell>
                   <TableCell className="font-mono text-sm text-haidee-muted">
                     {rec.modifiedAt}
                   </TableCell>

@@ -57,7 +57,7 @@ export function DeliveryOrderPrint({
               </th>
             ))}
             <th className="do-qty-col">Qty</th>
-            <th className="do-remarks-col">备注 Remarks</th>
+            <th className="do-remarks-col">收货地点 Pickup</th>
           </tr>
         </thead>
         <tbody>
@@ -87,7 +87,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
-                  <td className="do-remarks-col">&nbsp;</td>
+                  <td className="do-remarks-col">{row.pickupLocation}</td>
                 </tr>
               );
             }}

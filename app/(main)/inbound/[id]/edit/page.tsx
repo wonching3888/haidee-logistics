@@ -53,6 +53,8 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
           shipperId: session.shipperId,
           thVehiclePlate: session.thVehiclePlate,
           areaNote: session.areaNote,
+          pickupLocation: session.pickupLocation,
+          shipperPickupLocation: session.shipperPickupLocation,
           status: session.status,
           lines: session.lines,
         }}

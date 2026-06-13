@@ -81,6 +81,7 @@ model Shipper {
   phone            String?
   lineId           String?  @map("line_id")
   location         String?
+  pickupLocation   String   @default("SADAO") @map("pickup_location")
   defaultTongTypeId String? @map("default_tong_type_id") @db.Uuid
   paymentParty     String   @default("shipper") @map("payment_party")
   company          String   @default("haidee")
@@ -194,6 +195,7 @@ model InboundSession {
   shipperId       String   @map("shipper_id") @db.Uuid
   thVehiclePlate  String?  @map("th_vehicle_plate")
   areaNote        String?  @map("area_note")
+  pickupLocation  String?  @map("pickup_location")
   status          String   @default("confirmed") // draft | confirmed
   notes           String?
   createdById     String?  @map("created_by") @db.Uuid

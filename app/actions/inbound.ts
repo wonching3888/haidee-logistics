@@ -12,6 +12,11 @@ import { generateSessionNo, isSessionNoUniqueViolation, SESSION_NO_MAX_RETRIES }
 import { MARKET_ORDER } from "@/lib/constants";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
+  formatPickupLocationLabel,
+  normalizeSessionPickupInput,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
+import {
   getStallDisplayLabel,
   isOtherMarket,
 } from "@/lib/markets";
@@ -335,7 +340,12 @@ export async function getShippers() {
   return prisma.shipper.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
-    select: { id: true, code: true, name: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      pickupLocation: true,
+    },
   });
 }
 
@@ -407,7 +417,9 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
   const sessions = await prisma.inboundSession.findMany({
     where,
     include: {
-      shipper: { select: { id: true, name: true, code: true } },
+      shipper: {
+        select: { id: true, name: true, code: true, pickupLocation: true },
+      },
       lines: {
         select: { quantity: true, dispatchStatus: true, isBox: true },
       },
@@ -445,6 +457,13 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
         shipperName: s.shipper.name,
         shipperId: s.shipper.id,
         areaNote: s.areaNote,
+        pickupLocation: s.pickupLocation,
+        pickupLocationLabel: formatPickupLocationLabel(
+          resolveSessionPickupLocation(
+            s.pickupLocation,
+            s.shipper.pickupLocation
+          )
+        ),
         thVehiclePlate: s.thVehiclePlate,
         totalQty,
         crateQty,
@@ -470,7 +489,9 @@ export async function getInboundSession(id: string) {
   const session = await prisma.inboundSession.findUnique({
     where: { id },
     include: {
-      shipper: { select: { id: true, name: true, code: true } },
+      shipper: {
+        select: { id: true, name: true, code: true, pickupLocation: true },
+      },
       lines: {
         include: {
           stall: { include: { market: true } },
@@ -492,6 +513,8 @@ export async function getInboundSession(id: string) {
     shipperName: session.shipper.name,
     thVehiclePlate: session.thVehiclePlate,
     areaNote: session.areaNote,
+    pickupLocation: session.pickupLocation,
+    shipperPickupLocation: session.shipper.pickupLocation,
     lines: session.lines.map((l) => ({
       id: l.id,
       stallId: l.stallId,
@@ -522,6 +545,7 @@ interface SaveInboundInput {
   shipperId: string;
   thVehiclePlate?: string;
   areaNote?: string;
+  pickupLocation?: string | null;
   lines: InboundLineInput[];
   removedStallIds?: string[];
   newStalls?: NewStallInput[];
@@ -534,6 +558,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   if (!user) throw new Error("未登录 Unauthorized");
 
   const date = parseDateInput(input.date);
+  const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
   const activeLines = input.lines.filter(
     (l) => l.quantity > 0 && !l.stallId.startsWith("new-")
   );
@@ -604,6 +629,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
                 shipperId: input.shipperId,
                 thVehiclePlate: input.thVehiclePlate || null,
                 areaNote: input.areaNote || null,
+                pickupLocation: sessionPickupLocation,
                 status,
                 sessionNo,
               },
@@ -635,6 +661,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             shipperId: input.shipperId,
             thVehiclePlate: input.thVehiclePlate || null,
             areaNote: input.areaNote || null,
+            pickupLocation: sessionPickupLocation,
             status,
             sessionNo,
           },
@@ -678,6 +705,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
               shipperId: input.shipperId,
               thVehiclePlate: input.thVehiclePlate || null,
               areaNote: input.areaNote || null,
+              pickupLocation: sessionPickupLocation,
               status,
               sessionNo,
               createdById: user.id,
@@ -715,6 +743,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
         shipperId: input.shipperId,
         thVehiclePlate: input.thVehiclePlate || null,
         areaNote: input.areaNote || null,
+        pickupLocation: sessionPickupLocation,
         status,
         sessionNo: null,
         createdById: user.id,

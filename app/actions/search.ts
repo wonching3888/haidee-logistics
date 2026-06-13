@@ -4,11 +4,16 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
+import {
+  formatPickupLocationLabel,
+  resolveSessionPickupLocation,
+} from "@/lib/constants/pickup-locations";
 
 export interface SearchResultRow {
   date: string;
   shipperName: string;
   areaNote: string | null;
+  pickupLocationLabel: string;
   stallCode: string;
   tongTypeCode: string;
   quantity: number;
@@ -67,6 +72,18 @@ export async function searchInbound(input: {
           { tongType: { name: { contains: q, mode: "insensitive" } } },
           {
             session: { areaNote: { contains: q, mode: "insensitive" } },
+          },
+          {
+            session: {
+              pickupLocation: { contains: q, mode: "insensitive" },
+            },
+          },
+          {
+            session: {
+              shipper: {
+                pickupLocation: { contains: q, mode: "insensitive" },
+              },
+            },
           },
           { truck: { plate: { contains: q, mode: "insensitive" } } },
           {
@@ -179,6 +196,12 @@ export async function searchInbound(input: {
       date: toDateInputValue(line.session.date),
       shipperName: line.session.shipper.name,
       areaNote: line.session.areaNote,
+      pickupLocationLabel: formatPickupLocationLabel(
+        resolveSessionPickupLocation(
+          line.session.pickupLocation,
+          line.session.shipper.pickupLocation
+        )
+      ),
       stallCode: line.stall.code,
       tongTypeCode: line.tongType.code,
       quantity: line.quantity,

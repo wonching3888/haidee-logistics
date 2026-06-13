@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
+import {
+  DEFAULT_PICKUP_LOCATION,
+  isPickupLocation,
+} from "@/lib/constants/pickup-locations";
 import { MARKET_ORDER, sortMarkets } from "@/lib/markets";
 import { createAdminClient } from "@/lib/supabase";
 
@@ -72,6 +76,7 @@ export async function getSettingsData() {
       paymentParty: s.paymentParty,
       company: s.company,
       currency: s.currency,
+      pickupLocation: s.pickupLocation,
       active: s.active,
     })),
     stalls: stalls.map((s) => ({
@@ -144,9 +149,15 @@ export async function saveShipper(input: {
   paymentParty: string;
   company: string;
   currency?: string;
+  pickupLocation?: string;
   active: boolean;
 }) {
   await requireAdmin();
+
+  const pickupLocation = input.pickupLocation?.trim() || DEFAULT_PICKUP_LOCATION;
+  if (!isPickupLocation(pickupLocation)) {
+    throw new Error("无效的收货地点 Invalid pickup location");
+  }
 
   const data = {
     code: input.code.trim(),
@@ -157,6 +168,7 @@ export async function saveShipper(input: {
     paymentParty: input.paymentParty,
     company: input.company,
     currency: input.currency?.trim() || "THB",
+    pickupLocation,
     active: input.active,
   };
 
