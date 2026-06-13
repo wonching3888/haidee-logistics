@@ -1,13 +1,15 @@
 /** BOX is disposable packaging — not counted in barrel Qty totals */
 export const BOX_COLUMN_CODE = "BOX";
 
-/** Fixed tong-type column order for all D/O documents */
+/**
+ * Canonical tong-type column order for all reports and D/O documents.
+ * ABB → WTL → BHR → … → BOX (BOX always last).
+ */
 export const DO_TONG_COLUMNS = [
-  { code: "BOX", header: "BOX" },
-  { code: "BHR", header: "BHR" },
-  { code: "LL_BHR", header: "LL(BHR)" },
   { code: "ABB", header: "ABB" },
   { code: "WTL", header: "WTL" },
+  { code: "BHR", header: "BHR" },
+  { code: "LL_BHR", header: "LL(BHR)" },
   { code: "VIO", header: "VIO" },
   { code: "MAR", header: "MAR" },
   { code: "SHK", header: "SHK" },
@@ -18,7 +20,12 @@ export const DO_TONG_COLUMNS = [
   { code: "BH", header: "BH" },
   { code: "SHS", header: "SHS" },
   { code: "OTHER", header: "Other" },
+  { code: "BOX", header: "BOX" },
 ] as const;
+
+const TONG_COLUMN_ORDER = new Map<string, number>(
+  DO_TONG_COLUMNS.map((col, index) => [col.code, index])
+);
 
 const KNOWN_CODES = new Set<string>(
   DO_TONG_COLUMNS.filter((c) => c.code !== "OTHER").map((c) => c.code)
@@ -41,6 +48,14 @@ export function mapTongToColumn(tongCode: string): string {
   const mapped = LEGACY_TONG_COLUMN_MAP[tongCode] ?? tongCode;
   if (KNOWN_CODES.has(mapped)) return mapped;
   return "OTHER";
+}
+
+/** Sort crate column codes by canonical report order (BOX last). */
+export function sortTongColumnCodes(codes: Iterable<string>): string[] {
+  return Array.from(codes).sort(
+    (a, b) =>
+      (TONG_COLUMN_ORDER.get(a) ?? 999) - (TONG_COLUMN_ORDER.get(b) ?? 999)
+  );
 }
 
 /** D/O cell: BOX shows「N盒」, barrels show plain number */
@@ -106,4 +121,11 @@ export function getActiveDOColumns(
 ) {
   const totals = sumQuantities(rows);
   return DO_TONG_COLUMNS.filter((col) => (totals[col.code] ?? 0) > 0);
+}
+
+/** Active columns in canonical order (for reports with pre-filtered codes). */
+export function orderActiveTongColumns(
+  columnTotals: Record<string, number>
+) {
+  return DO_TONG_COLUMNS.filter((col) => (columnTotals[col.code] ?? 0) > 0);
 }

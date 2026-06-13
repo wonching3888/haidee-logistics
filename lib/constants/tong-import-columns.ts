@@ -3,13 +3,13 @@ export const CRATE_IMPORT_OTHER_COLUMN = "OTHER";
 
 /** Default visible columns on crate import form */
 export const TONG_IMPORT_DEFAULT_COLUMNS = [
-  { key: "WTL", label: "WTL", tongCode: "WTL" },
   { key: "ABB", label: "ABB", tongCode: "ABB" },
+  { key: "WTL", label: "WTL", tongCode: "WTL" },
   { key: "BHR", label: "BHR", tongCode: "BHR" },
   { key: "VIO", label: "VIO", tongCode: "VIO" },
 ] as const;
 
-/** All known crate types for save/load mapping */
+/** All known crate types for save/load mapping (matches DO_TONG_COLUMNS order, no BOX) */
 export const TONG_IMPORT_ALL_COLUMNS = [
   ...TONG_IMPORT_DEFAULT_COLUMNS,
   { key: "MAR", label: "MAR", tongCode: "MAR" },

@@ -2,8 +2,8 @@
 
 import { getCurrentUser } from "@/lib/auth";
 import {
-  DO_TONG_COLUMNS,
   mapTongToColumn,
+  orderActiveTongColumns,
 } from "@/lib/constants/tong-columns";
 import { fetchCrateDispatchEntries } from "@/lib/reports/fetch-dispatch-quantities";
 import {
@@ -18,9 +18,7 @@ export type { PeriodReportMode as CrateReportMode };
 export type CrateReportData = PeriodReportData;
 
 function buildCrateColumns(columnTotals: Record<string, number>) {
-  return DO_TONG_COLUMNS.filter(
-    (column) => (columnTotals[column.code] ?? 0) > 0
-  ).map((column) => ({
+  return orderActiveTongColumns(columnTotals).map((column) => ({
     code: column.code,
     header: column.header,
   }));
