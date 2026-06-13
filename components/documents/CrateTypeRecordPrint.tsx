@@ -73,7 +73,10 @@ export function CrateTypeRecordPrint({ data }: CrateTypeRecordPrintProps) {
                 <td className="crate-record-lorry-col">&nbsp;</td>
                 {activeColumns.map((col) => (
                   <td key={col.code} className="crate-record-crate-col">
-                    &nbsp;
+                    {formatDOCrateQuantity(
+                      col.code,
+                      block.totals[col.code] ?? 0
+                    )}
                   </td>
                 ))}
                 <td className="crate-record-total-col">{block.total}</td>
