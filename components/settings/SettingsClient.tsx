@@ -45,6 +45,7 @@ import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
 import { AllowanceSettingsSection } from "@/components/settings/AllowanceSettingsSection";
+import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
   TruckFormDialog,
@@ -196,14 +197,14 @@ interface SettingsClientProps {
     extraMarketAllowance: number;
     bigTruckCrateCommission: number | null;
     smallTruckCrateCommission: number | null;
-    crateRentalRates: {
-      id: string;
-      crateType: string;
-      isRental: boolean;
-      rateMyr: number;
-      notes: string | null;
-    }[];
   } | null;
+  crateRentalRates: {
+    id: string;
+    crateType: string;
+    isRental: boolean;
+    rateMyr: number;
+    notes: string | null;
+  }[];
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -236,6 +237,7 @@ export function SettingsClient({
   driverPayrollDrivers,
   routeMasters,
   allowanceSettings,
+  crateRentalRates,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -715,8 +717,11 @@ export function SettingsClient({
             smallTruckCrateCommission={
               allowanceSettings.smallTruckCrateCommission
             }
-            crateRentalRates={allowanceSettings.crateRentalRates}
           />
+        )}
+
+        {activeSection === "crate-rental-rates" && (
+          <CrateRentalRatesSection rates={crateRentalRates} />
         )}
         </div>
       </div>

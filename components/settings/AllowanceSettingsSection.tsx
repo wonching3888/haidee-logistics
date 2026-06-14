@@ -14,10 +14,6 @@ import {
 } from "@/components/ui/table";
 import { saveAllowanceSettings } from "@/app/actions/allowance-settings";
 import { formatRouteMarkets } from "@/components/settings/RouteFormDialog";
-import {
-  CrateRentalRatesSection,
-  type CrateRentalRateRow,
-} from "@/components/settings/CrateRentalRatesSection";
 
 interface RouteAllowanceRow {
   id: string;
@@ -32,7 +28,6 @@ interface AllowanceSettingsSectionProps {
   extraMarketAllowance: number;
   bigTruckCrateCommission: number | null;
   smallTruckCrateCommission: number | null;
-  crateRentalRates: CrateRentalRateRow[];
 }
 
 export function AllowanceSettingsSection({
@@ -40,7 +35,6 @@ export function AllowanceSettingsSection({
   extraMarketAllowance,
   bigTruckCrateCommission,
   smallTruckCrateCommission,
-  crateRentalRates,
 }: AllowanceSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -208,8 +202,6 @@ export function AllowanceSettingsSection({
           </label>
         </div>
       </div>
-
-      <CrateRentalRatesSection rates={crateRentalRates} />
 
       <div className="flex justify-end">
         <Button

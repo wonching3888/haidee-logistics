@@ -6,6 +6,7 @@ export type SettingsSection =
   | "users"
   | "routes"
   | "allowance-settings"
+  | "crate-rental-rates"
   | "shipper-rates"
   | "consignee-rates"
   | "payment-relations"
@@ -22,6 +23,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "users",
   "routes",
   "allowance-settings",
+  "crate-rental-rates",
   "shipper-rates",
   "consignee-rates",
   "payment-relations",
@@ -40,6 +42,7 @@ export const SETTINGS_SECTION_TITLES: Record<
   users: { label: "用户", labelEn: "Users" },
   routes: { label: "路线", labelEn: "Routes" },
   "allowance-settings": { label: "津贴设定", labelEn: "Allowance Settings" },
+  "crate-rental-rates": { label: "租桶费率", labelEn: "Crate Rental Rates" },
   "shipper-rates": { label: "寄货人费率", labelEn: "Shipper Rates" },
   "consignee-rates": { label: "收货人费率", labelEn: "Consignee Rates" },
   "payment-relations": { label: "付款关系", labelEn: "Payment Relations" },
@@ -87,6 +90,11 @@ export const SETTINGS_SIDEBAR_MENU = [
     section: "allowance-settings" as const,
     label: "津贴设定",
     labelEn: "Allowance Settings",
+  },
+  {
+    section: "crate-rental-rates" as const,
+    label: "租桶费率",
+    labelEn: "Crate Rental Rates",
   },
   {
     label: "车力费率",
