@@ -68,7 +68,6 @@ export async function saveRouteMaster(input: {
   sadooMileageKm?: number | null;
   tollFee?: number | null;
   fishCheckingFee?: number | null;
-  kpbFee?: number | null;
   parkingFee?: number | null;
   displayOrder?: number | null;
   active?: boolean;
@@ -98,7 +97,6 @@ export async function saveRouteMaster(input: {
     sadooMileageKm: parseOptionalDecimal(input.sadooMileageKm),
     tollFee: parseOptionalDecimal(input.tollFee),
     fishCheckingFee: parseOptionalDecimal(input.fishCheckingFee),
-    kpbFee: parseOptionalDecimal(input.kpbFee),
     parkingFee: parseOptionalDecimal(input.parkingFee),
     displayOrder: input.displayOrder ?? null,
     active: input.active ?? true,

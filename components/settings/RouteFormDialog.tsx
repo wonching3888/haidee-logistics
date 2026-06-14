@@ -19,7 +19,6 @@ export interface RouteFormValue {
   sadooMileageKm: string;
   tollFee: string;
   fishCheckingFee: string;
-  kpbFee: string;
   parkingFee: string;
   displayOrder: string;
   active: boolean;
@@ -51,7 +50,6 @@ export function routeToFormValue(route?: RouteMasterRow): RouteFormValue {
     sadooMileageKm: optionalNumberString(route?.sadooMileageKm),
     tollFee: optionalNumberString(route?.tollFee),
     fishCheckingFee: optionalNumberString(route?.fishCheckingFee),
-    kpbFee: optionalNumberString(route?.kpbFee),
     parkingFee: optionalNumberString(route?.parkingFee),
     displayOrder:
       route?.displayOrder != null ? String(route.displayOrder) : "",
@@ -90,7 +88,6 @@ export function parseRouteFormValue(value: RouteFormValue) {
       value.fishCheckingFee,
       "Fish Checking Fee"
     ),
-    kpbFee: parseOptionalNumberInput(value.kpbFee, "KPB Fee"),
     parkingFee: parseOptionalNumberInput(value.parkingFee, "Parking Fee"),
     displayOrder,
     active: value.active,
@@ -245,13 +242,6 @@ export function RouteFormDialog({
                   className="min-h-[44px] font-mono"
                 />
               </FormField>
-              <FormField label="KPB Fee">
-                <Input
-                  value={form.kpbFee}
-                  onChange={(e) => setForm({ ...form, kpbFee: e.target.value })}
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
               <FormField label="Parking Fee">
                 <Input
                   value={form.parkingFee}
@@ -300,7 +290,6 @@ export function formatRouteFeeTotal(route: RouteMasterRow) {
   const total =
     (route.tollFee ?? 0) +
     (route.fishCheckingFee ?? 0) +
-    (route.kpbFee ?? 0) +
     (route.parkingFee ?? 0);
   return total > 0 ? total.toFixed(2) : "—";
 }
