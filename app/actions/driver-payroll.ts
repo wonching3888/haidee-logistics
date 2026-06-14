@@ -9,12 +9,16 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
 import {
-  crateCommissionForTruckType,
   isMaritalStatus,
   isPayrollExtraType,
-  tripAllowanceForMarketCount,
   type MaritalStatus,
 } from "@/lib/constants/payroll";
+import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
+import {
+  calculateTripAllowance,
+  crateCommissionForTruckType,
+  getDriverPayrollName,
+} from "@/lib/trip-allowance";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
 
 async function requirePayrollAccess() {
@@ -42,13 +46,9 @@ function roundMoney(value: number) {
 function serializeDriver(driver: {
   id: string;
   name: string;
+  fullName: string | null;
   active: boolean;
   baseSalary: unknown;
-  allowance1Market: unknown;
-  allowance2Markets: unknown;
-  allowance3Markets: unknown;
-  bigTruckCrateCommission: unknown;
-  smallTruckCrateCommission: unknown;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
   epfNumber: string | null;
@@ -59,19 +59,19 @@ function serializeDriver(driver: {
   return {
     id: driver.id,
     name: driver.name,
+    fullName: driver.fullName,
     active: driver.active,
     baseSalary: decimalToNumber(driver.baseSalary),
-    allowance1Market: decimalToNumber(driver.allowance1Market),
-    allowance2Markets: decimalToNumber(driver.allowance2Markets),
-    allowance3Markets: decimalToNumber(driver.allowance3Markets),
-    bigTruckCrateCommission: decimalToNumber(driver.bigTruckCrateCommission),
-    smallTruckCrateCommission: decimalToNumber(driver.smallTruckCrateCommission),
     autoCountEmployeeCode: driver.autoCountEmployeeCode,
     icNumber: driver.icNumber,
     epfNumber: driver.epfNumber,
     socsoNumber: driver.socsoNumber,
     maritalStatus: driver.maritalStatus as MaritalStatus | null,
     childCount: driver.childCount,
+    payrollName: getDriverPayrollName({
+      fullName: driver.fullName,
+      name: driver.name,
+    }),
   };
 }
 
@@ -113,27 +113,28 @@ async function syncDispatchTripsForMonth(
   const toCreate = dispatches.filter((order) => !linkedIds.has(order.id));
   if (toCreate.length === 0) return;
 
-  const rateInput = {
-    allowance1Market: driver.allowance1Market,
-    allowance2Markets: driver.allowance2Markets,
-    allowance3Markets: driver.allowance3Markets,
-    bigTruckCrateCommission: driver.bigTruckCrateCommission,
-    smallTruckCrateCommission: driver.smallTruckCrateCommission,
-  };
+  const allowanceContext = await loadPayrollAllowanceContext();
 
   await prisma.driverPayrollTrip.createMany({
     data: toCreate.map((order, index) => {
-      const marketCount = order.markets.length;
       const truckType = order.truck.type;
+      const allowanceResult = calculateTripAllowance({
+        markets: order.markets,
+        routes: allowanceContext.routes,
+        extraMarketAllowance: allowanceContext.extraMarketAllowance,
+      });
       return {
         payrollMonthId,
         dispatchOrderId: order.id,
         date: order.date,
         route: order.markets.join(" / "),
         markets: order.markets,
-        marketCount,
-        tripAllowance: tripAllowanceForMarketCount(marketCount, rateInput),
-        crateReturnCommission: crateCommissionForTruckType(truckType, rateInput),
+        marketCount: order.markets.length,
+        tripAllowance: allowanceResult.tripAllowance,
+        crateReturnCommission: crateCommissionForTruckType(truckType, {
+          bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
+          smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
+        }),
         truckType,
         notes: order.truck.plate,
         sortOrder: existingTrips.length + index,
@@ -391,6 +392,7 @@ export async function exportDriverPayrollAutoCount(input: {
   await requirePayrollAccess();
   const data = await getDriverPayrollMonth(input);
   const { driver, summary, trips, extras, yearMonth } = data;
+  const payrollName = driver.payrollName;
 
   const headers = [
     "EmployeeCode",
@@ -422,7 +424,7 @@ export async function exportDriverPayrollAutoCount(input: {
   for (const trip of trips) {
     rows.push([
       driver.autoCountEmployeeCode ?? "",
-      driver.name,
+      payrollName,
       yearMonth,
       "TRIP",
       trip.date,
@@ -449,7 +451,7 @@ export async function exportDriverPayrollAutoCount(input: {
   for (const extra of extras) {
     rows.push([
       driver.autoCountEmployeeCode ?? "",
-      driver.name,
+      payrollName,
       yearMonth,
       extra.type === "advance" ? "ADVANCE" : "EXTRA",
       extra.date,
@@ -475,7 +477,7 @@ export async function exportDriverPayrollAutoCount(input: {
 
   rows.push([
     driver.autoCountEmployeeCode ?? "",
-    driver.name,
+    payrollName,
     yearMonth,
     "SUMMARY",
     "",
@@ -503,7 +505,7 @@ export async function exportDriverPayrollAutoCount(input: {
     .join("\n");
 
   return {
-    filename: `payroll-${driver.autoCountEmployeeCode || driver.name}-${yearMonth}.csv`,
+    filename: `payroll-${driver.autoCountEmployeeCode || payrollName}-${yearMonth}.csv`,
     content: csv,
   };
 }
@@ -511,13 +513,9 @@ export async function exportDriverPayrollAutoCount(input: {
 export async function saveDriverPayrollMaster(input: {
   id?: string;
   name: string;
+  fullName?: string | null;
   active: boolean;
   baseSalary?: number | null;
-  allowance1Market?: number | null;
-  allowance2Markets?: number | null;
-  allowance3Markets?: number | null;
-  bigTruckCrateCommission?: number | null;
-  smallTruckCrateCommission?: number | null;
   autoCountEmployeeCode?: string | null;
   icNumber?: string | null;
   epfNumber?: string | null;
@@ -527,7 +525,7 @@ export async function saveDriverPayrollMaster(input: {
 }) {
   await requirePayrollAccess();
   if (!input.name.trim()) {
-    throw new Error("名称不能为空 Name is required");
+    throw new Error("小名不能为空 Nickname is required");
   }
   if (
     input.maritalStatus &&
@@ -539,13 +537,9 @@ export async function saveDriverPayrollMaster(input: {
 
   const data = {
     name: input.name.trim(),
+    fullName: input.fullName?.trim() || null,
     active: input.active,
     baseSalary: input.baseSalary ?? null,
-    allowance1Market: input.allowance1Market ?? null,
-    allowance2Markets: input.allowance2Markets ?? null,
-    allowance3Markets: input.allowance3Markets ?? null,
-    bigTruckCrateCommission: input.bigTruckCrateCommission ?? null,
-    smallTruckCrateCommission: input.smallTruckCrateCommission ?? null,
     autoCountEmployeeCode: input.autoCountEmployeeCode?.trim() || null,
     icNumber: input.icNumber?.trim() || null,
     epfNumber: input.epfNumber?.trim() || null,

@@ -3,6 +3,7 @@ import { getSettingsData } from "@/app/actions/settings";
 import { getFreightSettingsData } from "@/app/actions/freight-settings";
 import { getDriverPayrollSettingsData } from "@/app/actions/driver-payroll";
 import { getRouteMasterSettingsData } from "@/app/actions/route-master";
+import { getAllowanceSettingsData } from "@/app/actions/allowance-settings";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import {
   parseSettingsSection,
@@ -21,7 +22,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   }
 
   const activeSection = parseSettingsSection(sectionParam);
-  const [data, freightData, driverPayrollDrivers, routeMasters] = await Promise.all([
+  const [data, freightData, driverPayrollDrivers, routeMasters, allowanceSettings] =
+    await Promise.all([
     getSettingsData(),
     getFreightSettingsData(),
     activeSection === "driver-payroll"
@@ -30,6 +32,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     activeSection === "routes"
       ? getRouteMasterSettingsData()
       : Promise.resolve([]),
+    activeSection === "allowance-settings"
+      ? getAllowanceSettingsData()
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -48,6 +53,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         freightData={freightData}
         driverPayrollDrivers={driverPayrollDrivers}
         routeMasters={routeMasters}
+        allowanceSettings={allowanceSettings}
       />
     </div>
   );

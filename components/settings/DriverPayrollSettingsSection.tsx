@@ -28,13 +28,9 @@ import { Badge } from "@/components/ui/badge";
 interface DriverRow {
   id: string;
   name: string;
+  fullName: string | null;
   active: boolean;
   baseSalary: number | null;
-  allowance1Market: number | null;
-  allowance2Markets: number | null;
-  allowance3Markets: number | null;
-  bigTruckCrateCommission: number | null;
-  smallTruckCrateCommission: number | null;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
   epfNumber: string | null;
@@ -73,7 +69,8 @@ export function DriverPayrollSettingsSection({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        维护马来西亚司机薪资主数据。月薪计算请前往侧边栏「司机薪资 Driver Payroll」。
+        维护马来西亚司机薪资主数据。路线津贴请前往「津贴设定 Allowance
+        Settings」。月薪计算请前往「司机薪资 Driver Payroll」。
       </p>
 
       {error && (
@@ -101,10 +98,10 @@ export function DriverPayrollSettingsSection({
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>姓名 Name</TableHead>
+              <TableHead>小名 Nickname</TableHead>
+              <TableHead>全名 Full Name</TableHead>
               <TableHead>AutoCount</TableHead>
               <TableHead className="text-right">底薪</TableHead>
-              <TableHead className="text-right">1/2/3市场</TableHead>
               <TableHead>婚姻/子女</TableHead>
               <TableHead>状态</TableHead>
               <TableHead className="text-right">操作</TableHead>
@@ -121,16 +118,12 @@ export function DriverPayrollSettingsSection({
               drivers.map((driver) => (
                 <TableRow key={driver.id}>
                   <TableCell className="font-medium">{driver.name}</TableCell>
+                  <TableCell>{driver.fullName ?? "—"}</TableCell>
                   <TableCell className="font-mono text-sm">
                     {driver.autoCountEmployeeCode ?? "—"}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {driver.baseSalary?.toFixed(2) ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
-                    {[driver.allowance1Market, driver.allowance2Markets, driver.allowance3Markets]
-                      .map((v) => (v != null ? v.toFixed(0) : "—"))
-                      .join(" / ")}
                   </TableCell>
                   <TableCell className="text-sm">
                     {driver.maritalStatus ?? "—"} / {driver.childCount}

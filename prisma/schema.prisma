@@ -72,6 +72,7 @@ model RouteMaster {
   epermitCharge     Decimal? @map("epermit_charge") @db.Decimal(10, 2)
   forwardingCharges Decimal? @map("forwarding_charges") @db.Decimal(10, 2)
   dagangNetFee      Decimal? @map("dagang_net_fee") @db.Decimal(10, 2)
+  driverAllowance   Decimal? @map("driver_allowance") @db.Decimal(10, 2)
   displayOrder      Int?     @map("display_order")
   active            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
@@ -250,22 +251,28 @@ model FreightOperationalSettings {
   @@map("freight_operational_settings")
 }
 
+model PayrollAllowanceSettings {
+  id                        String   @id @default("default")
+  extraMarketAllowance      Decimal? @default(30) @map("extra_market_allowance") @db.Decimal(10, 2)
+  bigTruckCrateCommission   Decimal? @map("big_truck_crate_commission") @db.Decimal(10, 2)
+  smallTruckCrateCommission Decimal? @map("small_truck_crate_commission") @db.Decimal(10, 2)
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@map("payroll_allowance_settings")
+}
+
 model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique
+  fullName  String?  @map("full_name")
   active    Boolean  @default(true)
-  baseSalary                Decimal? @map("base_salary") @db.Decimal(10, 2)
-  allowance1Market          Decimal? @map("allowance_1_market") @db.Decimal(10, 2)
-  allowance2Markets         Decimal? @map("allowance_2_markets") @db.Decimal(10, 2)
-  allowance3Markets         Decimal? @map("allowance_3_markets") @db.Decimal(10, 2)
-  bigTruckCrateCommission   Decimal? @map("big_truck_crate_commission") @db.Decimal(10, 2)
-  smallTruckCrateCommission Decimal? @map("small_truck_crate_commission") @db.Decimal(10, 2)
-  autoCountEmployeeCode     String?  @map("autocount_employee_code")
-  icNumber                  String?  @map("ic_number")
-  epfNumber                 String?  @map("epf_number")
-  socsoNumber               String?  @map("socso_number")
-  maritalStatus             String?  @map("marital_status")
-  childCount                Int      @default(0) @map("child_count")
+  baseSalary            Decimal? @map("base_salary") @db.Decimal(10, 2)
+  autoCountEmployeeCode String?  @map("autocount_employee_code")
+  icNumber              String?  @map("ic_number")
+  epfNumber             String?  @map("epf_number")
+  socsoNumber           String?  @map("socso_number")
+  maritalStatus         String?  @map("marital_status")
+  childCount            Int      @default(0) @map("child_count")
   createdAt DateTime @default(now()) @map("created_at")
 
   trucks         Truck[]

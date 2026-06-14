@@ -25,28 +25,3 @@ export function isMaritalStatus(value: string): value is MaritalStatus {
 export function isPayrollExtraType(value: string): value is PayrollExtraType {
   return PAYROLL_EXTRA_TYPES.some((item) => item.value === value);
 }
-
-export function tripAllowanceForMarketCount(
-  marketCount: number,
-  rates: {
-    allowance1Market: number | null;
-    allowance2Markets: number | null;
-    allowance3Markets: number | null;
-  }
-) {
-  if (marketCount <= 0) return 0;
-  if (marketCount === 1) return rates.allowance1Market ?? 0;
-  if (marketCount === 2) return rates.allowance2Markets ?? 0;
-  return rates.allowance3Markets ?? 0;
-}
-
-export function crateCommissionForTruckType(
-  truckType: string | null | undefined,
-  rates: {
-    bigTruckCrateCommission: number | null;
-    smallTruckCrateCommission: number | null;
-  }
-) {
-  if (truckType === "small") return rates.smallTruckCrateCommission ?? 0;
-  return rates.bigTruckCrateCommission ?? 0;
-}

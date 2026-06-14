@@ -13,13 +13,9 @@ import { MARITAL_STATUSES } from "@/lib/constants/payroll";
 
 export interface DriverFormValue {
   name: string;
+  fullName: string;
   active: boolean;
   baseSalary: string;
-  allowance1Market: string;
-  allowance2Markets: string;
-  allowance3Markets: string;
-  bigTruckCrateCommission: string;
-  smallTruckCrateCommission: string;
   autoCountEmployeeCode: string;
   icNumber: string;
   epfNumber: string;
@@ -30,13 +26,9 @@ export interface DriverFormValue {
 
 const EMPTY_FORM: DriverFormValue = {
   name: "",
+  fullName: "",
   active: true,
   baseSalary: "",
-  allowance1Market: "",
-  allowance2Markets: "",
-  allowance3Markets: "",
-  bigTruckCrateCommission: "",
-  smallTruckCrateCommission: "",
   autoCountEmployeeCode: "",
   icNumber: "",
   epfNumber: "",
@@ -83,10 +75,18 @@ export function DriverFormDialog({
         </DialogHeader>
         <div className="space-y-3">
           <label className="block space-y-1 text-sm">
-            姓名 Name
+            小名/昵称 Name（派车显示）
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="min-h-[44px]"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            全名 Full Name（工资单/AutoCount）
+            <Input
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="min-h-[44px]"
             />
           </label>
@@ -107,60 +107,6 @@ export function DriverFormDialog({
                 value={form.autoCountEmployeeCode}
                 onChange={(e) =>
                   setForm({ ...form, autoCountEmployeeCode: e.target.value })
-                }
-                className="min-h-[44px] font-mono"
-              />
-            </label>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block space-y-1 text-sm">
-              1市场津贴
-              <Input
-                value={form.allowance1Market}
-                onChange={(e) =>
-                  setForm({ ...form, allowance1Market: e.target.value })
-                }
-                className="min-h-[44px] font-mono"
-              />
-            </label>
-            <label className="block space-y-1 text-sm">
-              2市场津贴
-              <Input
-                value={form.allowance2Markets}
-                onChange={(e) =>
-                  setForm({ ...form, allowance2Markets: e.target.value })
-                }
-                className="min-h-[44px] font-mono"
-              />
-            </label>
-            <label className="block space-y-1 text-sm">
-              3市场津贴
-              <Input
-                value={form.allowance3Markets}
-                onChange={(e) =>
-                  setForm({ ...form, allowance3Markets: e.target.value })
-                }
-                className="min-h-[44px] font-mono"
-              />
-            </label>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block space-y-1 text-sm">
-              大车回桶提成/趟
-              <Input
-                value={form.bigTruckCrateCommission}
-                onChange={(e) =>
-                  setForm({ ...form, bigTruckCrateCommission: e.target.value })
-                }
-                className="min-h-[44px] font-mono"
-              />
-            </label>
-            <label className="block space-y-1 text-sm">
-              小车回桶提成/趟
-              <Input
-                value={form.smallTruckCrateCommission}
-                onChange={(e) =>
-                  setForm({ ...form, smallTruckCrateCommission: e.target.value })
                 }
                 className="min-h-[44px] font-mono"
               />
@@ -252,13 +198,9 @@ export function DriverFormDialog({
 
 export function driverToFormValue(driver: {
   name: string;
+  fullName: string | null;
   active: boolean;
   baseSalary: number | null;
-  allowance1Market: number | null;
-  allowance2Markets: number | null;
-  allowance3Markets: number | null;
-  bigTruckCrateCommission: number | null;
-  smallTruckCrateCommission: number | null;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
   epfNumber: string | null;
@@ -270,13 +212,9 @@ export function driverToFormValue(driver: {
     value != null ? String(value) : "";
   return {
     name: driver.name,
+    fullName: driver.fullName ?? "",
     active: driver.active,
     baseSalary: num(driver.baseSalary),
-    allowance1Market: num(driver.allowance1Market),
-    allowance2Markets: num(driver.allowance2Markets),
-    allowance3Markets: num(driver.allowance3Markets),
-    bigTruckCrateCommission: num(driver.bigTruckCrateCommission),
-    smallTruckCrateCommission: num(driver.smallTruckCrateCommission),
     autoCountEmployeeCode: driver.autoCountEmployeeCode ?? "",
     icNumber: driver.icNumber ?? "",
     epfNumber: driver.epfNumber ?? "",
@@ -289,13 +227,9 @@ export function driverToFormValue(driver: {
 export function parseDriverFormValue(form: DriverFormValue) {
   return {
     name: form.name,
+    fullName: form.fullName.trim() || null,
     active: form.active,
     baseSalary: optionalNumber(form.baseSalary),
-    allowance1Market: optionalNumber(form.allowance1Market),
-    allowance2Markets: optionalNumber(form.allowance2Markets),
-    allowance3Markets: optionalNumber(form.allowance3Markets),
-    bigTruckCrateCommission: optionalNumber(form.bigTruckCrateCommission),
-    smallTruckCrateCommission: optionalNumber(form.smallTruckCrateCommission),
     autoCountEmployeeCode: form.autoCountEmployeeCode,
     icNumber: form.icNumber,
     epfNumber: form.epfNumber,

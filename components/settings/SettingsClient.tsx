@@ -44,6 +44,7 @@ import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
+import { AllowanceSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
   TruckFormDialog,
@@ -173,13 +174,9 @@ interface SettingsClientProps {
   driverPayrollDrivers: {
     id: string;
     name: string;
+    fullName: string | null;
     active: boolean;
     baseSalary: number | null;
-    allowance1Market: number | null;
-    allowance2Markets: number | null;
-    allowance3Markets: number | null;
-    bigTruckCrateCommission: number | null;
-    smallTruckCrateCommission: number | null;
     autoCountEmployeeCode: string | null;
     icNumber: string | null;
     epfNumber: string | null;
@@ -188,6 +185,18 @@ interface SettingsClientProps {
     childCount: number;
   }[];
   routeMasters: RouteMasterRow[];
+  allowanceSettings: {
+    routes: {
+      id: string;
+      code: string;
+      name: string;
+      markets: string[];
+      driverAllowance: number | null;
+    }[];
+    extraMarketAllowance: number;
+    bigTruckCrateCommission: number | null;
+    smallTruckCrateCommission: number | null;
+  } | null;
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -219,6 +228,7 @@ export function SettingsClient({
   freightData,
   driverPayrollDrivers,
   routeMasters,
+  allowanceSettings,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -688,6 +698,17 @@ export function SettingsClient({
 
         {activeSection === "routes" && (
           <RouteMasterSettingsSection routes={routeMasters} />
+        )}
+
+        {activeSection === "allowance-settings" && allowanceSettings && (
+          <AllowanceSettingsSection
+            routes={allowanceSettings.routes}
+            extraMarketAllowance={allowanceSettings.extraMarketAllowance}
+            bigTruckCrateCommission={allowanceSettings.bigTruckCrateCommission}
+            smallTruckCrateCommission={
+              allowanceSettings.smallTruckCrateCommission
+            }
+          />
         )}
         </div>
       </div>
