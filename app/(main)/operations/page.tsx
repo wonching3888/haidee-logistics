@@ -1,26 +1,36 @@
 import { redirect } from "next/navigation";
+import { getOperationsDashboard } from "@/app/actions/operations-dashboard";
 import { OperationsDashboardView } from "@/components/operations/OperationsDashboardView";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
+import {
+  parseReportMonth,
+  parseReportYear,
+} from "@/lib/reports/parse-report-params";
 import type { UserRole } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 interface OperationsPageProps {
   searchParams: Promise<{ year?: string; month?: string }>;
 }
 
-export default async function OperationsPage({ searchParams }: OperationsPageProps) {
+export default async function OperationsPage({
+  searchParams,
+}: OperationsPageProps) {
   const user = await getCurrentUser();
   if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
     redirect("/dashboard");
   }
 
   const params = await searchParams;
-  const now = new Date();
-  const year = Number(params.year) || now.getFullYear();
-  const month = Number(params.month) || now.getMonth() + 1;
+  const year = parseReportYear(params.year);
+  const month = parseReportMonth(params.month);
 
   try {
+    const data = await getOperationsDashboard({ year, month });
+
     return (
       <div className="space-y-6">
         <div>
@@ -32,7 +42,11 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
           </p>
         </div>
 
-        <OperationsDashboardView initialYear={year} initialMonth={month} />
+        <OperationsDashboardView
+          initialYear={year}
+          initialMonth={month}
+          initialData={data}
+        />
       </div>
     );
   } catch (error) {

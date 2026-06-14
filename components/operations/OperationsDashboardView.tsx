@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   getOperationsDashboard,
   saveOperationsMonthlyCosts,
@@ -16,6 +16,25 @@ function formatMyr(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} MYR`;
+}
+
+function manualFormFromData(data: OperationsDashboardData) {
+  return {
+    tollFee:
+      data.manualCosts.tollFee != null ? String(data.manualCosts.tollFee) : "",
+    crateRental:
+      data.manualCosts.crateRental != null
+        ? String(data.manualCosts.crateRental)
+        : "",
+    loadUnloadFee:
+      data.manualCosts.loadUnloadFee != null
+        ? String(data.manualCosts.loadUnloadFee)
+        : "",
+    lkimMaqisFee:
+      data.manualCosts.lkimMaqisFee != null
+        ? String(data.manualCosts.lkimMaqisFee)
+        : "",
+  };
 }
 
 function SourceBadge({ source }: { source: "actual" | "estimate" }) {
@@ -36,23 +55,23 @@ function SourceBadge({ source }: { source: "actual" | "estimate" }) {
 interface OperationsDashboardViewProps {
   initialYear: number;
   initialMonth: number;
+  initialData: OperationsDashboardData;
 }
 
 export function OperationsDashboardView({
   initialYear,
   initialMonth,
+  initialData,
 }: OperationsDashboardViewProps) {
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
-  const [data, setData] = useState<OperationsDashboardData | null>(null);
+  const [data, setData] = useState<OperationsDashboardData>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [manualForm, setManualForm] = useState({
-    tollFee: "",
-    crateRental: "",
-    loadUnloadFee: "",
-    lkimMaqisFee: "",
-  });
+  const [manualForm, setManualForm] = useState(() =>
+    manualFormFromData(initialData)
+  );
+  const skipInitialFetch = useRef(true);
 
   function loadDashboard() {
     startTransition(async () => {
@@ -60,32 +79,18 @@ export function OperationsDashboardView({
       try {
         const result = await getOperationsDashboard({ year, month });
         setData(result);
-        setManualForm({
-          tollFee:
-            result.manualCosts.tollFee != null
-              ? String(result.manualCosts.tollFee)
-              : "",
-          crateRental:
-            result.manualCosts.crateRental != null
-              ? String(result.manualCosts.crateRental)
-              : "",
-          loadUnloadFee:
-            result.manualCosts.loadUnloadFee != null
-              ? String(result.manualCosts.loadUnloadFee)
-              : "",
-          lkimMaqisFee:
-            result.manualCosts.lkimMaqisFee != null
-              ? String(result.manualCosts.lkimMaqisFee)
-              : "",
-        });
+        setManualForm(manualFormFromData(result));
       } catch (e) {
-        setData(null);
         setError(e instanceof Error ? e.message : "加载失败");
       }
     });
   }
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
@@ -131,14 +136,12 @@ export function OperationsDashboardView({
             ))}
           </select>
         </div>
-        {data && (
-          <p className="text-sm text-haidee-muted">
-            当月汇率：THB ÷ {data.exchangeRate.toFixed(4)} = MYR
-            {data.exchangeRateMissing && (
-              <span className="ml-2 text-amber-700">（未设定，使用默认）</span>
-            )}
-          </p>
-        )}
+        <p className="text-sm text-haidee-muted">
+          当月汇率：THB ÷ {data.exchangeRate.toFixed(4)} = MYR
+          {data.exchangeRateMissing && (
+            <span className="ml-2 text-amber-700">（未设定，使用默认）</span>
+          )}
+        </p>
       </div>
 
       {error && (
@@ -147,176 +150,172 @@ export function OperationsDashboardView({
         </p>
       )}
 
-      {isPending && !data ? (
-        <div className="h-48 animate-pulse rounded-xl bg-haidee-border/30" />
-      ) : data ? (
-        <>
-          <section className="rounded-xl border border-haidee-border bg-white p-5">
-            <h3 className="mb-4 text-lg font-semibold text-haidee-text">
-              收入 Revenue
-            </h3>
-            <dl className="space-y-3">
-              {data.revenue.lines.map((line) => (
-                <div
-                  key={line.key}
-                  className={`flex flex-wrap items-baseline justify-between gap-2 border-b border-haidee-border/60 pb-2 ${
-                    line.key === "haidee" ? "font-semibold" : ""
-                  }`}
-                >
-                  <dt className="text-sm">
-                    {line.label}
-                    <span className="ml-1 text-xs text-haidee-muted">
-                      {line.labelEn}
-                    </span>
-                    <SourceBadge source={line.source} />
-                    {line.detail && (
-                      <span className="mt-0.5 block text-xs text-haidee-muted">
-                        {line.detail}
-                      </span>
-                    )}
-                  </dt>
-                  <dd className="font-mono text-base">
-                    {formatMyr(line.amountMyr)}
-                  </dd>
-                </div>
-              ))}
-              <div className="flex justify-between border-t-2 border-haidee-navy pt-3 text-lg font-bold">
-                <dt>总收入 Total Revenue</dt>
-                <dd className="font-mono text-haidee-navy">
-                  {formatMyr(data.revenue.totalMyr)}
-                </dd>
-              </div>
-            </dl>
-          </section>
+      {isPending && (
+        <div className="h-2 animate-pulse rounded bg-haidee-border/40" />
+      )}
 
-          <section className="rounded-xl border border-haidee-border bg-white p-5">
-            <h3 className="mb-2 text-lg font-semibold text-haidee-text">
-              成本 Costs（估算项可编辑）
-            </h3>
-            <p className="mb-4 text-xs text-haidee-muted">
-              固定 Expenses（Office 工资等）由老板自行扣除，系统不计算。
-            </p>
-
-            <div className="mb-4 grid gap-3 rounded-lg border border-dashed border-haidee-border bg-haidee-surface/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="block space-y-1 text-sm">
-                过路费/过境费
-                <Input
-                  value={manualForm.tollFee}
-                  onChange={(e) =>
-                    setManualForm({ ...manualForm, tollFee: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </label>
-              <label className="block space-y-1 text-sm">
-                租桶费
-                <Input
-                  value={manualForm.crateRental}
-                  onChange={(e) =>
-                    setManualForm({ ...manualForm, crateRental: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </label>
-              <label className="block space-y-1 text-sm">
-                Load/Unload费
-                <Input
-                  value={manualForm.loadUnloadFee}
-                  onChange={(e) =>
-                    setManualForm({
-                      ...manualForm,
-                      loadUnloadFee: e.target.value,
-                    })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </label>
-              <label className="block space-y-1 text-sm">
-                LKIM-MAQIS费
-                <Input
-                  value={manualForm.lkimMaqisFee}
-                  onChange={(e) =>
-                    setManualForm({ ...manualForm, lkimMaqisFee: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </label>
-              <div className="flex items-end sm:col-span-2 lg:col-span-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isPending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      setError(null);
-                      try {
-                        await saveOperationsMonthlyCosts({
-                          year,
-                          month,
-                          tollFee: parseOptionalCost(manualForm.tollFee),
-                          crateRental: parseOptionalCost(manualForm.crateRental),
-                          loadUnloadFee: parseOptionalCost(
-                            manualForm.loadUnloadFee
-                          ),
-                          lkimMaqisFee: parseOptionalCost(manualForm.lkimMaqisFee),
-                        });
-                        loadDashboard();
-                      } catch (e) {
-                        setError(e instanceof Error ? e.message : "保存失败");
-                      }
-                    })
-                  }
-                >
-                  保存估算费用 Save Estimates
-                </Button>
-              </div>
+      <section className="rounded-xl border border-haidee-border bg-white p-5">
+        <h3 className="mb-4 text-lg font-semibold text-haidee-text">
+          收入 Revenue
+        </h3>
+        <dl className="space-y-3">
+          {data.revenue.lines.map((line) => (
+            <div
+              key={line.key}
+              className={`flex flex-wrap items-baseline justify-between gap-2 border-b border-haidee-border/60 pb-2 ${
+                line.key === "haidee" ? "font-semibold" : ""
+              }`}
+            >
+              <dt className="text-sm">
+                {line.label}
+                <span className="ml-1 text-xs text-haidee-muted">
+                  {line.labelEn}
+                </span>
+                <SourceBadge source={line.source} />
+                {line.detail && (
+                  <span className="mt-0.5 block text-xs text-haidee-muted">
+                    {line.detail}
+                  </span>
+                )}
+              </dt>
+              <dd className="font-mono text-base">
+                {formatMyr(line.amountMyr)}
+              </dd>
             </div>
+          ))}
+          <div className="flex justify-between border-t-2 border-haidee-navy pt-3 text-lg font-bold">
+            <dt>总收入 Total Revenue</dt>
+            <dd className="font-mono text-haidee-navy">
+              {formatMyr(data.revenue.totalMyr)}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
-            <dl className="space-y-3">
-              {data.costs.lines.map((line) => (
-                <div
-                  key={line.key}
-                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-haidee-border/60 pb-2"
-                >
-                  <dt className="text-sm">
-                    {line.label}
-                    <span className="ml-1 text-xs text-haidee-muted">
-                      {line.labelEn}
-                    </span>
-                    <SourceBadge source={line.source} />
-                    {line.detail && (
-                      <span className="mt-0.5 block text-xs text-haidee-muted">
-                        {line.detail}
-                      </span>
-                    )}
-                  </dt>
-                  <dd className="font-mono text-base">
-                    {formatMyr(line.amountMyr)}
-                  </dd>
-                </div>
-              ))}
-              <div className="flex justify-between border-t border-haidee-border pt-3 font-semibold">
-                <dt>小计成本 Subtotal Costs</dt>
-                <dd className="font-mono">{formatMyr(data.costs.subtotalMyr)}</dd>
-              </div>
-            </dl>
-          </section>
+      <section className="rounded-xl border border-haidee-border bg-white p-5">
+        <h3 className="mb-2 text-lg font-semibold text-haidee-text">
+          成本 Costs（估算项可编辑）
+        </h3>
+        <p className="mb-4 text-xs text-haidee-muted">
+          固定 Expenses（Office 工资等）由老板自行扣除，系统不计算。
+        </p>
 
-          <section className="rounded-xl border-2 border-haidee-navy bg-haidee-navy/5 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-bold text-haidee-navy">
-                运营毛利 Operating Gross Profit
-              </h3>
-              <p className="font-mono text-2xl font-bold text-haidee-navy">
-                {formatMyr(data.grossProfitMyr)}
-              </p>
+        <div className="mb-4 grid gap-3 rounded-lg border border-dashed border-haidee-border bg-haidee-surface/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block space-y-1 text-sm">
+            过路费/过境费
+            <Input
+              value={manualForm.tollFee}
+              onChange={(e) =>
+                setManualForm({ ...manualForm, tollFee: e.target.value })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            租桶费
+            <Input
+              value={manualForm.crateRental}
+              onChange={(e) =>
+                setManualForm({ ...manualForm, crateRental: e.target.value })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            Load/Unload费
+            <Input
+              value={manualForm.loadUnloadFee}
+              onChange={(e) =>
+                setManualForm({
+                  ...manualForm,
+                  loadUnloadFee: e.target.value,
+                })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            LKIM-MAQIS费
+            <Input
+              value={manualForm.lkimMaqisFee}
+              onChange={(e) =>
+                setManualForm({ ...manualForm, lkimMaqisFee: e.target.value })
+              }
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <div className="flex items-end sm:col-span-2 lg:col-span-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(async () => {
+                  setError(null);
+                  try {
+                    await saveOperationsMonthlyCosts({
+                      year,
+                      month,
+                      tollFee: parseOptionalCost(manualForm.tollFee),
+                      crateRental: parseOptionalCost(manualForm.crateRental),
+                      loadUnloadFee: parseOptionalCost(manualForm.loadUnloadFee),
+                      lkimMaqisFee: parseOptionalCost(manualForm.lkimMaqisFee),
+                    });
+                    loadDashboard();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "保存失败");
+                  }
+                })
+              }
+            >
+              保存估算费用 Save Estimates
+            </Button>
+          </div>
+        </div>
+
+        <dl className="space-y-3">
+          {data.costs.lines.map((line) => (
+            <div
+              key={line.key}
+              className="flex flex-wrap items-baseline justify-between gap-2 border-b border-haidee-border/60 pb-2"
+            >
+              <dt className="text-sm">
+                {line.label}
+                <span className="ml-1 text-xs text-haidee-muted">
+                  {line.labelEn}
+                </span>
+                <SourceBadge source={line.source} />
+                {line.detail && (
+                  <span className="mt-0.5 block text-xs text-haidee-muted">
+                    {line.detail}
+                  </span>
+                )}
+              </dt>
+              <dd className="font-mono text-base">
+                {formatMyr(line.amountMyr)}
+              </dd>
             </div>
-            <p className="mt-2 text-sm text-haidee-muted">
-              总收入 − 小计成本（不含 Office 等固定开销）
-            </p>
-          </section>
-        </>
-      ) : null}
+          ))}
+          <div className="flex justify-between border-t border-haidee-border pt-3 font-semibold">
+            <dt>小计成本 Subtotal Costs</dt>
+            <dd className="font-mono">{formatMyr(data.costs.subtotalMyr)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="rounded-xl border-2 border-haidee-navy bg-haidee-navy/5 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold text-haidee-navy">
+            运营毛利 Operating Gross Profit
+          </h3>
+          <p className="font-mono text-2xl font-bold text-haidee-navy">
+            {formatMyr(data.grossProfitMyr)}
+          </p>
+        </div>
+        <p className="mt-2 text-sm text-haidee-muted">
+          总收入 − 小计成本（不含 Office 等固定开销）
+        </p>
+      </section>
     </div>
   );
 }

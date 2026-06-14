@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
@@ -37,6 +38,23 @@ function parseYearMonth(year: number, month: number) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+const EMPTY_MANUAL_COSTS = {
+  tollFee: 0,
+  crateRental: 0,
+  loadUnloadFee: 0,
+  lkimMaqisFee: 0,
+};
+
+function isMissingOperationsCostsTable(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2021" || error.code === "P2022";
+  }
+  if (error instanceof Error) {
+    return error.message.includes("operations_monthly_costs");
+  }
+  return false;
 }
 
 async function aggregateIncome(year: number, month: number) {
@@ -188,15 +206,22 @@ async function aggregateFleetPayroll(yearMonth: string) {
 }
 
 async function loadManualCosts(yearMonth: string) {
-  const row = await prisma.operationsMonthlyCosts.findUnique({
-    where: { yearMonth },
-  });
-  return {
-    tollFee: decimalToNumber(row?.tollFee) ?? 0,
-    crateRental: decimalToNumber(row?.crateRental) ?? 0,
-    loadUnloadFee: decimalToNumber(row?.loadUnloadFee) ?? 0,
-    lkimMaqisFee: decimalToNumber(row?.lkimMaqisFee) ?? 0,
-  };
+  try {
+    const row = await prisma.operationsMonthlyCosts.findUnique({
+      where: { yearMonth },
+    });
+    return {
+      tollFee: decimalToNumber(row?.tollFee) ?? 0,
+      crateRental: decimalToNumber(row?.crateRental) ?? 0,
+      loadUnloadFee: decimalToNumber(row?.loadUnloadFee) ?? 0,
+      lkimMaqisFee: decimalToNumber(row?.lkimMaqisFee) ?? 0,
+    };
+  } catch (error) {
+    if (isMissingOperationsCostsTable(error)) {
+      return { ...EMPTY_MANUAL_COSTS };
+    }
+    throw error;
+  }
 }
 
 export async function getOperationsDashboard(input: {
@@ -281,22 +306,31 @@ export async function saveOperationsMonthlyCosts(input: {
     return value;
   }
 
-  await prisma.operationsMonthlyCosts.upsert({
-    where: { yearMonth },
-    create: {
-      yearMonth,
-      tollFee: parseCost(input.tollFee),
-      crateRental: parseCost(input.crateRental),
-      loadUnloadFee: parseCost(input.loadUnloadFee),
-      lkimMaqisFee: parseCost(input.lkimMaqisFee),
-    },
-    update: {
-      tollFee: parseCost(input.tollFee),
-      crateRental: parseCost(input.crateRental),
-      loadUnloadFee: parseCost(input.loadUnloadFee),
-      lkimMaqisFee: parseCost(input.lkimMaqisFee),
-    },
-  });
+  try {
+    await prisma.operationsMonthlyCosts.upsert({
+      where: { yearMonth },
+      create: {
+        yearMonth,
+        tollFee: parseCost(input.tollFee),
+        crateRental: parseCost(input.crateRental),
+        loadUnloadFee: parseCost(input.loadUnloadFee),
+        lkimMaqisFee: parseCost(input.lkimMaqisFee),
+      },
+      update: {
+        tollFee: parseCost(input.tollFee),
+        crateRental: parseCost(input.crateRental),
+        loadUnloadFee: parseCost(input.loadUnloadFee),
+        lkimMaqisFee: parseCost(input.lkimMaqisFee),
+      },
+    });
+  } catch (error) {
+    if (isMissingOperationsCostsTable(error)) {
+      throw new Error(
+        "operations_monthly_costs 表未创建，请运行 npx prisma db push 或 node scripts/migrate-operations-monthly-costs.mjs"
+      );
+    }
+    throw error;
+  }
 
   revalidatePath("/operations");
 }
