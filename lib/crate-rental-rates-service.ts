@@ -4,6 +4,7 @@ import {
   DEFAULT_CRATE_RENTAL_RATES,
   sortCrateRentalRates,
 } from "@/lib/constants/crate-rental-rates";
+import { isMissingCrateRentalRatesTableError } from "@/lib/create-crate-rental-rates-table";
 
 export interface CrateRentalRateRow {
   id: string;
@@ -30,26 +31,40 @@ function serializeCrateRentalRate(row: {
 }
 
 export async function ensureCrateRentalRatesSeeded() {
-  await Promise.all(
-    DEFAULT_CRATE_RENTAL_RATES.map((item) =>
-      prisma.crateRentalRate.upsert({
-        where: { crateType: item.crateType },
-        create: {
-          crateType: item.crateType,
-          isRental: item.isRental,
-          rateMyr: item.rateMyr,
-          notes: item.notes,
-        },
-        update: {},
-      })
-    )
-  );
+  try {
+    await Promise.all(
+      DEFAULT_CRATE_RENTAL_RATES.map((item) =>
+        prisma.crateRentalRate.upsert({
+          where: { crateType: item.crateType },
+          create: {
+            crateType: item.crateType,
+            isRental: item.isRental,
+            rateMyr: item.rateMyr,
+            notes: item.notes,
+          },
+          update: {},
+        })
+      )
+    );
+  } catch (error) {
+    if (isMissingCrateRentalRatesTableError(error)) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function listCrateRentalRates(): Promise<CrateRentalRateRow[]> {
-  await ensureCrateRentalRatesSeeded();
-  const rows = await prisma.crateRentalRate.findMany();
-  return sortCrateRentalRates(rows.map(serializeCrateRentalRate));
+  try {
+    await ensureCrateRentalRatesSeeded();
+    const rows = await prisma.crateRentalRate.findMany();
+    return sortCrateRentalRates(rows.map(serializeCrateRentalRate));
+  } catch (error) {
+    if (isMissingCrateRentalRatesTableError(error)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 function parseRateMyr(value: number, label: string) {

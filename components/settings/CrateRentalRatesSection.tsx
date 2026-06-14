@@ -27,13 +27,48 @@ interface CrateRentalRatesSectionProps {
   rates: CrateRentalRateRow[];
 }
 
-export function CrateRentalRatesSection({ rates }: CrateRentalRatesSectionProps) {
+export function CrateRentalRatesSection({
+  rates: initialRates,
+}: CrateRentalRatesSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [rates, setRates] = useState(initialRates);
+  const [loading, setLoading] = useState(initialRates.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [rateForm, setRateForm] = useState<Record<string, string>>({});
   const [notesForm, setNotesForm] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRates() {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/settings/crate-rental-rates");
+        if (!response.ok) {
+          throw new Error("无法加载租桶费率 Failed to load crate rental rates");
+        }
+        const data = (await response.json()) as { rates?: CrateRentalRateRow[] };
+        if (!cancelled && Array.isArray(data.rates)) {
+          setRates(data.rates);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "加载失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadRates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setRateForm(
@@ -75,6 +110,13 @@ export function CrateRentalRatesSection({ rates }: CrateRentalRatesSectionProps)
           })),
         });
         setSuccess("租桶费率已保存 Crate rental rates saved.");
+        const refreshed = await fetch("/api/settings/crate-rental-rates");
+        if (refreshed.ok) {
+          const data = (await refreshed.json()) as { rates?: CrateRentalRateRow[] };
+          if (Array.isArray(data.rates)) {
+            setRates(data.rates);
+          }
+        }
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "操作失败");
@@ -87,6 +129,18 @@ export function CrateRentalRatesSection({ rates }: CrateRentalRatesSectionProps)
       <h3 className="mb-3 text-base font-semibold text-haidee-text">
         租桶费率 Crate Rental Rates (MYR/桶)
       </h3>
+
+      {loading && (
+        <p className="mb-3 text-sm text-haidee-muted">加载租桶费率中…</p>
+      )}
+
+      {!loading && rates.length === 0 && (
+        <p className="mb-3 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          租桶费率表尚未创建。请先以管理员身份访问{" "}
+          <code className="font-mono">/api/setup/create-crate-rental-rates</code>{" "}
+          完成建表，然后刷新本页。
+        </p>
+      )}
 
       {error && (
         <p className="mb-3 rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
