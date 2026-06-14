@@ -1,9 +1,16 @@
-export const GLOBAL_COST_SETTING_KEYS = [
+export const GLOBAL_TRIP_COST_SETTING_KEYS = [
   "border_pass",
   "epermit",
   "dagang_net",
   "forwarding_outbound",
   "forwarding_return",
+] as const;
+
+export type GlobalTripCostSettingKey =
+  (typeof GLOBAL_TRIP_COST_SETTING_KEYS)[number];
+
+export const GLOBAL_COST_SETTING_KEYS = [
+  ...GLOBAL_TRIP_COST_SETTING_KEYS,
   "fuel_price_myr",
 ] as const;
 

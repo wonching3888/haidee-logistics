@@ -77,7 +77,7 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>档口 Stall</TableHead>
+              <TableHead>收货人 Receiver</TableHead>
               <TableHead>桶型 Type</TableHead>
               <TableHead>数量 Qty</TableHead>
               <TableHead>付款方 Payer</TableHead>

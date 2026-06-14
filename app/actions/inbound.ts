@@ -980,7 +980,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   const allLines = [...activeLines, ...createdNewStallLines];
 
   if (!input.asDraft && allLines.length === 0) {
-    throw new Error("请至少填写一个档口的桶数 Please enter at least one quantity");
+    throw new Error("请至少填写一个收货人的桶数 Please enter at least one quantity");
   }
 
   const tongTypeIds = Array.from(

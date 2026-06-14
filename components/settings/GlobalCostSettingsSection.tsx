@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,15 +13,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { saveGlobalCostSettings } from "@/app/actions/global-cost-settings";
-import { GLOBAL_COST_UI_LABELS } from "@/lib/constants/global-cost-settings";
+import {
+  GLOBAL_COST_UI_LABELS,
+  GLOBAL_TRIP_COST_SETTING_KEYS,
+} from "@/lib/constants/global-cost-settings";
 import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 
 interface GlobalCostSettingsSectionProps {
   settings: GlobalCostSettingRow[];
+  title?: string;
+  tripCostsOnly?: boolean;
 }
 
 export function GlobalCostSettingsSection({
   settings: initialSettings,
+  title = "全局费用 Global Trip Costs",
+  tripCostsOnly = true,
 }: GlobalCostSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -31,6 +38,12 @@ export function GlobalCostSettingsSection({
   const [success, setSuccess] = useState<string | null>(null);
   const [valueForm, setValueForm] = useState<Record<string, string>>({});
 
+  const visibleSettings = useMemo(() => {
+    if (!tripCostsOnly) return settings;
+    const allowed = new Set<string>(GLOBAL_TRIP_COST_SETTING_KEYS);
+    return settings.filter((row) => allowed.has(row.key));
+  }, [settings, tripCostsOnly]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -39,7 +52,7 @@ export function GlobalCostSettingsSection({
       try {
         const response = await fetch("/api/settings/global-costs");
         if (!response.ok) {
-          throw new Error("无法加载全局费用 Failed to load global costs");
+          throw new Error("无法加载全局费用 Failed to load global trip costs");
         }
         const data = (await response.json()) as {
           settings?: GlobalCostSettingRow[];
@@ -67,11 +80,11 @@ export function GlobalCostSettingsSection({
   useEffect(() => {
     setValueForm(
       Object.fromEntries(
-        settings.map((row) => [row.key, String(row.valueMyr)])
+        visibleSettings.map((row) => [row.key, String(row.valueMyr)])
       )
     );
     setSuccess(null);
-  }, [settings]);
+  }, [visibleSettings]);
 
   function parseValue(value: string, label: string) {
     const trimmed = value.trim();
@@ -89,7 +102,7 @@ export function GlobalCostSettingsSection({
     startTransition(async () => {
       try {
         await saveGlobalCostSettings({
-          settings: settings.map((row) => ({
+          settings: visibleSettings.map((row) => ({
             key: row.key,
             valueMyr: parseValue(
               valueForm[row.key] ?? "",
@@ -97,7 +110,7 @@ export function GlobalCostSettingsSection({
             ),
           })),
         });
-        setSuccess("全局费用已保存 Global costs saved.");
+        setSuccess("全局费用已保存 Global trip costs saved.");
         const refreshed = await fetch("/api/settings/global-costs");
         if (refreshed.ok) {
           const data = (await refreshed.json()) as {
@@ -116,20 +129,16 @@ export function GlobalCostSettingsSection({
 
   return (
     <div className="rounded-lg border border-haidee-border bg-white p-4">
-      <h3 className="mb-3 text-base font-semibold text-haidee-text">
-        全局费用 Global Costs
-      </h3>
+      <h3 className="mb-3 text-base font-semibold text-haidee-text">{title}</h3>
 
       {loading && (
         <p className="mb-3 text-sm text-haidee-muted">加载全局费用中…</p>
       )}
 
-      {!loading && settings.length === 0 && (
+      {!loading && visibleSettings.length === 0 && (
         <p className="mb-3 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
           全局费用表尚未创建。请运行{" "}
           <code className="font-mono">scripts/create-global-cost-settings.ts</code>{" "}
-          或访问{" "}
-          <code className="font-mono">/api/setup/create-global-cost-settings</code>{" "}
           完成建表，然后刷新本页。
         </p>
       )}
@@ -156,7 +165,7 @@ export function GlobalCostSettingsSection({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {settings.map((row) => {
+            {visibleSettings.map((row) => {
               const ui = GLOBAL_COST_UI_LABELS[row.key];
               return (
                 <TableRow key={row.key}>

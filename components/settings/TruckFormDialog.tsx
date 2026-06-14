@@ -292,7 +292,7 @@ export function TruckFormDialog({
               </FormField>
             </div>
             <p className="mt-2 text-xs text-haidee-muted">
-              油价在「汇率设定 Exchange Rate」页面统一维护。参考油耗成本：
+              油价在「营运设定 Operations Settings」页面统一维护。参考油耗成本：
               {formatTruckMoney(fuelCostPerKm, countryMeta.currency)}
             </p>
           </div>

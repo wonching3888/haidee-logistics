@@ -52,7 +52,7 @@ function CrateTongTable({
       <thead>
         <tr>
           <th className="market-do-lorry-col">罗哩车牌</th>
-          <th className="market-do-stall-col">档口</th>
+          <th className="market-do-stall-col">收货人</th>
           <th className="market-do-area-col">地区</th>
           <th className="market-do-crate-col">{tongHeader}</th>
           <th className="market-do-qty-col">数量</th>

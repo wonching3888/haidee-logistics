@@ -186,7 +186,7 @@ function buildLegacyChanges(line: {
 
     if (origLabel !== newLabel) {
       changes.push({
-        field: "档口 Stall",
+        field: "收货人 Receiver",
         from: origLabel,
         to: newLabel,
       });

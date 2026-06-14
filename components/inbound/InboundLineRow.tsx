@@ -113,7 +113,7 @@ export function InboundLineRow({
                 type="button"
                 onClick={onDuplicate}
                 className="rounded p-2 text-haidee-muted hover:text-haidee-blue"
-                title="同档口加一行 Add line (same stall)"
+                title="同收货人加一行 Add line (same receiver)"
               >
                 <Copy className="h-4 w-4" />
               </button>

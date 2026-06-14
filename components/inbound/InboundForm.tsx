@@ -408,12 +408,12 @@ export function InboundForm({
       {shipperId && (
         <div className="min-w-0 max-w-full rounded-xl border border-haidee-border bg-white">
           {loadingStalls ? (
-            <p className="p-8 text-center text-haidee-muted">加载档口… Loading stalls…</p>
+            <p className="p-8 text-center text-haidee-muted">加载收货人… Loading receivers…</p>
           ) : rows.length === 0 ? (
             <p className="p-8 text-center text-haidee-muted">
-              此寄货人暂无固定档口，请先在系统设置中添加。
+              此寄货人暂无固定收货人，请先在系统设置中添加。
               <br />
-              No default stalls for this consignor.
+              No default receivers for this consignor.
             </p>
           ) : (
             <ScrollMatrixTable heightOffset={340} className="rounded-xl border-0">
@@ -421,7 +421,7 @@ export function InboundForm({
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
                     <th className={cn(STICKY_HEAD_FIRST, "whitespace-nowrap px-3 py-3 font-medium")}>
-                      档口 Store
+                      收货人 Receiver
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
                       地区 Area
@@ -473,7 +473,7 @@ export function InboundForm({
                         }
                         if (
                           !confirm(
-                            `确定要永久删除档口 ${row.stallCode} 吗？\nAre you sure to permanently delete stall ${row.stallCode}?`
+                            `确定要永久删除收货人 ${row.stallCode} 吗？\nAre you sure to permanently delete receiver ${row.stallCode}?`
                           )
                         )
                           return;
@@ -504,7 +504,7 @@ export function InboundForm({
             className="gap-2"
           >
             <Plus className="h-4 w-4" />
-            新增档口 Add Stall
+            新增收货人 Add Receiver
           </Button>
           {showAddStall && (() => {
             const selectedMarket = markets.find((m) => m.id === newStall.marketId);
@@ -548,7 +548,7 @@ export function InboundForm({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <label className="text-xs text-haidee-muted">档口代码 Code</label>
+                  <label className="text-xs text-haidee-muted">收货人代码 Code</label>
                   <Input
                     value={newStall.code}
                     onChange={(e) =>

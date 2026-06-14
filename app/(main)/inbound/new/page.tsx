@@ -17,7 +17,7 @@ export default async function NewInboundPage() {
             新增进货 New Inbound
           </h2>
           <p className="text-sm text-haidee-muted">
-            选择寄货人后自动带出固定档口列表 Select consignor to load default stalls
+            选择寄货人后自动带出固定收货人列表 Select consignor to load default receivers
           </p>
         </div>
 

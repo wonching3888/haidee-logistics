@@ -2,6 +2,9 @@ import { isOtherMarket, sortMarkets } from "@/lib/markets";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { prisma } from "@/lib/prisma";
+import { lookupUnloadRateMap } from "@/lib/unload-rates-service";
+import { unloadRateKey } from "@/lib/constants/unload-rates";
+import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -19,52 +22,59 @@ export async function aggregateDispatchOperationalCosts(
 ) {
   const { start, end } = getMonthDateRange(year, month);
 
-  const [markets, dispatches] = await Promise.all([
-    prisma.market.findMany({
-      where: { active: true },
-      select: {
-        code: true,
-        tollFee: true,
-        loadUnloadPerCrate: true,
-        crateRentalPerCrate: true,
-      },
-    }),
-    prisma.dispatchOrder.findMany({
-      where: {
-        status: { not: "cancelled" },
-        date: { gte: start, lte: end },
-      },
-      select: {
-        id: true,
-        markets: true,
-        lines: {
-          select: {
-            inboundLine: {
-              select: {
-                quantity: true,
-                isBox: true,
-                stall: {
-                  select: {
-                    market: {
-                      select: { code: true },
+  const [markets, dispatches, unloadRateMap, crateRentalRates] =
+    await Promise.all([
+      prisma.market.findMany({
+        where: { active: true },
+        select: {
+          code: true,
+          tollFee: true,
+          loadUnloadPerCrate: true,
+          crateRentalPerCrate: true,
+        },
+      }),
+      prisma.dispatchOrder.findMany({
+        where: {
+          status: { not: "cancelled" },
+          date: { gte: start, lte: end },
+        },
+        select: {
+          id: true,
+          markets: true,
+          lines: {
+            select: {
+              inboundLine: {
+                select: {
+                  quantity: true,
+                  isBox: true,
+                  stall: {
+                    select: {
+                      market: {
+                        select: { code: true },
+                      },
                     },
                   },
-                },
-                tongType: {
-                  select: {
-                    trackInventory: true,
+                  tongType: {
+                    select: {
+                      code: true,
+                      trackInventory: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    }),
-  ]);
+      }),
+      lookupUnloadRateMap(),
+      listCrateRentalRates(),
+    ]);
 
   const marketByCode = new Map(
     markets.map((market) => [market.code, market])
+  );
+  const crateRentalByType = new Map(
+    crateRentalRates.map((row) => [row.crateType, row.rateMyr])
   );
 
   let tollFee = 0;
@@ -92,15 +102,22 @@ export async function aggregateDispatchOperationalCosts(
       if (!market) continue;
 
       const quantity = inboundLine.quantity;
-      loadUnloadFee +=
-        quantity * (decimalToNumber(market.loadUnloadPerCrate) ?? 0);
+      const crateType = inboundLine.tongType.code;
+      const unloadRate =
+        unloadRateMap.get(unloadRateKey(marketCode, crateType)) ??
+        decimalToNumber(market.loadUnloadPerCrate) ??
+        0;
+      loadUnloadFee += quantity * unloadRate;
 
       if (
         !inboundLine.isBox &&
         inboundLine.tongType.trackInventory === false
       ) {
         crateRental +=
-          quantity * (decimalToNumber(market.crateRentalPerCrate) ?? 0);
+          quantity *
+          (crateRentalByType.get(crateType) ??
+            decimalToNumber(market.crateRentalPerCrate) ??
+            0);
       }
     }
   }

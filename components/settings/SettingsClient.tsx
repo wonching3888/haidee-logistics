@@ -41,11 +41,12 @@ import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import type { FreightSettingsData } from "@/components/settings/FreightRatesSection";
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
-import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
+import { OperationsSettingsSection } from "@/components/settings/OperationsSettingsSection";
 import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
-import { AllowanceSettingsSection } from "@/components/settings/AllowanceSettingsSection";
+import { PayrollSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
+import { UnloadSettingsSection } from "@/components/settings/UnloadSettingsSection";
 import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
@@ -187,7 +188,7 @@ interface SettingsClientProps {
     childCount: number;
   }[];
   routeMasters: RouteMasterRow[];
-  allowanceSettings: {
+  payrollSettings: {
     globalCosts: GlobalCostSettingRow[];
     routes: {
       id: string;
@@ -206,6 +207,16 @@ interface SettingsClientProps {
     isRental: boolean;
     rateMyr: number;
     notes: string | null;
+  }[];
+  unloadRatesMatrix: {
+    marketCode: string;
+    rates: {
+      id: string;
+      marketCode: string;
+      crateType: string;
+      rateMyr: number;
+      notes: string | null;
+    }[];
   }[];
 }
 
@@ -238,8 +249,9 @@ export function SettingsClient({
   freightData,
   driverPayrollDrivers,
   routeMasters,
-  allowanceSettings,
+  payrollSettings,
   crateRentalRates,
+  unloadRatesMatrix,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -405,7 +417,7 @@ export function SettingsClient({
           </>
         )}
 
-        {activeSection === "stalls" && (
+        {activeSection === "receivers" && (
           <>
           <div className="mb-3 flex justify-end">
             <Button
@@ -422,7 +434,7 @@ export function SettingsClient({
               }}
               className="gap-2 bg-haidee-blue text-white"
             >
-              <Plus className="h-4 w-4" /> 新增档口
+              <Plus className="h-4 w-4" /> 新增收货人
             </Button>
           </div>
           <DataTable>
@@ -494,7 +506,7 @@ export function SettingsClient({
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>寄货人 Consignor</TableHead>
                 <TableHead>市场 Market</TableHead>
-                <TableHead>档口 Stall</TableHead>
+                <TableHead>收货人 Receiver</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -686,19 +698,18 @@ export function SettingsClient({
           <FreightRatesSection data={freightData} view={activeSection} />
         )}
 
-        {activeSection === "exchange-rate" && (
+        {activeSection === "operations-settings" && (
           <>
           {freightData.exchangeAlert.missing && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               提醒：{freightData.exchangeAlert.currentYearMonth} 当月汇率尚未设定。
             </div>
           )}
-          <ExchangeRateSection
+          <OperationsSettingsSection
             exchangeRates={freightData.exchangeRates}
             exchangeAlert={freightData.exchangeAlert}
             fuelPrice={freightData.fuelPrice}
             operationalSettings={freightData.operationalSettings}
-            marketOperationalRates={freightData.marketOperationalRates}
           />
           </>
         )}
@@ -711,20 +722,24 @@ export function SettingsClient({
           <RouteMasterSettingsSection routes={routeMasters} />
         )}
 
-        {activeSection === "allowance-settings" && allowanceSettings && (
-          <AllowanceSettingsSection
-            globalCosts={allowanceSettings.globalCosts}
-            routes={allowanceSettings.routes}
-            extraMarketAllowance={allowanceSettings.extraMarketAllowance}
-            bigTruckCrateCommission={allowanceSettings.bigTruckCrateCommission}
+        {activeSection === "payroll-settings" && payrollSettings && (
+          <PayrollSettingsSection
+            globalCosts={payrollSettings.globalCosts}
+            routes={payrollSettings.routes}
+            extraMarketAllowance={payrollSettings.extraMarketAllowance}
+            bigTruckCrateCommission={payrollSettings.bigTruckCrateCommission}
             smallTruckCrateCommission={
-              allowanceSettings.smallTruckCrateCommission
+              payrollSettings.smallTruckCrateCommission
             }
           />
         )}
 
         {activeSection === "crate-rental-rates" && (
           <CrateRentalRatesSection rates={crateRentalRates} />
+        )}
+
+        {activeSection === "unload-settings" && (
+          <UnloadSettingsSection matrix={unloadRatesMatrix} />
         )}
         </div>
       </div>
@@ -824,7 +839,7 @@ export function SettingsClient({
       <FormDialog
         open={dialog === "stall"}
         onClose={() => setDialog(null)}
-        title={editId ? "编辑档口 Edit Stall" : "新增档口 New Stall"}
+        title={editId ? "编辑收货人 Edit Receiver" : "新增收货人 New Receiver"}
         onSave={() =>
           runAction(async () =>
             saveStall({
@@ -897,7 +912,7 @@ export function SettingsClient({
             ))}
           </select>
         </FormField>
-        <FormField label="档口 Stall">
+        <FormField label="收货人 Receiver">
           <select
             value={defaultForm.stallId}
             onChange={(e) => setDefaultForm({ ...defaultForm, stallId: e.target.value })}

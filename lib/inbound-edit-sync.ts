@@ -156,7 +156,7 @@ export function buildInboundChangeLogs(input: {
     if (prev.stallId !== next.stallId) {
       const nextStall = afterLineMeta.get(next.stallId);
       push(
-        "档口 Stall",
+        "收货人 Receiver",
         stallLabel(prev.marketCode, prev.stallCode),
         nextStall
           ? stallLabel(nextStall.marketCode, nextStall.stallCode)
@@ -173,7 +173,7 @@ export function buildInboundChangeLogs(input: {
     push("桶数 Crates", "0", String(line.quantity), line.lineId ?? null);
     if (stall) {
       push(
-        "档口 Stall",
+        "收货人 Receiver",
         "",
         stallLabel(stall.marketCode, stall.stallCode),
         line.lineId ?? null

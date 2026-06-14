@@ -111,7 +111,7 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
           <Input
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            placeholder="寄货人 / 档口 / 车牌 / 桶型 / 备注…"
+            placeholder="寄货人 / 收货人 / 车牌 / 桶型 / 备注…"
             className="min-h-[44px]"
           />
         </div>
@@ -241,7 +241,7 @@ function SearchResults({
             </div>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
-                <dt className="text-xs text-haidee-muted">档口 Store</dt>
+                <dt className="text-xs text-haidee-muted">收货人 Receiver</dt>
                 <dd className="font-mono font-medium text-haidee-text">
                   {row.stallCode}
                 </dd>

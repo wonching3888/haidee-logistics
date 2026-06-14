@@ -24,7 +24,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">查询 Search</h2>
           <p className="text-sm text-haidee-muted">
-            按寄货人、档口、车牌、桶型、备注查询 Query inbound records
+            按寄货人、收货人、车牌、桶型、备注查询 Query inbound records
           </p>
         </div>
 
@@ -43,7 +43,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">查询 Search</h2>
           <p className="text-sm text-haidee-muted">
-            按寄货人、档口、车牌、桶型、备注查询 Query inbound records
+            按寄货人、收货人、车牌、桶型、备注查询 Query inbound records
           </p>
         </div>
         <PageError error={error} />

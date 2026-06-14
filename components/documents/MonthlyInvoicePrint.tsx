@@ -59,7 +59,7 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
             <thead>
               <tr>
                 <th className="monthly-invoice-date-col">日期 Date</th>
-                <th className="monthly-invoice-stall-col">档口 Stall</th>
+                <th className="monthly-invoice-stall-col">收货人 Receiver</th>
                 <th className="monthly-invoice-market-col">市场 Market</th>
                 <th className="monthly-invoice-type-col">桶款 Type</th>
                 <th className="monthly-invoice-qty-col">桶数 Qty</th>

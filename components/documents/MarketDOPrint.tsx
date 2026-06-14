@@ -61,7 +61,7 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
         <thead>
           <tr>
             <th className="market-do-lorry-col">罗哩车牌</th>
-            <th className="market-do-stall-col">档口</th>
+            <th className="market-do-stall-col">收货人</th>
             <th className="market-do-area-col">地区</th>
             {activeColumns.map((c) => (
               <th key={c.code} className="market-do-crate-col">

@@ -279,6 +279,18 @@ model GlobalCostSetting {
   @@map("global_cost_settings")
 }
 
+model UnloadRate {
+  id         String   @id @default(uuid()) @db.Uuid
+  marketCode String   @map("market_code") @db.VarChar(10)
+  crateType  String   @map("crate_type") @db.VarChar(10)
+  rateMyr    Decimal  @default(0) @map("rate_myr") @db.Decimal(10, 2)
+  notes      String?  @db.VarChar(200)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([marketCode, crateType])
+  @@map("unload_rates")
+}
+
 model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique

@@ -14,9 +14,7 @@ import {
 } from "@/components/ui/table";
 import { saveAllowanceSettings } from "@/app/actions/allowance-settings";
 import { formatRouteMarkets } from "@/components/settings/RouteFormDialog";
-import {
-  GlobalCostSettingsSection,
-} from "@/components/settings/GlobalCostSettingsSection";
+import { GlobalCostSettingsSection } from "@/components/settings/GlobalCostSettingsSection";
 import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 
 interface RouteAllowanceRow {
@@ -27,7 +25,7 @@ interface RouteAllowanceRow {
   driverAllowance: number | null;
 }
 
-interface AllowanceSettingsSectionProps {
+interface PayrollSettingsSectionProps {
   globalCosts: GlobalCostSettingRow[];
   routes: RouteAllowanceRow[];
   extraMarketAllowance: number;
@@ -35,13 +33,13 @@ interface AllowanceSettingsSectionProps {
   smallTruckCrateCommission: number | null;
 }
 
-export function AllowanceSettingsSection({
+export function PayrollSettingsSection({
   globalCosts,
   routes,
   extraMarketAllowance,
   bigTruckCrateCommission,
   smallTruckCrateCommission,
-}: AllowanceSettingsSectionProps) {
+}: PayrollSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +85,7 @@ export function AllowanceSettingsSection({
     return parsed;
   }
 
-  function runSave() {
+  function runSaveAllowances() {
     setError(null);
     startTransition(async () => {
       try {
@@ -99,10 +97,7 @@ export function AllowanceSettingsSection({
               `${route.code} 路线津贴`
             ),
           })),
-          extraMarketAllowance: parseOptionalRate(
-            extraMarket,
-            "额外市场津贴"
-          ),
+          extraMarketAllowance: parseOptionalRate(extraMarket, "额外市场津贴"),
           bigTruckCrateCommission: parseOptionalRate(
             bigTruckCrate,
             "大车回桶提成"
@@ -121,8 +116,6 @@ export function AllowanceSettingsSection({
 
   return (
     <div className="space-y-4">
-      <GlobalCostSettingsSection settings={globalCosts} />
-
       <p className="text-sm text-haidee-muted">
         每趟津贴 = 该趟最高路线津贴 +（额外市场数 × 额外市场津贴）。例：KD +
         A → A 路线津贴 + RM30。
@@ -209,18 +202,26 @@ export function AllowanceSettingsSection({
             />
           </label>
         </div>
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            className="bg-haidee-blue text-white"
+            disabled={isPending}
+            onClick={runSaveAllowances}
+          >
+            保存薪资设定 Save Payroll Settings
+          </Button>
+        </div>
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          className="bg-haidee-blue text-white"
-          disabled={isPending}
-          onClick={runSave}
-        >
-          保存津贴设定 Save Allowance Settings
-        </Button>
-      </div>
+      <GlobalCostSettingsSection
+        settings={globalCosts}
+        title="全局费用 Global Trip Costs"
+        tripCostsOnly
+      />
     </div>
   );
 }
+
+/** @deprecated Use PayrollSettingsSection */
+export const AllowanceSettingsSection = PayrollSettingsSection;

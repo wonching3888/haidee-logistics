@@ -69,7 +69,7 @@ export function DriverPayrollSettingsSection({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        维护马来西亚司机薪资主数据。路线津贴请前往「津贴设定 Allowance
+        维护马来西亚司机薪资主数据。路线津贴请前往「薪资设定 Payroll
         Settings」。月薪计算请前往「司机薪资 Driver Payroll」。
       </p>
 

@@ -473,6 +473,32 @@ export async function saveOperationalFreightSettings(input: {
     return value;
   }
 
+  const updateData: {
+    mcThirdPartyRateTong?: number | null;
+    mcThirdPartyRateBox?: number | null;
+    mySegmentRateTong?: number | null;
+    mySegmentRateBox?: number | null;
+    driverAllowancePerCrate?: number | null;
+  } = {};
+
+  if (input.mcThirdPartyRateTong !== undefined) {
+    updateData.mcThirdPartyRateTong = parseOptionalRate(input.mcThirdPartyRateTong);
+  }
+  if (input.mcThirdPartyRateBox !== undefined) {
+    updateData.mcThirdPartyRateBox = parseOptionalRate(input.mcThirdPartyRateBox);
+  }
+  if (input.mySegmentRateTong !== undefined) {
+    updateData.mySegmentRateTong = parseOptionalRate(input.mySegmentRateTong);
+  }
+  if (input.mySegmentRateBox !== undefined) {
+    updateData.mySegmentRateBox = parseOptionalRate(input.mySegmentRateBox);
+  }
+  if (input.driverAllowancePerCrate !== undefined) {
+    updateData.driverAllowancePerCrate = parseOptionalRate(
+      input.driverAllowancePerCrate
+    );
+  }
+
   await prisma.freightOperationalSettings.upsert({
     where: { id: "default" },
     create: {
@@ -483,13 +509,7 @@ export async function saveOperationalFreightSettings(input: {
       mySegmentRateBox: parseOptionalRate(input.mySegmentRateBox),
       driverAllowancePerCrate: parseOptionalRate(input.driverAllowancePerCrate),
     },
-    update: {
-      mcThirdPartyRateTong: parseOptionalRate(input.mcThirdPartyRateTong),
-      mcThirdPartyRateBox: parseOptionalRate(input.mcThirdPartyRateBox),
-      mySegmentRateTong: parseOptionalRate(input.mySegmentRateTong),
-      mySegmentRateBox: parseOptionalRate(input.mySegmentRateBox),
-      driverAllowancePerCrate: parseOptionalRate(input.driverAllowancePerCrate),
-    },
+    update: updateData,
   });
 
   revalidatePath("/settings");
