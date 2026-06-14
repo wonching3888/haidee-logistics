@@ -80,7 +80,14 @@ export async function getFreightSettingsData() {
     }),
     prisma.market.findMany({
       where: { active: true },
-      select: { id: true, code: true, name: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        tollFee: true,
+        loadUnloadPerCrate: true,
+        crateRentalPerCrate: true,
+      },
     }),
     prisma.freightRate.findMany({
       select: {
@@ -203,6 +210,17 @@ export async function getFreightSettingsData() {
         DEFAULT_FUEL_PRICES.thbPerLiter,
     },
     operationalSettings: serializeOperationalSettings(operationalRow),
+    marketOperationalRates: freightMarkets.map((market) => {
+      const row = markets.find((item) => item.id === market.id);
+      return {
+        marketId: market.id,
+        code: market.code,
+        name: market.name,
+        tollFee: decimalToNumber(row?.tollFee),
+        loadUnloadPerCrate: decimalToNumber(row?.loadUnloadPerCrate),
+        crateRentalPerCrate: decimalToNumber(row?.crateRentalPerCrate),
+      };
+    }),
   };
 }
 
@@ -477,4 +495,39 @@ export async function saveOperationalFreightSettings(input: {
   revalidatePath("/settings");
   revalidatePath("/inbound");
   revalidatePath("/dispatch");
+}
+
+function parseOptionalOperationalRate(value: number | null | undefined) {
+  if (value == null) return null;
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("费率不能为负数 Rate cannot be negative");
+  }
+  return value;
+}
+
+export async function saveMarketOperationalRates(input: {
+  rates: {
+    marketId: string;
+    tollFee?: number | null;
+    loadUnloadPerCrate?: number | null;
+    crateRentalPerCrate?: number | null;
+  }[];
+}) {
+  await requireAdmin();
+
+  await prisma.$transaction(
+    input.rates.map((rate) =>
+      prisma.market.update({
+        where: { id: rate.marketId },
+        data: {
+          tollFee: parseOptionalOperationalRate(rate.tollFee),
+          loadUnloadPerCrate: parseOptionalOperationalRate(rate.loadUnloadPerCrate),
+          crateRentalPerCrate: parseOptionalOperationalRate(rate.crateRentalPerCrate),
+        },
+      })
+    )
+  );
+
+  revalidatePath("/settings");
+  revalidatePath("/operations");
 }

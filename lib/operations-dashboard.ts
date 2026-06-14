@@ -38,10 +38,14 @@ export interface OperationsDashboardData {
     subtotalMyr: number;
   };
   grossProfitMyr: number;
+  tripCosts: {
+    tollFee: number;
+    crateRental: number;
+    loadUnloadFee: number;
+    tripCount: number;
+    routeCount: number;
+  };
   manualCosts: {
-    tollFee: number | null;
-    crateRental: number | null;
-    loadUnloadFee: number | null;
     lkimMaqisFee: number | null;
   };
 }
@@ -116,10 +120,14 @@ export function buildOperationsDashboardMetrics(input: {
   truckMaintenanceMyr: number;
   truckEstimateCount: number;
   mcThirdPartyMyr: number;
-  manualCosts: {
+  tripCosts: {
     tollFee: number;
     crateRental: number;
     loadUnloadFee: number;
+    tripCount: number;
+    routeCount: number;
+  };
+  manualCosts: {
     lkimMaqisFee: number;
   };
 }): OperationsDashboardData {
@@ -201,22 +209,28 @@ export function buildOperationsDashboardMetrics(input: {
       key: "toll",
       label: "过路费/过境费",
       labelEn: "Toll / Border Fees",
-      amountMyr: input.manualCosts.tollFee,
-      source: "estimate",
+      amountMyr: input.tripCosts.tollFee,
+      source: "actual",
+      detail:
+        input.tripCosts.tripCount > 0
+          ? `${input.tripCosts.tripCount} 趟 · 路线×市场费率`
+          : "当月无派车趟次",
     },
     {
       key: "crateRental",
       label: "租桶费",
       labelEn: "Crate Rental",
-      amountMyr: input.manualCosts.crateRental,
-      source: "estimate",
+      amountMyr: input.tripCosts.crateRental,
+      source: "actual",
+      detail: "租桶型 × 市场租桶费率",
     },
     {
       key: "loadUnload",
       label: "Load/Unload费",
       labelEn: "Load / Unload",
-      amountMyr: input.manualCosts.loadUnloadFee,
-      source: "estimate",
+      amountMyr: input.tripCosts.loadUnloadFee,
+      source: "actual",
+      detail: "桶数 × 市场 Load/Unload 费率",
     },
     {
       key: "lkimMaqis",
@@ -259,10 +273,8 @@ export function buildOperationsDashboardMetrics(input: {
       subtotalMyr,
     },
     grossProfitMyr: roundMoney(totalRevenueMyr - subtotalMyr),
+    tripCosts: input.tripCosts,
     manualCosts: {
-      tollFee: input.manualCosts.tollFee,
-      crateRental: input.manualCosts.crateRental,
-      loadUnloadFee: input.manualCosts.loadUnloadFee,
       lkimMaqisFee: input.manualCosts.lkimMaqisFee,
     },
   };

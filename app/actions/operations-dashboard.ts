@@ -12,6 +12,7 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
 import type { MaritalStatus } from "@/lib/constants/payroll";
+import { aggregateDispatchOperationalCosts } from "@/lib/operations-trip-costs";
 import {
   buildOperationsDashboardMetrics,
   estimateTruckMonthlyCosts,
@@ -39,13 +40,6 @@ function parseYearMonth(year: number, month: number) {
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
-
-const EMPTY_MANUAL_COSTS = {
-  tollFee: 0,
-  crateRental: 0,
-  loadUnloadFee: 0,
-  lkimMaqisFee: 0,
-};
 
 function isMissingOperationsCostsTable(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -205,20 +199,15 @@ async function aggregateFleetPayroll(yearMonth: string) {
   };
 }
 
-async function loadManualCosts(yearMonth: string) {
+async function loadLkimMaqisFee(yearMonth: string) {
   try {
     const row = await prisma.operationsMonthlyCosts.findUnique({
       where: { yearMonth },
     });
-    return {
-      tollFee: decimalToNumber(row?.tollFee) ?? 0,
-      crateRental: decimalToNumber(row?.crateRental) ?? 0,
-      loadUnloadFee: decimalToNumber(row?.loadUnloadFee) ?? 0,
-      lkimMaqisFee: decimalToNumber(row?.lkimMaqisFee) ?? 0,
-    };
+    return decimalToNumber(row?.lkimMaqisFee) ?? 0;
   } catch (error) {
     if (isMissingOperationsCostsTable(error)) {
-      return { ...EMPTY_MANUAL_COSTS };
+      return 0;
     }
     throw error;
   }
@@ -235,7 +224,8 @@ export async function getOperationsDashboard(input: {
     income,
     mcThirdPartyMyr,
     payroll,
-    manualCosts,
+    tripCosts,
+    lkimMaqisFee,
     exchangeRateRow,
     fuelPriceRow,
     trucks,
@@ -243,7 +233,8 @@ export async function getOperationsDashboard(input: {
     aggregateIncome(input.year, input.month),
     aggregateMcThirdParty(input.year, input.month),
     aggregateFleetPayroll(yearMonth),
-    loadManualCosts(yearMonth),
+    aggregateDispatchOperationalCosts(input.year, input.month),
+    loadLkimMaqisFee(yearMonth),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
     prisma.fuelPrice.findUnique({ where: { id: "default" } }),
     prisma.truck.findMany({
@@ -283,16 +274,16 @@ export async function getOperationsDashboard(input: {
     truckMaintenanceMyr: truckCosts.maintenanceMyr,
     truckEstimateCount: truckCosts.truckCount,
     mcThirdPartyMyr,
-    manualCosts,
+    tripCosts,
+    manualCosts: {
+      lkimMaqisFee,
+    },
   });
 }
 
 export async function saveOperationsMonthlyCosts(input: {
   year: number;
   month: number;
-  tollFee?: number | null;
-  crateRental?: number | null;
-  loadUnloadFee?: number | null;
   lkimMaqisFee?: number | null;
 }) {
   await requireOperationsAccess();
@@ -311,15 +302,9 @@ export async function saveOperationsMonthlyCosts(input: {
       where: { yearMonth },
       create: {
         yearMonth,
-        tollFee: parseCost(input.tollFee),
-        crateRental: parseCost(input.crateRental),
-        loadUnloadFee: parseCost(input.loadUnloadFee),
         lkimMaqisFee: parseCost(input.lkimMaqisFee),
       },
       update: {
-        tollFee: parseCost(input.tollFee),
-        crateRental: parseCost(input.crateRental),
-        loadUnloadFee: parseCost(input.loadUnloadFee),
         lkimMaqisFee: parseCost(input.lkimMaqisFee),
       },
     });

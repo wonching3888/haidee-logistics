@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { saveExchangeRate, saveFuelPrice, saveOperationalFreightSettings } from "@/app/actions/freight-settings";
+import { saveExchangeRate, saveFuelPrice, saveMarketOperationalRates, saveOperationalFreightSettings } from "@/app/actions/freight-settings";
 import type { OperationalSettingsValues } from "@/lib/constants/operational-settings";
 
 interface ExchangeRateRow {
@@ -35,6 +35,15 @@ interface ExchangeAlert {
   currentRate: number | null;
 }
 
+interface MarketOperationalRateRow {
+  marketId: string;
+  code: string;
+  name: string;
+  tollFee: number | null;
+  loadUnloadPerCrate: number | null;
+  crateRentalPerCrate: number | null;
+}
+
 interface ExchangeRateSectionProps {
   exchangeRates: ExchangeRateRow[];
   exchangeAlert: ExchangeAlert;
@@ -43,6 +52,7 @@ interface ExchangeRateSectionProps {
     thbPerLiter: number;
   };
   operationalSettings: OperationalSettingsValues;
+  marketOperationalRates: MarketOperationalRateRow[];
 }
 
 function formatYearMonthLabel(yearMonth: string) {
@@ -55,6 +65,7 @@ export function ExchangeRateSection({
   exchangeAlert,
   fuelPrice,
   operationalSettings,
+  marketOperationalRates,
 }: ExchangeRateSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -72,6 +83,16 @@ export function ExchangeRateSection({
     mySegmentRateBox: "",
     driverAllowancePerCrate: "",
   });
+  const [marketRatesForm, setMarketRatesForm] = useState<
+    Record<
+      string,
+      {
+        tollFee: string;
+        loadUnloadPerCrate: string;
+        crateRentalPerCrate: string;
+      }
+    >
+  >({});
 
   const [form, setForm] = useState({
     yearMonth: exchangeAlert.currentYearMonth,
@@ -113,6 +134,21 @@ export function ExchangeRateSection({
     operationalSettings.mySegmentRateBox,
     operationalSettings.driverAllowancePerCrate,
   ]);
+
+  useEffect(() => {
+    setMarketRatesForm(
+      Object.fromEntries(
+        marketOperationalRates.map((market) => [
+          market.marketId,
+          {
+            tollFee: optionalRateString(market.tollFee),
+            loadUnloadPerCrate: optionalRateString(market.loadUnloadPerCrate),
+            crateRentalPerCrate: optionalRateString(market.crateRentalPerCrate),
+          },
+        ])
+      )
+    );
+  }, [marketOperationalRates]);
 
   function refresh() {
     router.refresh();
@@ -321,6 +357,136 @@ export function ExchangeRateSection({
             }
           >
             保存运营设定 Save Operational Settings
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-haidee-border bg-white p-4">
+        <div className="mb-3">
+          <h3 className="text-base font-semibold text-haidee-text">
+            市场运营费率 Market Operational Rates
+          </h3>
+          <p className="text-sm text-haidee-muted">
+            运营报表按当月派车路线 × 市场费率自动计算过路费、Load/Unload 与租桶费。
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-lg border border-haidee-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                <TableHead>市场 Market</TableHead>
+                <TableHead>过路费/过境费 Toll (MYR/趟·市场)</TableHead>
+                <TableHead>Load/Unload (MYR/桶)</TableHead>
+                <TableHead>租桶费 Crate Rental (MYR/桶)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {marketOperationalRates.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-haidee-muted">
+                    暂无市场 No markets
+                  </TableCell>
+                </TableRow>
+              ) : (
+                marketOperationalRates.map((market) => {
+                  const form = marketRatesForm[market.marketId] ?? {
+                    tollFee: "",
+                    loadUnloadPerCrate: "",
+                    crateRentalPerCrate: "",
+                  };
+                  return (
+                    <TableRow key={market.marketId}>
+                      <TableCell>
+                        <div className="font-medium">{market.name}</div>
+                        <div className="font-mono text-xs text-haidee-muted">
+                          {market.code}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={form.tollFee}
+                          onChange={(e) =>
+                            setMarketRatesForm({
+                              ...marketRatesForm,
+                              [market.marketId]: {
+                                ...form,
+                                tollFee: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="0.00"
+                          className="min-h-[44px] font-mono"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={form.loadUnloadPerCrate}
+                          onChange={(e) =>
+                            setMarketRatesForm({
+                              ...marketRatesForm,
+                              [market.marketId]: {
+                                ...form,
+                                loadUnloadPerCrate: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="0.00"
+                          className="min-h-[44px] font-mono"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={form.crateRentalPerCrate}
+                          onChange={(e) =>
+                            setMarketRatesForm({
+                              ...marketRatesForm,
+                              [market.marketId]: {
+                                ...form,
+                                crateRentalPerCrate: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="0.00"
+                          className="min-h-[44px] font-mono"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            className="bg-haidee-blue text-white"
+            disabled={isPending}
+            onClick={() =>
+              runAction(async () => {
+                await saveMarketOperationalRates({
+                  rates: marketOperationalRates.map((market) => {
+                    const form = marketRatesForm[market.marketId] ?? {
+                      tollFee: "",
+                      loadUnloadPerCrate: "",
+                      crateRentalPerCrate: "",
+                    };
+                    return {
+                      marketId: market.marketId,
+                      tollFee: parseOptionalRateInput(form.tollFee),
+                      loadUnloadPerCrate: parseOptionalRateInput(
+                        form.loadUnloadPerCrate
+                      ),
+                      crateRentalPerCrate: parseOptionalRateInput(
+                        form.crateRentalPerCrate
+                      ),
+                    };
+                  }),
+                });
+              })
+            }
+          >
+            保存市场运营费率 Save Market Rates
           </Button>
         </div>
       </div>

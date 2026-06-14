@@ -143,12 +143,15 @@ export function buildPayrollSummary(input: {
   });
 
   const netSalary = roundMoney(
-    grossSalary -
-      statutory.epfEmployee -
-      statutory.socsoEmployee -
-      statutory.eisEmployee -
-      statutory.pcb -
-      input.earnings.advanceTotal
+    Math.max(
+      0,
+      grossSalary -
+        statutory.epfEmployee -
+        statutory.socsoEmployee -
+        statutory.eisEmployee -
+        statutory.pcb -
+        input.earnings.advanceTotal
+    )
   );
 
   return {

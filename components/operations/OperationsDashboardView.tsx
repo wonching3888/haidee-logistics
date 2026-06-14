@@ -18,25 +18,6 @@ function formatMyr(value: number) {
   })} MYR`;
 }
 
-function manualFormFromData(data: OperationsDashboardData) {
-  return {
-    tollFee:
-      data.manualCosts.tollFee != null ? String(data.manualCosts.tollFee) : "",
-    crateRental:
-      data.manualCosts.crateRental != null
-        ? String(data.manualCosts.crateRental)
-        : "",
-    loadUnloadFee:
-      data.manualCosts.loadUnloadFee != null
-        ? String(data.manualCosts.loadUnloadFee)
-        : "",
-    lkimMaqisFee:
-      data.manualCosts.lkimMaqisFee != null
-        ? String(data.manualCosts.lkimMaqisFee)
-        : "",
-  };
-}
-
 function SourceBadge({ source }: { source: "actual" | "estimate" }) {
   if (source === "actual") {
     return (
@@ -68,8 +49,10 @@ export function OperationsDashboardView({
   const [data, setData] = useState<OperationsDashboardData>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [manualForm, setManualForm] = useState(() =>
-    manualFormFromData(initialData)
+  const [lkimMaqisFee, setLkimMaqisFee] = useState(() =>
+    initialData.manualCosts.lkimMaqisFee != null
+      ? String(initialData.manualCosts.lkimMaqisFee)
+      : ""
   );
   const skipInitialFetch = useRef(true);
 
@@ -79,7 +62,11 @@ export function OperationsDashboardView({
       try {
         const result = await getOperationsDashboard({ year, month });
         setData(result);
-        setManualForm(manualFormFromData(result));
+        setLkimMaqisFee(
+          result.manualCosts.lkimMaqisFee != null
+            ? String(result.manualCosts.lkimMaqisFee)
+            : ""
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
       }
@@ -194,57 +181,23 @@ export function OperationsDashboardView({
 
       <section className="rounded-xl border border-haidee-border bg-white p-5">
         <h3 className="mb-2 text-lg font-semibold text-haidee-text">
-          成本 Costs（估算项可编辑）
+          成本 Costs
         </h3>
         <p className="mb-4 text-xs text-haidee-muted">
-          固定 Expenses（Office 工资等）由老板自行扣除，系统不计算。
+          过路费/租桶/Load-Unload 由派车路线 × 市场运营费率自动计算。固定
+          Expenses（Office 工资等）由老板自行扣除，系统不计算。
         </p>
 
         <div className="mb-4 grid gap-3 rounded-lg border border-dashed border-haidee-border bg-haidee-surface/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block space-y-1 text-sm">
-            过路费/过境费
+          <label className="block space-y-1 text-sm sm:col-span-2 lg:col-span-3">
+            LKIM-MAQIS费（估算，可编辑）
             <Input
-              value={manualForm.tollFee}
-              onChange={(e) =>
-                setManualForm({ ...manualForm, tollFee: e.target.value })
-              }
+              value={lkimMaqisFee}
+              onChange={(e) => setLkimMaqisFee(e.target.value)}
               className="min-h-[44px] font-mono"
             />
           </label>
-          <label className="block space-y-1 text-sm">
-            租桶费
-            <Input
-              value={manualForm.crateRental}
-              onChange={(e) =>
-                setManualForm({ ...manualForm, crateRental: e.target.value })
-              }
-              className="min-h-[44px] font-mono"
-            />
-          </label>
-          <label className="block space-y-1 text-sm">
-            Load/Unload费
-            <Input
-              value={manualForm.loadUnloadFee}
-              onChange={(e) =>
-                setManualForm({
-                  ...manualForm,
-                  loadUnloadFee: e.target.value,
-                })
-              }
-              className="min-h-[44px] font-mono"
-            />
-          </label>
-          <label className="block space-y-1 text-sm">
-            LKIM-MAQIS费
-            <Input
-              value={manualForm.lkimMaqisFee}
-              onChange={(e) =>
-                setManualForm({ ...manualForm, lkimMaqisFee: e.target.value })
-              }
-              className="min-h-[44px] font-mono"
-            />
-          </label>
-          <div className="flex items-end sm:col-span-2 lg:col-span-4">
+          <div className="flex items-end">
             <Button
               type="button"
               variant="outline"
@@ -256,10 +209,7 @@ export function OperationsDashboardView({
                     await saveOperationsMonthlyCosts({
                       year,
                       month,
-                      tollFee: parseOptionalCost(manualForm.tollFee),
-                      crateRental: parseOptionalCost(manualForm.crateRental),
-                      loadUnloadFee: parseOptionalCost(manualForm.loadUnloadFee),
-                      lkimMaqisFee: parseOptionalCost(manualForm.lkimMaqisFee),
+                      lkimMaqisFee: parseOptionalCost(lkimMaqisFee),
                     });
                     loadDashboard();
                   } catch (e) {
@@ -268,7 +218,7 @@ export function OperationsDashboardView({
                 })
               }
             >
-              保存估算费用 Save Estimates
+              保存 LKIM-MAQIS
             </Button>
           </div>
         </div>

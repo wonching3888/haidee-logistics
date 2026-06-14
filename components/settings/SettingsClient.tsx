@@ -159,6 +159,14 @@ interface SettingsClientProps {
       mySegmentRateBox: number | null;
       driverAllowancePerCrate: number | null;
     };
+    marketOperationalRates: {
+      marketId: string;
+      code: string;
+      name: string;
+      tollFee: number | null;
+      loadUnloadPerCrate: number | null;
+      crateRentalPerCrate: number | null;
+    }[];
   };
   driverPayrollDrivers: {
     id: string;
@@ -665,6 +673,7 @@ export function SettingsClient({
             exchangeAlert={freightData.exchangeAlert}
             fuelPrice={freightData.fuelPrice}
             operationalSettings={freightData.operationalSettings}
+            marketOperationalRates={freightData.marketOperationalRates}
           />
           </>
         )}

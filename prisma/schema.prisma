@@ -41,6 +41,10 @@ model Market {
   consigneeFreightRates ConsigneeFreightRate[]
   tongImports  TongImport[]
 
+  tollFee              Decimal? @map("toll_fee") @db.Decimal(10, 2)
+  loadUnloadPerCrate   Decimal? @map("load_unload_per_crate") @db.Decimal(10, 2)
+  crateRentalPerCrate  Decimal? @map("crate_rental_per_crate") @db.Decimal(10, 2)
+
   @@map("markets")
 }
 
