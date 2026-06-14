@@ -14,7 +14,8 @@ import { createAdminClient } from "@/lib/supabase";
 import {
   defaultCostItemsForCountry,
   isTruckCountry,
-  normalizeTruckCostItems,
+  loadTruckCostItems,
+  prepareTruckCostItemsForSave,
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
 
@@ -123,7 +124,7 @@ export async function getSettingsData() {
         ? Number(t.fuelEfficiencyKmPerL)
         : null,
       annualMileageKm: t.annualMileageKm,
-      costItems: normalizeTruckCostItems(
+      costItems: loadTruckCostItems(
         t.costItems.map((item) => ({
           name: item.name,
           annualAmount: Number(item.annualAmount),
@@ -319,7 +320,7 @@ export async function saveTruck(input: {
   }
 
   const country = input.country as TruckCountry;
-  const costItems = normalizeTruckCostItems(
+  const costItems = prepareTruckCostItemsForSave(
     input.costItems && input.costItems.length > 0
       ? input.costItems
       : defaultCostItemsForCountry(country)

@@ -161,29 +161,85 @@ export function consolidateTruckCostItems(
   });
 }
 
-export function normalizeTruckCostItems(
+export function isFixedTruckCostItemName(
+  name: string
+): name is FixedTruckCostItemName {
+  return (FIXED_TRUCK_COST_ITEM_NAMES as readonly string[]).includes(name.trim());
+}
+
+export function splitTruckCostItems(
+  items: { name: string; annualAmount: number; sortOrder?: number }[]
+) {
+  const fixedAmounts = new Map<FixedTruckCostItemName, number>();
+  for (const name of FIXED_TRUCK_COST_ITEM_NAMES) {
+    fixedAmounts.set(name, 0);
+  }
+
+  for (const item of items) {
+    const trimmed = item.name.trim();
+    if (!isFixedTruckCostItemName(trimmed)) continue;
+    fixedAmounts.set(
+      trimmed,
+      (fixedAmounts.get(trimmed) ?? 0) +
+        (Number.isFinite(item.annualAmount) ? item.annualAmount : 0)
+    );
+  }
+
+  const fixed = FIXED_TRUCK_COST_ITEM_NAMES.map((name, index) => ({
+    name,
+    annualAmount: fixedAmounts.get(name) ?? 0,
+    sortOrder: index,
+  }));
+
+  const custom = items
+    .filter((item) => !isFixedTruckCostItemName(item.name))
+    .filter((item) => item.name.trim())
+    .map((item, index) => ({
+      name: item.name.trim(),
+      annualAmount: Number.isFinite(item.annualAmount) ? item.annualAmount : 0,
+      sortOrder: FIXED_TRUCK_COST_ITEM_NAMES.length + index,
+    }));
+
+  return { fixed, custom, all: [...fixed, ...custom] };
+}
+
+/** Load cost items: ensure fixed 4 (missing → 0) and preserve custom rows. */
+export function loadTruckCostItems(
   items: { name: string; annualAmount: number }[]
 ) {
   if (items.length === 0) {
     return defaultCostItemsForCountry("MY");
   }
 
-  const alreadyFixed =
-    items.length === FIXED_TRUCK_COST_ITEM_NAMES.length &&
-    FIXED_TRUCK_COST_ITEM_NAMES.every((name) =>
-      items.some((item) => item.name.trim() === name)
-    );
+  const hasFixed = items.some((item) => isFixedTruckCostItemName(item.name));
+  const source = hasFixed ? items : consolidateTruckCostItems(items);
+  return splitTruckCostItems(source).all;
+}
 
-  if (alreadyFixed) {
-    return FIXED_TRUCK_COST_ITEM_NAMES.map((name, index) => {
-      const match = items.find((item) => item.name.trim() === name);
-      return {
-        name,
-        annualAmount: match?.annualAmount ?? 0,
-        sortOrder: index,
-      };
-    });
+/** Prepare cost items for DB save: fixed 4 + valid custom rows. */
+export function prepareTruckCostItemsForSave(
+  items: { name: string; annualAmount: number }[]
+) {
+  if (items.length === 0) {
+    return defaultCostItemsForCountry("MY");
   }
 
-  return consolidateTruckCostItems(items);
+  const hasFixed = items.some((item) => isFixedTruckCostItemName(item.name));
+  const source = hasFixed ? items : consolidateTruckCostItems(items);
+  const { fixed, custom } = splitTruckCostItems(source);
+
+  return [
+    ...fixed,
+    ...custom.map((item, index) => ({
+      ...item,
+      sortOrder: FIXED_TRUCK_COST_ITEM_NAMES.length + index,
+    })),
+  ];
+}
+
+/** @deprecated Use loadTruckCostItems or prepareTruckCostItemsForSave. */
+export function normalizeTruckCostItems(
+  items: { name: string; annualAmount: number }[]
+) {
+  return loadTruckCostItems(items);
 }

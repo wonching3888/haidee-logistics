@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,13 +15,14 @@ import {
   FIXED_TRUCK_COST_ITEM_NAMES,
   fuelPriceForCountry,
   getTruckCountryMeta,
-  normalizeTruckCostItems,
+  loadTruckCostItems,
+  prepareTruckCostItemsForSave,
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
 import {
   calcCostPerKm,
   calcFuelCostPerKm,
-  calcTotalCostPerKm,
+  calcGrandTotalPerKm,
   formatTruckMoney,
 } from "@/lib/truck-cost";
 
@@ -53,6 +55,13 @@ interface TruckFormDialogProps {
   isPending: boolean;
 }
 
+interface CostRow {
+  clientId: string;
+  name: string;
+  annualAmount: string;
+  isFixed: boolean;
+}
+
 function defaultTruckForm(country: TruckCountry = "MY"): TruckFormValue {
   return {
     plate: "",
@@ -68,16 +77,23 @@ function defaultTruckForm(country: TruckCountry = "MY"): TruckFormValue {
   };
 }
 
-function fixedCostRowsFromItems(items: { name: string; annualAmount: number }[]) {
-  const normalized = normalizeTruckCostItems(items);
-  return FIXED_TRUCK_COST_ITEM_NAMES.map((name) => {
-    const match = normalized.find((item) => item.name === name);
-    return {
-      name,
-      annualAmount:
-        match?.annualAmount != null ? String(match.annualAmount) : "",
-    };
-  });
+function newClientId() {
+  return globalThis.crypto?.randomUUID?.() ?? `row-${Date.now()}-${Math.random()}`;
+}
+
+function costRowsFromItems(items: { name: string; annualAmount: number }[]) {
+  const loaded = loadTruckCostItems(
+    items.length > 0 ? items : defaultCostItemsForCountry("MY")
+  );
+
+  return loaded.map((item) => ({
+    clientId: item.name,
+    name: item.name,
+    annualAmount: item.annualAmount ? String(item.annualAmount) : "",
+    isFixed: FIXED_TRUCK_COST_ITEM_NAMES.includes(
+      item.name as (typeof FIXED_TRUCK_COST_ITEM_NAMES)[number]
+    ),
+  }));
 }
 
 export function TruckFormDialog({
@@ -99,9 +115,7 @@ export function TruckFormDialog({
   const [fuelEfficiencyKmPerL, setFuelEfficiencyKmPerL] = useState("");
   const [annualMileageKm, setAnnualMileageKm] = useState("");
   const [active, setActive] = useState(true);
-  const [costItems, setCostItems] = useState<
-    { name: string; annualAmount: string }[]
-  >([]);
+  const [costRows, setCostRows] = useState<CostRow[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,8 +135,8 @@ export function TruckFormDialog({
       value.annualMileageKm != null ? String(value.annualMileageKm) : ""
     );
     setActive(value.active);
-    setCostItems(
-      fixedCostRowsFromItems(
+    setCostRows(
+      costRowsFromItems(
         value.costItems.length > 0
           ? value.costItems
           : defaultCostItemsForCountry(value.country)
@@ -141,25 +155,58 @@ export function TruckFormDialog({
 
   const parsedCostItems = useMemo(
     () =>
-      costItems.map((item) => ({
-        name: item.name,
-        annualAmount: item.annualAmount ? Number(item.annualAmount) : 0,
+      costRows.map((row) => ({
+        name: row.name,
+        annualAmount: row.annualAmount ? Number(row.annualAmount) : 0,
       })),
-    [costItems]
+    [costRows]
   );
 
-  const totalCostPerKm = calcTotalCostPerKm(parsedCostItems, parsedAnnualMileage);
   const fuelCostPerKm = calcFuelCostPerKm(
     currentFuelPrice,
     parsedFuelEfficiency
   );
+  const grandTotalPerKm = calcGrandTotalPerKm(
+    parsedCostItems,
+    parsedAnnualMileage,
+    fuelCostPerKm
+  );
 
   function handleCountryChange(nextCountry: TruckCountry) {
     setCountry(nextCountry);
-    setCostItems(fixedCostRowsFromItems(defaultCostItemsForCountry(nextCountry)));
+    setCostRows((prev) => {
+      const customRows = prev.filter((row) => !row.isFixed);
+      const fixedRows = costRowsFromItems(
+        defaultCostItemsForCountry(nextCountry)
+      );
+      return [...fixedRows, ...customRows];
+    });
+  }
+
+  function handleAddCustomItem() {
+    setCostRows((prev) => [
+      ...prev,
+      {
+        clientId: newClientId(),
+        name: "",
+        annualAmount: "",
+        isFixed: false,
+      },
+    ]);
+  }
+
+  function handleRemoveCustomItem(clientId: string) {
+    setCostRows((prev) => prev.filter((row) => row.clientId !== clientId));
   }
 
   function handleSave() {
+    const rawItems = costRows
+      .filter((row) => row.isFixed || row.name.trim())
+      .map((row) => ({
+        name: row.isFixed ? row.name : row.name.trim(),
+        annualAmount: row.annualAmount ? Number(row.annualAmount) : 0,
+      }));
+
     onSave({
       plate,
       type,
@@ -171,7 +218,7 @@ export function TruckFormDialog({
         ? Number(fuelEfficiencyKmPerL)
         : null,
       annualMileageKm: parsedAnnualMileage,
-      costItems: normalizeTruckCostItems(parsedCostItems),
+      costItems: prepareTruckCostItemsForSave(rawItems),
       active,
     });
   }
@@ -298,12 +345,13 @@ export function TruckFormDialog({
                   年度总额 Annual ({countryMeta.currency})
                 </div>
                 <div className="w-[100px] shrink-0 text-right">/km</div>
+                <div className="w-10 shrink-0 text-center">操作</div>
               </div>
 
               <div className="divide-y divide-haidee-border">
-                {costItems.map((item, index) => {
-                  const annualAmount = item.annualAmount
-                    ? Number(item.annualAmount)
+                {costRows.map((row) => {
+                  const annualAmount = row.annualAmount
+                    ? Number(row.annualAmount)
                     : 0;
                   const perKm = calcCostPerKm(
                     annualAmount,
@@ -312,33 +360,42 @@ export function TruckFormDialog({
 
                   return (
                     <div
-                      key={item.name}
+                      key={row.clientId}
                       className="flex items-center gap-3 px-3 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
-                        <select
-                          value={item.name}
-                          disabled
-                          className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-haidee-surface/40 px-3 text-sm text-haidee-text"
-                        >
-                          {FIXED_TRUCK_COST_ITEM_NAMES.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
+                        {row.isFixed ? (
+                          <div className="min-h-[44px] rounded-lg border border-haidee-border bg-haidee-surface/40 px-3 py-2.5 text-sm text-haidee-text">
+                            {row.name}
+                          </div>
+                        ) : (
+                          <Input
+                            value={row.name}
+                            onChange={(e) =>
+                              setCostRows((prev) =>
+                                prev.map((item) =>
+                                  item.clientId === row.clientId
+                                    ? { ...item, name: e.target.value }
+                                    : item
+                                )
+                              )
+                            }
+                            className="min-h-[44px] w-full text-sm"
+                            placeholder="自定义项目名称"
+                          />
+                        )}
                       </div>
                       <div className="w-[150px] shrink-0">
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={item.annualAmount}
+                          value={row.annualAmount}
                           onChange={(e) =>
-                            setCostItems((prev) =>
-                              prev.map((row, rowIndex) =>
-                                rowIndex === index
-                                  ? { ...row, annualAmount: e.target.value }
-                                  : row
+                            setCostRows((prev) =>
+                              prev.map((item) =>
+                                item.clientId === row.clientId
+                                  ? { ...item, annualAmount: e.target.value }
+                                  : item
                               )
                             )
                           }
@@ -349,9 +406,34 @@ export function TruckFormDialog({
                       <div className="w-[100px] shrink-0 text-right font-mono text-sm text-haidee-text">
                         {perKm != null ? perKm.toFixed(4) : "—"}
                       </div>
+                      <div className="flex w-10 shrink-0 justify-center">
+                        {!row.isFixed ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomItem(row.clientId)}
+                            className="rounded p-1.5 text-haidee-red hover:bg-haidee-red/10"
+                            aria-label="删除 Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="border-t border-haidee-border px-3 py-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddCustomItem}
+                  className="gap-1.5"
+                >
+                  <Plus className="h-4 w-4" />
+                  新增项目 Add Item
+                </Button>
               </div>
 
               <div className="flex items-center gap-3 border-t border-haidee-border bg-haidee-surface/60 px-3 py-3">
@@ -360,10 +442,15 @@ export function TruckFormDialog({
                 </div>
                 <div className="w-[150px] shrink-0" />
                 <div className="w-[100px] shrink-0 text-right font-mono text-base font-semibold text-haidee-blue">
-                  {totalCostPerKm != null ? totalCostPerKm.toFixed(4) : "—"}
+                  {grandTotalPerKm != null ? grandTotalPerKm.toFixed(4) : "—"}
                 </div>
+                <div className="w-10 shrink-0" />
               </div>
             </div>
+            <p className="mt-2 text-xs text-haidee-muted">
+              合计 = 柴油/km（{fuelCostPerKm?.toFixed(4) ?? "—"}）+ 所有成本项目
+              /km 之和
+            </p>
           </div>
 
           <label className="flex items-center gap-2 text-sm">

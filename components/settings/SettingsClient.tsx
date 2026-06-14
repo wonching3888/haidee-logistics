@@ -54,10 +54,11 @@ import {
   type TruckFormValue,
 } from "@/components/settings/TruckFormDialog";
 import {
+  fuelPriceForCountry,
   getTruckCountryMeta,
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
-import { calcTotalCostPerKm } from "@/lib/truck-cost";
+import { calcGrandTotalPerKm, calcFuelCostPerKm } from "@/lib/truck-cost";
 import { getRoleLabel } from "@/lib/auth-roles";
 import {
   SETTINGS_SECTION_TITLES,
@@ -569,9 +570,14 @@ export function SettingsClient({
             <TableBody>
               {data.trucks.map((t) => {
                 const countryMeta = getTruckCountryMeta(t.country);
-                const totalPerKm = calcTotalCostPerKm(
+                const fuelPerKm = calcFuelCostPerKm(
+                  fuelPriceForCountry(t.country, freightData.fuelPrice),
+                  t.fuelEfficiencyKmPerL
+                );
+                const totalPerKm = calcGrandTotalPerKm(
                   t.costItems,
-                  t.annualMileageKm
+                  t.annualMileageKm,
+                  fuelPerKm
                 );
 
                 return (

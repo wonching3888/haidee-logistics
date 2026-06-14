@@ -23,6 +23,17 @@ export function calcTotalCostPerKm(
   return calcCostPerKm(totalAnnual, annualMileageKm);
 }
 
+/** Diesel/km + sum of all cost item /km values. */
+export function calcGrandTotalPerKm(
+  items: { annualAmount: number }[],
+  annualMileageKm: number | null | undefined,
+  fuelCostPerKm: number | null | undefined
+) {
+  const itemsPerKm = calcTotalCostPerKm(items, annualMileageKm);
+  if (itemsPerKm == null && fuelCostPerKm == null) return null;
+  return roundTruckMoney((itemsPerKm ?? 0) + (fuelCostPerKm ?? 0));
+}
+
 export function calcFuelCostPerKm(
   fuelPricePerLiter: number | null | undefined,
   fuelEfficiencyKmPerL: number | null | undefined
