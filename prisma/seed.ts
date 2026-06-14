@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { DEFAULT_ROUTE_MASTERS } from "../lib/constants/route-master-seed";
+import { DEFAULT_CRATE_RENTAL_RATES } from "../lib/constants/crate-rental-rates";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -209,6 +210,21 @@ async function main() {
     });
   }
   console.log(`  ✓ ${DEFAULT_ROUTE_MASTERS.length} route masters`);
+
+  console.log("Seeding crate rental rates...");
+  for (const item of DEFAULT_CRATE_RENTAL_RATES) {
+    await prisma.crateRentalRate.upsert({
+      where: { crateType: item.crateType },
+      create: {
+        crateType: item.crateType,
+        isRental: item.isRental,
+        rateMyr: item.rateMyr,
+        notes: item.notes,
+      },
+      update: {},
+    });
+  }
+  console.log(`  ✓ ${DEFAULT_CRATE_RENTAL_RATES.length} crate rental rates`);
 
   console.log("Seed complete.");
 }

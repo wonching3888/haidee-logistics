@@ -196,6 +196,13 @@ interface SettingsClientProps {
     extraMarketAllowance: number;
     bigTruckCrateCommission: number | null;
     smallTruckCrateCommission: number | null;
+    crateRentalRates: {
+      id: string;
+      crateType: string;
+      isRental: boolean;
+      rateMyr: number;
+      notes: string | null;
+    }[];
   } | null;
 }
 
@@ -708,6 +715,7 @@ export function SettingsClient({
             smallTruckCrateCommission={
               allowanceSettings.smallTruckCrateCommission
             }
+            crateRentalRates={allowanceSettings.crateRentalRates}
           />
         )}
         </div>

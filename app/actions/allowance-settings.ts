@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { DEFAULT_EXTRA_MARKET_ALLOWANCE } from "@/lib/constants/payroll-allowance";
+import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -36,12 +37,13 @@ async function ensurePayrollAllowanceSettings() {
 export async function getAllowanceSettingsData() {
   await requireAdmin();
 
-  const [routes, settings] = await Promise.all([
+  const [routes, settings, crateRentalRates] = await Promise.all([
     prisma.routeMaster.findMany({
       where: { active: true },
       orderBy: [{ displayOrder: "asc" }, { code: "asc" }],
     }),
     ensurePayrollAllowanceSettings(),
+    listCrateRentalRates(),
   ]);
 
   return {
@@ -59,6 +61,7 @@ export async function getAllowanceSettingsData() {
     smallTruckCrateCommission: decimalToNumber(
       settings.smallTruckCrateCommission
     ),
+    crateRentalRates,
   };
 }
 
