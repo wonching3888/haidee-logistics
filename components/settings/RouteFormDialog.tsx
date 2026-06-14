@@ -23,7 +23,8 @@ export interface RouteFormValue {
   kpbFee: string;
   parkingFee: string;
   epermitCharge: string;
-  forwardingCharges: string;
+  forwardingOutbound: string;
+  forwardingReturn: string;
   dagangNetFee: string;
   displayOrder: string;
   active: boolean;
@@ -41,7 +42,8 @@ export interface RouteMasterRow {
   kpbFee: number | null;
   parkingFee: number | null;
   epermitCharge: number | null;
-  forwardingCharges: number | null;
+  forwardingOutbound: number | null;
+  forwardingReturn: number | null;
   dagangNetFee: number | null;
   displayOrder: number | null;
   active: boolean;
@@ -62,9 +64,10 @@ export function routeToFormValue(route?: RouteMasterRow): RouteFormValue {
     fishCheckingFee: optionalNumberString(route?.fishCheckingFee),
     kpbFee: optionalNumberString(route?.kpbFee),
     parkingFee: optionalNumberString(route?.parkingFee),
-    epermitCharge: optionalNumberString(route?.epermitCharge),
-    forwardingCharges: optionalNumberString(route?.forwardingCharges),
-    dagangNetFee: optionalNumberString(route?.dagangNetFee),
+    epermitCharge: optionalNumberString(route?.epermitCharge ?? 30),
+    forwardingOutbound: optionalNumberString(route?.forwardingOutbound ?? 80),
+    forwardingReturn: optionalNumberString(route?.forwardingReturn ?? 60),
+    dagangNetFee: optionalNumberString(route?.dagangNetFee ?? 10.8),
     displayOrder:
       route?.displayOrder != null ? String(route.displayOrder) : "",
     active: route?.active ?? true,
@@ -109,9 +112,13 @@ export function parseRouteFormValue(value: RouteFormValue) {
     kpbFee: parseOptionalNumberInput(value.kpbFee, "KPB Fee"),
     parkingFee: parseOptionalNumberInput(value.parkingFee, "Parking Fee"),
     epermitCharge: parseOptionalNumberInput(value.epermitCharge, "EPERMIT Chrg"),
-    forwardingCharges: parseOptionalNumberInput(
-      value.forwardingCharges,
-      "Forwarding Charges"
+    forwardingOutbound: parseOptionalNumberInput(
+      value.forwardingOutbound,
+      "出货 Outbound Forwarding"
+    ),
+    forwardingReturn: parseOptionalNumberInput(
+      value.forwardingReturn,
+      "回空桶 Return Forwarding"
     ),
     dagangNetFee: parseOptionalNumberInput(value.dagangNetFee, "Dagang Net Fee"),
     displayOrder,
@@ -301,11 +308,20 @@ export function RouteFormDialog({
                   className="min-h-[44px] font-mono"
                 />
               </FormField>
-              <FormField label="Forwarding Charges">
+              <FormField label="出货 Outbound Forwarding (RM)">
                 <Input
-                  value={form.forwardingCharges}
+                  value={form.forwardingOutbound}
                   onChange={(e) =>
-                    setForm({ ...form, forwardingCharges: e.target.value })
+                    setForm({ ...form, forwardingOutbound: e.target.value })
+                  }
+                  className="min-h-[44px] font-mono"
+                />
+              </FormField>
+              <FormField label="回空桶 Return Forwarding (RM)">
+                <Input
+                  value={form.forwardingReturn}
+                  onChange={(e) =>
+                    setForm({ ...form, forwardingReturn: e.target.value })
                   }
                   className="min-h-[44px] font-mono"
                 />
@@ -362,7 +378,7 @@ export function formatRouteFeeTotal(route: RouteMasterRow) {
     (route.kpbFee ?? 0) +
     (route.parkingFee ?? 0) +
     (route.epermitCharge ?? 0) +
-    (route.forwardingCharges ?? 0) +
+    (route.forwardingOutbound ?? 0) +
     (route.dagangNetFee ?? 0);
   return total > 0 ? total.toFixed(2) : "—";
 }

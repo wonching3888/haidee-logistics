@@ -34,7 +34,8 @@ function serializeRouteMaster(route: {
   kpbFee: unknown;
   parkingFee: unknown;
   epermitCharge: unknown;
-  forwardingCharges: unknown;
+  forwardingOutbound: unknown;
+  forwardingReturn: unknown;
   dagangNetFee: unknown;
   displayOrder: number | null;
   active: boolean;
@@ -51,7 +52,8 @@ function serializeRouteMaster(route: {
     kpbFee: decimalToNumber(route.kpbFee),
     parkingFee: decimalToNumber(route.parkingFee),
     epermitCharge: decimalToNumber(route.epermitCharge),
-    forwardingCharges: decimalToNumber(route.forwardingCharges),
+    forwardingOutbound: decimalToNumber(route.forwardingOutbound),
+    forwardingReturn: decimalToNumber(route.forwardingReturn),
     dagangNetFee: decimalToNumber(route.dagangNetFee),
     displayOrder: route.displayOrder,
     active: route.active,
@@ -80,7 +82,8 @@ export async function saveRouteMaster(input: {
   kpbFee?: number | null;
   parkingFee?: number | null;
   epermitCharge?: number | null;
-  forwardingCharges?: number | null;
+  forwardingOutbound?: number | null;
+  forwardingReturn?: number | null;
   dagangNetFee?: number | null;
   displayOrder?: number | null;
   active?: boolean;
@@ -114,7 +117,8 @@ export async function saveRouteMaster(input: {
     kpbFee: parseOptionalDecimal(input.kpbFee),
     parkingFee: parseOptionalDecimal(input.parkingFee),
     epermitCharge: parseOptionalDecimal(input.epermitCharge),
-    forwardingCharges: parseOptionalDecimal(input.forwardingCharges),
+    forwardingOutbound: parseOptionalDecimal(input.forwardingOutbound),
+    forwardingReturn: parseOptionalDecimal(input.forwardingReturn),
     dagangNetFee: parseOptionalDecimal(input.dagangNetFee),
     displayOrder: input.displayOrder ?? null,
     active: input.active ?? true,
