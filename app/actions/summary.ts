@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput } from "@/lib/inbound-utils";
 import {
-  formatPickupLocationLabel,
-  resolveSessionPickupLocation,
-} from "@/lib/constants/pickup-locations";
+  formatLoadingListDisplayName,
+  formatLoadingListRowLabel,
+} from "@/lib/consignor-label";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 
 export interface LoadingMatrixTruck {
   orderId: string;
@@ -33,6 +34,7 @@ export interface LoadingMatrixCell {
 export interface LoadingMatrixRow {
   id: string;
   label: string;
+  displayName: string;
   cells: Record<string, LoadingMatrixCell>;
 }
 
@@ -164,19 +166,6 @@ function rowGroupKey(
   return `${shipperId}:${(areaNote ?? "").trim()}:${pickupLocation}`;
 }
 
-function formatRowLabel(
-  shipperName: string,
-  areaNote: string | null,
-  pickupLocation: string
-): string {
-  const area = areaNote?.trim();
-  const pickupLabel = formatPickupLocationLabel(pickupLocation);
-  if (area) {
-    return `${shipperName} (${area}) · ${pickupLabel}`;
-  }
-  return `${shipperName} · ${pickupLabel}`;
-}
-
 export async function getDailySummary(
   dateStr: string
 ): Promise<VehicleLoadingListData> {
@@ -266,7 +255,12 @@ export async function getDailySummary(
     })
     .map((row) => ({
       id: rowGroupKey(row.shipperId, row.areaNote, row.pickupLocation),
-      label: formatRowLabel(row.shipperName, row.areaNote, row.pickupLocation),
+      label: formatLoadingListRowLabel(
+        row.shipperName,
+        row.areaNote,
+        row.pickupLocation
+      ),
+      displayName: formatLoadingListDisplayName(row.shipperName, row.areaNote),
       cells: row.cells,
     }));
 

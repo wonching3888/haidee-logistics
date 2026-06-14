@@ -9,7 +9,6 @@ import type {
   VehicleLoadingListData,
 } from "@/app/actions/summary";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
 import { MARKET_ORDER } from "@/lib/constants";
@@ -34,7 +33,7 @@ const stickyHeadRow3 =
 const stickyHeadCorner =
   "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface";
 const consignorColClass =
-  "max-md:min-w-[140px] max-md:whitespace-normal max-md:break-words";
+  "w-[168px] min-w-[168px] max-w-[168px] align-top";
 const stickyFirstColBody =
   "sticky left-0 z-10 border border-haidee-border bg-white";
 const stickyFirstColFooter =
@@ -228,9 +227,12 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 data.rows.map((row) => (
                   <tr key={row.id}>
                     <td
-                      className={`px-3 py-2 align-top font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
+                      className={`px-3 py-2 font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
                     >
-                      <MobileTruncatedName text={row.label} />
+                      <LoadingListConsignorCell
+                        displayName={row.displayName}
+                        fullLabel={row.label}
+                      />
                     </td>
                     {columns.map((col) => {
                       const cell = row.cells[col.key];
@@ -313,8 +315,39 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             max-height: none !important;
             overflow: visible !important;
           }
+          .summary-print .consignor-cell-screen {
+            display: none !important;
+          }
+          .summary-print .consignor-cell-print {
+            display: block !important;
+            max-width: none !important;
+            white-space: normal !important;
+            overflow: visible !important;
+          }
         }
       `}</style>
     </div>
+  );
+}
+
+function LoadingListConsignorCell({
+  displayName,
+  fullLabel,
+}: {
+  displayName: string;
+  fullLabel: string;
+}) {
+  return (
+    <>
+      <span
+        className="consignor-cell-screen block truncate"
+        title={fullLabel}
+      >
+        {displayName}
+      </span>
+      <span className="consignor-cell-print hidden whitespace-normal print:block">
+        {fullLabel}
+      </span>
+    </>
   );
 }

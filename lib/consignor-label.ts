@@ -1,6 +1,7 @@
 import {
   formatPickupLocationLabel,
   resolveSessionPickupLocation,
+  type PickupLocation,
 } from "@/lib/constants/pickup-locations";
 
 const MOBILE_NAME_MAX_LEN = 15;
@@ -36,6 +37,24 @@ export function buildConsignorSessionLabel(
   const base = buildConsignorAreaLabel(shipperName, areaNote);
   const pickup = resolveSessionPickupLocation(sessionPickup, shipperPickup);
   return `${base} · ${formatPickupLocationLabel(pickup)}`;
+}
+
+/** Full loading-list row label for tooltip (includes pickup location). */
+export function formatLoadingListRowLabel(
+  shipperName: string,
+  areaNote: string | null | undefined,
+  pickupLocation: string
+): string {
+  const base = buildConsignorAreaLabel(shipperName, areaNote);
+  return `${base} · ${formatPickupLocationLabel(pickupLocation as PickupLocation)}`;
+}
+
+/** Short loading-list display: shipper name (+ area), pickup in tooltip only. */
+export function formatLoadingListDisplayName(
+  shipperName: string,
+  areaNote: string | null | undefined
+): string {
+  return buildConsignorAreaLabel(shipperName, areaNote);
 }
 
 /** Loading matrix cell: "20", "3盒", "20+3盒", or "" */
