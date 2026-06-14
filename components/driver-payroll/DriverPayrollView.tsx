@@ -200,23 +200,34 @@ export function DriverPayrollView({
           <section className="rounded-xl border border-haidee-border bg-white p-4">
             <h3 className="mb-3 font-semibold">趟次记录 Trips</h3>
             <ScrollMatrixTable heightOffset={480}>
-              <Table>
+              <Table className="text-sm">
                 <TableHeader>
                   <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                    <TableHead>日期</TableHead>
-                    <TableHead>路线</TableHead>
-                    <TableHead>市场数</TableHead>
-                    <TableHead className="text-right">趟次津贴</TableHead>
-                    <TableHead className="text-right">额外津贴</TableHead>
-                    <TableHead className="text-right">回桶提成</TableHead>
-                    <TableHead>备注</TableHead>
-                    <TableHead />
+                    <TableHead className="whitespace-nowrap px-2">日期</TableHead>
+                    <TableHead className="whitespace-nowrap px-2">路线</TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-center">
+                      市场数
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-right">
+                      趟次津贴(RM)
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-right">
+                      额外津贴(RM)
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-right">
+                      回桶提成(RM)
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-right">
+                      本趟合计(RM)
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2">备注</TableHead>
+                    <TableHead className="whitespace-nowrap px-2" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.trips.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="py-6 text-center text-haidee-muted">
+                      <TableCell colSpan={9} className="py-6 text-center text-haidee-muted">
                         当月暂无派车趟次
                       </TableCell>
                     </TableRow>
@@ -473,68 +484,86 @@ function TripRow({
   onSave: (values: {
     tripAllowance: number;
     extraAllowance: number;
-    crateReturnCommission: number;
     notes?: string;
   }) => void;
 }) {
-  const [tripAllowance, setTripAllowance] = useState(String(trip.tripAllowance));
+  const defaultTripAllowance =
+    trip.tripAllowance !== 0 ? trip.tripAllowance : trip.autoTripAllowance;
+
+  const [tripAllowance, setTripAllowance] = useState(String(defaultTripAllowance));
   const [extraAllowance, setExtraAllowance] = useState(String(trip.extraAllowance));
-  const [crateReturnCommission, setCrateReturnCommission] = useState(
-    String(trip.crateReturnCommission)
-  );
   const [notes, setNotes] = useState(trip.notes ?? "");
 
   useEffect(() => {
-    setTripAllowance(String(trip.tripAllowance));
+    const nextTripAllowance =
+      trip.tripAllowance !== 0 ? trip.tripAllowance : trip.autoTripAllowance;
+    setTripAllowance(String(nextTripAllowance));
     setExtraAllowance(String(trip.extraAllowance));
-    setCrateReturnCommission(String(trip.crateReturnCommission));
     setNotes(trip.notes ?? "");
   }, [trip]);
 
+  const tripTotal =
+    (Number(tripAllowance) || 0) +
+    (Number(extraAllowance) || 0) +
+    trip.crateReturnCommission;
+
+  const compactInputClass =
+    "h-8 w-[90px] px-2 text-right font-mono text-xs tabular-nums";
+
   return (
     <TableRow>
-      <TableCell>{trip.dateLabel}</TableCell>
-      <TableCell>{trip.route}</TableCell>
-      <TableCell className="text-center">{trip.marketCount}</TableCell>
-      <TableCell>
+      <TableCell className="whitespace-nowrap px-2 py-1.5">{trip.dateLabel}</TableCell>
+      <TableCell className="max-w-[180px] truncate px-2 py-1.5" title={trip.route}>
+        {trip.route}
+      </TableCell>
+      <TableCell className="px-2 py-1.5 text-center tabular-nums">
+        {trip.marketCount}
+      </TableCell>
+      <TableCell className="px-2 py-1.5">
         <Input
           value={tripAllowance}
           onChange={(e) => setTripAllowance(e.target.value)}
-          className="h-9 font-mono text-right"
+          className={compactInputClass}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="px-2 py-1.5">
         <Input
           value={extraAllowance}
           onChange={(e) => setExtraAllowance(e.target.value)}
-          className="h-9 font-mono text-right"
+          className={compactInputClass}
         />
       </TableCell>
-      <TableCell>
-        <Input
-          value={crateReturnCommission}
-          onChange={(e) => setCrateReturnCommission(e.target.value)}
-          className="h-9 font-mono text-right"
-        />
+      <TableCell className="px-2 py-1.5">
+        <div
+          className="flex h-8 w-[90px] items-center justify-end rounded-md border border-haidee-border bg-gray-100 px-2 font-mono text-xs tabular-nums text-haidee-text"
+          title="从派车回桶记录自动计算"
+        >
+          {money(trip.crateReturnCommission)}
+        </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="px-2 py-1.5">
+        <div className="flex h-8 w-[100px] items-center justify-end rounded-md bg-haidee-navy/10 px-2 font-mono text-xs font-bold tabular-nums text-haidee-navy">
+          {money(tripTotal)}
+        </div>
+      </TableCell>
+      <TableCell className="px-2 py-1.5">
         <Input
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="h-9"
+          className="h-8 w-[120px] px-2 text-xs"
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="px-2 py-1.5">
         <Button
           type="button"
           size="sm"
           variant="outline"
+          className="h-8 px-2 text-xs"
           disabled={disabled}
           onClick={() =>
             onSave({
               tripAllowance: Number(tripAllowance) || 0,
               extraAllowance: Number(extraAllowance) || 0,
-              crateReturnCommission: Number(crateReturnCommission) || 0,
               notes,
             })
           }

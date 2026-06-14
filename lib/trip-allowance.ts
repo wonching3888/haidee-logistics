@@ -1,4 +1,5 @@
 import { sortMarkets } from "@/lib/markets";
+import { toDateInputValue } from "@/lib/date-utils";
 
 export interface RouteAllowanceInput {
   code: string;
@@ -83,7 +84,11 @@ export function calculateTripAllowance(input: {
     };
   }
 
-  const winningRoute = applicableRoutes.reduce((best, route) => {
+  const allowanceRoutes = applicableRoutes.filter((route) => route.code !== "OTHER");
+  const routesForPrimary =
+    allowanceRoutes.length > 0 ? allowanceRoutes : applicableRoutes;
+
+  const winningRoute = routesForPrimary.reduce((best, route) => {
     const allowance = route.driverAllowance ?? 0;
     const bestAllowance = best.driverAllowance ?? 0;
     if (allowance > bestAllowance) return route;
@@ -114,6 +119,65 @@ export function crateCommissionForTruckType(
 ) {
   if (truckType === "small") return rates.smallTruckCrateCommission ?? 0;
   return rates.bigTruckCrateCommission ?? 0;
+}
+
+export function crateReturnCommissionForDispatch(input: {
+  truckType: string | null | undefined;
+  hasCrateReturn: boolean;
+  rates: {
+    bigTruckCrateCommission: number | null;
+    smallTruckCrateCommission: number | null;
+  };
+}) {
+  if (!input.hasCrateReturn) return 0;
+  return crateCommissionForTruckType(input.truckType, input.rates);
+}
+
+function normalizePlate(plate: string) {
+  return plate.trim().toUpperCase();
+}
+
+/** Plates linked to a dispatch (Thai session plates, then MY truck plate fallback). */
+export function collectDispatchReturnPlates(order: {
+  truck: { plate: string };
+  lines?: { inboundLine: { session: { thVehiclePlate: string | null } } }[];
+}) {
+  const plates = new Set<string>();
+  for (const line of order.lines ?? []) {
+    const thPlate = line.inboundLine.session.thVehiclePlate?.trim();
+    if (thPlate) plates.add(normalizePlate(thPlate));
+  }
+  if (plates.size === 0 && order.truck.plate.trim()) {
+    plates.add(normalizePlate(order.truck.plate));
+  }
+  return Array.from(plates);
+}
+
+export function buildCrateReturnExportLookup(
+  exports: { date: Date | string; thVehiclePlate: string }[]
+) {
+  const lookup = new Set<string>();
+  for (const row of exports) {
+    const dateKey =
+      typeof row.date === "string"
+        ? row.date.slice(0, 10)
+        : toDateInputValue(row.date);
+    lookup.add(`${dateKey}|${normalizePlate(row.thVehiclePlate)}`);
+  }
+  return lookup;
+}
+
+export function dispatchHasCrateReturn(
+  order: {
+    date: Date;
+    truck: { plate: string };
+    lines?: { inboundLine: { session: { thVehiclePlate: string | null } } }[];
+  },
+  exportLookup: Set<string>
+) {
+  const dateKey = toDateInputValue(order.date);
+  const plates = collectDispatchReturnPlates(order);
+  return plates.some((plate) => exportLookup.has(`${dateKey}|${plate}`));
 }
 
 export function getDriverPayrollName(driver: {

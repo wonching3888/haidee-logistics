@@ -15,9 +15,11 @@ import {
 } from "@/lib/constants/payroll";
 import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
 import {
+  buildCrateReturnExportLookup,
   calculateTripAllowance,
   countPayrollMarketGroups,
-  crateCommissionForTruckType,
+  crateReturnCommissionForDispatch,
+  dispatchHasCrateReturn,
   getDriverPayrollName,
 } from "@/lib/trip-allowance";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
@@ -84,6 +86,63 @@ async function ensurePayrollMonth(driverId: string, yearMonth: string) {
   });
 }
 
+const dispatchIncludeForPayroll = {
+  truck: { select: { type: true, plate: true } },
+  lines: {
+    include: {
+      inboundLine: {
+        include: { session: { select: { thVehiclePlate: true } } },
+      },
+    },
+  },
+} as const;
+
+type DispatchForPayroll = Awaited<
+  ReturnType<
+    typeof prisma.dispatchOrder.findMany<{ include: typeof dispatchIncludeForPayroll }>
+  >
+>[number];
+
+type AllowanceContext = Awaited<ReturnType<typeof loadPayrollAllowanceContext>>;
+
+function computePayrollTripFields(
+  order: DispatchForPayroll,
+  allowanceContext: AllowanceContext,
+  hasCrateReturn: boolean
+) {
+  const allowanceResult = calculateTripAllowance({
+    markets: order.markets,
+    routes: allowanceContext.routes,
+    extraMarketAllowance: allowanceContext.extraMarketAllowance,
+  });
+  return {
+    autoTripAllowance: allowanceResult.tripAllowance,
+    marketCount: countPayrollMarketGroups(
+      order.markets,
+      allowanceContext.routes
+    ),
+    crateReturnCommission: crateReturnCommissionForDispatch({
+      truckType: order.truck.type,
+      hasCrateReturn,
+      rates: {
+        bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
+        smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
+      },
+    }),
+  };
+}
+
+async function loadCrateReturnExports(start: Date, end: Date) {
+  return prisma.tongExport.findMany({
+    where: {
+      date: { gte: start, lte: end },
+      quantityActual: { gt: 0 },
+      tongType: { isBox: false },
+    },
+    select: { date: true, thVehiclePlate: true },
+  });
+}
+
 async function syncDispatchTripsForMonth(
   payrollMonthId: string,
   driver: ReturnType<typeof serializeDriver>,
@@ -91,55 +150,78 @@ async function syncDispatchTripsForMonth(
   month: number
 ) {
   const { start, end } = getMonthDateRange(year, month);
-  const existingTrips = await prisma.driverPayrollTrip.findMany({
-    where: { payrollMonthId },
-    select: { dispatchOrderId: true },
-  });
+
+  const [existingTrips, dispatches, crateExports, allowanceContext] =
+    await Promise.all([
+      prisma.driverPayrollTrip.findMany({ where: { payrollMonthId } }),
+      prisma.dispatchOrder.findMany({
+        where: {
+          status: { not: "cancelled" },
+          driverName: driver.name,
+          date: { gte: start, lte: end },
+        },
+        include: dispatchIncludeForPayroll,
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      }),
+      loadCrateReturnExports(start, end),
+      loadPayrollAllowanceContext(),
+    ]);
+
+  const exportLookup = buildCrateReturnExportLookup(crateExports);
+  const dispatchById = new Map(dispatches.map((order) => [order.id, order]));
   const linkedIds = new Set(
     existingTrips
       .map((trip) => trip.dispatchOrderId)
       .filter((id): id is string => Boolean(id))
   );
 
-  const dispatches = await prisma.dispatchOrder.findMany({
-    where: {
-      status: { not: "cancelled" },
-      driverName: driver.name,
-      date: { gte: start, lte: end },
-    },
-    include: { truck: { select: { type: true, plate: true } } },
-    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-  });
+  for (const trip of existingTrips) {
+    if (!trip.dispatchOrderId) continue;
+    const order = dispatchById.get(trip.dispatchOrderId);
+    if (!order) continue;
+
+    const computed = computePayrollTripFields(
+      order,
+      allowanceContext,
+      dispatchHasCrateReturn(order, exportLookup)
+    );
+    const storedAllowance = decimalToNumber(trip.tripAllowance) ?? 0;
+
+    await prisma.driverPayrollTrip.update({
+      where: { id: trip.id },
+      data: {
+        route: order.markets.join(" / "),
+        markets: order.markets,
+        marketCount: computed.marketCount,
+        crateReturnCommission: computed.crateReturnCommission,
+        truckType: order.truck.type,
+        ...(storedAllowance === 0 && computed.autoTripAllowance > 0
+          ? { tripAllowance: computed.autoTripAllowance }
+          : {}),
+      },
+    });
+  }
 
   const toCreate = dispatches.filter((order) => !linkedIds.has(order.id));
   if (toCreate.length === 0) return;
 
-  const allowanceContext = await loadPayrollAllowanceContext();
-
   await prisma.driverPayrollTrip.createMany({
     data: toCreate.map((order, index) => {
-      const truckType = order.truck.type;
-      const allowanceResult = calculateTripAllowance({
-        markets: order.markets,
-        routes: allowanceContext.routes,
-        extraMarketAllowance: allowanceContext.extraMarketAllowance,
-      });
+      const computed = computePayrollTripFields(
+        order,
+        allowanceContext,
+        dispatchHasCrateReturn(order, exportLookup)
+      );
       return {
         payrollMonthId,
         dispatchOrderId: order.id,
         date: order.date,
         route: order.markets.join(" / "),
         markets: order.markets,
-        marketCount: countPayrollMarketGroups(
-          order.markets,
-          allowanceContext.routes
-        ),
-        tripAllowance: allowanceResult.tripAllowance,
-        crateReturnCommission: crateCommissionForTruckType(truckType, {
-          bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
-          smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
-        }),
-        truckType,
+        marketCount: computed.marketCount,
+        tripAllowance: computed.autoTripAllowance,
+        crateReturnCommission: computed.crateReturnCommission,
+        truckType: order.truck.type,
         notes: order.truck.plate,
         sortOrder: existingTrips.length + index,
       };
@@ -294,23 +376,32 @@ export async function getDriverPayrollMonth(input: {
       eisEmployer: decimalToNumber(record.eisEmployerOverride),
       pcb: decimalToNumber(record.pcbOverride),
     },
-    trips: record.trips.map((trip) => ({
-      id: trip.id,
-      dispatchOrderId: trip.dispatchOrderId,
-      date: toDateInputValue(trip.date),
-      dateLabel: formatDisplayDate(trip.date),
-      route: trip.route ?? trip.markets.join(" / "),
-      markets: trip.markets,
-      marketCount: countPayrollMarketGroups(
-        trip.markets,
-        allowanceContext.routes
-      ),
-      tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
-      extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
-      crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
-      truckType: trip.truckType,
-      notes: trip.notes,
-    })),
+    trips: record.trips.map((trip) => {
+      const autoTripAllowance = calculateTripAllowance({
+        markets: trip.markets,
+        routes: allowanceContext.routes,
+        extraMarketAllowance: allowanceContext.extraMarketAllowance,
+      }).tripAllowance;
+
+      return {
+        id: trip.id,
+        dispatchOrderId: trip.dispatchOrderId,
+        date: toDateInputValue(trip.date),
+        dateLabel: formatDisplayDate(trip.date),
+        route: trip.route ?? trip.markets.join(" / "),
+        markets: trip.markets,
+        marketCount: countPayrollMarketGroups(
+          trip.markets,
+          allowanceContext.routes
+        ),
+        autoTripAllowance,
+        tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+        extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
+        crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
+        truckType: trip.truckType,
+        notes: trip.notes,
+      };
+    }),
     extras: record.extras.map((item) => ({
       id: item.id,
       type: item.type,
@@ -327,7 +418,6 @@ export async function saveDriverPayrollTrip(input: {
   id: string;
   tripAllowance: number;
   extraAllowance: number;
-  crateReturnCommission: number;
   notes?: string;
 }) {
   await requirePayrollAccess();
@@ -336,7 +426,6 @@ export async function saveDriverPayrollTrip(input: {
     data: {
       tripAllowance: input.tripAllowance,
       extraAllowance: input.extraAllowance,
-      crateReturnCommission: input.crateReturnCommission,
       notes: input.notes?.trim() || null,
     },
   });
