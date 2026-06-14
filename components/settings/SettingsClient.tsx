@@ -42,6 +42,7 @@ import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import type { FreightSettingsData } from "@/components/settings/FreightRatesSection";
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
+import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
 import {
   TruckFormDialog,
   type TruckFormValue,
@@ -159,6 +160,23 @@ interface SettingsClientProps {
       driverAllowancePerCrate: number | null;
     };
   };
+  driverPayrollDrivers: {
+    id: string;
+    name: string;
+    active: boolean;
+    baseSalary: number | null;
+    allowance1Market: number | null;
+    allowance2Markets: number | null;
+    allowance3Markets: number | null;
+    bigTruckCrateCommission: number | null;
+    smallTruckCrateCommission: number | null;
+    autoCountEmployeeCode: string | null;
+    icNumber: string | null;
+    epfNumber: string | null;
+    socsoNumber: string | null;
+    maritalStatus: string | null;
+    childCount: number;
+  }[];
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -188,6 +206,7 @@ export function SettingsClient({
   activeSection,
   data,
   freightData,
+  driverPayrollDrivers,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -648,6 +667,10 @@ export function SettingsClient({
             operationalSettings={freightData.operationalSettings}
           />
           </>
+        )}
+
+        {activeSection === "driver-payroll" && (
+          <DriverPayrollSettingsSection drivers={driverPayrollDrivers} />
         )}
         </div>
       </div>

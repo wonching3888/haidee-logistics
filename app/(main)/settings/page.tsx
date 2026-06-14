@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSettingsData } from "@/app/actions/settings";
 import { getFreightSettingsData } from "@/app/actions/freight-settings";
+import { getDriverPayrollSettingsData } from "@/app/actions/driver-payroll";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import {
   parseSettingsSection,
@@ -19,9 +20,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   }
 
   const activeSection = parseSettingsSection(sectionParam);
-  const [data, freightData] = await Promise.all([
+  const [data, freightData, driverPayrollDrivers] = await Promise.all([
     getSettingsData(),
     getFreightSettingsData(),
+    activeSection === "driver-payroll"
+      ? getDriverPayrollSettingsData()
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -38,6 +42,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         activeSection={activeSection}
         data={data}
         freightData={freightData}
+        driverPayrollDrivers={driverPayrollDrivers}
       />
     </div>
   );

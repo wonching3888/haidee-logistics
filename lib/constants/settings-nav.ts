@@ -7,7 +7,8 @@ export type SettingsSection =
   | "shipper-rates"
   | "consignee-rates"
   | "payment-relations"
-  | "exchange-rate";
+  | "exchange-rate"
+  | "driver-payroll";
 
 export const DEFAULT_SETTINGS_SECTION: SettingsSection = "shippers";
 
@@ -21,6 +22,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "consignee-rates",
   "payment-relations",
   "exchange-rate",
+  "driver-payroll",
 ];
 
 export const SETTINGS_SECTION_TITLES: Record<
@@ -36,6 +38,7 @@ export const SETTINGS_SECTION_TITLES: Record<
   "consignee-rates": { label: "收货人费率", labelEn: "Consignee Rates" },
   "payment-relations": { label: "付款关系", labelEn: "Payment Relations" },
   "exchange-rate": { label: "汇率设定", labelEn: "Exchange Rate" },
+  "driver-payroll": { label: "司机薪资", labelEn: "Driver Payroll" },
 };
 
 export const SETTINGS_FREIGHT_SECTIONS: SettingsSection[] = [
@@ -93,5 +96,10 @@ export const SETTINGS_SIDEBAR_MENU = [
     section: "exchange-rate" as const,
     label: "汇率设定",
     labelEn: "Exchange Rate",
+  },
+  {
+    section: "driver-payroll" as const,
+    label: "司机薪资",
+    labelEn: "Driver Payroll",
   },
 ];

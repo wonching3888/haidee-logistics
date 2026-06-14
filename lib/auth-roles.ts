@@ -19,6 +19,10 @@ export function canAccessSettings(role: UserRole) {
   return role === "admin";
 }
 
+export function canAccessDriverPayroll(role: UserRole) {
+  return role === "admin" || role === "accounting";
+}
+
 export function getRoleLabel(role: UserRole) {
   switch (role) {
     case "admin":

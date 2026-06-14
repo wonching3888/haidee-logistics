@@ -229,11 +229,82 @@ model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique
   active    Boolean  @default(true)
+  baseSalary                Decimal? @map("base_salary") @db.Decimal(10, 2)
+  allowance1Market          Decimal? @map("allowance_1_market") @db.Decimal(10, 2)
+  allowance2Markets         Decimal? @map("allowance_2_markets") @db.Decimal(10, 2)
+  allowance3Markets         Decimal? @map("allowance_3_markets") @db.Decimal(10, 2)
+  bigTruckCrateCommission   Decimal? @map("big_truck_crate_commission") @db.Decimal(10, 2)
+  smallTruckCrateCommission Decimal? @map("small_truck_crate_commission") @db.Decimal(10, 2)
+  autoCountEmployeeCode     String?  @map("autocount_employee_code")
+  icNumber                  String?  @map("ic_number")
+  epfNumber                 String?  @map("epf_number")
+  socsoNumber               String?  @map("socso_number")
+  maritalStatus             String?  @map("marital_status")
+  childCount                Int      @default(0) @map("child_count")
   createdAt DateTime @default(now()) @map("created_at")
 
-  trucks Truck[]
+  trucks         Truck[]
+  payrollMonths  DriverPayrollMonth[]
 
   @@map("drivers")
+}
+
+model DriverPayrollMonth {
+  id        String   @id @default(uuid()) @db.Uuid
+  driverId  String   @map("driver_id") @db.Uuid
+  yearMonth String   @map("year_month")
+  status    String   @default("draft")
+  epfEmployeeOverride   Decimal? @map("epf_employee_override") @db.Decimal(10, 2)
+  epfEmployerOverride   Decimal? @map("epf_employer_override") @db.Decimal(10, 2)
+  socsoEmployeeOverride Decimal? @map("socso_employee_override") @db.Decimal(10, 2)
+  socsoEmployerOverride Decimal? @map("socso_employer_override") @db.Decimal(10, 2)
+  eisEmployeeOverride   Decimal? @map("eis_employee_override") @db.Decimal(10, 2)
+  eisEmployerOverride   Decimal? @map("eis_employer_override") @db.Decimal(10, 2)
+  pcbOverride           Decimal? @map("pcb_override") @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  driver Driver              @relation(fields: [driverId], references: [id])
+  trips  DriverPayrollTrip[]
+  extras DriverPayrollExtra[]
+
+  @@unique([driverId, yearMonth])
+  @@map("driver_payroll_months")
+}
+
+model DriverPayrollTrip {
+  id                    String   @id @default(uuid()) @db.Uuid
+  payrollMonthId        String   @map("payroll_month_id") @db.Uuid
+  dispatchOrderId       String?  @unique @map("dispatch_order_id") @db.Uuid
+  date                  DateTime @db.Date
+  route                 String?
+  markets               String[]
+  marketCount           Int      @default(0) @map("market_count")
+  tripAllowance         Decimal  @default(0) @map("trip_allowance") @db.Decimal(10, 2)
+  extraAllowance        Decimal  @default(0) @map("extra_allowance") @db.Decimal(10, 2)
+  crateReturnCommission Decimal  @default(0) @map("crate_return_commission") @db.Decimal(10, 2)
+  truckType             String?  @map("truck_type")
+  notes                 String?
+  sortOrder             Int      @default(0) @map("sort_order")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  payrollMonth  DriverPayrollMonth @relation(fields: [payrollMonthId], references: [id], onDelete: Cascade)
+  dispatchOrder DispatchOrder?     @relation(fields: [dispatchOrderId], references: [id])
+
+  @@map("driver_payroll_trips")
+}
+
+model DriverPayrollExtra {
+  id             String   @id @default(uuid()) @db.Uuid
+  payrollMonthId String   @map("payroll_month_id") @db.Uuid
+  type           String
+  amount         Decimal  @db.Decimal(10, 2)
+  note           String?
+  date           DateTime @db.Date
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  payrollMonth DriverPayrollMonth @relation(fields: [payrollMonthId], references: [id], onDelete: Cascade)
+
+  @@map("driver_payroll_extras")
 }
 
 model Truck {
@@ -385,6 +456,7 @@ model DispatchOrder {
   originalTruck Truck?         @relation("OriginalTruck", fields: [originalTruckId], references: [id])
   createdBy     User?          @relation(fields: [createdById], references: [id])
   lines         DispatchLine[]
+  payrollTrip   DriverPayrollTrip?
 
   @@map("dispatch_orders")
 }

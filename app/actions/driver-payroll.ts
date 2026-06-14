@@ -1,0 +1,583 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { canAccessDriverPayroll } from "@/lib/auth-roles";
+import type { UserRole } from "@/types";
+import { decimalToNumber } from "@/lib/freight-rates";
+import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
+import {
+  crateCommissionForTruckType,
+  isMaritalStatus,
+  isPayrollExtraType,
+  tripAllowanceForMarketCount,
+  type MaritalStatus,
+} from "@/lib/constants/payroll";
+import { buildPayrollSummary } from "@/lib/payroll-statutory";
+
+async function requirePayrollAccess() {
+  const user = await getCurrentUser();
+  if (!user || !canAccessDriverPayroll(user.role as UserRole)) {
+    throw new Error("无权限 Unauthorized");
+  }
+  return user;
+}
+
+function parseYearMonth(year: number, month: number) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    throw new Error("无效年份 Invalid year");
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error("无效月份 Invalid month");
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function serializeDriver(driver: {
+  id: string;
+  name: string;
+  active: boolean;
+  baseSalary: unknown;
+  allowance1Market: unknown;
+  allowance2Markets: unknown;
+  allowance3Markets: unknown;
+  bigTruckCrateCommission: unknown;
+  smallTruckCrateCommission: unknown;
+  autoCountEmployeeCode: string | null;
+  icNumber: string | null;
+  epfNumber: string | null;
+  socsoNumber: string | null;
+  maritalStatus: string | null;
+  childCount: number;
+}) {
+  return {
+    id: driver.id,
+    name: driver.name,
+    active: driver.active,
+    baseSalary: decimalToNumber(driver.baseSalary),
+    allowance1Market: decimalToNumber(driver.allowance1Market),
+    allowance2Markets: decimalToNumber(driver.allowance2Markets),
+    allowance3Markets: decimalToNumber(driver.allowance3Markets),
+    bigTruckCrateCommission: decimalToNumber(driver.bigTruckCrateCommission),
+    smallTruckCrateCommission: decimalToNumber(driver.smallTruckCrateCommission),
+    autoCountEmployeeCode: driver.autoCountEmployeeCode,
+    icNumber: driver.icNumber,
+    epfNumber: driver.epfNumber,
+    socsoNumber: driver.socsoNumber,
+    maritalStatus: driver.maritalStatus as MaritalStatus | null,
+    childCount: driver.childCount,
+  };
+}
+
+async function ensurePayrollMonth(driverId: string, yearMonth: string) {
+  return prisma.driverPayrollMonth.upsert({
+    where: { driverId_yearMonth: { driverId, yearMonth } },
+    create: { driverId, yearMonth },
+    update: {},
+  });
+}
+
+async function syncDispatchTripsForMonth(
+  payrollMonthId: string,
+  driver: ReturnType<typeof serializeDriver>,
+  year: number,
+  month: number
+) {
+  const { start, end } = getMonthDateRange(year, month);
+  const existingTrips = await prisma.driverPayrollTrip.findMany({
+    where: { payrollMonthId },
+    select: { dispatchOrderId: true },
+  });
+  const linkedIds = new Set(
+    existingTrips
+      .map((trip) => trip.dispatchOrderId)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  const dispatches = await prisma.dispatchOrder.findMany({
+    where: {
+      status: { not: "cancelled" },
+      driverName: driver.name,
+      date: { gte: start, lte: end },
+    },
+    include: { truck: { select: { type: true, plate: true } } },
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+
+  const toCreate = dispatches.filter((order) => !linkedIds.has(order.id));
+  if (toCreate.length === 0) return;
+
+  const rateInput = {
+    allowance1Market: driver.allowance1Market,
+    allowance2Markets: driver.allowance2Markets,
+    allowance3Markets: driver.allowance3Markets,
+    bigTruckCrateCommission: driver.bigTruckCrateCommission,
+    smallTruckCrateCommission: driver.smallTruckCrateCommission,
+  };
+
+  await prisma.driverPayrollTrip.createMany({
+    data: toCreate.map((order, index) => {
+      const marketCount = order.markets.length;
+      const truckType = order.truck.type;
+      return {
+        payrollMonthId,
+        dispatchOrderId: order.id,
+        date: order.date,
+        route: order.markets.join(" / "),
+        markets: order.markets,
+        marketCount,
+        tripAllowance: tripAllowanceForMarketCount(marketCount, rateInput),
+        crateReturnCommission: crateCommissionForTruckType(truckType, rateInput),
+        truckType,
+        notes: order.truck.plate,
+        sortOrder: existingTrips.length + index,
+      };
+    }),
+  });
+}
+
+function buildSummaryFromRecords(input: {
+  driver: ReturnType<typeof serializeDriver>;
+  trips: {
+    tripAllowance: unknown;
+    extraAllowance: unknown;
+    crateReturnCommission: unknown;
+  }[];
+  extras: { type: string; amount: unknown }[];
+  overrides: {
+    epfEmployeeOverride: unknown;
+    epfEmployerOverride: unknown;
+    socsoEmployeeOverride: unknown;
+    socsoEmployerOverride: unknown;
+    eisEmployeeOverride: unknown;
+    eisEmployerOverride: unknown;
+    pcbOverride: unknown;
+  };
+}) {
+  const tripAllowanceTotal = roundMoney(
+    input.trips.reduce(
+      (sum, trip) => sum + (decimalToNumber(trip.tripAllowance) ?? 0),
+      0
+    )
+  );
+  const tripExtraAllowanceTotal = roundMoney(
+    input.trips.reduce(
+      (sum, trip) => sum + (decimalToNumber(trip.extraAllowance) ?? 0),
+      0
+    )
+  );
+  const crateCommissionTotal = roundMoney(
+    input.trips.reduce(
+      (sum, trip) => sum + (decimalToNumber(trip.crateReturnCommission) ?? 0),
+      0
+    )
+  );
+  const extraAllowanceTotal = roundMoney(
+    input.extras
+      .filter((item) => item.type === "extra_allowance")
+      .reduce((sum, item) => sum + (decimalToNumber(item.amount) ?? 0), 0)
+  );
+  const advanceTotal = roundMoney(
+    input.extras
+      .filter((item) => item.type === "advance")
+      .reduce((sum, item) => sum + (decimalToNumber(item.amount) ?? 0), 0)
+  );
+
+  return buildPayrollSummary({
+    earnings: {
+      baseSalary: input.driver.baseSalary ?? 0,
+      tripAllowanceTotal,
+      crateCommissionTotal,
+      tripExtraAllowanceTotal,
+      extraAllowanceTotal,
+      advanceTotal,
+    },
+    maritalStatus: input.driver.maritalStatus,
+    childCount: input.driver.childCount,
+    overrides: {
+      epfEmployee: decimalToNumber(input.overrides.epfEmployeeOverride),
+      epfEmployer: decimalToNumber(input.overrides.epfEmployerOverride),
+      socsoEmployee: decimalToNumber(input.overrides.socsoEmployeeOverride),
+      socsoEmployer: decimalToNumber(input.overrides.socsoEmployerOverride),
+      eisEmployee: decimalToNumber(input.overrides.eisEmployeeOverride),
+      eisEmployer: decimalToNumber(input.overrides.eisEmployerOverride),
+      pcb: decimalToNumber(input.overrides.pcbOverride),
+    },
+  });
+}
+
+export async function getDriverPayrollDrivers() {
+  await requirePayrollAccess();
+  const drivers = await prisma.driver.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+  });
+  return drivers.map(serializeDriver);
+}
+
+export async function getDriverPayrollMonth(input: {
+  driverId: string;
+  year: number;
+  month: number;
+}) {
+  await requirePayrollAccess();
+  const yearMonth = parseYearMonth(input.year, input.month);
+
+  const driver = await prisma.driver.findUnique({ where: { id: input.driverId } });
+  if (!driver) throw new Error("司机不存在 Driver not found");
+
+  const serializedDriver = serializeDriver(driver);
+  const payrollMonth = await ensurePayrollMonth(input.driverId, yearMonth);
+  await syncDispatchTripsForMonth(
+    payrollMonth.id,
+    serializedDriver,
+    input.year,
+    input.month
+  );
+
+  const record = await prisma.driverPayrollMonth.findUnique({
+    where: { id: payrollMonth.id },
+    include: {
+      trips: { orderBy: [{ date: "asc" }, { sortOrder: "asc" }] },
+      extras: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
+    },
+  });
+  if (!record) throw new Error("薪资记录不存在 Payroll record not found");
+
+  const summary = buildSummaryFromRecords({
+    driver: serializedDriver,
+    trips: record.trips,
+    extras: record.extras,
+    overrides: record,
+  });
+
+  return {
+    yearMonth,
+    year: input.year,
+    month: input.month,
+    driver: serializedDriver,
+    payrollMonthId: record.id,
+    overrides: {
+      epfEmployee: decimalToNumber(record.epfEmployeeOverride),
+      epfEmployer: decimalToNumber(record.epfEmployerOverride),
+      socsoEmployee: decimalToNumber(record.socsoEmployeeOverride),
+      socsoEmployer: decimalToNumber(record.socsoEmployerOverride),
+      eisEmployee: decimalToNumber(record.eisEmployeeOverride),
+      eisEmployer: decimalToNumber(record.eisEmployerOverride),
+      pcb: decimalToNumber(record.pcbOverride),
+    },
+    trips: record.trips.map((trip) => ({
+      id: trip.id,
+      dispatchOrderId: trip.dispatchOrderId,
+      date: toDateInputValue(trip.date),
+      dateLabel: formatDisplayDate(trip.date),
+      route: trip.route ?? trip.markets.join(" / "),
+      markets: trip.markets,
+      marketCount: trip.marketCount,
+      tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+      extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
+      crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
+      truckType: trip.truckType,
+      notes: trip.notes,
+    })),
+    extras: record.extras.map((item) => ({
+      id: item.id,
+      type: item.type,
+      amount: decimalToNumber(item.amount) ?? 0,
+      note: item.note,
+      date: toDateInputValue(item.date),
+    })),
+    summary,
+  };
+}
+
+export async function saveDriverPayrollTrip(input: {
+  id: string;
+  tripAllowance: number;
+  extraAllowance: number;
+  crateReturnCommission: number;
+  notes?: string;
+}) {
+  await requirePayrollAccess();
+  await prisma.driverPayrollTrip.update({
+    where: { id: input.id },
+    data: {
+      tripAllowance: input.tripAllowance,
+      extraAllowance: input.extraAllowance,
+      crateReturnCommission: input.crateReturnCommission,
+      notes: input.notes?.trim() || null,
+    },
+  });
+  revalidatePath("/driver-payroll");
+}
+
+export async function addDriverPayrollExtra(input: {
+  payrollMonthId: string;
+  type: string;
+  amount: number;
+  date: string;
+  note?: string;
+}) {
+  await requirePayrollAccess();
+  if (!isPayrollExtraType(input.type)) {
+    throw new Error("无效类型 Invalid extra type");
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("金额必须大于 0 Amount must be greater than 0");
+  }
+  await prisma.driverPayrollExtra.create({
+    data: {
+      payrollMonthId: input.payrollMonthId,
+      type: input.type,
+      amount: input.amount,
+      date: new Date(`${input.date}T00:00:00.000Z`),
+      note: input.note?.trim() || null,
+    },
+  });
+  revalidatePath("/driver-payroll");
+}
+
+export async function deleteDriverPayrollExtra(id: string) {
+  await requirePayrollAccess();
+  await prisma.driverPayrollExtra.delete({ where: { id } });
+  revalidatePath("/driver-payroll");
+}
+
+export async function saveDriverPayrollOverrides(input: {
+  payrollMonthId: string;
+  epfEmployee?: number | null;
+  epfEmployer?: number | null;
+  socsoEmployee?: number | null;
+  socsoEmployer?: number | null;
+  eisEmployee?: number | null;
+  eisEmployer?: number | null;
+  pcb?: number | null;
+}) {
+  await requirePayrollAccess();
+  await prisma.driverPayrollMonth.update({
+    where: { id: input.payrollMonthId },
+    data: {
+      epfEmployeeOverride: input.epfEmployee ?? null,
+      epfEmployerOverride: input.epfEmployer ?? null,
+      socsoEmployeeOverride: input.socsoEmployee ?? null,
+      socsoEmployerOverride: input.socsoEmployer ?? null,
+      eisEmployeeOverride: input.eisEmployee ?? null,
+      eisEmployerOverride: input.eisEmployer ?? null,
+      pcbOverride: input.pcb ?? null,
+    },
+  });
+  revalidatePath("/driver-payroll");
+}
+
+function csvEscape(value: string | number | null | undefined) {
+  const text = value == null ? "" : String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+export async function exportDriverPayrollAutoCount(input: {
+  driverId: string;
+  year: number;
+  month: number;
+}) {
+  await requirePayrollAccess();
+  const data = await getDriverPayrollMonth(input);
+  const { driver, summary, trips, extras, yearMonth } = data;
+
+  const headers = [
+    "EmployeeCode",
+    "EmployeeName",
+    "YearMonth",
+    "LineType",
+    "Date",
+    "Description",
+    "Markets",
+    "TripAllowance",
+    "TripExtraAllowance",
+    "CrateCommission",
+    "ExtraAllowance",
+    "Advance",
+    "BaseSalary",
+    "GrossSalary",
+    "EPF_Employee",
+    "EPF_Employer",
+    "SOCSO_Employee",
+    "SOCSO_Employer",
+    "EIS_Employee",
+    "EIS_Employer",
+    "PCB",
+    "NetSalary",
+  ];
+
+  const rows: string[][] = [];
+
+  for (const trip of trips) {
+    rows.push([
+      driver.autoCountEmployeeCode ?? "",
+      driver.name,
+      yearMonth,
+      "TRIP",
+      trip.date,
+      trip.notes ?? trip.route,
+      trip.markets.join("/"),
+      trip.tripAllowance.toFixed(2),
+      trip.extraAllowance.toFixed(2),
+      trip.crateReturnCommission.toFixed(2),
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+    ]);
+  }
+
+  for (const extra of extras) {
+    rows.push([
+      driver.autoCountEmployeeCode ?? "",
+      driver.name,
+      yearMonth,
+      extra.type === "advance" ? "ADVANCE" : "EXTRA",
+      extra.date,
+      extra.note ?? "",
+      "",
+      "",
+      "",
+      "",
+      extra.type === "extra_allowance" ? extra.amount.toFixed(2) : "",
+      extra.type === "advance" ? extra.amount.toFixed(2) : "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+    ]);
+  }
+
+  rows.push([
+    driver.autoCountEmployeeCode ?? "",
+    driver.name,
+    yearMonth,
+    "SUMMARY",
+    "",
+    "Monthly Summary",
+    "",
+    summary.tripAllowanceTotal.toFixed(2),
+    "",
+    summary.crateCommissionTotal.toFixed(2),
+    summary.extraAllowanceTotal.toFixed(2),
+    summary.advanceTotal.toFixed(2),
+    summary.baseSalary.toFixed(2),
+    summary.grossSalary.toFixed(2),
+    summary.statutory.epfEmployee.toFixed(2),
+    summary.statutory.epfEmployer.toFixed(2),
+    summary.statutory.socsoEmployee.toFixed(2),
+    summary.statutory.socsoEmployer.toFixed(2),
+    summary.statutory.eisEmployee.toFixed(2),
+    summary.statutory.eisEmployer.toFixed(2),
+    summary.statutory.pcb.toFixed(2),
+    summary.netSalary.toFixed(2),
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map(csvEscape).join(","))
+    .join("\n");
+
+  return {
+    filename: `payroll-${driver.autoCountEmployeeCode || driver.name}-${yearMonth}.csv`,
+    content: csv,
+  };
+}
+
+export async function saveDriverPayrollMaster(input: {
+  id?: string;
+  name: string;
+  active: boolean;
+  baseSalary?: number | null;
+  allowance1Market?: number | null;
+  allowance2Markets?: number | null;
+  allowance3Markets?: number | null;
+  bigTruckCrateCommission?: number | null;
+  smallTruckCrateCommission?: number | null;
+  autoCountEmployeeCode?: string | null;
+  icNumber?: string | null;
+  epfNumber?: string | null;
+  socsoNumber?: string | null;
+  maritalStatus?: string | null;
+  childCount?: number;
+}) {
+  await requirePayrollAccess();
+  if (!input.name.trim()) {
+    throw new Error("名称不能为空 Name is required");
+  }
+  if (
+    input.maritalStatus &&
+    input.maritalStatus !== "" &&
+    !isMaritalStatus(input.maritalStatus)
+  ) {
+    throw new Error("无效婚姻状况 Invalid marital status");
+  }
+
+  const data = {
+    name: input.name.trim(),
+    active: input.active,
+    baseSalary: input.baseSalary ?? null,
+    allowance1Market: input.allowance1Market ?? null,
+    allowance2Markets: input.allowance2Markets ?? null,
+    allowance3Markets: input.allowance3Markets ?? null,
+    bigTruckCrateCommission: input.bigTruckCrateCommission ?? null,
+    smallTruckCrateCommission: input.smallTruckCrateCommission ?? null,
+    autoCountEmployeeCode: input.autoCountEmployeeCode?.trim() || null,
+    icNumber: input.icNumber?.trim() || null,
+    epfNumber: input.epfNumber?.trim() || null,
+    socsoNumber: input.socsoNumber?.trim() || null,
+    maritalStatus:
+      input.maritalStatus && input.maritalStatus !== ""
+        ? input.maritalStatus
+        : null,
+    childCount: input.childCount ?? 0,
+  };
+
+  if (input.id) {
+    await prisma.driver.update({ where: { id: input.id }, data });
+  } else {
+    await prisma.driver.create({ data });
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/driver-payroll");
+}
+
+export async function deleteDriverPayrollMaster(id: string) {
+  await requirePayrollAccess();
+  await prisma.driver.update({ where: { id }, data: { active: false } });
+  revalidatePath("/settings");
+  revalidatePath("/driver-payroll");
+}
+
+export async function getDriverPayrollSettingsData() {
+  await requirePayrollAccess();
+  const drivers = await prisma.driver.findMany({
+    orderBy: { name: "asc" },
+  });
+  return drivers.map(serializeDriver);
+}
