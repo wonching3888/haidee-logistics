@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,8 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   defaultCostItemsForCountry,
+  FIXED_TRUCK_COST_ITEM_NAMES,
   fuelPriceForCountry,
   getTruckCountryMeta,
+  normalizeTruckCostItems,
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
 import {
@@ -26,12 +27,6 @@ import {
 interface DriverOption {
   id: string;
   name: string;
-}
-
-interface TruckCostItemInput {
-  id?: string;
-  name: string;
-  annualAmount: number;
 }
 
 export interface TruckFormValue {
@@ -58,26 +53,6 @@ interface TruckFormDialogProps {
   isPending: boolean;
 }
 
-interface CostItemRow {
-  clientId: string;
-  name: string;
-  annualAmount: string;
-}
-
-function newCostItemRow(name = "", annualAmount = ""): CostItemRow {
-  return {
-    clientId: crypto.randomUUID(),
-    name,
-    annualAmount,
-  };
-}
-
-function rowsFromItems(items: TruckCostItemInput[]) {
-  return items.map((item) =>
-    newCostItemRow(item.name, item.annualAmount ? String(item.annualAmount) : "")
-  );
-}
-
 function defaultTruckForm(country: TruckCountry = "MY"): TruckFormValue {
   return {
     plate: "",
@@ -91,6 +66,18 @@ function defaultTruckForm(country: TruckCountry = "MY"): TruckFormValue {
     costItems: defaultCostItemsForCountry(country),
     active: true,
   };
+}
+
+function fixedCostRowsFromItems(items: { name: string; annualAmount: number }[]) {
+  const normalized = normalizeTruckCostItems(items);
+  return FIXED_TRUCK_COST_ITEM_NAMES.map((name) => {
+    const match = normalized.find((item) => item.name === name);
+    return {
+      name,
+      annualAmount:
+        match?.annualAmount != null ? String(match.annualAmount) : "",
+    };
+  });
 }
 
 export function TruckFormDialog({
@@ -112,7 +99,9 @@ export function TruckFormDialog({
   const [fuelEfficiencyKmPerL, setFuelEfficiencyKmPerL] = useState("");
   const [annualMileageKm, setAnnualMileageKm] = useState("");
   const [active, setActive] = useState(true);
-  const [costItems, setCostItems] = useState<CostItemRow[]>([]);
+  const [costItems, setCostItems] = useState<
+    { name: string; annualAmount: string }[]
+  >([]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +122,7 @@ export function TruckFormDialog({
     );
     setActive(value.active);
     setCostItems(
-      rowsFromItems(
+      fixedCostRowsFromItems(
         value.costItems.length > 0
           ? value.costItems
           : defaultCostItemsForCountry(value.country)
@@ -153,7 +142,7 @@ export function TruckFormDialog({
   const parsedCostItems = useMemo(
     () =>
       costItems.map((item) => ({
-        name: item.name.trim(),
+        name: item.name,
         annualAmount: item.annualAmount ? Number(item.annualAmount) : 0,
       })),
     [costItems]
@@ -167,7 +156,7 @@ export function TruckFormDialog({
 
   function handleCountryChange(nextCountry: TruckCountry) {
     setCountry(nextCountry);
-    setCostItems(rowsFromItems(defaultCostItemsForCountry(nextCountry)));
+    setCostItems(fixedCostRowsFromItems(defaultCostItemsForCountry(nextCountry)));
   }
 
   function handleSave() {
@@ -182,14 +171,14 @@ export function TruckFormDialog({
         ? Number(fuelEfficiencyKmPerL)
         : null,
       annualMileageKm: parsedAnnualMileage,
-      costItems: parsedCostItems.filter((item) => item.name),
+      costItems: normalizeTruckCostItems(parsedCostItems),
       active,
     });
   }
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -297,120 +286,83 @@ export function TruckFormDialog({
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-semibold text-haidee-text">
-                成本项目 Cost Items ({countryMeta.currency})
-              </h4>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() =>
-                  setCostItems((prev) => [...prev, newCostItemRow()])
-                }
-              >
-                <Plus className="h-4 w-4" />
-                新增项目
-              </Button>
-            </div>
+          <div className="rounded-lg border border-haidee-border bg-white p-4">
+            <h4 className="mb-3 text-sm font-semibold text-haidee-text">
+              成本项目 Cost Items ({countryMeta.currency})
+            </h4>
 
             <div className="overflow-hidden rounded-lg border border-haidee-border">
-              <table className="min-w-full text-sm">
-                <thead className="bg-haidee-surface text-left text-haidee-muted">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">项目名称 Item</th>
-                    <th className="px-3 py-2 font-medium text-right">
-                      年度总额 Annual
-                    </th>
-                    <th className="px-3 py-2 font-medium text-right">/km</th>
-                    <th className="w-12 px-2 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {costItems.map((item, index) => {
-                    const annualAmount = item.annualAmount
-                      ? Number(item.annualAmount)
-                      : 0;
-                    const perKm = calcCostPerKm(
-                      annualAmount,
-                      parsedAnnualMileage
-                    );
+              <div className="flex items-center gap-3 bg-haidee-surface px-3 py-2 text-xs font-medium text-haidee-muted">
+                <div className="min-w-0 flex-1">项目名称 Item</div>
+                <div className="w-[150px] shrink-0 text-right">
+                  年度总额 Annual ({countryMeta.currency})
+                </div>
+                <div className="w-[100px] shrink-0 text-right">/km</div>
+              </div>
 
-                    return (
-                      <tr
-                        key={item.clientId}
-                        className="border-t border-haidee-border"
-                      >
-                        <td className="px-3 py-2">
-                          <Input
-                            value={item.name}
-                            onChange={(e) =>
-                              setCostItems((prev) =>
-                                prev.map((row, rowIndex) =>
-                                  rowIndex === index
-                                    ? { ...row, name: e.target.value }
-                                    : row
-                                )
+              <div className="divide-y divide-haidee-border">
+                {costItems.map((item, index) => {
+                  const annualAmount = item.annualAmount
+                    ? Number(item.annualAmount)
+                    : 0;
+                  const perKm = calcCostPerKm(
+                    annualAmount,
+                    parsedAnnualMileage
+                  );
+
+                  return (
+                    <div
+                      key={item.name}
+                      className="flex items-center gap-3 px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <select
+                          value={item.name}
+                          disabled
+                          className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-haidee-surface/40 px-3 text-sm text-haidee-text"
+                        >
+                          {FIXED_TRUCK_COST_ITEM_NAMES.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-[150px] shrink-0">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={item.annualAmount}
+                          onChange={(e) =>
+                            setCostItems((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, annualAmount: e.target.value }
+                                  : row
                               )
-                            }
-                            className="min-h-[40px]"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            value={item.annualAmount}
-                            onChange={(e) =>
-                              setCostItems((prev) =>
-                                prev.map((row, rowIndex) =>
-                                  rowIndex === index
-                                    ? { ...row, annualAmount: e.target.value }
-                                    : row
-                                )
-                              )
-                            }
-                            className="min-h-[40px] text-right font-mono"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-haidee-text">
-                          {perKm != null ? perKm.toFixed(4) : "—"}
-                        </td>
-                        <td className="px-2 py-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCostItems((prev) =>
-                                prev.filter((_, rowIndex) => rowIndex !== index)
-                              )
-                            }
-                            className="rounded p-2 text-haidee-muted hover:text-haidee-red"
-                            title="删除 Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="border-t border-haidee-border bg-haidee-surface/60">
-                  <tr>
-                    <td className="px-3 py-3 font-semibold text-haidee-text">
-                      合计 Total /km
-                    </td>
-                    <td></td>
-                    <td className="px-3 py-3 text-right font-mono text-base font-semibold text-haidee-blue">
-                      {totalCostPerKm != null
-                        ? totalCostPerKm.toFixed(4)
-                        : "—"}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                            )
+                          }
+                          className="min-h-[44px] w-full text-right font-mono"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="w-[100px] shrink-0 text-right font-mono text-sm text-haidee-text">
+                        {perKm != null ? perKm.toFixed(4) : "—"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-3 border-t border-haidee-border bg-haidee-surface/60 px-3 py-3">
+                <div className="min-w-0 flex-1 font-semibold text-haidee-text">
+                  合计 Total /km
+                </div>
+                <div className="w-[150px] shrink-0" />
+                <div className="w-[100px] shrink-0 text-right font-mono text-base font-semibold text-haidee-blue">
+                  {totalCostPerKm != null ? totalCostPerKm.toFixed(4) : "—"}
+                </div>
+              </div>
             </div>
           </div>
 
