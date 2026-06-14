@@ -109,9 +109,4 @@ export const SETTINGS_SIDEBAR_MENU = [
     label: "汇率设定",
     labelEn: "Exchange Rate",
   },
-  {
-    section: "driver-payroll" as const,
-    label: "司机薪资",
-    labelEn: "Driver Payroll",
-  },
 ];
