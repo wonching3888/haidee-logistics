@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase";
 import { createCrateRentalRatesTable } from "@/lib/create-crate-rental-rates-table";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 
 /**
  * One-time setup: create crate_rental_rates table on Supabase Postgres.
- * Visit while logged in as admin: GET /api/setup/create-crate-rental-rates
+ * Requires admin session: GET /api/setup/create-crate-rental-rates
  */
 export async function GET() {
   try {
-    // TODO: one-time setup — auth temporarily disabled for automated migration trigger
-    // Restore admin check after crate_rental_rates table is created.
+    const user = await getCurrentUser();
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
+    }
 
     const supabaseAdmin = createAdminClient();
     const { error: authError } = await supabaseAdmin.auth.admin.listUsers({
