@@ -16,6 +16,7 @@ import {
 import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
 import {
   calculateTripAllowance,
+  countPayrollMarketGroups,
   crateCommissionForTruckType,
   getDriverPayrollName,
 } from "@/lib/trip-allowance";
@@ -129,7 +130,10 @@ async function syncDispatchTripsForMonth(
         date: order.date,
         route: order.markets.join(" / "),
         markets: order.markets,
-        marketCount: order.markets.length,
+        marketCount: countPayrollMarketGroups(
+          order.markets,
+          allowanceContext.routes
+        ),
         tripAllowance: allowanceResult.tripAllowance,
         crateReturnCommission: crateCommissionForTruckType(truckType, {
           bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
@@ -251,12 +255,29 @@ export async function getDriverPayrollMonth(input: {
   });
   if (!record) throw new Error("薪资记录不存在 Payroll record not found");
 
+  const allowanceContext = await loadPayrollAllowanceContext();
+
   const summary = buildSummaryFromRecords({
     driver: serializedDriver,
     trips: record.trips,
     extras: record.extras,
     overrides: record,
   });
+
+  const autoStatutory = buildSummaryFromRecords({
+    driver: serializedDriver,
+    trips: record.trips,
+    extras: record.extras,
+    overrides: {
+      epfEmployeeOverride: null,
+      epfEmployerOverride: null,
+      socsoEmployeeOverride: null,
+      socsoEmployerOverride: null,
+      eisEmployeeOverride: null,
+      eisEmployerOverride: null,
+      pcbOverride: null,
+    },
+  }).statutory;
 
   return {
     yearMonth,
@@ -280,7 +301,10 @@ export async function getDriverPayrollMonth(input: {
       dateLabel: formatDisplayDate(trip.date),
       route: trip.route ?? trip.markets.join(" / "),
       markets: trip.markets,
-      marketCount: trip.marketCount,
+      marketCount: countPayrollMarketGroups(
+        trip.markets,
+        allowanceContext.routes
+      ),
       tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
       extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
       crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
@@ -295,6 +319,7 @@ export async function getDriverPayrollMonth(input: {
       date: toDateInputValue(item.date),
     })),
     summary,
+    autoStatutory,
   };
 }
 

@@ -355,28 +355,30 @@ export function DriverPayrollView({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-xl border border-haidee-border bg-white p-4">
-              <h3 className="mb-3 font-semibold">法定扣款 Statutory (可覆盖)</h3>
+              <h3 className="mb-1 font-semibold">法定扣款 Statutory</h3>
+              <p className="mb-3 text-sm text-haidee-muted">
+                系统自动计算，如需调整请手动输入覆盖。Admin
+                输入后点「保存覆盖」生效；留空则使用系统自动计算值。
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  ["epfEmployee", "EPF 员工 11%"],
-                  ["epfEmployer", "EPF 雇主 13%"],
-                  ["socsoEmployee", "SOCSO 员工"],
-                  ["socsoEmployer", "SOCSO 雇主"],
-                  ["eisEmployee", "EIS 员工 0.2%"],
-                  ["eisEmployer", "EIS 雇主 0.2%"],
-                  ["pcb", "PCB 所得税"],
-                ].map(([key, label]) => (
+                {(
+                  [
+                    ["epfEmployee", "EPF 员工 11%"],
+                    ["epfEmployer", "EPF 雇主 13%"],
+                    ["socsoEmployee", "SOCSO 员工"],
+                    ["socsoEmployer", "SOCSO 雇主"],
+                    ["eisEmployee", "EIS 员工 0.2%"],
+                    ["eisEmployer", "EIS 雇主 0.2%"],
+                    ["pcb", "PCB 所得税"],
+                  ] as const
+                ).map(([key, label]) => (
                   <label key={key} className="block space-y-1 text-sm">
                     {label}
                     <Input
                       value={overrideForm[key] ?? ""}
                       placeholder={
-                        summary
-                          ? money(
-                              summary.statutory[
-                                key as keyof typeof summary.statutory
-                              ]
-                            )
+                        data?.autoStatutory
+                          ? money(data.autoStatutory[key])
                           : ""
                       }
                       onChange={(e) =>
