@@ -14,16 +14,23 @@ import {
   type MaritalStatus,
 } from "@/lib/constants/payroll";
 import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
+import { getRouteLabel } from "@/lib/payroll-route-label";
 import {
   buildCrateReturnExportLookup,
   calculateTripAllowance,
   countPayrollMarketGroups,
   crateReturnCommissionForDispatch,
   dispatchHasCrateReturn,
-  formatTripRouteLabel,
   getDriverPayrollName,
 } from "@/lib/trip-allowance";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
+
+function payrollTripRouteSource(trip: {
+  markets: string[];
+  route: string | null;
+}) {
+  return trip.markets.length > 0 ? trip.markets : trip.route;
+}
 
 async function requirePayrollAccess() {
   const user = await getCurrentUser();
@@ -130,7 +137,7 @@ function computePayrollTripFields(
         smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
       },
     }),
-    routeLabel: formatTripRouteLabel(order.markets),
+    routeLabel: getRouteLabel(order.markets),
   };
 }
 
@@ -390,7 +397,7 @@ export async function getDriverPayrollMonth(input: {
         dispatchOrderId: trip.dispatchOrderId,
         date: toDateInputValue(trip.date),
         dateLabel: formatDisplayDate(trip.date),
-        route: formatTripRouteLabel(trip.markets),
+        route: getRouteLabel(payrollTripRouteSource(trip)),
         markets: trip.markets,
         marketCount: countPayrollMarketGroups(
           trip.markets,

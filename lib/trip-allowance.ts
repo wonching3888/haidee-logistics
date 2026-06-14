@@ -1,5 +1,8 @@
 import { sortMarkets } from "@/lib/markets";
 import { toDateInputValue } from "@/lib/date-utils";
+import { getRouteGroups, getRouteLabel } from "@/lib/payroll-route-label";
+
+export { getRouteGroups, getRouteLabel } from "@/lib/payroll-route-label";
 
 export interface RouteAllowanceInput {
   code: string;
@@ -37,38 +40,10 @@ export function normalizeTripMarkets(markets: string[] | string): string[] {
   return normalizeDispatchMarkets(raw);
 }
 
-const ROUTE_GROUP_MAP: Record<string, string> = {
-  KL: "KL",
-  BP: "KL",
-  MP: "KL",
-  SL: "KL",
-  BM: "BM",
-  P: "BM",
-  TP: "BM",
-  KT: "BM",
-  NT: "BM",
-  SA: "BM",
-  MC: "MC",
-  A: "A",
-  KD: "KD",
-  JB: "JB",
-  OTHER: "OTHER",
-};
-
-const ROUTE_GROUP_ORDER = ["KL", "MC", "A", "KD", "JB", "BM", "OTHER"] as const;
-
-/** Map trip markets to distinct payroll route group codes in display order. */
-export function getRouteGroups(markets: string[] | string): string[] {
-  const groups = new Set(
-    normalizeTripMarkets(markets)
-      .map((market) => ROUTE_GROUP_MAP[market])
-      .filter(Boolean)
-  );
-  return ROUTE_GROUP_ORDER.filter((code) => groups.has(code));
-}
-
-export function formatTripRouteLabel(markets: string[] | string): string {
-  return getRouteGroups(markets).join(" / ");
+export function formatTripRouteLabel(
+  markets: string[] | string | null | undefined
+): string {
+  return getRouteLabel(markets);
 }
 
 /** Map a market code to its payroll route group (most specific route wins). */
@@ -83,7 +58,7 @@ export function findRouteForMarket(
 }
 
 function payrollGroupKey(market: string, routes: RouteAllowanceInput[]) {
-  const mapped = ROUTE_GROUP_MAP[market.toUpperCase()];
+  const mapped = getRouteGroups([market])[0];
   if (mapped) return mapped;
   const route = findRouteForMarket(market, routes);
   return route?.code ?? `__${market}`;
@@ -109,8 +84,7 @@ export function countPayrollMarketGroups(
 
 /** Distinct payroll route group labels for display (e.g. A / BM / KD). */
 export function formatPayrollRouteGroups(
-  markets: string[] | string,
-  _routes?: RouteAllowanceInput[]
+  markets: string[] | string
 ): string {
   return formatTripRouteLabel(markets);
 }

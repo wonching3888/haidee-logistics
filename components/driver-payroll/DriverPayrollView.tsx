@@ -23,7 +23,7 @@ import {
 import { PAYROLL_EXTRA_TYPES } from "@/lib/constants/payroll";
 import type { buildPayrollSummary } from "@/lib/payroll-statutory";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
-import { formatTripRouteLabel } from "@/lib/trip-allowance";
+import { getRouteLabel } from "@/lib/payroll-route-label";
 
 interface DriverOption {
   id: string;
@@ -511,7 +511,9 @@ function TripRow({
   const compactInputClass =
     "h-8 w-[90px] px-2 text-right font-mono text-xs tabular-nums";
 
-  const routeLabel = formatTripRouteLabel(trip.markets);
+  const routeLabel = getRouteLabel(
+    trip.markets.length > 0 ? trip.markets : trip.route
+  );
 
   return (
     <TableRow>
