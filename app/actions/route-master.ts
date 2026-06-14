@@ -29,14 +29,9 @@ function serializeRouteMaster(route: {
   markets: string[];
   sadooMileageKm: unknown;
   tollFee: unknown;
-  borderPassFee: unknown;
   fishCheckingFee: unknown;
   kpbFee: unknown;
   parkingFee: unknown;
-  epermitCharge: unknown;
-  forwardingOutbound: unknown;
-  forwardingReturn: unknown;
-  dagangNetFee: unknown;
   displayOrder: number | null;
   active: boolean;
 }) {
@@ -47,14 +42,9 @@ function serializeRouteMaster(route: {
     markets: sortMarkets(route.markets),
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
-    borderPassFee: decimalToNumber(route.borderPassFee),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     kpbFee: decimalToNumber(route.kpbFee),
     parkingFee: decimalToNumber(route.parkingFee),
-    epermitCharge: decimalToNumber(route.epermitCharge),
-    forwardingOutbound: decimalToNumber(route.forwardingOutbound),
-    forwardingReturn: decimalToNumber(route.forwardingReturn),
-    dagangNetFee: decimalToNumber(route.dagangNetFee),
     displayOrder: route.displayOrder,
     active: route.active,
   };
@@ -77,14 +67,9 @@ export async function saveRouteMaster(input: {
   markets: string[];
   sadooMileageKm?: number | null;
   tollFee?: number | null;
-  borderPassFee?: number | null;
   fishCheckingFee?: number | null;
   kpbFee?: number | null;
   parkingFee?: number | null;
-  epermitCharge?: number | null;
-  forwardingOutbound?: number | null;
-  forwardingReturn?: number | null;
-  dagangNetFee?: number | null;
   displayOrder?: number | null;
   active?: boolean;
 }) {
@@ -112,14 +97,9 @@ export async function saveRouteMaster(input: {
     markets,
     sadooMileageKm: parseOptionalDecimal(input.sadooMileageKm),
     tollFee: parseOptionalDecimal(input.tollFee),
-    borderPassFee: parseOptionalDecimal(input.borderPassFee),
     fishCheckingFee: parseOptionalDecimal(input.fishCheckingFee),
     kpbFee: parseOptionalDecimal(input.kpbFee),
     parkingFee: parseOptionalDecimal(input.parkingFee),
-    epermitCharge: parseOptionalDecimal(input.epermitCharge),
-    forwardingOutbound: parseOptionalDecimal(input.forwardingOutbound),
-    forwardingReturn: parseOptionalDecimal(input.forwardingReturn),
-    dagangNetFee: parseOptionalDecimal(input.dagangNetFee),
     displayOrder: input.displayOrder ?? null,
     active: input.active ?? true,
   };

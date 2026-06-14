@@ -65,14 +65,9 @@ model RouteMaster {
   markets           String[]
   sadooMileageKm    Decimal? @map("sadoo_mileage_km") @db.Decimal(10, 2)
   tollFee           Decimal? @map("toll_fee") @db.Decimal(10, 2)
-  borderPassFee     Decimal? @map("border_pass_fee") @db.Decimal(10, 2)
   fishCheckingFee   Decimal? @map("fish_checking_fee") @db.Decimal(10, 2)
   kpbFee            Decimal? @map("kpb_fee") @db.Decimal(10, 2)
   parkingFee        Decimal? @map("parking_fee") @db.Decimal(10, 2)
-  epermitCharge       Decimal? @map("epermit_charge") @db.Decimal(10, 2)
-  forwardingOutbound  Decimal? @map("forwarding_outbound") @db.Decimal(10, 2)
-  forwardingReturn    Decimal? @map("forwarding_return") @db.Decimal(10, 2)
-  dagangNetFee        Decimal? @map("dagang_net_fee") @db.Decimal(10, 2)
   driverAllowance   Decimal? @map("driver_allowance") @db.Decimal(10, 2)
   displayOrder      Int?     @map("display_order")
   active            Boolean  @default(true)
@@ -271,6 +266,17 @@ model CrateRentalRate {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("crate_rental_rates")
+}
+
+model GlobalCostSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(50)
+  valueMyr  Decimal  @default(0) @map("value_myr") @db.Decimal(10, 2)
+  label     String?  @db.VarChar(100)
+  notes     String?  @db.VarChar(200)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("global_cost_settings")
 }
 
 model Driver {

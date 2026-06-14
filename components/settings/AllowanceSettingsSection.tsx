@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/table";
 import { saveAllowanceSettings } from "@/app/actions/allowance-settings";
 import { formatRouteMarkets } from "@/components/settings/RouteFormDialog";
+import {
+  GlobalCostSettingsSection,
+} from "@/components/settings/GlobalCostSettingsSection";
+import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 
 interface RouteAllowanceRow {
   id: string;
@@ -24,6 +28,7 @@ interface RouteAllowanceRow {
 }
 
 interface AllowanceSettingsSectionProps {
+  globalCosts: GlobalCostSettingRow[];
   routes: RouteAllowanceRow[];
   extraMarketAllowance: number;
   bigTruckCrateCommission: number | null;
@@ -31,6 +36,7 @@ interface AllowanceSettingsSectionProps {
 }
 
 export function AllowanceSettingsSection({
+  globalCosts,
   routes,
   extraMarketAllowance,
   bigTruckCrateCommission,
@@ -115,6 +121,8 @@ export function AllowanceSettingsSection({
 
   return (
     <div className="space-y-4">
+      <GlobalCostSettingsSection settings={globalCosts} />
+
       <p className="text-sm text-haidee-muted">
         每趟津贴 = 该趟最高路线津贴 +（额外市场数 × 额外市场津贴）。例：KD +
         A → A 路线津贴 + RM30。

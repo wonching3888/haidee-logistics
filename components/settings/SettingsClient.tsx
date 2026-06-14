@@ -46,6 +46,7 @@ import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrol
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
 import { AllowanceSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
+import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
   TruckFormDialog,
@@ -187,6 +188,7 @@ interface SettingsClientProps {
   }[];
   routeMasters: RouteMasterRow[];
   allowanceSettings: {
+    globalCosts: GlobalCostSettingRow[];
     routes: {
       id: string;
       code: string;
@@ -711,6 +713,7 @@ export function SettingsClient({
 
         {activeSection === "allowance-settings" && allowanceSettings && (
           <AllowanceSettingsSection
+            globalCosts={allowanceSettings.globalCosts}
             routes={allowanceSettings.routes}
             extraMarketAllowance={allowanceSettings.extraMarketAllowance}
             bigTruckCrateCommission={allowanceSettings.bigTruckCrateCommission}

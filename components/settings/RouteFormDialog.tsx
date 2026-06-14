@@ -18,14 +18,9 @@ export interface RouteFormValue {
   markets: string[];
   sadooMileageKm: string;
   tollFee: string;
-  borderPassFee: string;
   fishCheckingFee: string;
   kpbFee: string;
   parkingFee: string;
-  epermitCharge: string;
-  forwardingOutbound: string;
-  forwardingReturn: string;
-  dagangNetFee: string;
   displayOrder: string;
   active: boolean;
 }
@@ -37,14 +32,9 @@ export interface RouteMasterRow {
   markets: string[];
   sadooMileageKm: number | null;
   tollFee: number | null;
-  borderPassFee: number | null;
   fishCheckingFee: number | null;
   kpbFee: number | null;
   parkingFee: number | null;
-  epermitCharge: number | null;
-  forwardingOutbound: number | null;
-  forwardingReturn: number | null;
-  dagangNetFee: number | null;
   displayOrder: number | null;
   active: boolean;
 }
@@ -60,14 +50,9 @@ export function routeToFormValue(route?: RouteMasterRow): RouteFormValue {
     markets: route?.markets ?? [],
     sadooMileageKm: optionalNumberString(route?.sadooMileageKm),
     tollFee: optionalNumberString(route?.tollFee),
-    borderPassFee: optionalNumberString(route?.borderPassFee),
     fishCheckingFee: optionalNumberString(route?.fishCheckingFee),
     kpbFee: optionalNumberString(route?.kpbFee),
     parkingFee: optionalNumberString(route?.parkingFee),
-    epermitCharge: optionalNumberString(route?.epermitCharge ?? 30),
-    forwardingOutbound: optionalNumberString(route?.forwardingOutbound ?? 80),
-    forwardingReturn: optionalNumberString(route?.forwardingReturn ?? 60),
-    dagangNetFee: optionalNumberString(route?.dagangNetFee ?? 10.8),
     displayOrder:
       route?.displayOrder != null ? String(route.displayOrder) : "",
     active: route?.active ?? true,
@@ -99,28 +84,14 @@ export function parseRouteFormValue(value: RouteFormValue) {
     code: value.code.trim().toUpperCase(),
     name: value.name.trim(),
     markets: value.markets,
-    sadooMileageKm: parseOptionalNumberInput(
-      value.sadooMileageKm,
-      "SADAO出发里程"
-    ),
+    sadooMileageKm: parseOptionalNumberInput(value.sadooMileageKm, "里程"),
     tollFee: parseOptionalNumberInput(value.tollFee, "过路费/大道费"),
-    borderPassFee: parseOptionalNumberInput(value.borderPassFee, "过境费"),
     fishCheckingFee: parseOptionalNumberInput(
       value.fishCheckingFee,
       "Fish Checking Fee"
     ),
     kpbFee: parseOptionalNumberInput(value.kpbFee, "KPB Fee"),
     parkingFee: parseOptionalNumberInput(value.parkingFee, "Parking Fee"),
-    epermitCharge: parseOptionalNumberInput(value.epermitCharge, "EPERMIT Chrg"),
-    forwardingOutbound: parseOptionalNumberInput(
-      value.forwardingOutbound,
-      "出货 Outbound Forwarding"
-    ),
-    forwardingReturn: parseOptionalNumberInput(
-      value.forwardingReturn,
-      "回空桶 Return Forwarding"
-    ),
-    dagangNetFee: parseOptionalNumberInput(value.dagangNetFee, "Dagang Net Fee"),
     displayOrder,
     active: value.active,
   };
@@ -231,7 +202,7 @@ export function RouteFormDialog({
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="SADAO出发里程 (km)">
+            <FormField label="里程 (km)">
               <Input
                 value={form.sadooMileageKm}
                 onChange={(e) =>
@@ -255,22 +226,13 @@ export function RouteFormDialog({
 
           <div className="rounded-lg border border-haidee-border bg-haidee-surface/40 p-3">
             <p className="mb-3 text-sm font-medium text-haidee-text">
-              费用 Fees (MYR)
+              路线费用 Route Fees (MYR)
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField label="过路费/大道费 Toll">
                 <Input
                   value={form.tollFee}
                   onChange={(e) => setForm({ ...form, tollFee: e.target.value })}
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
-              <FormField label="过境费 Chop Border Pass">
-                <Input
-                  value={form.borderPassFee}
-                  onChange={(e) =>
-                    setForm({ ...form, borderPassFee: e.target.value })
-                  }
                   className="min-h-[44px] font-mono"
                 />
               </FormField>
@@ -295,42 +257,6 @@ export function RouteFormDialog({
                   value={form.parkingFee}
                   onChange={(e) =>
                     setForm({ ...form, parkingFee: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
-              <FormField label="EPERMIT Chrg">
-                <Input
-                  value={form.epermitCharge}
-                  onChange={(e) =>
-                    setForm({ ...form, epermitCharge: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
-              <FormField label="出货 Outbound Forwarding (RM)">
-                <Input
-                  value={form.forwardingOutbound}
-                  onChange={(e) =>
-                    setForm({ ...form, forwardingOutbound: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
-              <FormField label="回空桶 Return Forwarding (RM)">
-                <Input
-                  value={form.forwardingReturn}
-                  onChange={(e) =>
-                    setForm({ ...form, forwardingReturn: e.target.value })
-                  }
-                  className="min-h-[44px] font-mono"
-                />
-              </FormField>
-              <FormField label="Dagang Net Fee">
-                <Input
-                  value={form.dagangNetFee}
-                  onChange={(e) =>
-                    setForm({ ...form, dagangNetFee: e.target.value })
                   }
                   className="min-h-[44px] font-mono"
                 />
@@ -373,13 +299,9 @@ function formatMoney(value: number | null) {
 export function formatRouteFeeTotal(route: RouteMasterRow) {
   const total =
     (route.tollFee ?? 0) +
-    (route.borderPassFee ?? 0) +
     (route.fishCheckingFee ?? 0) +
     (route.kpbFee ?? 0) +
-    (route.parkingFee ?? 0) +
-    (route.epermitCharge ?? 0) +
-    (route.forwardingOutbound ?? 0) +
-    (route.dagangNetFee ?? 0);
+    (route.parkingFee ?? 0);
   return total > 0 ? total.toFixed(2) : "—";
 }
 
