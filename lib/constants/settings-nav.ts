@@ -44,7 +44,7 @@ export const SETTINGS_SECTION_TITLES: Record<
   "consignee-rates": { label: "收货人费率", labelEn: "Consignee Rates" },
   "payment-relations": { label: "付款关系", labelEn: "Payment Relations" },
   "exchange-rate": { label: "汇率设定", labelEn: "Exchange Rate" },
-  "driver-payroll": { label: "司机薪资", labelEn: "Driver Payroll" },
+  "driver-payroll": { label: "司机资料", labelEn: "Driver Master Data" },
 };
 
 export const SETTINGS_FREIGHT_SECTIONS: SettingsSection[] = [
@@ -77,6 +77,11 @@ export const SETTINGS_SIDEBAR_MENU = [
   { section: "defaults" as const, label: "档口对应", labelEn: "Defaults" },
   { section: "trucks" as const, label: "车辆", labelEn: "Trucks" },
   { section: "users" as const, label: "用户", labelEn: "Users" },
+  {
+    section: "driver-payroll" as const,
+    label: "司机资料",
+    labelEn: "Driver Master Data",
+  },
   { section: "routes" as const, label: "路线", labelEn: "Routes" },
   {
     section: "allowance-settings" as const,
