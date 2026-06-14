@@ -1,7 +1,19 @@
-import { CRATE_RENTAL_TYPE_ORDER } from "@/lib/constants/crate-rental-rates";
 import { DISPATCH_MARKET_ORDER, isOtherMarket } from "@/lib/markets";
 
-export const UNLOAD_CRATE_TYPES = [...CRATE_RENTAL_TYPE_ORDER] as const;
+/** Fixed column order for unload settings matrix (11 crate types). */
+export const UNLOAD_CRATE_TYPES = [
+  "ABB",
+  "WTL",
+  "BHR",
+  "VIO",
+  "SHK",
+  "GKS",
+  "BRO",
+  "GLY",
+  "BS",
+  "SHS",
+  "BOX",
+] as const;
 
 export type UnloadCrateType = (typeof UNLOAD_CRATE_TYPES)[number];
 

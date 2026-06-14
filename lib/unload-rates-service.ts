@@ -34,24 +34,41 @@ function serializeRow(row: {
 
 export async function ensureUnloadRatesSeeded() {
   try {
-    const existingCount = await prisma.unloadRate.count();
-    if (existingCount > 0) return;
-
     const markets = await prisma.market.findMany({
       where: { active: true, code: { not: "OTHER" } },
       select: { code: true, loadUnloadPerCrate: true },
     });
 
-    await prisma.unloadRate.createMany({
-      data: markets.flatMap((market) =>
-        UNLOAD_CRATE_TYPES.map((crateType) => ({
-          marketCode: market.code,
-          crateType,
-          rateMyr: decimalToNumber(market.loadUnloadPerCrate) ?? 0,
-        }))
-      ),
-      skipDuplicates: true,
+    const existing = await prisma.unloadRate.findMany({
+      select: { marketCode: true, crateType: true },
     });
+    const existingKeys = new Set(
+      existing.map((row) => unloadRateKey(row.marketCode, row.crateType))
+    );
+
+    const missing = markets.flatMap((market) =>
+      UNLOAD_CRATE_TYPES.flatMap((crateType) => {
+        const key = unloadRateKey(market.code, crateType);
+        if (existingKeys.has(key)) return [];
+        return [
+          {
+            marketCode: market.code,
+            crateType,
+            rateMyr:
+              crateType === "GKS"
+                ? 0
+                : decimalToNumber(market.loadUnloadPerCrate) ?? 0,
+          },
+        ];
+      })
+    );
+
+    if (missing.length > 0) {
+      await prisma.unloadRate.createMany({
+        data: missing,
+        skipDuplicates: true,
+      });
+    }
   } catch (error) {
     if (isMissingUnloadRatesTableError(error)) return;
     throw error;

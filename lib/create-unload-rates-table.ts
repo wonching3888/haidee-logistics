@@ -18,10 +18,20 @@ SELECT m.code, ct.crate_type, COALESCE(m.load_unload_per_crate, 0.00)
 FROM markets m
 CROSS JOIN (
   VALUES
-    ('ABB'), ('WTL'), ('BHR'), ('VIO'), ('SHK'), ('BRO'),
+    ('ABB'), ('WTL'), ('BHR'), ('VIO'), ('SHK'), ('GKS'), ('BRO'),
     ('GLY'), ('BS'), ('SHS'), ('BOX')
 ) AS ct(crate_type)
 WHERE m.active = true AND m.code <> 'OTHER'
+ON CONFLICT (market_code, crate_type) DO NOTHING;
+`;
+
+const SEED_GKS_SQL = `
+INSERT INTO unload_rates (market_code, crate_type, rate_myr)
+SELECT m.market_code, 'GKS', 0.00
+FROM (VALUES
+  ('KL'),('BP'),('MP'),('SL'),('MC'),('A'),
+  ('BM'),('P'),('TP'),('NT'),('KT'),('SA'),('KD'),('JB')
+) AS m(market_code)
 ON CONFLICT (market_code, crate_type) DO NOTHING;
 `;
 
@@ -29,6 +39,7 @@ ON CONFLICT (market_code, crate_type) DO NOTHING;
 export async function createUnloadRatesTable() {
   await prisma.$executeRawUnsafe(CREATE_TABLE_SQL);
   await prisma.$executeRawUnsafe(SEED_FROM_MARKETS_SQL);
+  await prisma.$executeRawUnsafe(SEED_GKS_SQL);
 }
 
 export function isMissingUnloadRatesTableError(error: unknown) {
