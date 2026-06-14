@@ -10,6 +10,7 @@ import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { CrateByTypePicker } from "@/components/documents/CrateByTypePicker";
 import { CrateTypeRecordPicker } from "@/components/documents/CrateTypeRecordPicker";
+import { MonthlyInvoicePicker } from "@/components/documents/MonthlyInvoicePicker";
 import { MARKET_ORDER } from "@/lib/markets";
 import {
   Table,
@@ -69,6 +70,7 @@ interface DocumentsClientProps {
   dispatchOrders: DispatchOrderRow[];
   marketTongCombos: MarketTongCombo[];
   crateTypeRecordOptions: CrateTypeRecordOptions;
+  showMonthlyInvoice?: boolean;
 }
 
 export function DocumentsClient({
@@ -76,6 +78,7 @@ export function DocumentsClient({
   dispatchOrders,
   marketTongCombos,
   crateTypeRecordOptions,
+  showMonthlyInvoice = false,
 }: DocumentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -358,6 +361,12 @@ export function DocumentsClient({
           </Button>
         </div>
       </ModuleCard>
+
+      {showMonthlyInvoice && (
+        <ModuleCard title="月结账单 Monthly Invoice">
+          <MonthlyInvoicePicker />
+        </ModuleCard>
+      )}
     </div>
   );
 }

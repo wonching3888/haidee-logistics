@@ -7,6 +7,9 @@ import {
 import { DocumentsClient } from "@/components/documents/DocumentsClient";
 import { PageError } from "@/components/shared/PageError";
 import { resolveDateParam } from "@/lib/date-utils";
+import { getCurrentUser } from "@/lib/auth";
+import { canViewFreightInfo } from "@/lib/auth-roles";
+import type { UserRole } from "@/types";
 
 interface DocumentsPageProps {
   searchParams: Promise<{ date?: string }>;
@@ -17,6 +20,10 @@ export default async function DocumentsPage({
 }: DocumentsPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
+  const user = await getCurrentUser();
+  const showMonthlyInvoice = user
+    ? canViewFreightInfo(user.role as UserRole)
+    : false;
 
   try {
     const [dispatchOrders, marketTongCombos, crateTypeRecordOptions] =
@@ -33,7 +40,7 @@ export default async function DocumentsPage({
             文件生成 Documents
           </h2>
           <p className="text-sm text-haidee-muted">
-            内部/外部 D/O、市场 D/O、桶型记录、桶型总计
+            内部/外部 D/O、市场 D/O、桶型记录、桶型总计、月结账单
           </p>
         </div>
 
@@ -47,6 +54,7 @@ export default async function DocumentsPage({
             dispatchOrders={dispatchOrders}
             marketTongCombos={marketTongCombos}
             crateTypeRecordOptions={crateTypeRecordOptions}
+            showMonthlyInvoice={showMonthlyInvoice}
           />
         </Suspense>
       </div>
@@ -59,7 +67,7 @@ export default async function DocumentsPage({
             文件生成 Documents
           </h2>
           <p className="text-sm text-haidee-muted">
-            内部/外部 D/O、市场 D/O、桶型记录、桶型总计
+            内部/外部 D/O、市场 D/O、桶型记录、桶型总计、月结账单
           </p>
         </div>
         <PageError error={error} />

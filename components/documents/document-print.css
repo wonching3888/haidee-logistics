@@ -334,3 +334,92 @@
     background: #a8a8a8 !important;
   }
 }
+
+.monthly-invoice-print .monthly-invoice-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13pt;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.monthly-invoice-print .monthly-invoice-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0;
+  font-size: 10pt;
+}
+
+.monthly-invoice-print .monthly-invoice-bill-to {
+  min-width: 220px;
+  border: 1px solid #000;
+  padding: 8px 10px;
+}
+
+.monthly-invoice-print .monthly-invoice-bill-to-label {
+  font-size: 9pt;
+  margin-bottom: 4px;
+}
+
+.monthly-invoice-print .monthly-invoice-bill-to-name {
+  font-size: 11pt;
+}
+
+.monthly-invoice-print .monthly-invoice-bill-to-code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10pt;
+}
+
+.monthly-invoice-print .monthly-invoice-note {
+  margin: 0 0 10px;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+.monthly-invoice-print .monthly-invoice-section {
+  margin-top: 14px;
+}
+
+.monthly-invoice-print .monthly-invoice-section-title {
+  font-size: 11pt;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.monthly-invoice-print table.monthly-invoice-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.monthly-invoice-print .monthly-invoice-date-col {
+  width: 72px;
+}
+
+.monthly-invoice-print .monthly-invoice-stall-col {
+  width: 72px;
+}
+
+.monthly-invoice-print .monthly-invoice-market-col {
+  width: 88px;
+}
+
+.monthly-invoice-print .monthly-invoice-type-col {
+  width: 56px;
+}
+
+.monthly-invoice-print .monthly-invoice-qty-col,
+.monthly-invoice-print .monthly-invoice-rate-col,
+.monthly-invoice-print .monthly-invoice-subtotal-col {
+  width: 64px;
+}
+
+.monthly-invoice-print tr.monthly-invoice-section-total td,
+.monthly-invoice-print tr.monthly-invoice-grand-row td {
+  background: #d0d0d0;
+  font-weight: 700;
+}
+
+.monthly-invoice-print table.monthly-invoice-grand-total {
+  margin-top: 12px;
+}
