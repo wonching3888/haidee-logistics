@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSettingsData } from "@/app/actions/settings";
 import { getFreightSettingsData } from "@/app/actions/freight-settings";
 import { getDriverPayrollSettingsData } from "@/app/actions/driver-payroll";
+import { getRouteMasterSettingsData } from "@/app/actions/route-master";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import {
   parseSettingsSection,
@@ -20,11 +21,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   }
 
   const activeSection = parseSettingsSection(sectionParam);
-  const [data, freightData, driverPayrollDrivers] = await Promise.all([
+  const [data, freightData, driverPayrollDrivers, routeMasters] = await Promise.all([
     getSettingsData(),
     getFreightSettingsData(),
     activeSection === "driver-payroll"
       ? getDriverPayrollSettingsData()
+      : Promise.resolve([]),
+    activeSection === "routes"
+      ? getRouteMasterSettingsData()
       : Promise.resolve([]),
   ]);
 
@@ -43,6 +47,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         data={data}
         freightData={freightData}
         driverPayrollDrivers={driverPayrollDrivers}
+        routeMasters={routeMasters}
       />
     </div>
   );

@@ -43,6 +43,8 @@ import type { FreightSettingsData } from "@/components/settings/FreightRatesSect
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { ExchangeRateSection } from "@/components/settings/ExchangeRateSection";
 import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
+import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
+import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
   TruckFormDialog,
   type TruckFormValue,
@@ -185,6 +187,7 @@ interface SettingsClientProps {
     maritalStatus: string | null;
     childCount: number;
   }[];
+  routeMasters: RouteMasterRow[];
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -215,6 +218,7 @@ export function SettingsClient({
   data,
   freightData,
   driverPayrollDrivers,
+  routeMasters,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -680,6 +684,10 @@ export function SettingsClient({
 
         {activeSection === "driver-payroll" && (
           <DriverPayrollSettingsSection drivers={driverPayrollDrivers} />
+        )}
+
+        {activeSection === "routes" && (
+          <RouteMasterSettingsSection routes={routeMasters} />
         )}
         </div>
       </div>

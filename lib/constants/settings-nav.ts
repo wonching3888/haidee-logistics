@@ -4,6 +4,7 @@ export type SettingsSection =
   | "defaults"
   | "trucks"
   | "users"
+  | "routes"
   | "shipper-rates"
   | "consignee-rates"
   | "payment-relations"
@@ -18,6 +19,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "defaults",
   "trucks",
   "users",
+  "routes",
   "shipper-rates",
   "consignee-rates",
   "payment-relations",
@@ -34,6 +36,7 @@ export const SETTINGS_SECTION_TITLES: Record<
   defaults: { label: "档口对应", labelEn: "Defaults" },
   trucks: { label: "车辆", labelEn: "Trucks" },
   users: { label: "用户", labelEn: "Users" },
+  routes: { label: "路线", labelEn: "Routes" },
   "shipper-rates": { label: "寄货人费率", labelEn: "Shipper Rates" },
   "consignee-rates": { label: "收货人费率", labelEn: "Consignee Rates" },
   "payment-relations": { label: "付款关系", labelEn: "Payment Relations" },
@@ -71,6 +74,7 @@ export const SETTINGS_SIDEBAR_MENU = [
   { section: "defaults" as const, label: "档口对应", labelEn: "Defaults" },
   { section: "trucks" as const, label: "车辆", labelEn: "Trucks" },
   { section: "users" as const, label: "用户", labelEn: "Users" },
+  { section: "routes" as const, label: "路线", labelEn: "Routes" },
   {
     label: "车力费率",
     labelEn: "Freight Rates",

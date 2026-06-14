@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { DEFAULT_ROUTE_MASTERS } from "../lib/constants/route-master-seed";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -189,6 +190,25 @@ async function main() {
     });
   }
   console.log(`  ✓ ${TRUCKS.length} trucks`);
+
+  console.log("Seeding route masters...");
+  for (const route of DEFAULT_ROUTE_MASTERS) {
+    await prisma.routeMaster.upsert({
+      where: { code: route.code },
+      update: {
+        name: route.name,
+        markets: [...route.markets],
+        displayOrder: route.displayOrder,
+      },
+      create: {
+        code: route.code,
+        name: route.name,
+        markets: [...route.markets],
+        displayOrder: route.displayOrder,
+      },
+    });
+  }
+  console.log(`  ✓ ${DEFAULT_ROUTE_MASTERS.length} route masters`);
 
   console.log("Seed complete.");
 }
