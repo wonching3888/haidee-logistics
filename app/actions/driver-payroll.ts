@@ -20,6 +20,7 @@ import {
   countPayrollMarketGroups,
   crateReturnCommissionForDispatch,
   dispatchHasCrateReturn,
+  formatTripRouteLabel,
   getDriverPayrollName,
 } from "@/lib/trip-allowance";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
@@ -129,6 +130,7 @@ function computePayrollTripFields(
         smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
       },
     }),
+    routeLabel: formatTripRouteLabel(order.markets),
   };
 }
 
@@ -190,7 +192,7 @@ async function syncDispatchTripsForMonth(
     await prisma.driverPayrollTrip.update({
       where: { id: trip.id },
       data: {
-        route: order.markets.join(" / "),
+        route: computed.routeLabel,
         markets: order.markets,
         marketCount: computed.marketCount,
         crateReturnCommission: computed.crateReturnCommission,
@@ -216,7 +218,7 @@ async function syncDispatchTripsForMonth(
         payrollMonthId,
         dispatchOrderId: order.id,
         date: order.date,
-        route: order.markets.join(" / "),
+        route: computed.routeLabel,
         markets: order.markets,
         marketCount: computed.marketCount,
         tripAllowance: computed.autoTripAllowance,
@@ -388,7 +390,7 @@ export async function getDriverPayrollMonth(input: {
         dispatchOrderId: trip.dispatchOrderId,
         date: toDateInputValue(trip.date),
         dateLabel: formatDisplayDate(trip.date),
-        route: trip.route ?? trip.markets.join(" / "),
+        route: formatTripRouteLabel(trip.markets),
         markets: trip.markets,
         marketCount: countPayrollMarketGroups(
           trip.markets,

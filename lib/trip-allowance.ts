@@ -28,6 +28,49 @@ function normalizeDispatchMarkets(markets: string[]) {
   );
 }
 
+/** Normalize trip markets from array or delimited string. */
+export function normalizeTripMarkets(markets: string[] | string): string[] {
+  const raw =
+    typeof markets === "string"
+      ? markets.split(/[,/]/).map((part) => part.trim())
+      : markets;
+  return normalizeDispatchMarkets(raw);
+}
+
+const ROUTE_GROUP_MAP: Record<string, string> = {
+  KL: "KL",
+  BP: "KL",
+  MP: "KL",
+  SL: "KL",
+  BM: "BM",
+  P: "BM",
+  TP: "BM",
+  KT: "BM",
+  NT: "BM",
+  SA: "BM",
+  MC: "MC",
+  A: "A",
+  KD: "KD",
+  JB: "JB",
+  OTHER: "OTHER",
+};
+
+const ROUTE_GROUP_ORDER = ["KL", "MC", "A", "KD", "JB", "BM", "OTHER"] as const;
+
+/** Map trip markets to distinct payroll route group codes in display order. */
+export function getRouteGroups(markets: string[] | string): string[] {
+  const groups = new Set(
+    normalizeTripMarkets(markets)
+      .map((market) => ROUTE_GROUP_MAP[market])
+      .filter(Boolean)
+  );
+  return ROUTE_GROUP_ORDER.filter((code) => groups.has(code));
+}
+
+export function formatTripRouteLabel(markets: string[] | string): string {
+  return getRouteGroups(markets).join(" / ");
+}
+
 /** Map a market code to its payroll route group (most specific route wins). */
 export function findRouteForMarket(
   market: string,
@@ -40,6 +83,8 @@ export function findRouteForMarket(
 }
 
 function payrollGroupKey(market: string, routes: RouteAllowanceInput[]) {
+  const mapped = ROUTE_GROUP_MAP[market.toUpperCase()];
+  if (mapped) return mapped;
   const route = findRouteForMarket(market, routes);
   return route?.code ?? `__${market}`;
 }
@@ -49,6 +94,9 @@ export function countPayrollMarketGroups(
   markets: string[],
   routes: RouteAllowanceInput[]
 ) {
+  const grouped = getRouteGroups(markets);
+  if (grouped.length > 0) return grouped.length;
+
   const dispatchMarkets = normalizeDispatchMarkets(markets);
   if (dispatchMarkets.length === 0) return 0;
 
@@ -57,6 +105,14 @@ export function countPayrollMarketGroups(
     groups.add(payrollGroupKey(market, routes));
   }
   return groups.size;
+}
+
+/** Distinct payroll route group labels for display (e.g. A / BM / KD). */
+export function formatPayrollRouteGroups(
+  markets: string[] | string,
+  _routes?: RouteAllowanceInput[]
+): string {
+  return formatTripRouteLabel(markets);
 }
 
 export function calculateTripAllowance(input: {
