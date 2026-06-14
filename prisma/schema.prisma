@@ -307,6 +307,18 @@ model DriverPayrollExtra {
   @@map("driver_payroll_extras")
 }
 
+model OperationsMonthlyCosts {
+  id            String   @id @default(uuid()) @db.Uuid
+  yearMonth     String   @unique @map("year_month")
+  tollFee       Decimal? @map("toll_fee") @db.Decimal(12, 2)
+  crateRental   Decimal? @map("crate_rental") @db.Decimal(12, 2)
+  loadUnloadFee Decimal? @map("load_unload_fee") @db.Decimal(12, 2)
+  lkimMaqisFee  Decimal? @map("lkim_maqis_fee") @db.Decimal(12, 2)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("operations_monthly_costs")
+}
+
 model Truck {
   id                   String   @id @default(uuid()) @db.Uuid
   plate                String   @unique

@@ -18,13 +18,14 @@ import {
   Settings,
   Users,
   Wallet,
+  LineChart,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SettingsSidebarMenu } from "@/components/shared/SettingsSidebarMenu";
 import type { UserRole } from "@/types";
-import { canAccessDriverPayroll } from "@/lib/auth-roles";
+import { canAccessDriverPayroll, canViewOperationsDashboard } from "@/lib/auth-roles";
 
 interface NavItem {
   href: string;
@@ -76,6 +77,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
   const isAdmin = role === "admin";
   const showDriverPayroll = canAccessDriverPayroll(role);
+  const showOperations = canViewOperationsDashboard(role);
 
   const reportsActive = pathname.startsWith("/reports/");
   const [reportsOpen, setReportsOpen] = useState(reportsActive);
@@ -148,6 +150,19 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
               onNavigate={onNavigate}
             />
           ))}
+
+          {showOperations && (
+            <NavLink
+              item={{
+                href: "/operations",
+                label: "运营报表",
+                labelEn: "Operations",
+                icon: LineChart,
+              }}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          )}
 
           {showDriverPayroll && (
             <NavLink
