@@ -326,8 +326,6 @@ export const SHIPPER_RATE_ROWS: RateRow[] = [
 ];
 
 export const CONSIGNEE_RATE_ROWS: RateRow[] = [
-  { code: "3000-001", market: "KL", tong: 8.0, box: 2.5 },
-  { code: "3000-002", market: "BP", tong: 6.5, box: 2.0 },
   { code: "3002-H002", market: "KL", tong: 40, box: 29 },
   { code: "3002-L006", market: "KL", tong: 38 },
   { code: "3002-L005", market: "KL", tong: 38 },
