@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -1203,10 +1204,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     revalidateInboundRelatedPaths();
-    return { id: input.sessionId, sessionNo };
+    redirect("/inbound");
   }
-
-  let session: { id: string; sessionNo: string | null };
 
   if (status === "confirmed") {
     let created: { id: string; sessionNo: string | null } | undefined;
@@ -1253,9 +1252,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     if (!created) {
       throw new Error("无法生成唯一进货编号 Failed to generate unique session number");
     }
-    session = created;
   } else {
-    session = await prisma.inboundSession.create({
+    await prisma.inboundSession.create({
       data: {
         date,
         shipperId: input.shipperId,
@@ -1276,7 +1274,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
           })),
         },
       },
-      select: { id: true, sessionNo: true },
+      select: { id: true },
     });
   }
 
@@ -1290,7 +1288,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   }
 
   revalidateInboundRelatedPaths();
-  return { id: session.id, sessionNo: session.sessionNo };
+  redirect("/inbound");
 }
 
 export async function deleteInboundSession(sessionId: string) {

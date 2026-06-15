@@ -66,20 +66,53 @@ try {
     .filter({ hasText: /error|失败|render|wrong/i })
     .count();
   if (redBoxes > 0) {
-    throw new Error(`Found ${redBoxes} red error box(es)`);
+    throw new Error(`Found ${redBoxes} red error box(es) before save`);
   }
 
-  const fatal = errors.filter(
+  const qtyInputs = page.locator('input[inputmode="numeric"]');
+  if ((await qtyInputs.count()) > 0) {
+    const firstQty = qtyInputs.first();
+    if ((await firstQty.inputValue()) === "") {
+      await firstQty.fill("1");
+      await page.waitForTimeout(500);
+    }
+  }
+
+  const saveErrors = [];
+  const onSaveError = (msg) => saveErrors.push(msg);
+  page.on("pageerror", onSaveError);
+  page.on("console", (msg) => {
+    if (msg.type() === "error") onSaveError(msg.text());
+  });
+
+  await page.getByRole("button", { name: /确认保存|Confirm/ }).click();
+  await page.waitForURL("**/inbound", { timeout: 45000 });
+  await page.waitForTimeout(2000);
+
+  body = await page.locator("body").innerText();
+  if (hasErrorText(body)) {
+    throw new Error("Error after confirm save on inbound list");
+  }
+
+  const redAfterSave = await page
+    .locator('[role="alert"], .bg-red-50')
+    .filter({ hasText: /error|失败|render|wrong/i })
+    .count();
+  if (redAfterSave > 0) {
+    throw new Error(`Found ${redAfterSave} red error box(es) after save`);
+  }
+
+  const fatalSave = saveErrors.filter(
     (e) =>
       !e.includes("favicon") &&
       !e.includes("404") &&
       !e.includes("Failed to load resource")
   );
-  if (fatal.length) {
-    throw new Error(`Browser errors: ${fatal.join("; ")}`);
+  if (fatalSave.length) {
+    throw new Error(`Save browser errors: ${fatalSave.join("; ")}`);
   }
 
-  console.log("PASS: no error on production edit page");
+  console.log("PASS: no error on production edit page (including confirm save)");
 } catch (e) {
   console.error("FAIL:", e.message);
   await page

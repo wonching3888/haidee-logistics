@@ -9,6 +9,16 @@ import { Button } from "@/components/ui/button";
 const CONFIRM_MESSAGE =
   "确定要删除这张进货单吗？此操作无法撤销。\nAre you sure you want to delete this inbound session? This cannot be undone.";
 
+function isNextRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: string }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 interface InboundDeleteButtonProps {
   sessionId: string;
   variant?: "button" | "icon";
@@ -28,8 +38,8 @@ export function InboundDeleteButton({
       try {
         await deleteInboundSession(sessionId);
         router.push("/inbound");
-        router.refresh();
       } catch (e) {
+        if (isNextRedirectError(e)) throw e;
         alert(e instanceof Error ? e.message : "删除失败 Delete failed");
       }
     });

@@ -77,6 +77,16 @@ function newRowId() {
   return crypto.randomUUID();
 }
 
+function isNextRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: string }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 interface MarketOption {
   id: string;
   code: string;
@@ -396,9 +406,8 @@ export function InboundForm({
           asDraft,
           sessionId: initialSession?.id,
         });
-        router.push("/inbound");
-        router.refresh();
       } catch (e) {
+        if (isNextRedirectError(e)) throw e;
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
       }
     });
