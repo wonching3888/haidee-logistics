@@ -5,11 +5,16 @@ export const CRATE_RENTAL_TYPE_ORDER = [
   "BHR",
   "VIO",
   "SHK",
+  "GKS",
+  "BH",
+  "MAR",
+  "LL_BHR",
   "BRO",
   "GLY",
   "BS",
   "SHS",
   "BOX",
+  "OTHER",
 ] as const;
 
 export type CrateRentalTypeCode = (typeof CRATE_RENTAL_TYPE_ORDER)[number];

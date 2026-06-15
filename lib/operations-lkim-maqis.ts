@@ -6,6 +6,7 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 const DEFAULT_LKIM_MAQIS_RATE_MYR = 2.5;
 
 function roundMoney(value: number) {
+  if (!Number.isFinite(value)) return 0;
   return Math.round(value * 100) / 100;
 }
 

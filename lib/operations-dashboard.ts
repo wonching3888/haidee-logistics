@@ -325,7 +325,7 @@ export function buildOperationsDashboardMetrics(input: {
       labelEn: "LKIM-MAQIS",
       amountMyr: input.lkimMaqis.totalAmountMyr,
       source: "estimate",
-      detail: `${input.lkimMaqis.totalCrates.toLocaleString("en-MY")} 桶 × RM ${input.lkimMaqis.ratePerCrate.toFixed(2)} = RM ${input.lkimMaqis.totalAmountMyr.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      detail: `${(input.lkimMaqis.totalCrates ?? 0).toLocaleString("en-MY")} 桶 × RM ${(input.lkimMaqis.ratePerCrate ?? 0).toFixed(2)} = RM ${(input.lkimMaqis.totalAmountMyr ?? 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       key: "mcThirdParty",

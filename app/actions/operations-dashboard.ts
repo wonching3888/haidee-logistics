@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
@@ -73,7 +72,7 @@ async function aggregateMcThirdParty(year: number, month: number) {
 }
 
 async function aggregateFleetPayroll(year: number, month: number) {
-  const payroll = await loadFleetPayrollAggregate(year, month);
+  const payroll = await loadFleetPayrollAggregate(year, month, { sync: false });
   return {
     netMyr: payroll.netMyr,
     employerMyr: payroll.employerMyr,
@@ -120,14 +119,4 @@ export async function getOperationsDashboard(input: {
     tripCosts,
     lkimMaqis,
   });
-}
-
-/** @deprecated LKIM-MAQIS is now auto-calculated from global_cost_settings */
-export async function saveOperationsMonthlyCosts(_input: {
-  year: number;
-  month: number;
-  lkimMaqisFee?: number | null;
-}) {
-  await requireOperationsAccess();
-  revalidatePath("/operations");
 }

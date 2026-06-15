@@ -14,6 +14,7 @@ import {
 import { normalizeTripMarkets } from "@/lib/trip-allowance";
 
 function roundMoney(value: number) {
+  if (!Number.isFinite(value)) return 0;
   return Math.round(value * 100) / 100;
 }
 
@@ -313,17 +314,21 @@ export async function aggregateOperationsCosts(
 
     for (const line of dispatch.lines) {
       const inboundLine = line.inboundLine;
-      const marketCode = inboundLine.stall.market?.code;
+      if (!inboundLine?.tongType?.code) continue;
+
+      const marketCode = inboundLine.stall?.market?.code;
       if (!marketCode || isOtherMarket(marketCode)) continue;
 
-      const quantity = inboundLine.quantity;
+      const quantity = decimalToNumber(inboundLine.quantity) ?? 0;
+      if (quantity <= 0) continue;
+
       const crateType = inboundLine.tongType.code;
       const unloadRate =
         unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0;
       totals.loadUnloadFee += quantity * unloadRate;
 
       const rentalRate = rentalRateByType.get(crateType);
-      if (rentalRate != null) {
+      if (rentalRate != null && Number.isFinite(rentalRate)) {
         totals.crateRental += quantity * rentalRate;
       }
     }

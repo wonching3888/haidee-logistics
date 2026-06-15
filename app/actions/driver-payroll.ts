@@ -53,10 +53,6 @@ function parseYearMonth(year: number, month: number) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
 function serializeDriver(driver: {
   id: string;
   name: string;
