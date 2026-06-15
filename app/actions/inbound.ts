@@ -920,6 +920,7 @@ interface SaveInboundInput {
 }
 
 export async function saveInboundSession(input: SaveInboundInput) {
+  try {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
 
@@ -1289,6 +1290,14 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
   revalidateInboundRelatedPaths();
   return { ok: true as const };
+  } catch (error) {
+    console.error("saveInboundSession failed:", error);
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error ? error.message : "保存失败 Save failed",
+    };
+  }
 }
 
 export async function deleteInboundSession(sessionId: string) {

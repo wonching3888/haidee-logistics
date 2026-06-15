@@ -35,7 +35,8 @@ try {
 
   const editUrl = `${BASE}/inbound/${SESSION_ID}/edit`;
   await page.goto(editUrl, { waitUntil: "networkidle", timeout: 120000 });
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(5000);
+  await page.waitForLoadState("networkidle");
 
   let body = await page.locator("body").innerText();
   if (hasErrorText(body)) {

@@ -225,7 +225,7 @@ export function InboundForm({
   }, [freightLines]);
 
   useEffect(() => {
-    if (!showFreightPanel || !shipperId || !rowsReady) return;
+    if (!showFreightPanel || !shipperId || !rowsReady || isPending) return;
 
     const activeLines = rows
       .filter((row) => !row.stallId.startsWith("new-"))
@@ -282,6 +282,7 @@ export function InboundForm({
     showFreightPanel,
     shipperId,
     rowsReady,
+    isPending,
     loadingStalls,
     date,
     sessionPickupLocation,
@@ -372,7 +373,7 @@ export function InboundForm({
 
     startTransition(async () => {
       try {
-        await saveInboundSession({
+        const result = await saveInboundSession({
           date,
           shipperId,
           thVehiclePlate: thVehiclePlate || undefined,
@@ -396,6 +397,10 @@ export function InboundForm({
           asDraft,
           sessionId: initialSession?.id,
         });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
         router.replace("/inbound");
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
