@@ -1,5 +1,8 @@
 import type { PaymentMode } from "@/lib/constants/freight-settings";
-import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
+import {
+  DEFAULT_EXCHANGE_RATE,
+  WTL_SST_MULTIPLIER,
+} from "@/lib/constants/freight-settings";
 import type { PickupLocation } from "@/lib/constants/pickup-locations";
 import { usesThSegmentSplit } from "@/lib/constants/pickup-locations";
 import {
@@ -50,6 +53,10 @@ interface RateRow {
   effectiveDate: Date;
   rateTong: unknown;
   rateBox: unknown;
+  rateTongThai?: unknown;
+  rateBoxThai?: unknown;
+  isWtl?: boolean;
+  sstApplicable?: boolean;
   currency?: string;
 }
 
@@ -59,6 +66,29 @@ interface ConsigneeRateRow {
   effectiveDate: Date;
   rateTong: unknown;
   rateBox: unknown;
+  rateTongThai?: unknown;
+  rateBoxThai?: unknown;
+  sstApplicable?: boolean;
+  permitPerTrip?: unknown;
+}
+
+export interface ShipperFreightRate {
+  rateTong: number | null;
+  rateBox: number | null;
+  rateTongThai: number | null;
+  rateBoxThai: number | null;
+  isWtl: boolean;
+  sstApplicable: boolean;
+  currency: string;
+}
+
+export interface ConsigneeFreightRateValues {
+  rateTong: number | null;
+  rateBox: number | null;
+  rateTongThai: number | null;
+  rateBoxThai: number | null;
+  sstApplicable: boolean;
+  permitPerTrip: number | null;
 }
 
 export interface InboundFreightContext {
@@ -88,14 +118,8 @@ export interface InboundFreightContext {
       secondaryPaymentMode?: string | null;
     }
   >;
-  shipperRatesByMarket: Map<
-    string,
-    { rateTong: number | null; rateBox: number | null; currency: string }
-  >;
-  consigneeRatesByConsigneeMarket: Map<
-    string,
-    { rateTong: number | null; rateBox: number | null }
-  >;
+  shipperRatesByMarket: Map<string, ShipperFreightRate>;
+  consigneeRatesByConsigneeMarket: Map<string, ConsigneeFreightRateValues>;
   tongTypes: Map<string, { isBox: boolean }>;
 }
 
@@ -160,10 +184,12 @@ function resolveDualPaymentWtlIncome(
   const consigneeRate = ctx.consigneeRatesByConsigneeMarket.get(
     `${relation.secondaryConsigneeId}:${marketId}`
   );
-  const unitRate = pickUnitRate(isBox, consigneeRate);
-  if (unitRate == null) {
+  const unitRateBase = pickUnitRate(isBox, consigneeRate);
+  if (unitRateBase == null) {
     return { rate: null, amount: null };
   }
+
+  const unitRate = applySst(unitRateBase, consigneeRate?.sstApplicable ?? false);
 
   return {
     rate: unitRate,
@@ -197,6 +223,81 @@ function pickUnitRate(
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function applySst(unitRate: number, sstApplicable: boolean) {
+  if (!sstApplicable) return unitRate;
+  return roundMoney(unitRate * WTL_SST_MULTIPLIER);
+}
+
+function hasWtlThaiSegment(rate: {
+  rateTongThai: number | null;
+  rateBoxThai: number | null;
+}) {
+  return rate.rateTongThai != null || rate.rateBoxThai != null;
+}
+
+function computeWtlDualSegment(
+  isBox: boolean,
+  quantity: number,
+  thaiRate: { rateTongThai: number | null; rateBoxThai: number | null },
+  myRate: {
+    rateTong: number | null;
+    rateBox: number | null;
+    sstApplicable: boolean;
+  }
+) {
+  if (quantity <= 0) {
+    return {
+      thFreightRate: null as number | null,
+      thFreightAmount: null as number | null,
+      mySegmentFreightRate: null as number | null,
+      mySegmentFreightAmount: null as number | null,
+      totalUnitRate: null as number | null,
+      totalAmount: null as number | null,
+    };
+  }
+
+  // Thailand-segment rates are stored in MYR (no SST, no FX conversion).
+  const thUnit = pickUnitRate(isBox, {
+    rateTong: thaiRate.rateTongThai,
+    rateBox: thaiRate.rateBoxThai,
+  });
+  const myUnitBase = pickUnitRate(isBox, {
+    rateTong: myRate.rateTong,
+    rateBox: myRate.rateBox,
+  });
+
+  let thFreightRate: number | null = null;
+  let thFreightAmount: number | null = null;
+  let mySegmentFreightRate: number | null = null;
+  let mySegmentFreightAmount: number | null = null;
+
+  if (thUnit != null) {
+    thFreightRate = thUnit;
+    thFreightAmount = roundMoney(quantity * thUnit);
+  }
+  if (myUnitBase != null) {
+    mySegmentFreightRate = applySst(myUnitBase, myRate.sstApplicable);
+    mySegmentFreightAmount = roundMoney(quantity * mySegmentFreightRate);
+  }
+
+  const totalAmount = roundMoney(
+    (thFreightAmount ?? 0) + (mySegmentFreightAmount ?? 0)
+  );
+  const totalUnitRate =
+    thFreightRate != null && mySegmentFreightRate != null
+      ? roundMoney(thFreightRate + mySegmentFreightRate)
+      : mySegmentFreightRate ?? thFreightRate;
+
+  return {
+    thFreightRate,
+    thFreightAmount,
+    mySegmentFreightRate,
+    mySegmentFreightAmount,
+    totalUnitRate: totalAmount > 0 ? totalUnitRate : null,
+    totalAmount: totalAmount > 0 ? totalAmount : null,
+  };
 }
 
 function mcThirdPartyUnitRate(
@@ -242,22 +343,23 @@ export function buildInboundFreightMaps(input: {
     input.asOfDate
   );
 
-  const shipperRatesByMarket = new Map<
-    string,
-    { rateTong: number | null; rateBox: number | null; currency: string }
-  >();
+  const shipperRatesByMarket = new Map<string, ShipperFreightRate>();
   for (const [marketId, rate] of Array.from(shipperEffective.entries())) {
     const original = input.shipperRates.find((row) => row.marketId === marketId);
     shipperRatesByMarket.set(marketId, {
       rateTong: rate.rateTong,
       rateBox: rate.rateBox,
+      rateTongThai: decimalToNumber(original?.rateTongThai),
+      rateBoxThai: decimalToNumber(original?.rateBoxThai),
+      isWtl: original?.isWtl === true,
+      sstApplicable: original?.sstApplicable === true,
       currency: original?.currency ?? "THB",
     });
   }
 
   const consigneeRatesByConsigneeMarket = new Map<
     string,
-    { rateTong: number | null; rateBox: number | null }
+    ConsigneeFreightRateValues
   >();
 
   const consigneeIds = Array.from(
@@ -277,9 +379,14 @@ export function buildInboundFreightMaps(input: {
       input.asOfDate
     );
     for (const [marketId, rate] of Array.from(effective.entries())) {
+      const original = rows.find((row) => row.marketId === marketId);
       consigneeRatesByConsigneeMarket.set(`${consigneeId}:${marketId}`, {
         rateTong: rate.rateTong,
         rateBox: rate.rateBox,
+        rateTongThai: decimalToNumber(original?.rateTongThai),
+        rateBoxThai: decimalToNumber(original?.rateBoxThai),
+        sstApplicable: original?.sstApplicable === true,
+        permitPerTrip: decimalToNumber(original?.permitPerTrip),
       });
     }
   }
@@ -320,7 +427,7 @@ export function computeInboundLineFreight(
       : undefined;
 
   const activeRate = consigneePays ? consigneeRate : shipperRate;
-  const unitRate = pickUnitRate(isBox, activeRate);
+  let unitRate = pickUnitRate(isBox, activeRate);
   const currency = consigneePays
     ? "MYR"
     : resolveCurrency(
@@ -338,21 +445,80 @@ export function computeInboundLineFreight(
     ? line.mcDeliveryMode ?? "self"
     : null;
 
+  let freightRate: number | null = unitRate;
   let freightAmount: number | null = null;
   let thirdPartyFee: number | null = null;
+  let mySegmentFreightRate: number | null = null;
+  let mySegmentFreightAmount: number | null = null;
+  let thFreightRate: number | null = null;
+  let thFreightAmount: number | null = null;
+  let usedWtlDualSegment = false;
 
-  if (line.quantity > 0 && unitRate != null) {
+  const isWtlShipperRate =
+    !isDualPayment && !consigneePays && shipperRate?.isWtl === true;
+  const isWtlConsigneeDual =
+    consigneePays && consigneeRate != null && hasWtlThaiSegment(consigneeRate);
+
+  if (isWtlShipperRate && shipperRate && line.quantity > 0) {
+    usedWtlDualSegment = true;
+    const segments = computeWtlDualSegment(
+      isBox,
+      line.quantity,
+      shipperRate,
+      shipperRate
+    );
+    thFreightRate = segments.thFreightRate;
+    thFreightAmount = segments.thFreightAmount;
+    mySegmentFreightRate = segments.mySegmentFreightRate;
+    mySegmentFreightAmount = segments.mySegmentFreightAmount;
+    unitRate = segments.totalUnitRate;
+    freightRate = segments.totalUnitRate;
+    freightAmount = segments.totalAmount;
+  } else if (isWtlConsigneeDual && consigneeRate && line.quantity > 0) {
+    usedWtlDualSegment = true;
+    const segments = computeWtlDualSegment(
+      isBox,
+      line.quantity,
+      consigneeRate,
+      consigneeRate
+    );
+    thFreightRate = segments.thFreightRate;
+    thFreightAmount = segments.thFreightAmount;
+    mySegmentFreightRate = segments.mySegmentFreightRate;
+    mySegmentFreightAmount = segments.mySegmentFreightAmount;
+    unitRate = segments.totalUnitRate;
+    freightRate = segments.totalUnitRate;
+    freightAmount = segments.totalAmount;
+  } else if (
+    consigneePays &&
+    consigneeRate?.sstApplicable &&
+    line.quantity > 0 &&
+    unitRate != null
+  ) {
+    const rateWithSst = applySst(unitRate, true);
+    unitRate = rateWithSst;
+    freightRate = rateWithSst;
+    freightAmount = roundMoney(line.quantity * rateWithSst);
+  } else if (line.quantity > 0 && unitRate != null) {
     freightAmount = roundMoney(line.quantity * unitRate);
-    if (isMcMarket && mcDeliveryMode === "third_party") {
-      const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
-      if (mcRate != null) {
-        thirdPartyFee = roundMoney(line.quantity * mcRate);
-      }
+    freightRate = unitRate;
+  }
+
+  if (
+    line.quantity > 0 &&
+    freightAmount != null &&
+    isMcMarket &&
+    mcDeliveryMode === "third_party"
+  ) {
+    const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
+    if (mcRate != null) {
+      thirdPartyFee = roundMoney(line.quantity * mcRate);
     }
   } else if (
     isMcMarket &&
     mcDeliveryMode === "third_party" &&
-    line.quantity > 0
+    line.quantity > 0 &&
+    freightAmount == null
   ) {
     const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
     if (mcRate != null) {
@@ -360,12 +526,8 @@ export function computeInboundLineFreight(
     }
   }
 
-  let mySegmentFreightRate: number | null = null;
-  let mySegmentFreightAmount: number | null = null;
-  let thFreightRate: number | null = null;
-  let thFreightAmount: number | null = null;
-
   if (
+    !usedWtlDualSegment &&
     !isMcMarket &&
     usesThSegmentSplit(ctx.pickupLocation) &&
     line.quantity > 0 &&
@@ -396,7 +558,7 @@ export function computeInboundLineFreight(
     paymentMode,
     currency,
     billingCompany,
-    freightRate: unitRate,
+    freightRate,
     freightAmount,
     exchangeRate: ctx.exchangeRate,
     mcDeliveryMode,

@@ -154,10 +154,16 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
                       {formatMoney(line.mySegmentFreightAmount, "MYR")}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {formatMoney(line.thFreightRate, "THB")}
+                      {formatMoney(
+                        line.thFreightRate,
+                        line.currency === "MYR" ? "MYR" : "THB"
+                      )}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {formatMoney(line.thFreightAmount, "THB")}
+                      {formatMoney(
+                        line.thFreightAmount,
+                        line.currency === "MYR" ? "MYR" : "THB"
+                      )}
                     </TableCell>
                   </>
                 )}

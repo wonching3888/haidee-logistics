@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import type { PaymentMode } from "@/lib/constants/freight-settings";
+import { WTL_SST_MULTIPLIER } from "@/lib/constants/freight-settings";
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import {
   classifyInboundFreightGap,
@@ -66,6 +67,58 @@ export interface OperationsIncomeResult {
 }
 
 const WARNING_SAMPLE_LIMIT = 8;
+const NKL_CONSIGNEE_CODE = "3000-N001";
+
+async function aggregateNklPermitIncome(year: number, month: number) {
+  const { start, end } = getMonthDateRange(year, month);
+  const consignee = await prisma.consignee.findUnique({
+    where: { code: NKL_CONSIGNEE_CODE },
+    select: { id: true },
+  });
+  if (!consignee) return 0;
+
+  const market = await prisma.market.findUnique({
+    where: { code: "NT" },
+    select: { id: true },
+  });
+  if (!market) return 0;
+
+  const rateRow = await prisma.consigneeFreightRate.findFirst({
+    where: {
+      consigneeId: consignee.id,
+      marketId: market.id,
+      effectiveDate: { lte: end },
+    },
+    orderBy: { effectiveDate: "desc" },
+    select: { permitPerTrip: true, sstApplicable: true },
+  });
+  const permitBase = rateRow?.permitPerTrip
+    ? Number(rateRow.permitPerTrip)
+    : 0;
+  if (permitBase <= 0) return 0;
+
+  const permitPerTrip = rateRow?.sstApplicable
+    ? roundMoney(permitBase * WTL_SST_MULTIPLIER)
+    : permitBase;
+
+  const trips = await prisma.dispatchOrder.findMany({
+    where: {
+      date: { gte: start, lte: end },
+      status: { notIn: ["draft", "cancelled"] },
+      lines: {
+        some: {
+          inboundLine: {
+            stall: { consigneeId: consignee.id },
+            dispatchStatus: "assigned",
+          },
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  return roundMoney(trips.length * permitPerTrip);
+}
 
 export async function aggregateOperationsIncome(
   year: number,
@@ -199,6 +252,9 @@ export async function aggregateOperationsIncome(
       }
     }
   }
+
+  const permitMyr = await aggregateNklPermitIncome(year, month);
+  totals.wtlMode3Myr += permitMyr;
 
   return {
     mode1aThb: roundMoney(totals.mode1aThb),

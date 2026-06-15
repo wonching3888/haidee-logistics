@@ -163,6 +163,10 @@ model FreightRate {
   marketId      String   @map("market_id") @db.Uuid
   rateTong      Decimal? @map("rate_tong") @db.Decimal(10, 2)
   rateBox       Decimal? @map("rate_box") @db.Decimal(10, 2)
+  rateTongThai  Decimal? @map("rate_tong_thai") @db.Decimal(10, 2)
+  rateBoxThai   Decimal? @map("rate_box_thai") @db.Decimal(10, 2)
+  isWtl         Boolean  @default(false) @map("is_wtl")
+  sstApplicable Boolean  @default(false) @map("sst_applicable")
   currency      String   @default("MYR")
   effectiveDate DateTime @default(now()) @map("effective_date") @db.Date
 
@@ -196,6 +200,10 @@ model ConsigneeFreightRate {
   marketId      String   @map("market_id") @db.Uuid
   rateTong      Decimal? @map("rate_tong") @db.Decimal(10, 2)
   rateBox       Decimal? @map("rate_box") @db.Decimal(10, 2)
+  rateTongThai  Decimal? @map("rate_tong_thai") @db.Decimal(10, 2)
+  rateBoxThai   Decimal? @map("rate_box_thai") @db.Decimal(10, 2)
+  sstApplicable Boolean  @default(false) @map("sst_applicable")
+  permitPerTrip Decimal? @map("permit_per_trip") @db.Decimal(10, 2)
   effectiveDate DateTime @map("effective_date") @db.Date
 
   consignee Consignee @relation(fields: [consigneeId], references: [id], onDelete: Cascade)

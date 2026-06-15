@@ -1,5 +1,8 @@
 export const DEFAULT_EXCHANGE_RATE = 8.2;
 
+/** Malaysia SST rate applied to WTL MY-segment freight when sst_applicable. */
+export const WTL_SST_MULTIPLIER = 1.06;
+
 export const PAYMENT_MODES = [
   { value: "1a", label: "1a 寄货人付 THB" },
   { value: "1b", label: "1b 寄货人付 MYR" },
