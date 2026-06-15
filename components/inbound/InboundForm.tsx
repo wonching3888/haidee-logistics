@@ -214,6 +214,9 @@ export function InboundForm({
             }))
           );
         }
+      } catch (e) {
+        setRows([]);
+        setError(e instanceof Error ? e.message : "加载收货人失败 Failed to load receivers");
       } finally {
         setLoadingStalls(false);
       }

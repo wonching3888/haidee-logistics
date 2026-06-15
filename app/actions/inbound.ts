@@ -597,18 +597,18 @@ export async function getShipperStalls(shipperId: string) {
   return defaults.map((d) => ({
     stallId: d.stallId,
     stallCode: getStallDisplayLabel(
-      d.stall.market?.code ?? "",
-      d.stall.code,
-      d.stall.name
+      d.stall?.market?.code ?? "",
+      d.stall?.code ?? "",
+      d.stall?.name
     ),
-    stallName: d.stall.name,
-    marketCode: d.stall.market?.code ?? "",
-    marketName: d.stall.market?.code
+    stallName: d.stall?.name ?? null,
+    marketCode: d.stall?.market?.code ?? "",
+    marketName: d.stall?.market?.code
       ? getMarketDisplayName(d.stall.market.code)
       : "",
     defaultTongTypeId: d.tongTypeId,
-    defaultTongTypeCode: d.tongType.code,
-    defaultTongTypeName: d.tongType.name,
+    defaultTongTypeCode: d.tongType?.code ?? "",
+    defaultTongTypeName: d.tongType?.name ?? "",
   }));
 }
 
@@ -656,22 +656,22 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
 
   return sessions
     .map((s) => {
-      const totalQty = s.lines.reduce((sum, l) => sum + l.quantity, 0);
+      const totalQty = s.lines.reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const crateQty = s.lines
         .filter((l) => !l.isBox)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const boxQty = s.lines
         .filter((l) => l.isBox)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const unassignedQty = s.lines
         .filter((l) => l.dispatchStatus === "unassigned")
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const unassignedCrateQty = s.lines
         .filter((l) => l.dispatchStatus === "unassigned" && !l.isBox)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const unassignedBoxQty = s.lines
         .filter((l) => l.dispatchStatus === "unassigned" && l.isBox)
-        .reduce((sum, l) => sum + l.quantity, 0);
+        .reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const allAssigned =
         s.lines.length > 0 &&
         s.lines.every((l) => l.dispatchStatus === "assigned");
@@ -751,14 +751,14 @@ export async function getInboundSession(id: string) {
       id: l.id,
       stallId: l.stallId,
       stallCode: getStallDisplayLabel(
-        l.stall.market?.code ?? "",
-        l.stall.code,
-        l.stall.name
+        l.stall?.market?.code ?? "",
+        l.stall?.code ?? "",
+        l.stall?.name
       ),
-      marketCode: l.stall.market?.code ?? "",
+      marketCode: l.stall?.market?.code ?? "",
       tongTypeId: l.tongTypeId,
-      tongTypeCode: l.tongType.code,
-      quantity: l.quantity,
+      tongTypeCode: l.tongType?.code ?? "",
+      quantity: Number(l.quantity) || 0,
       dispatchStatus: l.dispatchStatus,
       mcDeliveryMode: l.mcDeliveryMode as "self" | "third_party" | null,
       ...(showFreightInfo
