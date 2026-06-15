@@ -92,18 +92,24 @@ function relationKey(shipperId: string, consigneeId: string) {
   return `${shipperId}:${consigneeId}`;
 }
 
+function defaultShipperPaymentMode(shipperCurrency: string): PaymentMode {
+  return shipperCurrency.toUpperCase() === "MYR" ? "1b" : "1a";
+}
+
 function resolvePaymentMode(
   shipperId: string,
   consigneeId: string | null | undefined,
-  relations: Map<string, { paymentMode: string }>
+  relations: Map<string, { paymentMode: string }>,
+  shipperCurrency: string
 ): PaymentMode {
-  if (!consigneeId) return "1a";
-  const relation = relations.get(relationKey(shipperId, consigneeId));
-  const mode = relation?.paymentMode;
-  if (mode === "1a" || mode === "1b" || mode === "2" || mode === "3") {
-    return mode;
+  if (consigneeId) {
+    const relation = relations.get(relationKey(shipperId, consigneeId));
+    const mode = relation?.paymentMode;
+    if (mode === "1a" || mode === "1b" || mode === "2" || mode === "3") {
+      return mode;
+    }
   }
-  return "1a";
+  return defaultShipperPaymentMode(shipperCurrency);
 }
 
 function usesConsigneeRate(paymentMode: PaymentMode) {
@@ -234,7 +240,8 @@ export function computeInboundLineFreight(
   const paymentMode = resolvePaymentMode(
     ctx.shipper.id,
     consigneeId,
-    ctx.paymentRelations
+    ctx.paymentRelations,
+    ctx.shipper.currency
   );
   const consigneePays = usesConsigneeRate(paymentMode);
   const paymentParty: "shipper" | "consignee" = consigneePays
