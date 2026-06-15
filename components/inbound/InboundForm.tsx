@@ -77,8 +77,6 @@ function newRowId() {
   return crypto.randomUUID();
 }
 
-import { getNextRedirectUrl } from "@/lib/next-redirect";
-
 interface MarketOption {
   id: string;
   code: string;
@@ -398,12 +396,8 @@ export function InboundForm({
           asDraft,
           sessionId: initialSession?.id,
         });
+        router.replace("/inbound");
       } catch (e) {
-        const redirectUrl = getNextRedirectUrl(e);
-        if (redirectUrl) {
-          router.replace(redirectUrl);
-          return;
-        }
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
       }
     });

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -1205,7 +1204,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     revalidateInboundRelatedPaths();
-    redirect("/inbound");
+    return { ok: true as const };
   }
 
   if (status === "confirmed") {
@@ -1289,7 +1288,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
   }
 
   revalidateInboundRelatedPaths();
-  redirect("/inbound");
+  return { ok: true as const };
 }
 
 export async function deleteInboundSession(sessionId: string) {
