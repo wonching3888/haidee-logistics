@@ -4,6 +4,7 @@ export const GLOBAL_TRIP_COST_SETTING_KEYS = [
   "dagang_net",
   "forwarding_outbound",
   "forwarding_return",
+  "lkim_maqis_per_crate",
 ] as const;
 
 export type GlobalTripCostSettingKey =
@@ -55,6 +56,12 @@ export const DEFAULT_GLOBAL_COST_SETTINGS: GlobalCostSettingSeed[] = [
     notes: "Zaewe，回空桶趟",
   },
   {
+    key: "lkim_maqis_per_crate",
+    valueMyr: 2.5,
+    label: "LKIM-MAQIS费（MYR/桶）",
+    notes: "当月派车总桶数 × 费率",
+  },
+  {
     key: "fuel_price_myr",
     valueMyr: 2.05,
     label: "Diesel Price (MYR/L)",
@@ -71,5 +78,9 @@ export const GLOBAL_COST_UI_LABELS: Record<
   dagang_net: { label: "Dagang Net Fee", notes: "估算2张/趟" },
   forwarding_outbound: { label: "Forwarding 出货", notes: "Zaewe，出货趟" },
   forwarding_return: { label: "Forwarding 回空桶", notes: "Zaewe，回空桶趟" },
+  lkim_maqis_per_crate: {
+    label: "LKIM-MAQIS费",
+    notes: "MYR/桶，当月派车总桶数 × 费率",
+  },
   fuel_price_myr: { label: "Diesel Price", notes: "MYR/L，每月更新" },
 };

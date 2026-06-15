@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
@@ -12,6 +11,7 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { loadFleetPayrollAggregate } from "@/lib/payroll-fleet";
 import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
+import { aggregateLkimMaqisCost } from "@/lib/operations-lkim-maqis";
 import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
@@ -37,16 +37,6 @@ function parseYearMonth(year: number, month: number) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-function isMissingOperationsCostsTable(error: unknown) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return error.code === "P2021" || error.code === "P2022";
-  }
-  if (error instanceof Error) {
-    return error.message.includes("operations_monthly_costs");
-  }
-  return false;
 }
 
 async function aggregateIncome(year: number, month: number) {
@@ -92,20 +82,6 @@ async function aggregateFleetPayroll(year: number, month: number) {
   };
 }
 
-async function loadLkimMaqisFee(yearMonth: string) {
-  try {
-    const row = await prisma.operationsMonthlyCosts.findUnique({
-      where: { yearMonth },
-    });
-    return decimalToNumber(row?.lkimMaqisFee) ?? 0;
-  } catch (error) {
-    if (isMissingOperationsCostsTable(error)) {
-      return 0;
-    }
-    throw error;
-  }
-}
-
 export async function getOperationsDashboard(input: {
   year: number;
   month: number;
@@ -118,14 +94,14 @@ export async function getOperationsDashboard(input: {
     mcThirdPartyMyr,
     payroll,
     tripCosts,
-    lkimMaqisFee,
+    lkimMaqis,
     exchangeRateRow,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month),
     aggregateMcThirdParty(input.year, input.month),
     aggregateFleetPayroll(input.year, input.month),
     aggregateOperationsCosts(input.year, input.month),
-    loadLkimMaqisFee(yearMonth),
+    aggregateLkimMaqisCost(input.year, input.month),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
   ]);
 
@@ -143,46 +119,19 @@ export async function getOperationsDashboard(input: {
     mcThirdPartyMyr,
     tripCosts,
     manualCosts: {
-      lkimMaqisFee,
+      lkimMaqisFee: lkimMaqis.amountMyr,
+      lkimMaqisTotalCrates: lkimMaqis.totalCrates,
+      lkimMaqisRatePerCrate: lkimMaqis.ratePerCrate,
     },
   });
 }
 
-export async function saveOperationsMonthlyCosts(input: {
+/** @deprecated LKIM-MAQIS is now auto-calculated from global_cost_settings */
+export async function saveOperationsMonthlyCosts(_input: {
   year: number;
   month: number;
   lkimMaqisFee?: number | null;
 }) {
   await requireOperationsAccess();
-  const yearMonth = parseYearMonth(input.year, input.month);
-
-  function parseCost(value: number | null | undefined) {
-    if (value == null || value === undefined) return null;
-    if (!Number.isFinite(value) || value < 0) {
-      throw new Error("费用不能为负数 Cost cannot be negative");
-    }
-    return value;
-  }
-
-  try {
-    await prisma.operationsMonthlyCosts.upsert({
-      where: { yearMonth },
-      create: {
-        yearMonth,
-        lkimMaqisFee: parseCost(input.lkimMaqisFee),
-      },
-      update: {
-        lkimMaqisFee: parseCost(input.lkimMaqisFee),
-      },
-    });
-  } catch (error) {
-    if (isMissingOperationsCostsTable(error)) {
-      throw new Error(
-        "operations_monthly_costs 表未创建，请运行 npx prisma db push 或 node scripts/migrate-operations-monthly-costs.mjs"
-      );
-    }
-    throw error;
-  }
-
   revalidatePath("/operations");
 }

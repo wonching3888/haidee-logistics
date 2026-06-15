@@ -66,7 +66,9 @@ export interface OperationsDashboardData {
     routeCount: number;
   };
   manualCosts: {
-    lkimMaqisFee: number | null;
+    lkimMaqisFee: number;
+    lkimMaqisTotalCrates: number;
+    lkimMaqisRatePerCrate: number;
   };
 }
 
@@ -163,6 +165,8 @@ export function buildOperationsDashboardMetrics(input: {
   };
   manualCosts: {
     lkimMaqisFee: number;
+    lkimMaqisTotalCrates: number;
+    lkimMaqisRatePerCrate: number;
   };
 }): OperationsDashboardData {
   const mode1aMyr = thbToMyr(input.income.mode1aThb, input.exchangeRate);
@@ -320,7 +324,8 @@ export function buildOperationsDashboardMetrics(input: {
       label: "LKIM-MAQIS费",
       labelEn: "LKIM-MAQIS",
       amountMyr: input.manualCosts.lkimMaqisFee,
-      source: "estimate",
+      source: "actual",
+      detail: `${input.manualCosts.lkimMaqisTotalCrates} 桶 × RM ${input.manualCosts.lkimMaqisRatePerCrate.toFixed(2)}/桶`,
     },
     {
       key: "mcThirdParty",
@@ -370,6 +375,8 @@ export function buildOperationsDashboardMetrics(input: {
     tripCosts: input.tripCosts,
     manualCosts: {
       lkimMaqisFee: input.manualCosts.lkimMaqisFee,
+      lkimMaqisTotalCrates: input.manualCosts.lkimMaqisTotalCrates,
+      lkimMaqisRatePerCrate: input.manualCosts.lkimMaqisRatePerCrate,
     },
   };
 }

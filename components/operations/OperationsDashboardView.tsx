@@ -3,12 +3,9 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   getOperationsDashboard,
-  saveOperationsMonthlyCosts,
 } from "@/app/actions/operations-dashboard";
 import type { OperationsDashboardData } from "@/lib/operations-dashboard";
 import type { InboundFreightGapReason } from "@/lib/inbound-freight";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
@@ -63,11 +60,6 @@ export function OperationsDashboardView({
   const [data, setData] = useState<OperationsDashboardData>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [lkimMaqisFee, setLkimMaqisFee] = useState(() =>
-    initialData.manualCosts.lkimMaqisFee != null
-      ? String(initialData.manualCosts.lkimMaqisFee)
-      : ""
-  );
   const skipInitialFetch = useRef(true);
 
   function loadDashboard() {
@@ -76,11 +68,6 @@ export function OperationsDashboardView({
       try {
         const result = await getOperationsDashboard({ year, month });
         setData(result);
-        setLkimMaqisFee(
-          result.manualCosts.lkimMaqisFee != null
-            ? String(result.manualCosts.lkimMaqisFee)
-            : ""
-        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
       }
@@ -95,16 +82,6 @@ export function OperationsDashboardView({
     loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
-
-  function parseOptionalCost(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      throw new Error("费用不能为负数");
-    }
-    return parsed;
-  }
 
   return (
     <div className="space-y-6">
@@ -236,44 +213,9 @@ export function OperationsDashboardView({
           成本 Costs
         </h3>
         <p className="mb-4 text-xs text-haidee-muted">
-          过路费/租桶/Load-Unload 由派车路线 × 市场运营费率自动计算。固定
+          过路费/租桶/Load-Unload/LKIM-MAQIS 由派车数据 × 营运费率自动计算。固定
           Expenses（Office 工资等）由老板自行扣除，系统不计算。
         </p>
-
-        <div className="mb-4 grid gap-3 rounded-lg border border-dashed border-haidee-border bg-haidee-surface/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block space-y-1 text-sm sm:col-span-2 lg:col-span-3">
-            LKIM-MAQIS费（估算，可编辑）
-            <Input
-              value={lkimMaqisFee}
-              onChange={(e) => setLkimMaqisFee(e.target.value)}
-              className="min-h-[44px] font-mono"
-            />
-          </label>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                startTransition(async () => {
-                  setError(null);
-                  try {
-                    await saveOperationsMonthlyCosts({
-                      year,
-                      month,
-                      lkimMaqisFee: parseOptionalCost(lkimMaqisFee),
-                    });
-                    loadDashboard();
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : "保存失败");
-                  }
-                })
-              }
-            >
-              保存 LKIM-MAQIS
-            </Button>
-          </div>
-        </div>
 
         <dl className="space-y-3">
           {data.costs.lines.map((line) => (
