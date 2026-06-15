@@ -40,6 +40,8 @@ import {
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import { serializeInboundFreightLines } from "@/lib/inbound-form-serialize";
 
+const INBOUND_TX_TIMEOUT_MS = 30_000;
+
 function aggregateCrateQuantities(
   lines: { tongTypeId: string; quantity: number }[],
   typeMap: Map<string, { trackInventory: boolean; isBox: boolean }>
@@ -1104,7 +1106,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     if (status === "confirmed" && !existing.sessionNo) {
       for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
         try {
-          await prisma.$transaction(async (tx) => {
+          await prisma.$transaction(
+            async (tx) => {
             sessionNo = await generateSessionNo(date, tx);
             await tx.inboundSession.update({
               where: { id: input.sessionId },
@@ -1127,7 +1130,9 @@ export async function saveInboundSession(input: SaveInboundInput) {
               freightSnapshots,
               tx
             );
-          });
+          },
+            { timeout: INBOUND_TX_TIMEOUT_MS }
+          );
           break;
         } catch (error) {
           if (
@@ -1139,7 +1144,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
         }
       }
     } else {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(
+        async (tx) => {
         await tx.inboundSession.update({
           where: { id: input.sessionId },
           data: {
@@ -1161,7 +1167,9 @@ export async function saveInboundSession(input: SaveInboundInput) {
           freightSnapshots,
           tx
         );
-      });
+      },
+        { timeout: INBOUND_TX_TIMEOUT_MS }
+      );
     }
 
     const editNote = `进货单修改 ${sessionNo ?? input.sessionId}`;
@@ -1213,7 +1221,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
     for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
       try {
-        created = await prisma.$transaction(async (tx) => {
+        created = await prisma.$transaction(
+          async (tx) => {
           const sessionNo = await generateSessionNo(date, tx);
           return tx.inboundSession.create({
             data: {
@@ -1238,7 +1247,9 @@ export async function saveInboundSession(input: SaveInboundInput) {
             },
             select: { id: true, sessionNo: true },
           });
-        });
+        },
+          { timeout: INBOUND_TX_TIMEOUT_MS }
+        );
         break;
       } catch (error) {
         if (
@@ -1345,7 +1356,8 @@ export async function deleteInboundSession(sessionId: string) {
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(
+    async (tx) => {
     if (lineIds.length > 0) {
       await tx.dispatchLine.deleteMany({
         where: { inboundLineId: { in: lineIds } },
@@ -1373,7 +1385,9 @@ export async function deleteInboundSession(sessionId: string) {
         });
       }
     }
-  });
+  },
+    { timeout: INBOUND_TX_TIMEOUT_MS }
+  );
 
   revalidatePath("/inbound");
   revalidatePath("/dispatch");
