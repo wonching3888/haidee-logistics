@@ -279,26 +279,21 @@ export function computeInboundLineFreight(
   let thirdPartyFee: number | null = null;
 
   if (line.quantity > 0 && unitRate != null) {
-    const baseAmount = roundMoney(line.quantity * unitRate);
-    if (isMcMarket && !consigneePays && mcDeliveryMode === "self") {
-      freightAmount = 0;
-      thirdPartyFee = null;
-    } else if (isMcMarket && !consigneePays && mcDeliveryMode === "third_party") {
-      freightAmount = 0;
+    freightAmount = roundMoney(line.quantity * unitRate);
+    if (isMcMarket && mcDeliveryMode === "third_party") {
       const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
       if (mcRate != null) {
         thirdPartyFee = roundMoney(line.quantity * mcRate);
       }
-    } else {
-      freightAmount = baseAmount;
     }
-  } else if (isMcMarket && !consigneePays) {
-    freightAmount = 0;
-    if (mcDeliveryMode === "third_party" && line.quantity > 0) {
-      const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
-      if (mcRate != null) {
-        thirdPartyFee = roundMoney(line.quantity * mcRate);
-      }
+  } else if (
+    isMcMarket &&
+    mcDeliveryMode === "third_party" &&
+    line.quantity > 0
+  ) {
+    const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
+    if (mcRate != null) {
+      thirdPartyFee = roundMoney(line.quantity * mcRate);
     }
   }
 
@@ -369,26 +364,10 @@ export function classifyInboundFreightGap(
 
   const stall = ctx.stalls.get(line.stallId);
   const marketId = stall?.marketId ?? null;
-  const marketCode = stall?.marketCode ?? "";
   const consigneeId = stall?.consigneeId ?? null;
   const isBox = ctx.tongTypes.get(line.tongTypeId)?.isBox ?? false;
-  const isMcMarket = marketCode === MC_MARKET_CODE;
-  const mcDeliveryMode: McDeliveryMode | null = isMcMarket
-    ? line.mcDeliveryMode ?? "self"
-    : null;
 
   if (!marketId) return "no_market_on_stall";
-
-  if (isMcMarket && mcDeliveryMode === "self" && !usesConsigneeRate(snapshot.paymentMode)) {
-    return "mc_self_delivery";
-  }
-  if (
-    isMcMarket &&
-    mcDeliveryMode === "third_party" &&
-    !usesConsigneeRate(snapshot.paymentMode)
-  ) {
-    return "mc_third_party_customer_zero";
-  }
 
   const expectsConsigneePayment = Array.from(ctx.paymentRelations.values()).some(
     (relation) => relation.paymentMode === "2" || relation.paymentMode === "3"
