@@ -44,7 +44,13 @@ export async function loadInboundFreightContext(
     prisma.freightRate.findMany({ where: { shipperId } }),
     prisma.paymentRelation.findMany({
       where: { shipperId },
-      select: { consigneeId: true, paymentMode: true },
+      select: {
+        consigneeId: true,
+        paymentMode: true,
+        dualPayment: true,
+        secondaryConsigneeId: true,
+        secondaryPaymentMode: true,
+      },
     }),
     tongTypeIds.length > 0
       ? prisma.tongType.findMany({
@@ -61,9 +67,14 @@ export async function loadInboundFreightContext(
 
   const consigneeIds = Array.from(
     new Set(
-      stalls
-        .map((stall) => stall.consigneeId)
-        .filter((id): id is string => Boolean(id))
+      [
+        ...stalls
+          .map((stall) => stall.consigneeId)
+          .filter((id): id is string => Boolean(id)),
+        ...paymentRelations
+          .map((relation) => relation.secondaryConsigneeId)
+          .filter((id): id is string => Boolean(id)),
+      ]
     )
   );
 
@@ -120,7 +131,12 @@ export async function loadInboundFreightContext(
       paymentRelations: new Map(
         paymentRelations.map((relation) => [
           `${shipperId}:${relation.consigneeId}`,
-          { paymentMode: relation.paymentMode },
+          {
+            paymentMode: relation.paymentMode,
+            dualPayment: relation.dualPayment,
+            secondaryConsigneeId: relation.secondaryConsigneeId,
+            secondaryPaymentMode: relation.secondaryPaymentMode,
+          },
         ])
       ),
       shipperRatesByMarket,

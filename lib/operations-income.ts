@@ -193,6 +193,10 @@ export async function aggregateOperationsIncome(
         snapshot.freightAmount,
         snapshot.currency
       );
+
+      if ((snapshot.dualPaymentWtlAmount ?? 0) > 0) {
+        addIncomeAmount(totals, "3", snapshot.dualPaymentWtlAmount!, "MYR");
+      }
     }
   }
 

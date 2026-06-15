@@ -40,6 +40,9 @@ export interface InboundLineFreightSnapshot {
   mySegmentFreightAmount: number | null;
   thFreightRate: number | null;
   thFreightAmount: number | null;
+  /** Secondary WTL MYR income when dual_payment relation applies (mode 3). */
+  dualPaymentWtlRate?: number | null;
+  dualPaymentWtlAmount?: number | null;
 }
 
 interface RateRow {
@@ -76,7 +79,15 @@ export interface InboundFreightContext {
     }
   >;
   consignees: Map<string, { billingCompany: string }>;
-  paymentRelations: Map<string, { paymentMode: string }>;
+  paymentRelations: Map<
+    string,
+    {
+      paymentMode: string;
+      dualPayment?: boolean;
+      secondaryConsigneeId?: string | null;
+      secondaryPaymentMode?: string | null;
+    }
+  >;
   shipperRatesByMarket: Map<
     string,
     { rateTong: number | null; rateBox: number | null; currency: string }
@@ -99,17 +110,65 @@ function defaultShipperPaymentMode(shipperCurrency: string): PaymentMode {
 function resolvePaymentMode(
   shipperId: string,
   consigneeId: string | null | undefined,
-  relations: Map<string, { paymentMode: string }>,
+  relations: Map<
+    string,
+    {
+      paymentMode: string;
+      dualPayment?: boolean;
+      secondaryConsigneeId?: string | null;
+      secondaryPaymentMode?: string | null;
+    }
+  >,
   shipperCurrency: string
 ): PaymentMode {
   if (consigneeId) {
     const relation = relations.get(relationKey(shipperId, consigneeId));
+    if (relation?.dualPayment) {
+      return "1a";
+    }
     const mode = relation?.paymentMode;
     if (mode === "1a" || mode === "1b" || mode === "2" || mode === "3") {
       return mode;
     }
   }
   return defaultShipperPaymentMode(shipperCurrency);
+}
+
+function resolveDualPaymentWtlIncome(
+  line: InboundLineFreightInput,
+  ctx: InboundFreightContext,
+  relation:
+    | {
+        dualPayment?: boolean;
+        secondaryConsigneeId?: string | null;
+        secondaryPaymentMode?: string | null;
+      }
+    | undefined,
+  marketId: string | null
+): { rate: number | null; amount: number | null } {
+  if (
+    !relation?.dualPayment ||
+    relation.secondaryPaymentMode !== "3" ||
+    !relation.secondaryConsigneeId ||
+    !marketId ||
+    line.quantity <= 0
+  ) {
+    return { rate: null, amount: null };
+  }
+
+  const isBox = ctx.tongTypes.get(line.tongTypeId)?.isBox ?? false;
+  const consigneeRate = ctx.consigneeRatesByConsigneeMarket.get(
+    `${relation.secondaryConsigneeId}:${marketId}`
+  );
+  const unitRate = pickUnitRate(isBox, consigneeRate);
+  if (unitRate == null) {
+    return { rate: null, amount: null };
+  }
+
+  return {
+    rate: unitRate,
+    amount: roundMoney(line.quantity * unitRate),
+  };
 }
 
 function usesConsigneeRate(paymentMode: PaymentMode) {
@@ -237,13 +296,17 @@ export function computeInboundLineFreight(
   const marketCode = stall?.marketCode ?? "";
   const consigneeId = stall?.consigneeId ?? null;
   const isBox = ctx.tongTypes.get(line.tongTypeId)?.isBox ?? false;
+  const relation = consigneeId
+    ? ctx.paymentRelations.get(relationKey(ctx.shipper.id, consigneeId))
+    : undefined;
+  const isDualPayment = relation?.dualPayment === true;
   const paymentMode = resolvePaymentMode(
     ctx.shipper.id,
     consigneeId,
     ctx.paymentRelations,
     ctx.shipper.currency
   );
-  const consigneePays = usesConsigneeRate(paymentMode);
+  const consigneePays = !isDualPayment && usesConsigneeRate(paymentMode);
   const paymentParty: "shipper" | "consignee" = consigneePays
     ? "consignee"
     : "shipper";
@@ -325,6 +388,8 @@ export function computeInboundLineFreight(
     }
   }
 
+  const dualWtl = resolveDualPaymentWtlIncome(line, ctx, relation, marketId);
+
   return {
     consigneeId,
     paymentParty,
@@ -340,6 +405,8 @@ export function computeInboundLineFreight(
     mySegmentFreightAmount,
     thFreightRate,
     thFreightAmount,
+    dualPaymentWtlRate: dualWtl.rate,
+    dualPaymentWtlAmount: dualWtl.amount,
   };
 }
 

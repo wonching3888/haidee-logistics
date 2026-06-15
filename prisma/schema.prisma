@@ -183,6 +183,7 @@ model Consignee {
 
   freightRates     ConsigneeFreightRate[]
   paymentRelations PaymentRelation[]
+  secondaryPaymentRelations PaymentRelation[] @relation("SecondaryPaymentConsignee")
   stalls           Stall[]
   inboundLines     InboundLine[]
 
@@ -205,13 +206,17 @@ model ConsigneeFreightRate {
 }
 
 model PaymentRelation {
-  id          String @id @default(uuid()) @db.Uuid
-  shipperId   String @map("shipper_id") @db.Uuid
-  consigneeId String @map("consignee_id") @db.Uuid
-  paymentMode String @map("payment_mode")
+  id                   String   @id @default(uuid()) @db.Uuid
+  shipperId            String   @map("shipper_id") @db.Uuid
+  consigneeId          String   @map("consignee_id") @db.Uuid
+  paymentMode          String   @map("payment_mode")
+  dualPayment          Boolean  @default(false) @map("dual_payment")
+  secondaryConsigneeId String?  @map("secondary_consignee_id") @db.Uuid
+  secondaryPaymentMode String?  @map("secondary_payment_mode")
 
-  shipper   Shipper   @relation(fields: [shipperId], references: [id], onDelete: Cascade)
-  consignee Consignee @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
+  shipper            Shipper    @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+  consignee          Consignee  @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
+  secondaryConsignee Consignee? @relation("SecondaryPaymentConsignee", fields: [secondaryConsigneeId], references: [id])
 
   @@unique([shipperId, consigneeId])
   @@map("payment_relations")
