@@ -7,16 +7,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { DEFAULT_FUEL_PRICES } from "@/lib/constants/truck-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
 import type { MaritalStatus } from "@/lib/constants/payroll";
-import { aggregateDispatchOperationalCosts } from "@/lib/operations-trip-costs";
+import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
 import {
   buildOperationsDashboardMetrics,
-  estimateTruckMonthlyCosts,
   type OperationsDashboardData,
 } from "@/lib/operations-dashboard";
 
@@ -198,39 +196,17 @@ export async function getOperationsDashboard(input: {
     tripCosts,
     lkimMaqisFee,
     exchangeRateRow,
-    fuelPriceRow,
-    trucks,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month),
     aggregateMcThirdParty(input.year, input.month),
     aggregateFleetPayroll(yearMonth),
-    aggregateDispatchOperationalCosts(input.year, input.month),
+    aggregateOperationsCosts(input.year, input.month),
     loadLkimMaqisFee(yearMonth),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
-    prisma.fuelPrice.findUnique({ where: { id: "default" } }),
-    prisma.truck.findMany({
-      where: { active: true, country: "MY" },
-      include: { costItems: true },
-    }),
   ]);
 
   const exchangeRate =
     decimalToNumber(exchangeRateRow?.rate) ?? DEFAULT_EXCHANGE_RATE;
-  const fuelPriceMyr =
-    decimalToNumber(fuelPriceRow?.myrPerLiter) ?? DEFAULT_FUEL_PRICES.myrPerLiter;
-
-  const truckCosts = estimateTruckMonthlyCosts({
-    trucks: trucks.map((truck) => ({
-      country: truck.country,
-      active: truck.active,
-      annualMileageKm: truck.annualMileageKm,
-      fuelEfficiencyKmPerL: decimalToNumber(truck.fuelEfficiencyKmPerL),
-      costItems: truck.costItems.map((item) => ({
-        annualAmount: decimalToNumber(item.annualAmount) ?? 0,
-      })),
-    })),
-    fuelPriceMyr,
-  });
 
   return buildOperationsDashboardMetrics({
     year: input.year,
@@ -241,9 +217,6 @@ export async function getOperationsDashboard(input: {
     income,
     payrollNetMyr: payroll.netMyr,
     payrollHasRecords: payroll.hasRecords,
-    truckFuelMyr: truckCosts.fuelMyr,
-    truckMaintenanceMyr: truckCosts.maintenanceMyr,
-    truckEstimateCount: truckCosts.truckCount,
     mcThirdPartyMyr,
     tripCosts,
     manualCosts: {

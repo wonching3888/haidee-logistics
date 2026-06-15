@@ -50,10 +50,19 @@ export interface OperationsDashboardData {
   };
   grossProfitMyr: number;
   tripCosts: {
+    fuelMyr: number;
+    maintenanceMyr: number;
     tollFee: number;
+    fishCheckingFee: number;
+    parkingFee: number;
+    borderPass: number;
+    epermit: number;
+    dagangNet: number;
+    forwarding: number;
     crateRental: number;
     loadUnloadFee: number;
     tripCount: number;
+    totalMileageKm: number;
     routeCount: number;
   };
   manualCosts: {
@@ -131,15 +140,21 @@ export function buildOperationsDashboardMetrics(input: {
   };
   payrollNetMyr: number;
   payrollHasRecords: boolean;
-  truckFuelMyr: number;
-  truckMaintenanceMyr: number;
-  truckEstimateCount: number;
   mcThirdPartyMyr: number;
   tripCosts: {
+    fuelMyr: number;
+    maintenanceMyr: number;
     tollFee: number;
+    fishCheckingFee: number;
+    parkingFee: number;
+    borderPass: number;
+    epermit: number;
+    dagangNet: number;
+    forwarding: number;
     crateRental: number;
     loadUnloadFee: number;
     tripCount: number;
+    totalMileageKm: number;
     routeCount: number;
   };
   manualCosts: {
@@ -205,31 +220,79 @@ export function buildOperationsDashboardMetrics(input: {
       key: "fuel",
       label: "车辆油费",
       labelEn: "Vehicle Fuel",
-      amountMyr: input.truckFuelMyr,
-      source: "estimate",
+      amountMyr: input.tripCosts.fuelMyr,
+      source: "actual",
       detail:
-        input.truckEstimateCount > 0
-          ? `${input.truckEstimateCount} 辆 MY 车 · 年里程÷12 × 油耗`
-          : "未设定车辆年里程",
+        input.tripCosts.tripCount > 0
+          ? `${input.tripCosts.tripCount} 趟 · 最高路线里程 ${input.tripCosts.totalMileageKm.toFixed(0)} km`
+          : "当月无派车趟次",
     },
     {
       key: "maintenance",
       label: "维修/保险摊算",
       labelEn: "Maintenance & Insurance",
-      amountMyr: input.truckMaintenanceMyr,
-      source: "estimate",
-      detail: "RM/km × 月里程（年成本÷12）",
+      amountMyr: input.tripCosts.maintenanceMyr,
+      source: "actual",
+      detail: "实际派车里程 × 车辆 RM/km",
     },
     {
       key: "toll",
-      label: "过路费/过境费",
-      labelEn: "Toll / Border Fees",
+      label: "过路费 Toll",
+      labelEn: "Toll",
       amountMyr: input.tripCosts.tollFee,
       source: "actual",
       detail:
         input.tripCosts.tripCount > 0
-          ? `${input.tripCosts.tripCount} 趟 · 路线×市场费率`
+          ? `${input.tripCosts.tripCount} 趟 · 路线最高 toll`
           : "当月无派车趟次",
+    },
+    {
+      key: "fishChecking",
+      label: "Fish Checking Fee",
+      labelEn: "Fish Checking Fee",
+      amountMyr: input.tripCosts.fishCheckingFee,
+      source: "actual",
+      detail: "涉及路线 fish_checking_fee 加总",
+    },
+    {
+      key: "parking",
+      label: "Parking Fee",
+      labelEn: "Parking Fee",
+      amountMyr: input.tripCosts.parkingFee,
+      source: "actual",
+      detail: "涉及路线 parking_fee 加总",
+    },
+    {
+      key: "borderPass",
+      label: "Border Pass",
+      labelEn: "Border Pass",
+      amountMyr: input.tripCosts.borderPass,
+      source: "actual",
+      detail: "每趟固定 · global_cost_settings",
+    },
+    {
+      key: "epermit",
+      label: "EPERMIT",
+      labelEn: "EPERMIT",
+      amountMyr: input.tripCosts.epermit,
+      source: "actual",
+      detail: "每趟固定 · global_cost_settings",
+    },
+    {
+      key: "dagangNet",
+      label: "Dagang Net",
+      labelEn: "Dagang Net",
+      amountMyr: input.tripCosts.dagangNet,
+      source: "actual",
+      detail: "每趟固定 · global_cost_settings",
+    },
+    {
+      key: "forwarding",
+      label: "Forwarding（Zaewe）",
+      labelEn: "Forwarding (Zaewe)",
+      amountMyr: input.tripCosts.forwarding,
+      source: "actual",
+      detail: "每趟 outbound · global_cost_settings",
     },
     {
       key: "crateRental",
