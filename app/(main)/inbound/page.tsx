@@ -5,7 +5,7 @@ import { getInboundSessions, getShippers } from "@/app/actions/inbound";
 import { InboundFilters } from "@/components/inbound/InboundFilters";
 import { InboundListTable } from "@/components/inbound/InboundListTable";
 import { PageError } from "@/components/shared/PageError";
-import { toDateInputValue } from "@/lib/inbound-utils";
+import { serializeInboundSessionListRows } from "@/lib/inbound-list";
 
 export const dynamic = "force-dynamic";
 
@@ -65,16 +65,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
 
         <div className="min-h-0 min-w-0 flex-1">
           <InboundListTable
-            sessions={sessions.map((session) => ({
-              ...session,
-              date: toDateInputValue(new Date(session.date)),
-              totalQty: Number(session.totalQty) || 0,
-              crateQty: Number(session.crateQty) || 0,
-              boxQty: Number(session.boxQty) || 0,
-              unassignedQty: Number(session.unassignedQty) || 0,
-              unassignedCrateQty: Number(session.unassignedCrateQty) || 0,
-              unassignedBoxQty: Number(session.unassignedBoxQty) || 0,
-            }))}
+            sessions={serializeInboundSessionListRows(sessions)}
           />
         </div>
       </div>

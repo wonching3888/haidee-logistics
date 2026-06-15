@@ -8,18 +8,19 @@ interface MobileTruncatedNameProps {
 
 /** Mobile-only name truncation with full text in title for tap/hover. */
 export function MobileTruncatedName({ text, className }: MobileTruncatedNameProps) {
-  const shouldTruncate = text.length > 15;
-  const mobileDisplay = truncateNameForMobile(text);
+  const label = text ?? "";
+  const shouldTruncate = label.length > 15;
+  const mobileDisplay = truncateNameForMobile(label);
 
   return (
     <>
       <span
         className={cn("md:hidden", className)}
-        title={shouldTruncate ? text : undefined}
+        title={shouldTruncate ? label : undefined}
       >
         {mobileDisplay}
       </span>
-      <span className={cn("hidden md:inline", className)}>{text}</span>
+      <span className={cn("hidden md:inline", className)}>{label}</span>
     </>
   );
 }

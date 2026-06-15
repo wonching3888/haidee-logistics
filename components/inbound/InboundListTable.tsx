@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
@@ -7,6 +5,7 @@ import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
+import type { InboundSessionListRow } from "@/lib/inbound-list";
 import {
   STICKY_BODY_FIRST,
   STICKY_HEAD_FIRST,
@@ -14,23 +13,6 @@ import {
 } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-
-export interface InboundSessionListRow {
-  id: string;
-  sessionNo: string | null;
-  date: string;
-  status: string;
-  shipperName: string;
-  areaNote: string | null;
-  pickupLocationLabel: string;
-  thVehiclePlate: string | null;
-  totalQty: number;
-  crateQty: number;
-  boxQty: number;
-  unassignedQty: number;
-  unassignedCrateQty: number;
-  unassignedBoxQty: number;
-}
 
 interface InboundListTableProps {
   sessions: InboundSessionListRow[];
