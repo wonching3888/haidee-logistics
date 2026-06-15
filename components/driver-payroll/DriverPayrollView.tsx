@@ -17,6 +17,7 @@ import {
   deleteDriverPayrollExtra,
   exportDriverPayrollAutoCount,
   getDriverPayrollMonth,
+  getDriverPayrollMonthlySummary,
   saveDriverPayrollOverrides,
   saveDriverPayrollTrip,
 } from "@/app/actions/driver-payroll";
@@ -24,6 +25,8 @@ import { PAYROLL_EXTRA_TYPES } from "@/lib/constants/payroll";
 import type { buildPayrollSummary } from "@/lib/payroll-statutory";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getRouteLabel } from "@/lib/payroll-route-label";
+import { DriverPayrollSummaryTable } from "@/components/driver-payroll/DriverPayrollSummaryTable";
+import { cn } from "@/lib/utils";
 
 interface DriverOption {
   id: string;
@@ -38,7 +41,9 @@ interface DriverPayrollViewProps {
 }
 
 type PayrollData = Awaited<ReturnType<typeof getDriverPayrollMonth>>;
+type SummaryData = Awaited<ReturnType<typeof getDriverPayrollMonthlySummary>>;
 type Summary = ReturnType<typeof buildPayrollSummary>;
+type PayrollTab = "summary" | "detail";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
@@ -55,7 +60,9 @@ export function DriverPayrollView({
   const [driverId, setDriverId] = useState(initialDriverId ?? drivers[0]?.id ?? "");
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
+  const [activeTab, setActiveTab] = useState<PayrollTab>("summary");
   const [data, setData] = useState<PayrollData | null>(null);
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [overrideForm, setOverrideForm] = useState<Record<string, string>>({});
@@ -65,6 +72,19 @@ export function DriverPayrollView({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
     note: "",
   });
+
+  function loadSummary() {
+    startTransition(async () => {
+      setError(null);
+      try {
+        const result = await getDriverPayrollMonthlySummary({ year, month });
+        setSummaryData(result);
+      } catch (e) {
+        setSummaryData(null);
+        setError(e instanceof Error ? e.message : "加载汇总失败");
+      }
+    });
+  }
 
   function loadPayroll() {
     if (!driverId) return;
@@ -90,16 +110,29 @@ export function DriverPayrollView({
   }
 
   useEffect(() => {
+    loadSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month]);
+
+  useEffect(() => {
+    if (activeTab !== "detail") return;
     loadPayroll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverId, year, month]);
+  }, [driverId, year, month, activeTab]);
+
+  function reloadAll() {
+    loadSummary();
+    if (activeTab === "detail") {
+      loadPayroll();
+    }
+  }
 
   function runAction(fn: () => Promise<void>) {
     setError(null);
     startTransition(async () => {
       try {
         await fn();
-        loadPayroll();
+        reloadAll();
       } catch (e) {
         setError(e instanceof Error ? e.message : "操作失败");
       }
@@ -135,20 +168,6 @@ export function DriverPayrollView({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">司机 Driver</label>
-          <select
-            value={driverId}
-            onChange={(e) => setDriverId(e.target.value)}
-            className="min-h-[44px] min-w-[200px] rounded-lg border border-haidee-border px-3 text-sm"
-          >
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
           <label className="text-sm font-medium">年份 Year</label>
           <select
             value={year}
@@ -176,28 +195,128 @@ export function DriverPayrollView({
             ))}
           </select>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="gap-2"
-          disabled={!driverId || isPending}
-          onClick={handleExport}
-        >
-          <Download className="h-4 w-4" />
-          AutoCount 导出
-        </Button>
       </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-haidee-border">
+        {(
+          [
+            ["summary", "汇总 Summary"],
+            ["detail", "个人明细 Detail"],
+          ] as const
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+              activeTab === tab
+                ? "border-haidee-navy text-haidee-navy"
+                : "border-transparent text-haidee-muted hover:text-haidee-text"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "summary" ? (
+        isPending && !summaryData ? (
+          <div className="h-40 animate-pulse rounded-xl bg-haidee-border/30" />
+        ) : summaryData ? (
+          <DriverPayrollSummaryTable data={summaryData} />
+        ) : null
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">司机 Driver</label>
+              <select
+                value={driverId}
+                onChange={(e) => setDriverId(e.target.value)}
+                className="min-h-[44px] min-w-[200px] rounded-lg border border-haidee-border px-3 text-sm"
+              >
+                {drivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={!driverId || isPending}
+              onClick={handleExport}
+            >
+              <Download className="h-4 w-4" />
+              AutoCount 导出
+            </Button>
+          </div>
+
+          {isPending && !data ? (
+            <div className="h-40 animate-pulse rounded-xl bg-haidee-border/30" />
+          ) : data ? (
+            <DriverPayrollDetailSections
+              data={data}
+              summary={summary}
+              isPending={isPending}
+              overrideForm={overrideForm}
+              setOverrideForm={setOverrideForm}
+              extraForm={extraForm}
+              setExtraForm={setExtraForm}
+              runAction={runAction}
+              parseOptionalOverride={parseOptionalOverride}
+            />
+          ) : null}
+        </>
+      )}
 
       {error && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
           {error}
         </p>
       )}
+    </div>
+  );
+}
 
-      {isPending && !data ? (
-        <div className="h-40 animate-pulse rounded-xl bg-haidee-border/30" />
-      ) : data ? (
-        <>
+function DriverPayrollDetailSections({
+  data,
+  summary,
+  isPending,
+  overrideForm,
+  setOverrideForm,
+  extraForm,
+  setExtraForm,
+  runAction,
+  parseOptionalOverride,
+}: {
+  data: PayrollData;
+  summary: Summary | undefined;
+  isPending: boolean;
+  overrideForm: Record<string, string>;
+  setOverrideForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  extraForm: {
+    type: string;
+    amount: string;
+    date: string;
+    note: string;
+  };
+  setExtraForm: React.Dispatch<
+    React.SetStateAction<{
+      type: string;
+      amount: string;
+      date: string;
+      note: string;
+    }>
+  >;
+  runAction: (fn: () => Promise<void>) => void;
+  parseOptionalOverride: (value: string) => number | null;
+}) {
+  return (
+    <>
           <section className="rounded-xl border border-haidee-border bg-white p-4">
             <h3 className="mb-3 font-semibold">趟次记录 Trips</h3>
             <ScrollMatrixTable heightOffset={480}>
@@ -453,8 +572,6 @@ export function DriverPayrollView({
             </section>
           </div>
         </>
-      ) : null}
-    </div>
   );
 }
 

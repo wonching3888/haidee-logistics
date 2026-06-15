@@ -138,8 +138,12 @@ export function buildOperationsDashboardMetrics(input: {
     gapReasons: Partial<Record<InboundFreightGapReason, number>>;
     warningSamples: OperationsIncomeWarningSample[];
   };
-  payrollNetMyr: number;
-  payrollHasRecords: boolean;
+  payroll: {
+    netMyr: number;
+    employerMyr: number;
+    totalMyr: number;
+    hasRecords: boolean;
+  };
   mcThirdPartyMyr: number;
   tripCosts: {
     fuelMyr: number;
@@ -212,9 +216,10 @@ export function buildOperationsDashboardMetrics(input: {
     {
       key: "payroll",
       label: "马来西亚司机薪资",
-      labelEn: "Driver Net Payroll",
-      amountMyr: input.payrollNetMyr,
-      source: input.payrollHasRecords ? "actual" : "estimate",
+      labelEn: "Driver Payroll",
+      amountMyr: input.payroll.totalMyr,
+      source: input.payroll.hasRecords ? "actual" : "estimate",
+      detail: `实发 ${input.payroll.netMyr.toFixed(2)} + 雇主供款 ${input.payroll.employerMyr.toFixed(2)}`,
     },
     {
       key: "fuel",
