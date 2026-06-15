@@ -9,21 +9,27 @@ const prisma = new PrismaClient({
 type UpsertStats = { inserted: number; updated: number; skipped: number };
 
 const DRIVER_ROWS = [
-  { nickname: "HALIM", full_name: "Abdul Halim Bin Ahmad", ic_number: "920423-02-5747", bank_name: "CIMB", bank_account: "705-806-8978", epf_number: "18874734", socso_number: "920423025747", tin_number: "IG24766536030", children_count: 2, phone: "0195056826", marital_status: "married" },
-  { nickname: "SHARIF", full_name: "Sharif Bin Mat", ic_number: "731127-02-5993", bank_name: "HLBB", bank_account: "0315-1216-472", epf_number: "12805588", socso_number: "731127025993", tin_number: "IG53883187010", children_count: 2, phone: "01115274050", marital_status: "married" },
-  { nickname: "AZRIN", full_name: "Mohd Azrin Bin Mohd Sadri", ic_number: "870708-02-5529", bank_name: "Maybank", bank_account: "1520-9572-6872", epf_number: "17091372", socso_number: "870708025529", tin_number: "IG55274074080", children_count: 4, phone: "0133751430", marital_status: "married" },
-  { nickname: "MUSTAFA", full_name: "Mustafa", ic_number: "870331-29-5157", bank_name: "Maybank", bank_account: "1051-3013-1330", epf_number: "16977592", socso_number: "870331295157", tin_number: "IG40431418100", children_count: 4, phone: "0183676235", marital_status: "married" },
-  { nickname: "ASRUL", full_name: "Muhammad Asrul Bin Abdul Jalil", ic_number: "780528-02-5653", bank_name: "PBB", bank_account: "780528025653", epf_number: "13886068", socso_number: "780528025653", tin_number: "IG25122467080", children_count: 1, phone: "01135315653", marital_status: "married" },
-  { nickname: "ROZAIME", full_name: "Rozaime Bin Othman", ic_number: "930703-09-5095", bank_name: "Maybank", bank_account: "1590-1304-6787", epf_number: "19379569", socso_number: "930703095095", tin_number: "IG57295761000", children_count: 4, phone: "01123460878", marital_status: "married" },
-  { nickname: "FOOK", full_name: "Yong Ah Fook", ic_number: "640421-02-5309", bank_name: "Maybank", bank_account: "1522-1905-8650", epf_number: "12798115", socso_number: "640421025309", tin_number: "IG5425518100", children_count: 0, phone: "0173461171", marital_status: "single" },
-  { nickname: "FAIZAL", full_name: "Ku Mohd Faizal Bin Ku Aziz", ic_number: "810824-02-5791", bank_name: "Maybank", bank_account: "1520-6882-8445", epf_number: "15091618", socso_number: "810824025791", tin_number: "IG22158103000", children_count: 3, phone: "0194755791", marital_status: "married" },
-  { nickname: "HAKIM", full_name: "Muhammad Hakim Bin Mat Sarip", ic_number: "971108-02-5333", bank_name: "PBB", bank_account: "692-986-8521", epf_number: "22977010", socso_number: "971108025333", tin_number: "IG29508534070", children_count: 2, phone: "0194932482", marital_status: "married" },
-  { nickname: "NAIM", full_name: "Mohamad Naim Bin Zulkefli", ic_number: "980618-09-5053", bank_name: "Maybank", bank_account: "5590-1234-8321", epf_number: "22655742", socso_number: "980618095053", tin_number: "IG29052842090", children_count: 0, phone: "0183124379", marital_status: "single" },
-  { nickname: "AZHAR", full_name: "Norazhar Bin Baharom", ic_number: "810927-09-5047", bank_name: "CIMB", bank_account: "860-333-8501", epf_number: "17149154", socso_number: "810927095047", tin_number: "IG11679262000", children_count: 3, phone: "01157340874", marital_status: "married" },
-  { nickname: "SHAFINAR", full_name: "Mohd Shafinar Bin Abdullah", ic_number: "850527-02-5089", bank_name: "PBB", bank_account: "681-324-2001", epf_number: "19046951", socso_number: "850527025089", tin_number: "IG54845144030", children_count: 3, phone: "0194957530", marital_status: "married" },
-  { nickname: "KHAIRUDDIN", full_name: "Khairuddin Bin Hashim", ic_number: "890518-02-5745", bank_name: "Maybank", bank_account: "1522-1911-0535", epf_number: "17697105", socso_number: "890518025745", tin_number: "IG26679143030", children_count: 0, phone: "0132865539", marital_status: "single" },
-  { nickname: "IKMAL", full_name: "Mohd Ikmal Hisham Bin Hanapi", ic_number: "890628-02-5885", bank_name: "PBB", bank_account: "686-873-0423", epf_number: "17814248", socso_number: "890628025885", tin_number: "IG25668552050", children_count: 2, phone: "0103872159", marital_status: "married" },
+  { nickname: "Halim", full_name: "Abdul Halim Bin Ahmad", ic_number: "920423-02-5747", bank_name: "CIMB", bank_account: "705-806-8978", epf_number: "18874734", socso_number: "920423025747", tin_number: "IG24766536030", children_count: 2, phone: "0195056826", marital_status: "married" },
+  { nickname: "Awang", full_name: "Sharif Bin Mat", ic_number: "731127-02-5993", bank_name: "HLBB", bank_account: "0315-1216-472", epf_number: "12805588", socso_number: "731127025993", tin_number: "IG53883187010", children_count: 2, phone: "01115274050", marital_status: "married" },
+  { nickname: "Azrin", full_name: "Mohd Azrin Bin Mohd Sadri", ic_number: "870708-02-5529", bank_name: "Maybank", bank_account: "1520-9572-6872", epf_number: "17091372", socso_number: "870708025529", tin_number: "IG55274074080", children_count: 4, phone: "0133751430", marital_status: "married" },
+  { nickname: "Wan", full_name: "Mustafa", ic_number: "870331-29-5157", bank_name: "Maybank", bank_account: "1051-3013-1330", epf_number: "16977592", socso_number: "870331295157", tin_number: "IG40431418100", children_count: 4, phone: "0183676235", marital_status: "married" },
+  { nickname: "Own", full_name: "Muhammad Asrul Bin Abdul Jalil", ic_number: "780528-02-5653", bank_name: "PBB", bank_account: "780528025653", epf_number: "13886068", socso_number: "780528025653", tin_number: "IG25122467080", children_count: 1, phone: "01135315653", marital_status: "married" },
+  { nickname: "Rozaime", full_name: "Rozaime Bin Othman", ic_number: "930703-09-5095", bank_name: "Maybank", bank_account: "1590-1304-6787", epf_number: "19379569", socso_number: "930703095095", tin_number: "IG57295761000", children_count: 4, phone: "01123460878", marital_status: "married" },
+  { nickname: "Fook", full_name: "Yong Ah Fook", ic_number: "640421-02-5309", bank_name: "Maybank", bank_account: "1522-1905-8650", epf_number: "12798115", socso_number: "640421025309", tin_number: "IG5425518100", children_count: 0, phone: "0173461171", marital_status: "single" },
+  { nickname: "Faizal", full_name: "Ku Mohd Faizal Bin Ku Aziz", ic_number: "810824-02-5791", bank_name: "Maybank", bank_account: "1520-6882-8445", epf_number: "15091618", socso_number: "810824025791", tin_number: "IG22158103000", children_count: 3, phone: "0194755791", marital_status: "married" },
+  { nickname: "Akim", full_name: "Muhammad Hakim Bin Mat Sarip", ic_number: "971108-02-5333", bank_name: "PBB", bank_account: "692-986-8521", epf_number: "22977010", socso_number: "971108025333", tin_number: "IG29508534070", children_count: 2, phone: "0194932482", marital_status: "married" },
+  { nickname: "Naim", full_name: "Mohamad Naim Bin Zulkefli", ic_number: "980618-09-5053", bank_name: "Maybank", bank_account: "5590-1234-8321", epf_number: "22655742", socso_number: "980618095053", tin_number: "IG29052842090", children_count: 0, phone: "0183124379", marital_status: "single" },
+  { nickname: "Azhar", full_name: "Norazhar Bin Baharom", ic_number: "810927-09-5047", bank_name: "CIMB", bank_account: "860-333-8501", epf_number: "17149154", socso_number: "810927095047", tin_number: "IG11679262000", children_count: 3, phone: "01157340874", marital_status: "married" },
+  { nickname: "Pinat", full_name: "Mohd Shafinar Bin Abdullah", ic_number: "850527-02-5089", bank_name: "PBB", bank_account: "681-324-2001", epf_number: "19046951", socso_number: "850527025089", tin_number: "IG54845144030", children_count: 3, phone: "0194957530", marital_status: "married" },
+  { nickname: "Din", full_name: "Khairuddin Bin Hashim", ic_number: "890518-02-5745", bank_name: "Maybank", bank_account: "1522-1911-0535", epf_number: "17697105", socso_number: "890518025745", tin_number: "IG26679143030", children_count: 0, phone: "0132865539", marital_status: "single" },
+  { nickname: "Ikmal", full_name: "Mohd Ikmal Hisham Bin Hanapi", ic_number: "890628-02-5885", bank_name: "PBB", bank_account: "686-873-0423", epf_number: "17814248", socso_number: "890628025885", tin_number: "IG25668552050", children_count: 2, phone: "0103872159", marital_status: "married" },
 ] as const;
+
+function mapBankName(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.toUpperCase() === "K") return "Maybank";
+  return trimmed;
+}
 
 const SHIPPER_ROWS = [
   { autocount_code: "3000-B001", name: "BS EASTERN FISHERY SDN BHD", currency: "MYR", payment_by: "SHIPPER", own_crate: true },
@@ -179,8 +185,11 @@ async function upsertDrivers(): Promise<UpsertStats> {
   for (const row of DRIVER_ROWS) {
     const data = {
       name: row.nickname,
+      nickname: row.nickname,
       fullName: row.full_name,
       icNumber: row.ic_number,
+      bankName: mapBankName(row.bank_name),
+      bankAccount: row.bank_account,
       epfNumber: row.epf_number,
       socsoNumber: row.socso_number,
       maritalStatus: row.marital_status,
@@ -188,18 +197,13 @@ async function upsertDrivers(): Promise<UpsertStats> {
       active: true,
     };
 
-    const byIc = await prisma.driver.findFirst({
+    const existing = await prisma.driver.findUnique({
       where: { icNumber: row.ic_number },
     });
-    const byName =
-      byIc ??
-      (await prisma.driver.findUnique({
-        where: { name: row.nickname },
-      }));
 
-    if (byName) {
+    if (existing) {
       await prisma.driver.update({
-        where: { id: byName.id },
+        where: { id: existing.id },
         data,
       });
       stats.updated += 1;
@@ -217,7 +221,8 @@ async function upsertShippers(defaultTongTypeId: string): Promise<UpsertStats> {
   const stats: UpsertStats = { inserted: 0, updated: 0, skipped: 0 };
   const seen = new Map<string, number>();
 
-  for (const [index, row] of SHIPPER_ROWS.entries()) {
+  for (let index = 0; index < SHIPPER_ROWS.length; index += 1) {
+    const row = SHIPPER_ROWS[index];
     const prev = seen.get(row.autocount_code);
     if (prev != null) {
       console.warn(
@@ -300,10 +305,10 @@ async function main() {
 
   console.log("\n=== Field mapping notes ===");
   console.log(
-    "drivers: nickname→name, full_name→full_name, ic_number→ic_number, children_count→child_count"
+    "drivers: nickname→nickname+name, full_name→full_name, ic_number→ic_number (unique), bank_name, bank_account"
   );
   console.log(
-    "drivers skipped (no DB column): bank_name, bank_account, tin_number, phone"
+    "drivers skipped (no DB column): tin_number, phone"
   );
   console.log(
     "shippers: autocount_code→code, payment_by→payment_party, currency→currency"

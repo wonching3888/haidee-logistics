@@ -294,13 +294,16 @@ model UnloadRate {
 model Driver {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique
+  nickname  String?
   fullName  String?  @map("full_name")
   active    Boolean  @default(true)
   baseSalary            Decimal? @map("base_salary") @db.Decimal(10, 2)
   autoCountEmployeeCode String?  @map("autocount_employee_code")
-  icNumber              String?  @map("ic_number")
+  icNumber              String?  @unique @map("ic_number")
   epfNumber             String?  @map("epf_number")
   socsoNumber           String?  @map("socso_number")
+  bankName              String?  @map("bank_name")
+  bankAccount           String?  @map("bank_account")
   maritalStatus         String?  @map("marital_status")
   childCount            Int      @default(0) @map("child_count")
   createdAt DateTime @default(now()) @map("created_at")
