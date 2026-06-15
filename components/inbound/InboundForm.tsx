@@ -144,6 +144,9 @@ export function InboundForm({
   const [displayFreightLines, setDisplayFreightLines] = useState<
     InboundFreightLine[]
   >(freightLines ?? []);
+  const rowsReady =
+    !loadingStalls &&
+    (rows.length > 0 || !initialSession?.lines.length);
 
   const loadStalls = useCallback(
     async (sid: string) => {
@@ -222,7 +225,7 @@ export function InboundForm({
   }, [freightLines]);
 
   useEffect(() => {
-    if (!showFreightPanel || !shipperId) return;
+    if (!showFreightPanel || !shipperId || !rowsReady) return;
 
     const activeLines = rows
       .filter((row) => !row.stallId.startsWith("new-"))
@@ -278,12 +281,35 @@ export function InboundForm({
   }, [
     showFreightPanel,
     shipperId,
+    rowsReady,
+    loadingStalls,
     date,
     sessionPickupLocation,
     areaNote,
     rows,
     shippers,
   ]);
+
+  const mergedFreightLines = useMemo(() => {
+    if (!displayFreightLines.length) return displayFreightLines;
+
+    const tongCodeById = new Map(tongTypes.map((tongType) => [tongType.id, tongType.code]));
+    const rowByLineId = new Map(
+      rows.filter((row) => row.lineId).map((row) => [row.lineId!, row])
+    );
+
+    return displayFreightLines.map((line) => {
+      const row = rowByLineId.get(line.id);
+      if (!row) return line;
+
+      return {
+        ...line,
+        tongTypeCode: tongCodeById.get(row.tongTypeId) ?? line.tongTypeCode,
+        quantity: parseInt(row.quantity, 10) || 0,
+        mcDeliveryMode: row.mcDeliveryMode ?? line.mcDeliveryMode,
+      };
+    });
+  }, [displayFreightLines, rows, tongTypes]);
 
   const marketTotals = useMemo(
     () =>
@@ -719,8 +745,8 @@ export function InboundForm({
         </div>
       )}
 
-      {showFreightPanel && displayFreightLines.length > 0 && (
-        <InboundFreightPanel lines={displayFreightLines} />
+      {showFreightPanel && mergedFreightLines.length > 0 && (
+        <InboundFreightPanel lines={mergedFreightLines} />
       )}
 
       {error && (

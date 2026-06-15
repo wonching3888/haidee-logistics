@@ -10,6 +10,9 @@ import { PageError } from "@/components/shared/PageError";
 import {
   serializeInboundFormInitialSession,
   serializeInboundFreightLines,
+  serializeMarketOptions,
+  serializeShipperOptions,
+  serializeTongTypeOptions,
 } from "@/lib/inbound-form-serialize";
 
 export const dynamic = "force-dynamic";
@@ -49,9 +52,9 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
       </div>
 
       <InboundForm
-        shippers={shippers}
-        tongTypes={tongTypes}
-        markets={markets}
+        shippers={serializeShipperOptions(shippers)}
+        tongTypes={serializeTongTypeOptions(tongTypes)}
+        markets={serializeMarketOptions(markets)}
         initialSession={serializeInboundFormInitialSession(session)}
         freightLines={
           session.showFreightInfo

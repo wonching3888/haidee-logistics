@@ -84,7 +84,7 @@ export function serializeInboundFormInitialSession(session: {
 export function serializeInboundFreightLines(
   lines: InboundSessionLineSource[]
 ): InboundFreightLine[] {
-  return lines.map((line) => ({
+  const serialized = lines.map((line) => ({
     id: line.id,
     stallCode: line.stallCode,
     marketCode: line.marketCode,
@@ -102,5 +102,49 @@ export function serializeInboundFreightLines(
     mySegmentFreightAmount: serializeMoney(line.mySegmentFreightAmount),
     thFreightRate: serializeMoney(line.thFreightRate),
     thFreightAmount: serializeMoney(line.thFreightAmount),
+  }));
+
+  return JSON.parse(JSON.stringify(serialized)) as InboundFreightLine[];
+}
+
+export function serializeShipperOptions(
+  shippers: {
+    id: string;
+    code: string;
+    name: string;
+    pickupLocation: string;
+  }[]
+) {
+  return shippers.map((shipper) => ({
+    id: shipper.id,
+    code: shipper.code,
+    name: shipper.name,
+    pickupLocation: shipper.pickupLocation,
+  }));
+}
+
+export function serializeTongTypeOptions(
+  tongTypes: { id: string; code: string; name: string }[]
+) {
+  return tongTypes.map((tongType) => ({
+    id: tongType.id,
+    code: tongType.code,
+    name: tongType.name,
+  }));
+}
+
+export function serializeMarketOptions(
+  markets: {
+    id: string;
+    code: string;
+    name: string;
+    displayName?: string;
+  }[]
+) {
+  return markets.map((market) => ({
+    id: market.id,
+    code: market.code,
+    name: market.name,
+    displayName: market.displayName ?? market.name,
   }));
 }
