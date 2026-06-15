@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import {
   getShipperStalls,
   getThVehiclePlates,
+  previewInboundFreightLines,
   saveInboundSession,
 } from "@/app/actions/inbound";
 import {
@@ -139,6 +140,10 @@ export function InboundForm({
       rowId: string;
     }[]
   >([]);
+  const showFreightPanel = freightLines !== undefined;
+  const [displayFreightLines, setDisplayFreightLines] = useState<
+    InboundFreightLine[]
+  >(freightLines ?? []);
 
   const loadStalls = useCallback(
     async (sid: string) => {
@@ -209,6 +214,76 @@ export function InboundForm({
   useEffect(() => {
     if (shipperId) loadStalls(shipperId);
   }, [shipperId, loadStalls]);
+
+  useEffect(() => {
+    if (freightLines) {
+      setDisplayFreightLines(freightLines);
+    }
+  }, [freightLines]);
+
+  useEffect(() => {
+    if (!showFreightPanel || !shipperId) return;
+
+    const activeLines = rows
+      .filter((row) => !row.stallId.startsWith("new-"))
+      .map((row) => ({
+        stallId: row.stallId,
+        tongTypeId: row.tongTypeId,
+        quantity: parseInt(row.quantity, 10) || 0,
+        lineId: row.lineId,
+        mcDeliveryMode: row.mcDeliveryMode,
+        stallCode: row.stallCode,
+        marketCode: row.marketCode,
+      }))
+      .filter((line) => line.quantity > 0);
+
+    let cancelled = false;
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          if (activeLines.length === 0) {
+            if (!cancelled) setDisplayFreightLines([]);
+            return;
+          }
+
+          const shipper = shippers.find((s) => s.id === shipperId);
+          const selectedPickup =
+            sessionPickupLocation || shipperDefaultPickup(shipper);
+
+          const preview = await previewInboundFreightLines({
+            date,
+            shipperId,
+            pickupLocation: tripPickupSaveValue(
+              selectedPickup,
+              shipper?.pickupLocation
+            ),
+            areaNote: areaNote || undefined,
+            lines: activeLines,
+          });
+
+          if (!cancelled) {
+            setDisplayFreightLines(preview);
+          }
+        } catch {
+          // Keep the last preview; avoid surfacing transient calc errors in the form.
+        }
+      })();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    showFreightPanel,
+    shipperId,
+    date,
+    sessionPickupLocation,
+    areaNote,
+    rows,
+    shippers,
+  ]);
 
   const marketTotals = useMemo(
     () =>
@@ -644,8 +719,8 @@ export function InboundForm({
         </div>
       )}
 
-      {freightLines && freightLines.length > 0 && (
-        <InboundFreightPanel lines={freightLines} />
+      {showFreightPanel && displayFreightLines.length > 0 && (
+        <InboundFreightPanel lines={displayFreightLines} />
       )}
 
       {error && (

@@ -1,6 +1,11 @@
 import { toDateInputValue } from "@/lib/inbound-utils";
 import type { InboundFreightLine } from "@/components/inbound/InboundFreightPanel";
 import type { McDeliveryMode } from "@/lib/inbound-freight";
+import { decimalToNumber } from "@/lib/freight-rates";
+
+function serializeMoney(value: unknown): number | null {
+  return decimalToNumber(value);
+}
 
 export interface InboundFormInitialSession {
   id: string;
@@ -90,12 +95,12 @@ export function serializeInboundFreightLines(
     paymentMode: line.paymentMode ?? null,
     currency: line.currency ?? null,
     billingCompany: line.billingCompany ?? null,
-    freightRate: line.freightRate ?? null,
-    freightAmount: line.freightAmount ?? null,
-    thirdPartyFee: line.thirdPartyFee ?? null,
-    mySegmentFreightRate: line.mySegmentFreightRate ?? null,
-    mySegmentFreightAmount: line.mySegmentFreightAmount ?? null,
-    thFreightRate: line.thFreightRate ?? null,
-    thFreightAmount: line.thFreightAmount ?? null,
+    freightRate: serializeMoney(line.freightRate),
+    freightAmount: serializeMoney(line.freightAmount),
+    thirdPartyFee: serializeMoney(line.thirdPartyFee),
+    mySegmentFreightRate: serializeMoney(line.mySegmentFreightRate),
+    mySegmentFreightAmount: serializeMoney(line.mySegmentFreightAmount),
+    thFreightRate: serializeMoney(line.thFreightRate),
+    thFreightAmount: serializeMoney(line.thFreightAmount),
   }));
 }

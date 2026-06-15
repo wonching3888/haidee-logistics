@@ -13,6 +13,7 @@ import {
   getPaymentModeLabel,
 } from "@/lib/constants/freight-settings";
 import { MC_MARKET_CODE } from "@/lib/inbound-freight";
+import { decimalToNumber } from "@/lib/freight-rates";
 
 export interface InboundFreightLine {
   id: string;
@@ -39,8 +40,9 @@ interface InboundFreightPanelProps {
 }
 
 function formatMoney(value: number | null | undefined, currency?: string | null) {
-  if (value == null) return "—";
-  const formatted = value.toFixed(2);
+  const amount = decimalToNumber(value);
+  if (amount == null) return "—";
+  const formatted = amount.toFixed(2);
   return currency ? `${formatted} ${currency}` : formatted;
 }
 

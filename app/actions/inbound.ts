@@ -38,6 +38,7 @@ import {
   type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
 import { loadInboundFreightContext } from "@/lib/freight-context";
+import { serializeInboundFreightLines } from "@/lib/inbound-form-serialize";
 
 function aggregateCrateQuantities(
   lines: { tongTypeId: string; quantity: number }[],
@@ -75,7 +76,11 @@ async function loadLineMeta(lines: InboundLineInput[]) {
       stalls.map((stall) => [
         stall.id,
         {
-          stallCode: stall.code,
+          stallCode: getStallDisplayLabel(
+            stall.market?.code ?? "",
+            stall.code,
+            stall.name
+          ),
           marketCode: stall.market?.code ?? "",
         },
       ])
@@ -710,6 +715,102 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
       }
       return true;
     });
+}
+
+interface PreviewFreightLineInput {
+  stallId: string;
+  tongTypeId: string;
+  quantity: number;
+  lineId?: string;
+  mcDeliveryMode?: "self" | "third_party" | null;
+  stallCode?: string;
+  marketCode?: string;
+}
+
+interface PreviewInboundFreightInput {
+  date: string;
+  shipperId: string;
+  pickupLocation?: string | null;
+  areaNote?: string | null;
+  lines: PreviewFreightLineInput[];
+}
+
+export async function previewInboundFreightLines(input: PreviewInboundFreightInput) {
+  const user = await getCurrentUser();
+  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+    return [];
+  }
+
+  const activeLines: InboundLineInput[] = input.lines
+    .filter((line) => line.quantity > 0 && !line.stallId.startsWith("new-"))
+    .map((line) => ({
+      stallId: line.stallId,
+      tongTypeId: line.tongTypeId,
+      quantity: line.quantity,
+      lineId: line.lineId,
+      mcDeliveryMode: line.mcDeliveryMode ?? undefined,
+    }));
+
+  if (activeLines.length === 0) return [];
+
+  const date = parseDateInput(input.date);
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: input.shipperId },
+    select: { pickupLocation: true },
+  });
+  if (!shipper) return [];
+
+  const effectivePickup = resolveSessionPickupLocation(
+    normalizeSessionPickupInput(input.pickupLocation),
+    shipper.pickupLocation
+  );
+
+  const { ctx } = await loadInboundFreightContext(
+    input.shipperId,
+    activeLines.map((line) => line.stallId),
+    activeLines.map((line) => line.tongTypeId),
+    date,
+    effectivePickup
+  );
+
+  const freightSnapshots = computeFreightSnapshots(activeLines, ctx);
+  const { stallMeta, tongMeta } = await loadLineMeta(activeLines);
+  const displayByLineId = new Map(
+    input.lines
+      .filter((line) => line.lineId)
+      .map((line) => [line.lineId!, line])
+  );
+
+  return serializeInboundFreightLines(
+    activeLines.map((line, index) => {
+      const snapshot = freightSnapshots[index];
+      const display = line.lineId ? displayByLineId.get(line.lineId) : undefined;
+      const stall = stallMeta.get(line.stallId);
+      const tong = tongMeta.get(line.tongTypeId);
+
+      return {
+        id: line.lineId ?? `preview-${line.stallId}-${index}`,
+        stallId: line.stallId,
+        tongTypeId: line.tongTypeId,
+        stallCode: display?.stallCode ?? stall?.stallCode ?? "",
+        marketCode: display?.marketCode ?? stall?.marketCode ?? "",
+        tongTypeCode: tong?.tongTypeCode ?? "",
+        quantity: line.quantity,
+        mcDeliveryMode: snapshot.mcDeliveryMode,
+        paymentParty: snapshot.paymentParty,
+        paymentMode: snapshot.paymentMode,
+        currency: snapshot.currency,
+        billingCompany: snapshot.billingCompany,
+        freightRate: snapshot.freightRate,
+        freightAmount: snapshot.freightAmount,
+        thirdPartyFee: snapshot.thirdPartyFee,
+        mySegmentFreightRate: snapshot.mySegmentFreightRate,
+        mySegmentFreightAmount: snapshot.mySegmentFreightAmount,
+        thFreightRate: snapshot.thFreightRate,
+        thFreightAmount: snapshot.thFreightAmount,
+      };
+    })
+  );
 }
 
 export async function getInboundSession(id: string) {
