@@ -65,10 +65,10 @@ export interface OperationsDashboardData {
     totalMileageKm: number;
     routeCount: number;
   };
-  manualCosts: {
-    lkimMaqisFee: number;
-    lkimMaqisTotalCrates: number;
-    lkimMaqisRatePerCrate: number;
+  lkimMaqis: {
+    totalAmountMyr: number;
+    totalCrates: number;
+    ratePerCrate: number;
   };
 }
 
@@ -163,10 +163,10 @@ export function buildOperationsDashboardMetrics(input: {
     totalMileageKm: number;
     routeCount: number;
   };
-  manualCosts: {
-    lkimMaqisFee: number;
-    lkimMaqisTotalCrates: number;
-    lkimMaqisRatePerCrate: number;
+  lkimMaqis: {
+    totalAmountMyr: number;
+    totalCrates: number;
+    ratePerCrate: number;
   };
 }): OperationsDashboardData {
   const mode1aMyr = thbToMyr(input.income.mode1aThb, input.exchangeRate);
@@ -230,7 +230,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "车辆油费",
       labelEn: "Vehicle Fuel",
       amountMyr: input.tripCosts.fuelMyr,
-      source: "actual",
+      source: "estimate",
       detail:
         input.tripCosts.tripCount > 0
           ? `${input.tripCosts.tripCount} 趟 · 最高路线里程 ${input.tripCosts.totalMileageKm.toFixed(0)} km`
@@ -241,7 +241,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "维修/保险摊算",
       labelEn: "Maintenance & Insurance",
       amountMyr: input.tripCosts.maintenanceMyr,
-      source: "actual",
+      source: "estimate",
       detail: "实际派车里程 × 车辆 RM/km",
     },
     {
@@ -249,7 +249,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "过路费 Toll",
       labelEn: "Toll",
       amountMyr: input.tripCosts.tollFee,
-      source: "actual",
+      source: "estimate",
       detail:
         input.tripCosts.tripCount > 0
           ? `${input.tripCosts.tripCount} 趟 · 路线最高 toll`
@@ -260,7 +260,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Fish Checking Fee",
       labelEn: "Fish Checking Fee",
       amountMyr: input.tripCosts.fishCheckingFee,
-      source: "actual",
+      source: "estimate",
       detail: "涉及路线 fish_checking_fee 加总",
     },
     {
@@ -268,7 +268,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Parking Fee",
       labelEn: "Parking Fee",
       amountMyr: input.tripCosts.parkingFee,
-      source: "actual",
+      source: "estimate",
       detail: "涉及路线 parking_fee 加总",
     },
     {
@@ -276,7 +276,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Border Pass",
       labelEn: "Border Pass",
       amountMyr: input.tripCosts.borderPass,
-      source: "actual",
+      source: "estimate",
       detail: "每趟固定 · global_cost_settings",
     },
     {
@@ -284,7 +284,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "EPERMIT",
       labelEn: "EPERMIT",
       amountMyr: input.tripCosts.epermit,
-      source: "actual",
+      source: "estimate",
       detail: "每趟固定 · global_cost_settings",
     },
     {
@@ -292,7 +292,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Dagang Net",
       labelEn: "Dagang Net",
       amountMyr: input.tripCosts.dagangNet,
-      source: "actual",
+      source: "estimate",
       detail: "每趟固定 · global_cost_settings",
     },
     {
@@ -300,7 +300,7 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Forwarding（Zaewe）",
       labelEn: "Forwarding (Zaewe)",
       amountMyr: input.tripCosts.forwarding,
-      source: "actual",
+      source: "estimate",
       detail: "每趟 outbound · global_cost_settings",
     },
     {
@@ -316,16 +316,16 @@ export function buildOperationsDashboardMetrics(input: {
       label: "Load/Unload费",
       labelEn: "Load / Unload",
       amountMyr: input.tripCosts.loadUnloadFee,
-      source: "actual",
+      source: "estimate",
       detail: "桶数 × 市场 Load/Unload 费率",
     },
     {
       key: "lkimMaqis",
       label: "LKIM-MAQIS费",
       labelEn: "LKIM-MAQIS",
-      amountMyr: input.manualCosts.lkimMaqisFee,
-      source: "actual",
-      detail: `${input.manualCosts.lkimMaqisTotalCrates} 桶 × RM ${input.manualCosts.lkimMaqisRatePerCrate.toFixed(2)}/桶`,
+      amountMyr: input.lkimMaqis.totalAmountMyr,
+      source: "estimate",
+      detail: `${input.lkimMaqis.totalCrates.toLocaleString("en-MY")} 桶 × RM ${input.lkimMaqis.ratePerCrate.toFixed(2)} = RM ${input.lkimMaqis.totalAmountMyr.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       key: "mcThirdParty",
@@ -373,11 +373,7 @@ export function buildOperationsDashboardMetrics(input: {
     },
     grossProfitMyr: roundMoney(totalRevenueMyr - subtotalMyr),
     tripCosts: input.tripCosts,
-    manualCosts: {
-      lkimMaqisFee: input.manualCosts.lkimMaqisFee,
-      lkimMaqisTotalCrates: input.manualCosts.lkimMaqisTotalCrates,
-      lkimMaqisRatePerCrate: input.manualCosts.lkimMaqisRatePerCrate,
-    },
+    lkimMaqis: input.lkimMaqis,
   };
 }
 

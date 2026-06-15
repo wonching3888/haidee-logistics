@@ -118,11 +118,7 @@ export async function getOperationsDashboard(input: {
     payroll,
     mcThirdPartyMyr,
     tripCosts,
-    manualCosts: {
-      lkimMaqisFee: lkimMaqis.amountMyr,
-      lkimMaqisTotalCrates: lkimMaqis.totalCrates,
-      lkimMaqisRatePerCrate: lkimMaqis.ratePerCrate,
-    },
+    lkimMaqis,
   });
 }
 

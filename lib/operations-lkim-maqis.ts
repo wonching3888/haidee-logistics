@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { decimalToNumber } from "@/lib/freight-rates";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 
@@ -11,20 +12,21 @@ function roundMoney(value: number) {
 export async function aggregateLkimMaqisCost(year: number, month: number) {
   const { start, end } = getMonthDateRange(year, month);
 
-  const [globalCosts, dispatchLines] = await Promise.all([
+  const [globalCosts, lines] = await Promise.all([
     listGlobalCostSettings(),
-    prisma.dispatchLine.findMany({
+    prisma.inboundLine.findMany({
       where: {
-        dispatchOrder: {
-          status: { not: "cancelled" },
-          date: { gte: start, lte: end },
+        dispatchStatus: "assigned",
+        dispatchLines: {
+          some: {
+            dispatchOrder: {
+              date: { gte: start, lte: end },
+              status: { notIn: ["draft", "cancelled"] },
+            },
+          },
         },
       },
-      select: {
-        inboundLine: {
-          select: { quantity: true },
-        },
-      },
+      select: { quantity: true },
     }),
   ]);
 
@@ -32,13 +34,15 @@ export async function aggregateLkimMaqisCost(year: number, month: number) {
     globalCosts.find((row) => row.key === "lkim_maqis_per_crate")?.valueMyr ??
     DEFAULT_LKIM_MAQIS_RATE_MYR;
 
-  const totalCrates = dispatchLines.reduce(
-    (sum, line) => sum + line.inboundLine.quantity,
+  const totalCrates = lines.reduce(
+    (sum, line) => sum + (decimalToNumber(line.quantity) ?? 0),
     0
   );
 
+  const totalAmountMyr = roundMoney(totalCrates * ratePerCrate);
+
   return {
-    amountMyr: roundMoney(totalCrates * ratePerCrate),
+    totalAmountMyr,
     totalCrates,
     ratePerCrate,
   };
