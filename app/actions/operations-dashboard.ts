@@ -13,6 +13,7 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { buildPayrollSummary } from "@/lib/payroll-statutory";
 import type { MaritalStatus } from "@/lib/constants/payroll";
 import { aggregateDispatchOperationalCosts } from "@/lib/operations-trip-costs";
+import { aggregateOperationsIncome } from "@/lib/operations-income";
 import {
   buildOperationsDashboardMetrics,
   estimateTruckMonthlyCosts,
@@ -52,46 +53,12 @@ function isMissingOperationsCostsTable(error: unknown) {
 }
 
 async function aggregateIncome(year: number, month: number) {
-  const { start, end } = getMonthDateRange(year, month);
-
-  const lines = await prisma.inboundLine.findMany({
-    where: {
-      session: {
-        status: "confirmed",
-        date: { gte: start, lte: end },
-      },
-      freightAmount: { gt: 0 },
-    },
-    select: {
-      paymentMode: true,
-      currency: true,
-      freightAmount: true,
-    },
-  });
-
-  let mode1aThb = 0;
-  let mode1bMyr = 0;
-  let mode2Myr = 0;
-  let wtlMode3Myr = 0;
-
-  for (const line of lines) {
-    const amount = decimalToNumber(line.freightAmount) ?? 0;
-    if (line.paymentMode === "1a") {
-      mode1aThb += amount;
-    } else if (line.paymentMode === "1b") {
-      mode1bMyr += amount;
-    } else if (line.paymentMode === "2") {
-      mode2Myr += amount;
-    } else if (line.paymentMode === "3") {
-      wtlMode3Myr += amount;
-    }
-  }
-
+  const income = await aggregateOperationsIncome(year, month);
   return {
-    mode1aThb: roundMoney(mode1aThb),
-    mode1bMyr: roundMoney(mode1bMyr),
-    mode2Myr: roundMoney(mode2Myr),
-    wtlMode3Myr: roundMoney(wtlMode3Myr),
+    mode1aThb: income.mode1aThb,
+    mode1bMyr: income.mode1bMyr,
+    mode2Myr: income.mode2Myr,
+    wtlMode3Myr: income.wtlMode3Myr,
   };
 }
 

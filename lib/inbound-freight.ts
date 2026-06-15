@@ -107,7 +107,7 @@ function resolvePaymentMode(
 }
 
 function usesConsigneeRate(paymentMode: PaymentMode) {
-  return paymentMode === "2";
+  return paymentMode === "2" || paymentMode === "3";
 }
 
 function resolveCurrency(

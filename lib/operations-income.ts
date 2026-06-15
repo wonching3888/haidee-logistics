@@ -1,0 +1,169 @@
+import { prisma } from "@/lib/prisma";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import type { PaymentMode } from "@/lib/constants/freight-settings";
+import { loadInboundFreightContext } from "@/lib/freight-context";
+import {
+  computeInboundLineFreight,
+  normalizeMcDeliveryMode,
+} from "@/lib/inbound-freight";
+import { decimalToNumber } from "@/lib/freight-rates";
+import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function addIncomeAmount(
+  totals: {
+    mode1aThb: number;
+    mode1bMyr: number;
+    mode2Myr: number;
+    wtlMode3Myr: number;
+  },
+  paymentMode: PaymentMode,
+  amount: number,
+  currency: string
+) {
+  if (amount <= 0) return;
+
+  if (paymentMode === "1a" && currency === "THB") {
+    totals.mode1aThb += amount;
+    return;
+  }
+  if (paymentMode === "1b" && currency === "MYR") {
+    totals.mode1bMyr += amount;
+    return;
+  }
+  if (paymentMode === "2" && currency === "MYR") {
+    totals.mode2Myr += amount;
+    return;
+  }
+  if (paymentMode === "3" && currency === "MYR") {
+    totals.wtlMode3Myr += amount;
+  }
+}
+
+export async function aggregateOperationsIncome(year: number, month: number) {
+  const { start, end } = getMonthDateRange(year, month);
+
+  const lines = await prisma.inboundLine.findMany({
+    where: {
+      dispatchStatus: "assigned",
+      dispatchLines: {
+        some: {
+          dispatchOrder: {
+            date: { gte: start, lte: end },
+            status: { notIn: ["draft", "cancelled"] },
+          },
+        },
+      },
+    },
+    select: {
+      stallId: true,
+      tongTypeId: true,
+      quantity: true,
+      mcDeliveryMode: true,
+      paymentMode: true,
+      currency: true,
+      freightAmount: true,
+      session: {
+        select: {
+          shipperId: true,
+          pickupLocation: true,
+          shipper: { select: { pickupLocation: true } },
+        },
+      },
+    },
+  });
+
+  const linesByShipper = new Map<string, typeof lines>();
+  for (const line of lines) {
+    const shipperId = line.session.shipperId;
+    const group = linesByShipper.get(shipperId) ?? [];
+    group.push(line);
+    linesByShipper.set(shipperId, group);
+  }
+
+  const totals = {
+    mode1aThb: 0,
+    mode1bMyr: 0,
+    mode2Myr: 0,
+    wtlMode3Myr: 0,
+  };
+
+  for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
+    const stallIds = Array.from(new Set(shipperLines.map((line) => line.stallId)));
+    const tongTypeIds = Array.from(
+      new Set(shipperLines.map((line) => line.tongTypeId))
+    );
+    const pickupLocation = resolveSessionPickupLocation(
+      shipperLines[0]?.session.pickupLocation,
+      shipperLines[0]?.session.shipper.pickupLocation
+    );
+
+    const { ctx } = await loadInboundFreightContext(
+      shipperId,
+      stallIds,
+      tongTypeIds,
+      end,
+      pickupLocation
+    );
+
+    for (const line of shipperLines) {
+      const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
+      const storedAmount = decimalToNumber(line.freightAmount);
+      const storedMode = line.paymentMode;
+      const storedCurrency = line.currency;
+
+      if (
+        storedAmount != null &&
+        storedAmount > 0 &&
+        storedMode &&
+        (storedMode === "1a" ||
+          storedMode === "1b" ||
+          storedMode === "2" ||
+          storedMode === "3")
+      ) {
+        addIncomeAmount(
+          totals,
+          storedMode,
+          storedAmount,
+          storedCurrency ?? (storedMode === "1a" ? "THB" : "MYR")
+        );
+        continue;
+      }
+
+      const snapshot = computeInboundLineFreight(
+        {
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          mcDeliveryMode: normalizeMcDeliveryMode(
+            marketCode,
+            line.mcDeliveryMode
+          ),
+        },
+        ctx
+      );
+
+      if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
+        continue;
+      }
+
+      addIncomeAmount(
+        totals,
+        snapshot.paymentMode,
+        snapshot.freightAmount,
+        snapshot.currency
+      );
+    }
+  }
+
+  return {
+    mode1aThb: roundMoney(totals.mode1aThb),
+    mode1bMyr: roundMoney(totals.mode1bMyr),
+    mode2Myr: roundMoney(totals.mode2Myr),
+    wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
+    lineCount: lines.length,
+  };
+}
