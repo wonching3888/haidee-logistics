@@ -51,7 +51,7 @@ type InboundSessionLineSource = {
 
 export function serializeInboundFormInitialSession(session: {
   id: string;
-  date: Date;
+  date: string | Date;
   shipperId: string;
   thVehiclePlate: string | null;
   areaNote: string | null;
@@ -62,7 +62,10 @@ export function serializeInboundFormInitialSession(session: {
 }): InboundFormInitialSession {
   return {
     id: session.id,
-    date: toDateInputValue(new Date(session.date)),
+    date:
+      typeof session.date === "string"
+        ? session.date
+        : toDateInputValue(new Date(session.date)),
     shipperId: session.shipperId,
     thVehiclePlate: session.thVehiclePlate,
     areaNote: session.areaNote,

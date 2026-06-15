@@ -77,15 +77,7 @@ function newRowId() {
   return crypto.randomUUID();
 }
 
-function isNextRedirectError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "digest" in error &&
-    typeof (error as { digest: string }).digest === "string" &&
-    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
-  );
-}
+import { getNextRedirectUrl } from "@/lib/next-redirect";
 
 interface MarketOption {
   id: string;
@@ -407,7 +399,11 @@ export function InboundForm({
           sessionId: initialSession?.id,
         });
       } catch (e) {
-        if (isNextRedirectError(e)) throw e;
+        const redirectUrl = getNextRedirectUrl(e);
+        if (redirectUrl) {
+          router.replace(redirectUrl);
+          return;
+        }
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
       }
     });

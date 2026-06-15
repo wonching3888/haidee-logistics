@@ -203,7 +203,8 @@ async function applyCrateStockAdjustments(
 }
 
 function revalidateInboundRelatedPaths() {
-  revalidatePath("/inbound");
+  // "page" scope avoids revalidating /inbound/[id]/edit while the form is still mounted.
+  revalidatePath("/inbound", "page");
   revalidatePath("/dispatch");
   revalidatePath("/summary");
   revalidatePath("/documents");
@@ -846,7 +847,7 @@ export async function getInboundSession(id: string) {
   return {
     id: session.id,
     sessionNo: session.sessionNo,
-    date: session.date,
+    date: session.date.toISOString().slice(0, 10),
     status: session.status,
     shipperId: session.shipperId,
     shipperName: session.shipper.name,

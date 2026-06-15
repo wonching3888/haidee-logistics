@@ -86,7 +86,13 @@ try {
   });
 
   await page.getByRole("button", { name: /确认保存|Confirm/ }).click();
-  await page.waitForURL("**/inbound", { timeout: 45000 });
+  await page.waitForURL(
+    (url) => {
+      const path = new URL(url).pathname.replace(/\/$/, "");
+      return path === "/inbound";
+    },
+    { timeout: 45000 }
+  );
   await page.waitForTimeout(2000);
 
   body = await page.locator("body").innerText();
