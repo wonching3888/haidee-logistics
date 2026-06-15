@@ -3,10 +3,12 @@ import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import type { PaymentMode } from "@/lib/constants/freight-settings";
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import {
+  classifyInboundFreightGap,
   computeInboundLineFreight,
+  isMissingRateGap,
   normalizeMcDeliveryMode,
+  type InboundFreightGapReason,
 } from "@/lib/inbound-freight";
-import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 
 function roundMoney(value: number) {
@@ -43,7 +45,32 @@ function addIncomeAmount(
   }
 }
 
-export async function aggregateOperationsIncome(year: number, month: number) {
+export interface OperationsIncomeWarningSample {
+  shipperCode: string;
+  shipperName: string;
+  marketCode: string;
+  quantity: number;
+  reason: InboundFreightGapReason;
+}
+
+export interface OperationsIncomeResult {
+  mode1aThb: number;
+  mode1bMyr: number;
+  mode2Myr: number;
+  wtlMode3Myr: number;
+  lineCount: number;
+  missingRateLineCount: number;
+  missingRateQuantity: number;
+  gapReasons: Partial<Record<InboundFreightGapReason, number>>;
+  warningSamples: OperationsIncomeWarningSample[];
+}
+
+const WARNING_SAMPLE_LIMIT = 8;
+
+export async function aggregateOperationsIncome(
+  year: number,
+  month: number
+): Promise<OperationsIncomeResult> {
   const { start, end } = getMonthDateRange(year, month);
 
   const lines = await prisma.inboundLine.findMany({
@@ -63,14 +90,11 @@ export async function aggregateOperationsIncome(year: number, month: number) {
       tongTypeId: true,
       quantity: true,
       mcDeliveryMode: true,
-      paymentMode: true,
-      currency: true,
-      freightAmount: true,
       session: {
         select: {
           shipperId: true,
           pickupLocation: true,
-          shipper: { select: { pickupLocation: true } },
+          shipper: { select: { code: true, name: true, pickupLocation: true } },
         },
       },
     },
@@ -90,6 +114,10 @@ export async function aggregateOperationsIncome(year: number, month: number) {
     mode2Myr: 0,
     wtlMode3Myr: 0,
   };
+  const gapReasons: Partial<Record<InboundFreightGapReason, number>> = {};
+  const warningSamples: OperationsIncomeWarningSample[] = [];
+  let missingRateLineCount = 0;
+  let missingRateQuantity = 0;
 
   for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
     const stallIds = Array.from(new Set(shipperLines.map((line) => line.stallId)));
@@ -111,28 +139,6 @@ export async function aggregateOperationsIncome(year: number, month: number) {
 
     for (const line of shipperLines) {
       const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
-      const storedAmount = decimalToNumber(line.freightAmount);
-      const storedMode = line.paymentMode;
-      const storedCurrency = line.currency;
-
-      if (
-        storedAmount != null &&
-        storedAmount > 0 &&
-        storedMode &&
-        (storedMode === "1a" ||
-          storedMode === "1b" ||
-          storedMode === "2" ||
-          storedMode === "3")
-      ) {
-        addIncomeAmount(
-          totals,
-          storedMode,
-          storedAmount,
-          storedCurrency ?? (storedMode === "1a" ? "THB" : "MYR")
-        );
-        continue;
-      }
-
       const snapshot = computeInboundLineFreight(
         {
           stallId: line.stallId,
@@ -145,6 +151,37 @@ export async function aggregateOperationsIncome(year: number, month: number) {
         },
         ctx
       );
+
+      const gapReason = classifyInboundFreightGap(
+        {
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          mcDeliveryMode: normalizeMcDeliveryMode(
+            marketCode,
+            line.mcDeliveryMode
+          ),
+        },
+        ctx,
+        snapshot
+      );
+
+      if (gapReason) {
+        gapReasons[gapReason] = (gapReasons[gapReason] ?? 0) + 1;
+        if (isMissingRateGap(gapReason)) {
+          missingRateLineCount += 1;
+          missingRateQuantity += line.quantity;
+          if (warningSamples.length < WARNING_SAMPLE_LIMIT) {
+            warningSamples.push({
+              shipperCode: line.session.shipper.code,
+              shipperName: line.session.shipper.name,
+              marketCode,
+              quantity: line.quantity,
+              reason: gapReason,
+            });
+          }
+        }
+      }
 
       if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
         continue;
@@ -165,5 +202,9 @@ export async function aggregateOperationsIncome(year: number, month: number) {
     mode2Myr: roundMoney(totals.mode2Myr),
     wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
     lineCount: lines.length,
+    missingRateLineCount,
+    missingRateQuantity,
+    gapReasons,
+    warningSamples,
   };
 }

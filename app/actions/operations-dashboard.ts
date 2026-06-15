@@ -59,6 +59,10 @@ async function aggregateIncome(year: number, month: number) {
     mode1bMyr: income.mode1bMyr,
     mode2Myr: income.mode2Myr,
     wtlMode3Myr: income.wtlMode3Myr,
+    missingRateLineCount: income.missingRateLineCount,
+    missingRateQuantity: income.missingRateQuantity,
+    gapReasons: income.gapReasons,
+    warningSamples: income.warningSamples,
   };
 }
 

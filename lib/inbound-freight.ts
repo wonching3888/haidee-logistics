@@ -341,6 +341,80 @@ export function computeInboundLineFreight(
   };
 }
 
+export type InboundFreightGapReason =
+  | "no_market_on_stall"
+  | "stall_missing_consignee"
+  | "no_shipper_rate"
+  | "shipper_missing_tong_rate"
+  | "shipper_missing_box_rate"
+  | "no_consignee_rate"
+  | "consignee_missing_tong_rate"
+  | "consignee_missing_box_rate"
+  | "mc_self_delivery"
+  | "mc_third_party_customer_zero";
+
+export function classifyInboundFreightGap(
+  line: InboundLineFreightInput,
+  ctx: InboundFreightContext,
+  snapshot: InboundLineFreightSnapshot
+): InboundFreightGapReason | null {
+  if ((snapshot.freightAmount ?? 0) > 0) return null;
+
+  const stall = ctx.stalls.get(line.stallId);
+  const marketId = stall?.marketId ?? null;
+  const marketCode = stall?.marketCode ?? "";
+  const consigneeId = stall?.consigneeId ?? null;
+  const isBox = ctx.tongTypes.get(line.tongTypeId)?.isBox ?? false;
+  const isMcMarket = marketCode === MC_MARKET_CODE;
+  const mcDeliveryMode: McDeliveryMode | null = isMcMarket
+    ? line.mcDeliveryMode ?? "self"
+    : null;
+
+  if (!marketId) return "no_market_on_stall";
+
+  if (isMcMarket && mcDeliveryMode === "self") {
+    return "mc_self_delivery";
+  }
+  if (isMcMarket && mcDeliveryMode === "third_party") {
+    return "mc_third_party_customer_zero";
+  }
+
+  const expectsConsigneePayment = Array.from(ctx.paymentRelations.values()).some(
+    (relation) => relation.paymentMode === "2" || relation.paymentMode === "3"
+  );
+  if (expectsConsigneePayment && !consigneeId) {
+    return "stall_missing_consignee";
+  }
+
+  const consigneePays = usesConsigneeRate(snapshot.paymentMode);
+  const shipperRate = ctx.shipperRatesByMarket.get(marketId);
+  const consigneeRate =
+    consigneeId && marketId
+      ? ctx.consigneeRatesByConsigneeMarket.get(`${consigneeId}:${marketId}`)
+      : undefined;
+  const activeRate = consigneePays ? consigneeRate : shipperRate;
+
+  if (consigneePays) {
+    if (!activeRate) return "no_consignee_rate";
+    if (isBox && activeRate.rateBox == null) return "consignee_missing_box_rate";
+    if (!isBox && activeRate.rateTong == null) {
+      return "consignee_missing_tong_rate";
+    }
+    return null;
+  }
+
+  if (!activeRate) return "no_shipper_rate";
+  if (isBox && activeRate.rateBox == null) return "shipper_missing_box_rate";
+  if (!isBox && activeRate.rateTong == null) return "shipper_missing_tong_rate";
+  return null;
+}
+
+export function isMissingRateGap(reason: InboundFreightGapReason) {
+  return (
+    reason !== "mc_self_delivery" && reason !== "mc_third_party_customer_zero"
+  );
+}
+
 export function freightAmountMyrEquivalent(
   snapshot: InboundLineFreightSnapshot
 ) {

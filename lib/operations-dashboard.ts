@@ -6,6 +6,9 @@ import {
   calcTotalCostPerKm,
 } from "@/lib/truck-cost";
 
+import type { InboundFreightGapReason } from "@/lib/inbound-freight";
+import type { OperationsIncomeWarningSample } from "@/lib/operations-income";
+
 export type DataSourceKind = "actual" | "estimate";
 
 export interface MetricLine {
@@ -15,6 +18,13 @@ export interface MetricLine {
   amountMyr: number;
   source: DataSourceKind;
   detail?: string;
+}
+
+export interface OperationsRevenueWarning {
+  missingRateLineCount: number;
+  missingRateQuantity: number;
+  gapReasons: Partial<Record<InboundFreightGapReason, number>>;
+  samples: OperationsIncomeWarningSample[];
 }
 
 export interface OperationsDashboardData {
@@ -32,6 +42,7 @@ export interface OperationsDashboardData {
     wtlMode3Myr: number;
     totalMyr: number;
     lines: MetricLine[];
+    warning: OperationsRevenueWarning | null;
   };
   costs: {
     lines: MetricLine[];
@@ -113,6 +124,10 @@ export function buildOperationsDashboardMetrics(input: {
     mode1bMyr: number;
     mode2Myr: number;
     wtlMode3Myr: number;
+    missingRateLineCount: number;
+    missingRateQuantity: number;
+    gapReasons: Partial<Record<InboundFreightGapReason, number>>;
+    warningSamples: OperationsIncomeWarningSample[];
   };
   payrollNetMyr: number;
   payrollHasRecords: boolean;
@@ -252,6 +267,16 @@ export function buildOperationsDashboardMetrics(input: {
     costLines.reduce((sum, line) => sum + line.amountMyr, 0)
   );
 
+  const revenueWarning: OperationsRevenueWarning | null =
+    input.income.missingRateLineCount > 0
+      ? {
+          missingRateLineCount: input.income.missingRateLineCount,
+          missingRateQuantity: input.income.missingRateQuantity,
+          gapReasons: input.income.gapReasons,
+          samples: input.income.warningSamples,
+        }
+      : null;
+
   return {
     year: input.year,
     month: input.month,
@@ -267,6 +292,7 @@ export function buildOperationsDashboardMetrics(input: {
       wtlMode3Myr: input.income.wtlMode3Myr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,
+      warning: revenueWarning,
     },
     costs: {
       lines: costLines,

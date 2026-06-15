@@ -6,6 +6,7 @@ import {
   saveOperationsMonthlyCosts,
 } from "@/app/actions/operations-dashboard";
 import type { OperationsDashboardData } from "@/lib/operations-dashboard";
+import type { InboundFreightGapReason } from "@/lib/inbound-freight";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -17,6 +18,19 @@ function formatMyr(value: number) {
     maximumFractionDigits: 2,
   })} MYR`;
 }
+
+const GAP_REASON_LABELS: Record<InboundFreightGapReason, string> = {
+  no_market_on_stall: "档口未关联市场",
+  stall_missing_consignee: "档口未绑定收货人（收货人付运费无法匹配）",
+  no_shipper_rate: "寄货人费率未设定",
+  shipper_missing_tong_rate: "寄货人桶型费率缺失",
+  shipper_missing_box_rate: "寄货人箱型费率缺失",
+  no_consignee_rate: "收货人费率未设定",
+  consignee_missing_tong_rate: "收货人桶型费率缺失",
+  consignee_missing_box_rate: "收货人箱型费率缺失",
+  mc_self_delivery: "MC 自送（客户运费为 0）",
+  mc_third_party_customer_zero: "MC 第三方代送（客户运费为 0）",
+};
 
 function SourceBadge({ source }: { source: "actual" | "estimate" }) {
   if (source === "actual") {
@@ -145,6 +159,44 @@ export function OperationsDashboardView({
         <h3 className="mb-4 text-lg font-semibold text-haidee-text">
           收入 Revenue
         </h3>
+
+        {data.revenue.warning && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-semibold">
+              收入警告：{data.revenue.warning.missingRateLineCount} 行派车（
+              {data.revenue.warning.missingRateQuantity} 桶）无法匹配运费费率
+            </p>
+            <p className="mt-1 text-xs text-amber-900">
+              收入按 freight_rates / consignee_freight_rates 实时计算，未使用派车单上存储的费率字段。
+            </p>
+            <ul className="mt-2 space-y-1 text-xs">
+              {Object.entries(data.revenue.warning.gapReasons)
+                .filter(([reason]) =>
+                  reason !== "mc_self_delivery" &&
+                  reason !== "mc_third_party_customer_zero"
+                )
+                .map(([reason, count]) => (
+                  <li key={reason}>
+                    {GAP_REASON_LABELS[reason as InboundFreightGapReason] ??
+                      reason}
+                    ：{count} 行
+                  </li>
+                ))}
+            </ul>
+            {data.revenue.warning.samples.length > 0 && (
+              <p className="mt-2 text-xs text-amber-900">
+                示例：
+                {data.revenue.warning.samples
+                  .map(
+                    (sample) =>
+                      `${sample.shipperName} (${sample.shipperCode}) · ${sample.marketCode} · ${sample.quantity}桶 · ${GAP_REASON_LABELS[sample.reason]}`
+                  )
+                  .join("；")}
+              </p>
+            )}
+          </div>
+        )}
+
         <dl className="space-y-3">
           {data.revenue.lines.map((line) => (
             <div
