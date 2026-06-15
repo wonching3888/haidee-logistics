@@ -273,10 +273,10 @@ export function computeInboundLineFreight(
 
   if (line.quantity > 0 && unitRate != null) {
     const baseAmount = roundMoney(line.quantity * unitRate);
-    if (isMcMarket && mcDeliveryMode === "self") {
+    if (isMcMarket && !consigneePays && mcDeliveryMode === "self") {
       freightAmount = 0;
       thirdPartyFee = null;
-    } else if (isMcMarket && mcDeliveryMode === "third_party") {
+    } else if (isMcMarket && !consigneePays && mcDeliveryMode === "third_party") {
       freightAmount = 0;
       const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
       if (mcRate != null) {
@@ -285,7 +285,7 @@ export function computeInboundLineFreight(
     } else {
       freightAmount = baseAmount;
     }
-  } else if (isMcMarket) {
+  } else if (isMcMarket && !consigneePays) {
     freightAmount = 0;
     if (mcDeliveryMode === "third_party" && line.quantity > 0) {
       const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
@@ -372,10 +372,14 @@ export function classifyInboundFreightGap(
 
   if (!marketId) return "no_market_on_stall";
 
-  if (isMcMarket && mcDeliveryMode === "self") {
+  if (isMcMarket && mcDeliveryMode === "self" && !usesConsigneeRate(snapshot.paymentMode)) {
     return "mc_self_delivery";
   }
-  if (isMcMarket && mcDeliveryMode === "third_party") {
+  if (
+    isMcMarket &&
+    mcDeliveryMode === "third_party" &&
+    !usesConsigneeRate(snapshot.paymentMode)
+  ) {
     return "mc_third_party_customer_zero";
   }
 
