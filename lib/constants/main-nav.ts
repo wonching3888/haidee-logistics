@@ -84,6 +84,12 @@ export const MAIN_NAV_REPORTS_OPERATIONS: MainNavLink = {
   labelEn: "Operations",
 };
 
+export const MAIN_NAV_REPORTS_PNL: MainNavLink = {
+  href: "/reports/pnl",
+  label: "损益分析",
+  labelEn: "P&L Analysis",
+};
+
 export const MAIN_NAV_REPORTS_DRIVER_PAYROLL: MainNavLink = {
   href: "/driver-payroll",
   label: "司机薪资",

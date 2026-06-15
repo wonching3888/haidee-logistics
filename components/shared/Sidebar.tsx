@@ -22,6 +22,7 @@ import {
   MAIN_NAV_REPORTS_BASE,
   MAIN_NAV_REPORTS_DRIVER_PAYROLL,
   MAIN_NAV_REPORTS_OPERATIONS,
+  MAIN_NAV_REPORTS_PNL,
   isGroupActive,
   isPathActive,
   type MainNavGroup,
@@ -52,7 +53,9 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
         icon: BarChart3,
         children: [
           ...MAIN_NAV_REPORTS_BASE,
-          ...(showOperations ? [MAIN_NAV_REPORTS_OPERATIONS] : []),
+          ...(showOperations
+            ? [MAIN_NAV_REPORTS_OPERATIONS, MAIN_NAV_REPORTS_PNL]
+            : []),
           ...(showDriverPayroll ? [MAIN_NAV_REPORTS_DRIVER_PAYROLL] : []),
         ],
       },
