@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
+import { InboundFreightPanel, type InboundFreightLine } from "@/components/inbound/InboundFreightPanel";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
@@ -35,6 +36,7 @@ import {
   tripPickupSaveValue,
   tripPickupSelectValue,
 } from "@/lib/constants/pickup-locations";
+import type { InboundFormInitialSession } from "@/lib/inbound-form-serialize";
 
 interface ShipperOption {
   id: string;
@@ -81,31 +83,12 @@ interface MarketOption {
   displayName?: string;
 }
 
-interface InitialSession {
-  id: string;
-  date: string;
-  shipperId: string;
-  thVehiclePlate: string | null;
-  areaNote?: string | null;
-  pickupLocation?: string | null;
-  shipperPickupLocation?: string;
-  status: string;
-  lines: {
-    id: string;
-    stallId: string;
-    stallCode: string;
-    marketCode: string;
-    tongTypeId: string;
-    quantity: number;
-    mcDeliveryMode?: McDeliveryMode | null;
-  }[];
-}
-
 interface InboundFormProps {
   shippers: ShipperOption[];
   tongTypes: TongTypeOption[];
   markets?: MarketOption[];
-  initialSession?: InitialSession;
+  initialSession?: InboundFormInitialSession;
+  freightLines?: InboundFreightLine[];
 }
 
 export function InboundForm({
@@ -113,15 +96,14 @@ export function InboundForm({
   tongTypes,
   markets = [],
   initialSession,
+  freightLines,
 }: InboundFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const [date, setDate] = useState(
-    initialSession
-      ? toDateInputValue(new Date(initialSession.date))
-      : toDateInputValue(getDefaultInboundDate())
+    initialSession?.date ?? toDateInputValue(getDefaultInboundDate())
   );
   const [shipperId, setShipperId] = useState(initialSession?.shipperId ?? "");
   const [thVehiclePlate, setThVehiclePlate] = useState(
@@ -660,6 +642,10 @@ export function InboundForm({
             </div>
           </div>
         </div>
+      )}
+
+      {freightLines && freightLines.length > 0 && (
+        <InboundFreightPanel lines={freightLines} />
       )}
 
       {error && (

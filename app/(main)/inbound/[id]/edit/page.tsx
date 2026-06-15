@@ -6,9 +6,13 @@ import {
   getTongTypes,
 } from "@/app/actions/inbound";
 import { InboundForm } from "@/components/inbound/InboundForm";
-import { InboundFreightPanel } from "@/components/inbound/InboundFreightPanel";
 import { PageError } from "@/components/shared/PageError";
-import { toDateInputValue } from "@/lib/inbound-utils";
+import {
+  serializeInboundFormInitialSession,
+  serializeInboundFreightLines,
+} from "@/lib/inbound-form-serialize";
+
+export const dynamic = "force-dynamic";
 
 interface EditInboundPageProps {
   params: Promise<{ id: string }>;
@@ -48,22 +52,13 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
         shippers={shippers}
         tongTypes={tongTypes}
         markets={markets}
-        initialSession={{
-          id: session.id,
-          date: toDateInputValue(new Date(session.date)),
-          shipperId: session.shipperId,
-          thVehiclePlate: session.thVehiclePlate,
-          areaNote: session.areaNote,
-          pickupLocation: session.pickupLocation,
-          shipperPickupLocation: session.shipperPickupLocation,
-          status: session.status,
-          lines: session.lines,
-        }}
+        initialSession={serializeInboundFormInitialSession(session)}
+        freightLines={
+          session.showFreightInfo
+            ? serializeInboundFreightLines(session.lines)
+            : undefined
+        }
       />
-
-      {session.showFreightInfo && (
-        <InboundFreightPanel lines={session.lines} />
-      )}
     </div>
     );
   } catch (error) {
