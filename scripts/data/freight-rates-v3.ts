@@ -294,6 +294,7 @@ export const SHIPPER_RATE_ROWS: RateRow[] = [
   { code: "3001-T002", market: "TP", tong: 190 },
   { code: "3001-T002", market: "KD", tong: 190 },
   { code: "3001-T003", market: "KL", tong: 180, box: 170 },
+  { code: "3001-T003", market: "MC", tong: 250 },
   { code: "3001-T003", market: "BP", tong: 180 },
   { code: "3001-T003", market: "BM", tong: 100 },
   { code: "3001-T003", market: "TP", tong: 90 },
