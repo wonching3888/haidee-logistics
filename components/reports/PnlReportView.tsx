@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import {
@@ -133,9 +133,19 @@ interface PnlReportViewProps {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  const body = (await res.json()) as T & { error?: string };
+  const raw = await res.text();
+  let body: (T & { error?: string }) | null = null;
+  try {
+    body = raw ? (JSON.parse(raw) as T & { error?: string }) : null;
+  } catch {
+    const fallback = raw.trim() || `HTTP ${res.status}`;
+    throw new Error(`API 返回非 JSON：${fallback}`);
+  }
   if (!res.ok) {
-    throw new Error(body.error ?? "加载失败");
+    throw new Error(body?.error ?? "加载失败");
+  }
+  if (!body) {
+    throw new Error("API 返回空响应");
   }
   return body;
 }
@@ -203,10 +213,6 @@ export function PnlReportView({
       setTripsLoading(false);
     }
   }, [year, month, tripDay, routeFilter, driverFilter]);
-
-  useEffect(() => {
-    void loadTrips();
-  }, [loadTrips]);
 
   async function loadTripDetail(tripId: string) {
     if (tripDetails[tripId]) return;
@@ -384,6 +390,9 @@ export function PnlReportView({
 
       {activeTab === "trip" && (
         <div className="space-y-4">
+          <p className="text-sm text-haidee-muted">
+            年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
+          </p>
           <div className="flex flex-wrap items-end gap-4">
             <FilterYearMonth
               year={year}
@@ -430,6 +439,10 @@ export function PnlReportView({
 
           {tripsLoading && !tripsData ? (
             <LoadingState />
+          ) : !tripsData ? (
+            <p className="text-sm text-haidee-muted">
+              请选择筛选条件后点击「查询 Search」加载数据
+            </p>
           ) : (
             <ScrollMatrixTable heightOffset={300}>
               <Table className={PNL_TABLE_CLASS}>
@@ -1086,7 +1099,10 @@ function QueryButton({
       disabled={loading}
       className="min-h-[44px] rounded-lg bg-haidee-teal px-4 text-sm font-medium text-white disabled:opacity-60"
     >
-      {loading ? "查询中…" : "查询 Query"}
+      <span className="inline-flex items-center gap-2">
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {loading ? "查询中…" : "查询 Search"}
+      </span>
     </button>
   );
 }
