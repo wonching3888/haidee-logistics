@@ -325,17 +325,29 @@ export function DriverVoucherForm({
 
   const suggestedSubtotal = useMemo(() => {
     if (!form) return 0;
+    const parkingSuggested =
+      printBreakdown?.parking.length
+        ? printBreakdown.parking.reduce((sum, row) => sum + row.suggested, 0)
+        : parseOptionalNumber(form.parkingAmt) ?? 0;
+    const kpbSuggested =
+      printBreakdown?.kpb.length
+        ? printBreakdown.kpb.reduce((sum, row) => sum + row.suggested, 0)
+        : parseOptionalNumber(form.kpbAmt) ?? 0;
+    const upahTurunSuggested =
+      printBreakdown?.upahTurun.length
+        ? printBreakdown.upahTurun.reduce((sum, row) => sum + row.suggested, 0)
+        : parseOptionalNumber(form.upahTurunAmt) ?? 0;
     return sumSuggestedAmounts({
       chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
-      parkingAmt: parseOptionalNumber(form.parkingAmt),
-      kpbAmt: parseOptionalNumber(form.kpbAmt),
+      parkingAmt: parkingSuggested,
+      kpbAmt: kpbSuggested,
       fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
-      upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
+      upahTurunAmt: upahTurunSuggested,
       upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
       minyakMotoEnabled: form.minyakMotoEnabled,
       minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
     });
-  }, [form]);
+  }, [form, printBreakdown]);
 
   const duitJalan = form ? parseOptionalNumber(form.duitJalan) : null;
   const baki =
@@ -522,7 +534,9 @@ export function DriverVoucherForm({
               <div className="text-right">{VOUCHER_LABELS.sebenar}</div>
             </div>
 
-            {VOUCHER_LINE_ITEMS.map(({ label, amtKey, actualKey }) => (
+            {VOUCHER_LINE_ITEMS.filter(
+              ({ key }) => !["parking", "kpb", "upahTurun"].includes(key)
+            ).map(({ label, amtKey, actualKey }) => (
               <div key={amtKey} className="grid grid-cols-3 items-center gap-3">
                 <label className="text-sm">{label}</label>
                 <Input
@@ -543,6 +557,168 @@ export function DriverVoucherForm({
                 />
               </div>
             ))}
+
+            {(printBreakdown?.parking.length ?? 0) > 0 ? (
+              printBreakdown!.parking.map((row, index) => {
+                const isLast = index === printBreakdown!.parking.length - 1;
+                return (
+                  <div
+                    key={`parking-${row.market}`}
+                    className="grid grid-cols-3 items-center gap-3"
+                  >
+                    <label className="text-sm">{`Parking ${row.market}`}</label>
+                    <Input
+                      readOnly
+                      className="bg-muted/50 text-right font-mono"
+                      value={String(row.suggested)}
+                    />
+                    {isLast ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.parkingActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev ? { ...prev, parkingActual: e.target.value } : prev
+                          )
+                        }
+                      />
+                    ) : (
+                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="grid grid-cols-3 items-center gap-3">
+                <label className="text-sm">Parking</label>
+                <Input
+                  readOnly
+                  className="bg-muted/50 text-right font-mono"
+                  value={form.parkingAmt}
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="text-right font-mono"
+                  value={form.parkingActual}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      prev ? { ...prev, parkingActual: e.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+            )}
+
+            {(printBreakdown?.kpb.length ?? 0) > 0 ? (
+              printBreakdown!.kpb.map((row, index) => {
+                const isLast = index === printBreakdown!.kpb.length - 1;
+                return (
+                  <div
+                    key={`kpb-${row.market}`}
+                    className="grid grid-cols-3 items-center gap-3"
+                  >
+                    <label className="text-sm">{`KPB ${row.market}`}</label>
+                    <Input
+                      readOnly
+                      className="bg-muted/50 text-right font-mono"
+                      value={String(row.suggested)}
+                    />
+                    {isLast ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.kpbActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev ? { ...prev, kpbActual: e.target.value } : prev
+                          )
+                        }
+                      />
+                    ) : (
+                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="grid grid-cols-3 items-center gap-3">
+                <label className="text-sm">KPB</label>
+                <Input
+                  readOnly
+                  className="bg-muted/50 text-right font-mono"
+                  value={form.kpbAmt}
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="text-right font-mono"
+                  value={form.kpbActual}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      prev ? { ...prev, kpbActual: e.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+            )}
+
+            {(printBreakdown?.upahTurun.length ?? 0) > 0 ? (
+              printBreakdown!.upahTurun.map((row, index) => {
+                const isLast = index === printBreakdown!.upahTurun.length - 1;
+                return (
+                  <div
+                    key={`upah-turun-${row.market}`}
+                    className="grid grid-cols-3 items-center gap-3"
+                  >
+                    <label className="text-sm">{`Upah Turun ${row.market}`}</label>
+                    <Input
+                      readOnly
+                      className="bg-muted/50 text-right font-mono"
+                      value={String(row.suggested)}
+                    />
+                    {isLast ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.upahTurunActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev ? { ...prev, upahTurunActual: e.target.value } : prev
+                          )
+                        }
+                      />
+                    ) : (
+                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="grid grid-cols-3 items-center gap-3">
+                <label className="text-sm">Upah Turun</label>
+                <Input
+                  readOnly
+                  className="bg-muted/50 text-right font-mono"
+                  value={form.upahTurunAmt}
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="text-right font-mono"
+                  value={form.upahTurunActual}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      prev ? { ...prev, upahTurunActual: e.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-3 items-center gap-3">
               <div className="flex items-center gap-2">

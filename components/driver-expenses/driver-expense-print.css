@@ -10,8 +10,8 @@
   }
 
   @page {
-    size: A5 portrait;
-    margin: 10mm;
+    size: A4 portrait;
+    margin: 15mm;
   }
 
   .voucher-print-area {
@@ -94,7 +94,7 @@
   position: absolute;
   left: -9999px;
   top: 0;
-  width: 148mm;
+  width: 180mm;
   font-family: Arial, sans-serif;
   color: #111;
 }
