@@ -1,12 +1,13 @@
 "use client";
 
+import { Fragment } from "react";
+
 import {
   formatMyr,
   sumSuggestedAmounts,
   VOUCHER_PRINT_LABELS,
   type DriverVoucherData,
   type VoucherPrintBreakdown,
-  type VoucherPrintMarketRow,
 } from "@/lib/driver-expense/voucher-utils";
 
 function formatAmt(value: number | null): string {
@@ -37,39 +38,7 @@ function FeeRow({
   );
 }
 
-function MarketSplitRows({
-  labelPrefix,
-  rows,
-  actualTotal,
-  fallbackSuggested,
-}: {
-  labelPrefix: string;
-  rows: VoucherPrintMarketRow[];
-  actualTotal: number | null;
-  fallbackSuggested: number | null;
-}) {
-  if (rows.length === 0) {
-    return (
-      <FeeRow
-        label={labelPrefix}
-        suggested={fallbackSuggested}
-        actual={actualTotal}
-      />
-    );
-  }
-  return (
-    <>
-      {rows.map((row, index) => (
-        <FeeRow
-          key={`${labelPrefix}-${row.market}`}
-          label={`${labelPrefix} ${row.market}`}
-          suggested={row.suggested}
-          actual={index === rows.length - 1 ? actualTotal : null}
-        />
-      ))}
-    </>
-  );
-}
+const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
 
 interface DriverVoucherPrintAreaProps {
   voucher: DriverVoucherData;
@@ -80,13 +49,27 @@ export function DriverVoucherPrintArea({
   voucher,
   breakdown,
 }: DriverVoucherPrintAreaProps) {
+  const parkingSuggested =
+    breakdown?.parking.length
+      ? breakdown.parking.reduce((sum, row) => sum + row.suggested, 0)
+      : voucher.parkingAmt;
+  const kpbSuggested =
+    breakdown?.kpb.length
+      ? breakdown.kpb.reduce((sum, row) => sum + row.suggested, 0)
+      : voucher.kpbAmt;
+  const upahTurunSuggested =
+    breakdown?.upahTurun.length
+      ? breakdown.upahTurun.reduce((sum, row) => sum + row.suggested, 0)
+      : voucher.upahTurunAmt;
+  const upahNaikTongSuggested =
+    breakdown?.upahNaikTongSuggested ?? voucher.upahNaikTongAmt;
   const suggestedSubtotal = sumSuggestedAmounts({
     chopBorderAmt: voucher.chopBorderAmt,
-    parkingAmt: voucher.parkingAmt,
-    kpbAmt: voucher.kpbAmt,
+    parkingAmt: parkingSuggested,
+    kpbAmt: kpbSuggested,
     fishCheckAmt: voucher.fishCheckAmt,
-    upahTurunAmt: voucher.upahTurunAmt,
-    upahNaikTongAmt: voucher.upahNaikTongAmt,
+    upahTurunAmt: upahTurunSuggested,
+    upahNaikTongAmt: upahNaikTongSuggested,
     minyakMotoEnabled: voucher.minyakMotoEnabled,
     minyakMotoAmt: voucher.minyakMotoAmt,
   });
@@ -97,6 +80,17 @@ export function DriverVoucherPrintArea({
       : voucher.baki != null
         ? "text-red-700"
         : "";
+
+  const parkingMap = new Map((breakdown?.parking ?? []).map((row) => [row.market, row]));
+  const kpbMap = new Map((breakdown?.kpb ?? []).map((row) => [row.market, row]));
+  const upahTurunMap = new Map((breakdown?.upahTurun ?? []).map((row) => [row.market, row]));
+  const parkingMarkets = MARKET_ORDER.filter((market) => parkingMap.has(market));
+  const kpbMarkets = MARKET_ORDER.filter((market) => kpbMap.has(market));
+  const upahTurunMarkets = MARKET_ORDER.filter((market) => upahTurunMap.has(market));
+  const marketWithAnyRows = MARKET_ORDER.filter(
+    (market) =>
+      parkingMap.has(market) || kpbMap.has(market) || upahTurunMap.has(market)
+  );
 
   return (
     <div className="voucher-print-area" aria-hidden="true">
@@ -143,28 +137,66 @@ export function DriverVoucherPrintArea({
             suggested={voucher.chopBorderAmt}
             actual={voucher.chopBorderActual}
           />
-          <MarketSplitRows
-            labelPrefix="Parking"
-            rows={breakdown?.parking ?? []}
-            actualTotal={voucher.parkingActual}
-            fallbackSuggested={voucher.parkingAmt}
-          />
-          <MarketSplitRows
-            labelPrefix="KPB"
-            rows={breakdown?.kpb ?? []}
-            actualTotal={voucher.kpbActual}
-            fallbackSuggested={voucher.kpbAmt}
-          />
+          {marketWithAnyRows.map((market) => (
+            <Fragment key={`market-block-${market}`}>
+              {parkingMap.get(market) && (
+                <FeeRow
+                  label={`Parking ${market}`}
+                  suggested={parkingMap.get(market)!.suggested}
+                  actual={
+                    market === parkingMarkets[parkingMarkets.length - 1]
+                      ? voucher.parkingActual
+                      : null
+                  }
+                />
+              )}
+              {kpbMap.get(market) && (
+                <FeeRow
+                  label={`KPB ${market}`}
+                  suggested={kpbMap.get(market)!.suggested}
+                  actual={
+                    market === kpbMarkets[kpbMarkets.length - 1]
+                      ? voucher.kpbActual
+                      : null
+                  }
+                />
+              )}
+              {upahTurunMap.get(market) && (
+                <FeeRow
+                  label={`Upah Turun ${market}`}
+                  suggested={upahTurunMap.get(market)!.suggested}
+                  actual={
+                    market === upahTurunMarkets[upahTurunMarkets.length - 1]
+                      ? voucher.upahTurunActual
+                      : null
+                  }
+                />
+              )}
+            </Fragment>
+          ))}
+          {marketWithAnyRows.length === 0 && (
+            <>
+              <FeeRow
+                label="Parking"
+                suggested={voucher.parkingAmt}
+                actual={voucher.parkingActual}
+              />
+              <FeeRow
+                label="KPB"
+                suggested={voucher.kpbAmt}
+                actual={voucher.kpbActual}
+              />
+              <FeeRow
+                label="Upah Turun"
+                suggested={voucher.upahTurunAmt}
+                actual={voucher.upahTurunActual}
+              />
+            </>
+          )}
           <FeeRow
             label="Semak Ikan / Fish Check"
             suggested={voucher.fishCheckAmt}
             actual={voucher.fishCheckActual}
-          />
-          <MarketSplitRows
-            labelPrefix="Upah Turun / Unloading"
-            rows={breakdown?.upahTurun ?? []}
-            actualTotal={voucher.upahTurunActual}
-            fallbackSuggested={voucher.upahTurunAmt}
           />
           <FeeRow
             label={
@@ -172,7 +204,7 @@ export function DriverVoucherPrintArea({
               "Upah Naik Tong / Crate Loading"
             }
             suggested={
-              breakdown?.upahNaikTongSuggested ?? voucher.upahNaikTongAmt
+              upahNaikTongSuggested
             }
             actual={voucher.upahNaikTongActual}
           />

@@ -17,7 +17,6 @@ import {
   sumActualBelanja,
   sumSuggestedAmounts,
   VOUCHER_LABELS,
-  VOUCHER_LINE_ITEMS,
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
@@ -64,6 +63,8 @@ interface DriverVoucherFormProps {
   voucherId?: string;
   initialTripId?: string;
 }
+
+const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
 
 function suggestionToForm(
   s: {
@@ -534,191 +535,251 @@ export function DriverVoucherForm({
               <div className="text-right">{VOUCHER_LABELS.sebenar}</div>
             </div>
 
-            {VOUCHER_LINE_ITEMS.filter(
-              ({ key }) => !["parking", "kpb", "upahTurun"].includes(key)
-            ).map(({ label, amtKey, actualKey }) => (
-              <div key={amtKey} className="grid grid-cols-3 items-center gap-3">
-                <label className="text-sm">{label}</label>
-                <Input
-                  readOnly
-                  className="bg-muted/50 text-right font-mono"
-                  value={form[amtKey]}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  className="text-right font-mono"
-                  value={form[actualKey]}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, [actualKey]: e.target.value } : prev
-                    )
-                  }
-                />
-              </div>
-            ))}
+            {(() => {
+              const parkingMap = new Map(
+                (printBreakdown?.parking ?? []).map((row) => [row.market, row])
+              );
+              const kpbMap = new Map(
+                (printBreakdown?.kpb ?? []).map((row) => [row.market, row])
+              );
+              const upahTurunMap = new Map(
+                (printBreakdown?.upahTurun ?? []).map((row) => [row.market, row])
+              );
+              const parkingMarkets = MARKET_ORDER.filter((market) =>
+                parkingMap.has(market)
+              );
+              const kpbMarkets = MARKET_ORDER.filter((market) => kpbMap.has(market));
+              const upahTurunMarkets = MARKET_ORDER.filter((market) =>
+                upahTurunMap.has(market)
+              );
+              const marketWithAnyRows = MARKET_ORDER.filter(
+                (market) =>
+                  parkingMap.has(market) ||
+                  kpbMap.has(market) ||
+                  upahTurunMap.has(market)
+              );
 
-            {(printBreakdown?.parking.length ?? 0) > 0 ? (
-              printBreakdown!.parking.map((row, index) => {
-                const isLast = index === printBreakdown!.parking.length - 1;
-                return (
-                  <div
-                    key={`parking-${row.market}`}
-                    className="grid grid-cols-3 items-center gap-3"
-                  >
-                    <label className="text-sm">{`Parking ${row.market}`}</label>
+              return (
+                <>
+                  <div className="grid grid-cols-3 items-center gap-3">
+                    <label className="text-sm">Chop/Border</label>
                     <Input
                       readOnly
                       className="bg-muted/50 text-right font-mono"
-                      value={String(row.suggested)}
+                      value={form.chopBorderAmt}
                     />
-                    {isLast ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="text-right font-mono"
-                        value={form.parkingActual}
-                        onChange={(e) =>
-                          setForm((prev) =>
-                            prev ? { ...prev, parkingActual: e.target.value } : prev
-                          )
-                        }
-                      />
-                    ) : (
-                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
-                    )}
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="text-right font-mono"
+                      value={form.chopBorderActual}
+                      onChange={(e) =>
+                        setForm((prev) =>
+                          prev ? { ...prev, chopBorderActual: e.target.value } : prev
+                        )
+                      }
+                    />
                   </div>
-                );
-              })
-            ) : (
-              <div className="grid grid-cols-3 items-center gap-3">
-                <label className="text-sm">Parking</label>
-                <Input
-                  readOnly
-                  className="bg-muted/50 text-right font-mono"
-                  value={form.parkingAmt}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  className="text-right font-mono"
-                  value={form.parkingActual}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, parkingActual: e.target.value } : prev
-                    )
-                  }
-                />
-              </div>
-            )}
-
-            {(printBreakdown?.kpb.length ?? 0) > 0 ? (
-              printBreakdown!.kpb.map((row, index) => {
-                const isLast = index === printBreakdown!.kpb.length - 1;
-                return (
-                  <div
-                    key={`kpb-${row.market}`}
-                    className="grid grid-cols-3 items-center gap-3"
-                  >
-                    <label className="text-sm">{`KPB ${row.market}`}</label>
+                  {marketWithAnyRows.map((market) => (
+                    <div key={`market-block-${market}`} className="contents">
+                      {parkingMap.get(market) && (
+                        <div className="grid grid-cols-3 items-center gap-3">
+                          <label className="text-sm">{`Parking ${market}`}</label>
+                          <Input
+                            readOnly
+                            className="bg-muted/50 text-right font-mono"
+                            value={String(parkingMap.get(market)!.suggested)}
+                          />
+                          {market === parkingMarkets[parkingMarkets.length - 1] ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="text-right font-mono"
+                              value={form.parkingActual}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  prev
+                                    ? { ...prev, parkingActual: e.target.value }
+                                    : prev
+                                )
+                              }
+                            />
+                          ) : (
+                            <Input
+                              readOnly
+                              className="bg-muted/50 text-right font-mono"
+                              value=""
+                            />
+                          )}
+                        </div>
+                      )}
+                      {kpbMap.get(market) && (
+                        <div className="grid grid-cols-3 items-center gap-3">
+                          <label className="text-sm">{`KPB ${market}`}</label>
+                          <Input
+                            readOnly
+                            className="bg-muted/50 text-right font-mono"
+                            value={String(kpbMap.get(market)!.suggested)}
+                          />
+                          {market === kpbMarkets[kpbMarkets.length - 1] ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="text-right font-mono"
+                              value={form.kpbActual}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  prev ? { ...prev, kpbActual: e.target.value } : prev
+                                )
+                              }
+                            />
+                          ) : (
+                            <Input
+                              readOnly
+                              className="bg-muted/50 text-right font-mono"
+                              value=""
+                            />
+                          )}
+                        </div>
+                      )}
+                      {upahTurunMap.get(market) && (
+                        <div className="grid grid-cols-3 items-center gap-3">
+                          <label className="text-sm">{`Upah Turun ${market}`}</label>
+                          <Input
+                            readOnly
+                            className="bg-muted/50 text-right font-mono"
+                            value={String(upahTurunMap.get(market)!.suggested)}
+                          />
+                          {market === upahTurunMarkets[upahTurunMarkets.length - 1] ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="text-right font-mono"
+                              value={form.upahTurunActual}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  prev
+                                    ? { ...prev, upahTurunActual: e.target.value }
+                                    : prev
+                                )
+                              }
+                            />
+                          ) : (
+                            <Input
+                              readOnly
+                              className="bg-muted/50 text-right font-mono"
+                              value=""
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {marketWithAnyRows.length === 0 && (
+                    <>
+                      <div className="grid grid-cols-3 items-center gap-3">
+                        <label className="text-sm">Parking</label>
+                        <Input
+                          readOnly
+                          className="bg-muted/50 text-right font-mono"
+                          value={form.parkingAmt}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-right font-mono"
+                          value={form.parkingActual}
+                          onChange={(e) =>
+                            setForm((prev) =>
+                              prev ? { ...prev, parkingActual: e.target.value } : prev
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-3">
+                        <label className="text-sm">KPB</label>
+                        <Input
+                          readOnly
+                          className="bg-muted/50 text-right font-mono"
+                          value={form.kpbAmt}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-right font-mono"
+                          value={form.kpbActual}
+                          onChange={(e) =>
+                            setForm((prev) =>
+                              prev ? { ...prev, kpbActual: e.target.value } : prev
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 items-center gap-3">
+                        <label className="text-sm">Upah Turun</label>
+                        <Input
+                          readOnly
+                          className="bg-muted/50 text-right font-mono"
+                          value={form.upahTurunAmt}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="text-right font-mono"
+                          value={form.upahTurunActual}
+                          onChange={(e) =>
+                            setForm((prev) =>
+                              prev ? { ...prev, upahTurunActual: e.target.value } : prev
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                  <div className="grid grid-cols-3 items-center gap-3">
+                    <label className="text-sm">Fish Check</label>
                     <Input
                       readOnly
                       className="bg-muted/50 text-right font-mono"
-                      value={String(row.suggested)}
+                      value={form.fishCheckAmt}
                     />
-                    {isLast ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="text-right font-mono"
-                        value={form.kpbActual}
-                        onChange={(e) =>
-                          setForm((prev) =>
-                            prev ? { ...prev, kpbActual: e.target.value } : prev
-                          )
-                        }
-                      />
-                    ) : (
-                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
-                    )}
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="text-right font-mono"
+                      value={form.fishCheckActual}
+                      onChange={(e) =>
+                        setForm((prev) =>
+                          prev ? { ...prev, fishCheckActual: e.target.value } : prev
+                        )
+                      }
+                    />
                   </div>
-                );
-              })
-            ) : (
-              <div className="grid grid-cols-3 items-center gap-3">
-                <label className="text-sm">KPB</label>
-                <Input
-                  readOnly
-                  className="bg-muted/50 text-right font-mono"
-                  value={form.kpbAmt}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  className="text-right font-mono"
-                  value={form.kpbActual}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, kpbActual: e.target.value } : prev
-                    )
-                  }
-                />
-              </div>
-            )}
-
-            {(printBreakdown?.upahTurun.length ?? 0) > 0 ? (
-              printBreakdown!.upahTurun.map((row, index) => {
-                const isLast = index === printBreakdown!.upahTurun.length - 1;
-                return (
-                  <div
-                    key={`upah-turun-${row.market}`}
-                    className="grid grid-cols-3 items-center gap-3"
-                  >
-                    <label className="text-sm">{`Upah Turun ${row.market}`}</label>
+                  <div className="grid grid-cols-3 items-center gap-3">
+                    <label className="text-sm">{printBreakdown?.upahNaikTongLabel ?? "Upah Naik Tong"}</label>
                     <Input
                       readOnly
                       className="bg-muted/50 text-right font-mono"
-                      value={String(row.suggested)}
+                      value={String(
+                        printBreakdown?.upahNaikTongSuggested ??
+                          (parseOptionalNumber(form.upahNaikTongAmt) ?? 0)
+                      )}
                     />
-                    {isLast ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="text-right font-mono"
-                        value={form.upahTurunActual}
-                        onChange={(e) =>
-                          setForm((prev) =>
-                            prev ? { ...prev, upahTurunActual: e.target.value } : prev
-                          )
-                        }
-                      />
-                    ) : (
-                      <Input readOnly className="bg-muted/50 text-right font-mono" value="" />
-                    )}
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="text-right font-mono"
+                      value={form.upahNaikTongActual}
+                      onChange={(e) =>
+                        setForm((prev) =>
+                          prev ? { ...prev, upahNaikTongActual: e.target.value } : prev
+                        )
+                      }
+                    />
                   </div>
-                );
-              })
-            ) : (
-              <div className="grid grid-cols-3 items-center gap-3">
-                <label className="text-sm">Upah Turun</label>
-                <Input
-                  readOnly
-                  className="bg-muted/50 text-right font-mono"
-                  value={form.upahTurunAmt}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  className="text-right font-mono"
-                  value={form.upahTurunActual}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, upahTurunActual: e.target.value } : prev
-                    )
-                  }
-                />
-              </div>
-            )}
+                </>
+              );
+            })()}
 
             <div className="grid grid-cols-3 items-center gap-3">
               <div className="flex items-center gap-2">

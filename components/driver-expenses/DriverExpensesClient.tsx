@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -38,6 +38,8 @@ interface DriverExpensesClientProps {
   initialDate: string;
 }
 
+const DRIVER_EXPENSES_CACHE_KEY = "driver-expenses:search-state:v1";
+
 interface UnloadingFeeRow {
   id: string;
   tripId: string;
@@ -56,19 +58,6 @@ interface UnloadingFeeRow {
   kpbFeeOverride: number | null;
   isKpbExempt: boolean;
   tripLevelNote: string | null;
-}
-
-interface CrateLoadingFeeRow {
-  id: string;
-  tripId: string;
-  tripDate: string;
-  lorry: string;
-  driver: string;
-  route: string;
-  market: string;
-  truckSize: string;
-  loadingFee: number;
-  loadingFeeOverride: number | null;
 }
 
 interface DriverVoucherRow {
@@ -103,37 +92,11 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function effectiveLoadingFee(row: CrateLoadingFeeRow) {
-  return row.loadingFeeOverride ?? row.loadingFee;
-}
-
 function groupUnloadingFees(fees: UnloadingFeeRow[]): TripGroup<UnloadingFeeRow>[] {
   const map = new Map<string, TripGroup<UnloadingFeeRow>>();
   for (const fee of fees) {
     const existing = map.get(fee.tripId);
     const sub = lineSubtotal(fee);
-    if (existing) {
-      existing.rows.push(fee);
-      existing.subtotal = roundMoney(existing.subtotal + sub);
-    } else {
-      map.set(fee.tripId, {
-        tripId: fee.tripId,
-        lorry: fee.lorry,
-        driver: fee.driver,
-        route: fee.route,
-        rows: [fee],
-        subtotal: sub,
-      });
-    }
-  }
-  return Array.from(map.values());
-}
-
-function groupLoadingFees(fees: CrateLoadingFeeRow[]): TripGroup<CrateLoadingFeeRow>[] {
-  const map = new Map<string, TripGroup<CrateLoadingFeeRow>>();
-  for (const fee of fees) {
-    const existing = map.get(fee.tripId);
-    const sub = effectiveLoadingFee(fee);
     if (existing) {
       existing.rows.push(fee);
       existing.subtotal = roundMoney(existing.subtotal + sub);
@@ -176,7 +139,6 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
   const [date, setDate] = useState(initialDate);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [unloadingFees, setUnloadingFees] = useState<UnloadingFeeRow[]>([]);
-  const [loadingFees, setLoadingFees] = useState<CrateLoadingFeeRow[]>([]);
   const [vouchers, setVouchers] = useState<DriverVoucherRow[]>([]);
   const [dispatches, setDispatches] = useState<DispatchOption[]>([]);
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(new Set());
@@ -185,7 +147,6 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
   const [error, setError] = useState<string | null>(null);
   const [printTarget, setPrintTarget] = useState<
     | { type: "unloading"; tripId: string }
-    | { type: "loading"; tripId: string }
     | null
   >(null);
   const [isPending, startTransition] = useTransition();
@@ -194,10 +155,6 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
   const unloadingGroups = useMemo(
     () => groupUnloadingFees(unloadingFees),
     [unloadingFees]
-  );
-  const loadingGroups = useMemo(
-    () => groupLoadingFees(loadingFees),
-    [loadingFees]
   );
 
   const loadAll = useCallback(async (targetDate: string) => {
@@ -208,22 +165,20 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
         startDate: targetDate,
         endDate: targetDate,
       });
-      const [unloadingRes, loadingRes, voucherRes, dispatchRes] =
+      const [unloadingRes, voucherRes, dispatchRes] =
         await Promise.all([
           fetch(`/api/unloading-fees?${qs}`),
-          fetch(`/api/crate-loading-fees?${qs}`),
           fetch(`/api/driver-vouchers?${qs}`),
           fetch(`/api/driver-expenses/dispatches?date=${targetDate}`),
         ]);
 
-      if (!unloadingRes.ok || !loadingRes.ok || !voucherRes.ok) {
+      if (!unloadingRes.ok || !voucherRes.ok) {
         throw new Error("加载失败 Failed to load data");
       }
 
-      const [unloadingData, loadingData, voucherData, dispatchData] =
+      const [unloadingData, voucherData, dispatchData] =
         await Promise.all([
           unloadingRes.json() as Promise<{ fees?: UnloadingFeeRow[] }>,
-          loadingRes.json() as Promise<{ fees?: CrateLoadingFeeRow[] }>,
           voucherRes.json() as Promise<{ vouchers?: DriverVoucherRow[] }>,
           dispatchRes.ok
             ? (dispatchRes.json() as Promise<{ dispatches?: DispatchOption[] }>)
@@ -231,10 +186,20 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
         ]);
 
       setUnloadingFees(unloadingData.fees ?? []);
-      setLoadingFees(loadingData.fees ?? []);
       setVouchers(voucherData.vouchers ?? []);
       setDispatches(dispatchData.dispatches ?? []);
       setLoadedDate(targetDate);
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          DRIVER_EXPENSES_CACHE_KEY,
+          JSON.stringify({
+            date: targetDate,
+            unloadingFees: unloadingData.fees ?? [],
+            vouchers: voucherData.vouchers ?? [],
+            dispatches: dispatchData.dispatches ?? [],
+          })
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -248,6 +213,27 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
     params.set("date", next);
     router.push(`/documents/driver-expenses?${params.toString()}`);
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem(DRIVER_EXPENSES_CACHE_KEY);
+    if (!raw) return;
+    try {
+      const cached = JSON.parse(raw) as {
+        date?: string;
+        unloadingFees?: UnloadingFeeRow[];
+        vouchers?: DriverVoucherRow[];
+        dispatches?: DispatchOption[];
+      };
+      if (cached.date !== date) return;
+      setUnloadingFees(cached.unloadingFees ?? []);
+      setVouchers(cached.vouchers ?? []);
+      setDispatches(cached.dispatches ?? []);
+      setLoadedDate(cached.date ?? null);
+    } catch {
+      // ignore parse errors
+    }
+  }, [date]);
 
   function handleSearch() {
     void loadAll(date);
@@ -298,7 +284,7 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
   }
 
   function triggerPrint(
-    target: { type: "unloading"; tripId: string } | { type: "loading"; tripId: string }
+    target: { type: "unloading"; tripId: string }
   ) {
     setPrintTarget(target);
     requestAnimationFrame(() => window.print());
@@ -329,34 +315,9 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
     }
   }
 
-  async function patchLoadingFee(id: string, raw: string) {
-    const value = raw.trim() === "" ? null : Number(raw);
-    if (value !== null && !Number.isFinite(value)) return;
-    try {
-      const res = await fetch(`/api/crate-loading-fees/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loadingFeeOverride: value }),
-      });
-      if (!res.ok) throw new Error("保存失败");
-      const data = (await res.json()) as { fee?: CrateLoadingFeeRow };
-      if (data.fee) {
-        setLoadingFees((prev) =>
-          prev.map((row) => (row.id === id ? { ...row, ...data.fee! } : row))
-        );
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
-    }
-  }
-
   const printUnloadingGroup =
     printTarget?.type === "unloading"
       ? unloadingGroups.find((g) => g.tripId === printTarget.tripId)
-      : null;
-  const printLoadingGroup =
-    printTarget?.type === "loading"
-      ? loadingGroups.find((g) => g.tripId === printTarget.tripId)
       : null;
 
   return (
@@ -558,77 +519,7 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
             )}
           </ModuleCard>
 
-          <ModuleCard title="Module 2 — Upah Naik Tong（上桶费）" compact>
-            {loadingGroups.length === 0 ? (
-              <p className="text-sm text-haidee-muted">此日期暂无上桶费记录</p>
-            ) : (
-              <div className="space-y-2">
-                {loadingGroups.map((group) => (
-                  <div
-                    key={group.tripId}
-                    className="overflow-hidden rounded-lg border border-haidee-border"
-                  >
-                    <div className="no-print flex flex-wrap items-center gap-2 bg-haidee-surface/30 px-3 py-2">
-                      <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
-                        <span className="font-medium">{group.lorry}</span>
-                        <span className="text-haidee-muted">{group.driver}</span>
-                        <span className="text-haidee-muted">{group.route}</span>
-                        <span className="ml-auto font-mono font-semibold">
-                          {formatMyr(group.subtotal)}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1"
-                        onClick={() =>
-                          triggerPrint({ type: "loading", tripId: group.tripId })
-                        }
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                        打印
-                      </Button>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>市场</TableHead>
-                          <TableHead>车种</TableHead>
-                          <TableHead className="text-right">上桶费</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {group.rows.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell>{row.market}</TableCell>
-                            <TableCell>{row.truckSize}</TableCell>
-                            <TableCell className="text-right">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                className={cn(
-                                  "ml-auto h-8 w-24 text-right font-mono text-sm",
-                                  row.loadingFeeOverride != null &&
-                                    "text-orange-600"
-                                )}
-                                defaultValue={effectiveLoadingFee(row)}
-                                key={`load-${row.id}-${row.loadingFeeOverride}`}
-                                onBlur={(e) =>
-                                  patchLoadingFee(row.id, e.target.value)
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ModuleCard>
-
-          <ModuleCard title="Module 3 — Driver Voucher（司机报销单）">
+          <ModuleCard title="Module 2 — Driver Voucher（司机报销单）">
             <div className="no-print mb-4">
               <Link
                 href={`/documents/driver-expenses/new?date=${date}`}
@@ -757,44 +648,6 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
         </div>
       )}
 
-      {printLoadingGroup && (
-        <div className="driver-expense-print-area hidden print:block">
-          <div className="print-title">
-            Upah Naik Tong — {printLoadingGroup.lorry}
-          </div>
-          <p>
-            {printLoadingGroup.driver} · {printLoadingGroup.route} · {date}
-          </p>
-          <table className="mt-3">
-            <thead>
-              <tr>
-                <th>市场</th>
-                <th>车种</th>
-                <th>上桶费</th>
-              </tr>
-            </thead>
-            <tbody>
-              {printLoadingGroup.rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.market}</td>
-                  <td>{row.truckSize}</td>
-                  <td className="text-right">
-                    {formatMyr(effectiveLoadingFee(row))}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={2} className="text-right font-bold">
-                  合计 Total
-                </td>
-                <td className="text-right font-bold">
-                  {formatMyr(printLoadingGroup.subtotal)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }
