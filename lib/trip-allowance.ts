@@ -140,6 +140,98 @@ export function calculateTripAllowance(input: {
   };
 }
 
+export interface TripAllowanceDebug {
+  markets: string[];
+  routeGroups: string[];
+  groupCount: number;
+  primaryRouteCode: string | null;
+  primaryRouteAllowance: number;
+  extraMarketCount: number;
+  extraMarketAllowancePer: number;
+  extraMarketTotal: number;
+  tripAllowanceTotal: number;
+  formula: string;
+  crateReturn: {
+    triggered: boolean;
+    truckType: string | null;
+    rate: number;
+    commission: number;
+    formula: string;
+  };
+}
+
+export function explainTripAllowance(input: {
+  markets: string[];
+  routes: RouteAllowanceInput[];
+  extraMarketAllowance: number;
+  truckType?: string | null;
+  hasCrateReturn?: boolean;
+  crateRates?: {
+    bigTruckCrateCommission: number | null;
+    smallTruckCrateCommission: number | null;
+  };
+}): TripAllowanceDebug {
+  const allowance = calculateTripAllowance({
+    markets: input.markets,
+    routes: input.routes,
+    extraMarketAllowance: input.extraMarketAllowance,
+  });
+  const dispatchMarkets = normalizeDispatchMarkets(input.markets);
+  const routeGroups = getRouteGroups(dispatchMarkets);
+  const groupCount = countPayrollMarketGroups(dispatchMarkets, input.routes);
+  const primaryRouteAllowance =
+    allowance.tripAllowance -
+    allowance.extraMarketCount * input.extraMarketAllowance;
+  const extraMarketTotal = roundMoney(
+    allowance.extraMarketCount * input.extraMarketAllowance
+  );
+  const crateRates = input.crateRates ?? {
+    bigTruckCrateCommission: null,
+    smallTruckCrateCommission: null,
+  };
+  const crateCommission = crateReturnCommissionForDispatch({
+    truckType: input.truckType,
+    hasCrateReturn: input.hasCrateReturn ?? false,
+    rates: crateRates,
+  });
+  const crateRate = input.hasCrateReturn
+    ? crateCommissionForTruckType(input.truckType, crateRates)
+    : 0;
+
+  const formula =
+    allowance.primaryRouteCode == null
+      ? `${groupCount} 组 × RM${input.extraMarketAllowance} = RM${allowance.tripAllowance}`
+      : `最高路线 ${allowance.primaryRouteCode} RM${primaryRouteAllowance}` +
+        (allowance.extraMarketCount > 0
+          ? ` + 额外 ${allowance.extraMarketCount} 组 × RM${input.extraMarketAllowance} = RM${extraMarketTotal}`
+          : "") +
+        ` → 趟次津贴 RM${allowance.tripAllowance}`;
+
+  const crateFormula = input.hasCrateReturn
+    ? `${input.truckType === "small" ? "小车" : "大车"} RM${crateRate}/趟（有回桶）`
+    : "无回桶记录，提成 RM0";
+
+  return {
+    markets: dispatchMarkets,
+    routeGroups,
+    groupCount,
+    primaryRouteCode: allowance.primaryRouteCode,
+    primaryRouteAllowance: roundMoney(Math.max(0, primaryRouteAllowance)),
+    extraMarketCount: allowance.extraMarketCount,
+    extraMarketAllowancePer: input.extraMarketAllowance,
+    extraMarketTotal,
+    tripAllowanceTotal: allowance.tripAllowance,
+    formula,
+    crateReturn: {
+      triggered: Boolean(input.hasCrateReturn),
+      truckType: input.truckType ?? null,
+      rate: crateRate,
+      commission: crateCommission,
+      formula: crateFormula,
+    },
+  };
+}
+
 export function crateCommissionForTruckType(
   truckType: string | null | undefined,
   rates: {

@@ -17,6 +17,7 @@ import { getRouteLabel } from "@/lib/payroll-route-label";
 import {
   calculateTripAllowance,
   countPayrollMarketGroups,
+  explainTripAllowance,
   getDriverPayrollName,
 } from "@/lib/trip-allowance";
 import {
@@ -215,11 +216,54 @@ export async function getDriverPayrollMonth(input: {
       pcb: decimalToNumber(record.pcbOverride),
     },
     trips: record.trips.map((trip) => {
-      const autoTripAllowance = calculateTripAllowance({
-        markets: trip.markets,
-        routes: allowanceContext.routes,
-        extraMarketAllowance: allowanceContext.extraMarketAllowance,
-      }).tripAllowance;
+      const crateReturnCommission = decimalToNumber(trip.crateReturnCommission) ?? 0;
+      const autoTripAllowanceDebug =
+        input.month === 6
+          ? explainTripAllowance({
+              markets: trip.markets,
+              routes: allowanceContext.routes,
+              extraMarketAllowance: allowanceContext.extraMarketAllowance,
+              truckType: trip.truckType,
+              hasCrateReturn: crateReturnCommission > 0,
+              crateRates: {
+                bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
+                smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
+              },
+            })
+          : null;
+
+      if (input.month === 6 && autoTripAllowanceDebug) {
+        console.log("[DriverPayroll][JuneTripAllowanceDebug]", {
+          driverId: input.driverId,
+          tripId: trip.id,
+          dispatchOrderId: trip.dispatchOrderId,
+          date: trip.date,
+          markets: trip.markets,
+          marketCount: trip.marketCount,
+          stored: {
+            tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+            extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
+            crateReturnCommission,
+          },
+          computed: {
+            primaryRoute: autoTripAllowanceDebug.primaryRouteCode,
+            groupCount: autoTripAllowanceDebug.groupCount,
+            routeGroups: autoTripAllowanceDebug.routeGroups,
+            extraMarketCount: autoTripAllowanceDebug.extraMarketCount,
+            formula: autoTripAllowanceDebug.formula,
+            crateReturn: autoTripAllowanceDebug.crateReturn,
+            tripAllowanceTotal: autoTripAllowanceDebug.tripAllowanceTotal,
+          },
+        });
+      }
+
+      const autoTripAllowance =
+        autoTripAllowanceDebug?.tripAllowanceTotal ??
+        calculateTripAllowance({
+          markets: trip.markets,
+          routes: allowanceContext.routes,
+          extraMarketAllowance: allowanceContext.extraMarketAllowance,
+        }).tripAllowance;
 
       return {
         id: trip.id,
@@ -235,7 +279,7 @@ export async function getDriverPayrollMonth(input: {
         autoTripAllowance,
         tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
         extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
-        crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
+        crateReturnCommission,
         truckType: trip.truckType,
         notes: trip.notes,
       };

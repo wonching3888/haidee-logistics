@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Download, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -73,36 +73,40 @@ export function DriverPayrollView({
     note: "",
   });
 
-  function loadSummary() {
-    startTransition(async () => {
-      setError(null);
-      try {
-        const result = await getDriverPayrollMonthlySummary({ year, month });
-        setSummaryData(result);
-      } catch (e) {
-        setSummaryData(null);
-        setError(e instanceof Error ? e.message : "加载汇总失败");
-      }
+  async function fetchSummary() {
+    const result = await getDriverPayrollMonthlySummary({ year, month });
+    setSummaryData(result);
+  }
+
+  async function fetchPayroll() {
+    if (!driverId) return;
+    const result = await getDriverPayrollMonth({ driverId, year, month });
+    setData(result);
+    setOverrideForm({
+      epfEmployee: result.overrides.epfEmployee?.toString() ?? "",
+      epfEmployer: result.overrides.epfEmployer?.toString() ?? "",
+      socsoEmployee: result.overrides.socsoEmployee?.toString() ?? "",
+      socsoEmployer: result.overrides.socsoEmployer?.toString() ?? "",
+      eisEmployee: result.overrides.eisEmployee?.toString() ?? "",
+      eisEmployer: result.overrides.eisEmployer?.toString() ?? "",
+      pcb: result.overrides.pcb?.toString() ?? "",
     });
   }
 
-  function loadPayroll() {
-    if (!driverId) return;
+  async function reloadAll() {
+    if (activeTab === "detail") {
+      await fetchPayroll();
+    }
+    await fetchSummary();
+  }
+
+  function handleQuery() {
     startTransition(async () => {
       setError(null);
       try {
-        const result = await getDriverPayrollMonth({ driverId, year, month });
-        setData(result);
-        setOverrideForm({
-          epfEmployee: result.overrides.epfEmployee?.toString() ?? "",
-          epfEmployer: result.overrides.epfEmployer?.toString() ?? "",
-          socsoEmployee: result.overrides.socsoEmployee?.toString() ?? "",
-          socsoEmployer: result.overrides.socsoEmployer?.toString() ?? "",
-          eisEmployee: result.overrides.eisEmployee?.toString() ?? "",
-          eisEmployer: result.overrides.eisEmployer?.toString() ?? "",
-          pcb: result.overrides.pcb?.toString() ?? "",
-        });
+        await reloadAll();
       } catch (e) {
+        setSummaryData(null);
         setData(null);
         setError(e instanceof Error ? e.message : "加载失败");
       }
@@ -110,29 +114,16 @@ export function DriverPayrollView({
   }
 
   useEffect(() => {
-    loadSummary();
+    handleQuery();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month]);
-
-  useEffect(() => {
-    if (activeTab !== "detail") return;
-    loadPayroll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverId, year, month, activeTab]);
-
-  function reloadAll() {
-    loadSummary();
-    if (activeTab === "detail") {
-      loadPayroll();
-    }
-  }
+  }, []);
 
   function runAction(fn: () => Promise<void>) {
     setError(null);
     startTransition(async () => {
       try {
         await fn();
-        reloadAll();
+        await reloadAll();
       } catch (e) {
         setError(e instanceof Error ? e.message : "操作失败");
       }
@@ -196,6 +187,38 @@ export function DriverPayrollView({
           </select>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={handleQuery}
+        disabled={isPending}
+        style={{
+          backgroundColor: "#2563eb",
+          color: "white",
+          padding: "10px 32px",
+          borderRadius: "8px",
+          border: "none",
+          cursor: "pointer",
+          fontSize: "15px",
+          fontWeight: "600",
+          display: "block",
+        }}
+      >
+        {isPending ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            加载中…
+          </span>
+        ) : (
+          "查询 Search"
+        )}
+      </button>
 
       <div className="flex flex-wrap gap-2 border-b border-haidee-border">
         {(
