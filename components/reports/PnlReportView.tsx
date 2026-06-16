@@ -27,6 +27,7 @@ import {
   type PnlCustomerStatus,
 } from "@/lib/pnl-report-types";
 import { cn } from "@/lib/utils";
+import TripPnlFilter from "./TripPnlFilter";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 type PnlTab = "trip" | "period" | "customer";
@@ -190,33 +191,44 @@ export function PnlReportView({
 
   const [error, setError] = useState<string | null>(null);
 
-  const loadTrips = useCallback(async () => {
-    setTripsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        year: String(year),
-        month: String(month),
-        routeFilter,
-        driverFilter,
-      });
-      if (tripDay) params.set("day", tripDay);
-      const data = await fetchJson<PnlTripsListData>(
-        `/api/pnl/trips?${params}`
-      );
-      setTripsData(data);
-      setExpandedTripIds(new Set());
-      setTripDetails({});
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
-    } finally {
-      setTripsLoading(false);
-    }
-  }, [year, month, tripDay, routeFilter, driverFilter]);
+  const loadTrips = useCallback(
+    async (override?: {
+      year?: number;
+      month?: number;
+      routeFilter?: PnlRouteFilter;
+      driverFilter?: string;
+      tripDay?: string | null;
+    }) => {
+      const searchYear = override?.year ?? year;
+      const searchMonth = override?.month ?? month;
+      const searchRoute = override?.routeFilter ?? routeFilter;
+      const searchDriver = override?.driverFilter ?? driverFilter;
+      const searchDay = override?.tripDay ?? tripDay;
 
-  function handleSearch() {
-    void loadTrips();
-  }
+      setTripsLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          year: String(searchYear),
+          month: String(searchMonth),
+          routeFilter: searchRoute,
+          driverFilter: searchDriver,
+        });
+        if (searchDay) params.set("day", searchDay);
+        const data = await fetchJson<PnlTripsListData>(
+          `/api/pnl/trips?${params}`
+        );
+        setTripsData(data);
+        setExpandedTripIds(new Set());
+        setTripDetails({});
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "加载失败");
+      } finally {
+        setTripsLoading(false);
+      }
+    },
+    [year, month, tripDay, routeFilter, driverFilter]
+  );
 
   async function loadTripDetail(tripId: string) {
     if (tripDetails[tripId]) return;
@@ -397,110 +409,25 @@ export function PnlReportView({
           <p className="text-sm text-haidee-muted">
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
-          <div
-            style={{
-              padding: "16px",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              marginBottom: "16px",
+          <TripPnlFilter
+            onSearch={({ year: searchYear, month: searchMonth, route, driver, date }) => {
+              const nextRoute = (route || "ALL") as PnlRouteFilter;
+              const nextDriver = driver || "ALL";
+              const nextDate = date || "";
+              setYear(searchYear);
+              setMonth(searchMonth);
+              setRouteFilter(nextRoute);
+              setDriverFilter(nextDriver);
+              setTripDay(nextDate);
+              void loadTrips({
+                year: searchYear,
+                month: searchMonth,
+                routeFilter: nextRoute,
+                driverFilter: nextDriver,
+                tripDay: nextDate || null,
+              });
             }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                flexWrap: "wrap",
-                alignItems: "center",
-                marginBottom: "12px",
-              }}
-            >
-              <label>
-                年份 Year
-                <select
-                  value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
-                  style={{ marginLeft: "4px" }}
-                >
-                  {[2024, 2025, 2026].map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                月份 Month
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                  style={{ marginLeft: "4px" }}
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                路线 Route
-                <select
-                  value={routeFilter}
-                  onChange={(e) => setRouteFilter(e.target.value as PnlRouteFilter)}
-                  style={{ marginLeft: "4px" }}
-                >
-                  <option value="ALL">全部 All</option>
-                  {PNL_ROUTE_FILTERS.filter((r) => r !== "ALL").map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                司机 Driver
-                <select
-                  value={driverFilter}
-                  onChange={(e) => setDriverFilter(e.target.value)}
-                  style={{ marginLeft: "4px" }}
-                >
-                  <option value="ALL">全部 All</option>
-                  {drivers.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <label>
-                日期 Date（可选）
-                <input
-                  type="date"
-                  value={tripDay}
-                  onChange={(e) => setTripDay(e.target.value)}
-                  style={{ marginLeft: "4px" }}
-                />
-              </label>
-              <button onClick={() => setTripDay("")}>清空日期</button>
-            </div>
-          </div>
-          <button
-            onClick={handleSearch}
-            style={{
-              backgroundColor: "#2563eb",
-              color: "white",
-              padding: "8px 24px",
-              borderRadius: "8px",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: "500",
-              fontSize: "14px",
-            }}
-          >
-            查询 Search
-          </button>
+          />
 
           {tripsLoading && !tripsData ? (
             <LoadingState />
