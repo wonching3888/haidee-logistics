@@ -16,8 +16,6 @@ export default function TripPnlFilter({ onSearch }: Props) {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [date, setDate] = useState("");
-  const route = "";
-  const driver = "";
 
   return (
     <div>
@@ -51,18 +49,20 @@ export default function TripPnlFilter({ onSearch }: Props) {
         <button onClick={() => setDate("")}>清空日期</button>
       </div>
       <button
-        onClick={() => onSearch({ year, month, route, driver, date })}
+        onClick={() => onSearch({ year, month, route: "", driver: "", date })}
         style={{
-          backgroundColor: "#2563eb",
+          backgroundColor: "red",
           color: "white",
           padding: "10px 32px",
           borderRadius: "8px",
-          border: "none",
+          border: "3px solid black",
           cursor: "pointer",
-          fontSize: "15px",
-          fontWeight: "600",
+          fontSize: "18px",
+          fontWeight: "700",
           display: "block",
-          marginTop: "8px",
+          marginTop: "16px",
+          width: "200px",
+          height: "50px",
         }}
       >
         查询 Search
