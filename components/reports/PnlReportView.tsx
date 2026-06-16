@@ -846,6 +846,7 @@ function TripListRow({
                       <TableHead className="text-right">收入</TableHead>
                       <TableHead className="text-right">租桶费</TableHead>
                       <TableHead className="text-right">LKIM</TableHead>
+                      <TableHead className="text-right">泰国段</TableHead>
                       <TableHead className="text-right">下货费</TableHead>
                       <TableHead className="text-right">分摊油费</TableHead>
                       <TableHead className="text-right">分摊过路费</TableHead>
@@ -874,6 +875,9 @@ function TripListRow({
                         </TableCell>
                         <TableCell className="text-right">
                           {formatMyr(shipper.lkimMaqisMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(shipper.thaiSegmentMyr)}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatMyr(shipper.unloadFeeMyr)}
@@ -994,6 +998,7 @@ function CustomerListRow({
                       <TableHead className="text-right">收入</TableHead>
                       <TableHead className="text-right">租桶费</TableHead>
                       <TableHead className="text-right">LKIM</TableHead>
+                      <TableHead className="text-right">泰国段</TableHead>
                       <TableHead className="text-right">下货费</TableHead>
                       <TableHead className="text-right">分摊成本</TableHead>
                       <TableHead className="text-right">总成本</TableHead>
@@ -1018,6 +1023,9 @@ function CustomerListRow({
                         </TableCell>
                         <TableCell className="text-right">
                           {formatMyr(market.lkimMaqisMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(market.thaiSegmentMyr)}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatMyr(market.unloadFeeMyr)}

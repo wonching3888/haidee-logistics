@@ -20,7 +20,11 @@ INSERT INTO global_cost_settings (key, value_myr, label, notes) VALUES
 ('forwarding_return', 60.00, 'Forwarding 回空桶 Return', 'Zaewe，回空桶趟'),
 ('lkim_maqis_per_crate', 2.50, 'LKIM-MAQIS费（MYR/桶）', '当月派车总桶数 × 费率'),
 ('lkim_maqis_per_box', 1.00, 'LKIM-MAQIS费（MYR/盒）', '当月派车总箱数 × 费率'),
-('fuel_price_myr', 2.05, 'Diesel Price (MYR/L)', '统一油价，每月更新')
+('fuel_price_myr', 2.05, 'Diesel Price (MYR/L)', '统一油价，每月更新'),
+('songkhla_rate_tong', 0.00, '宋卡段车力/桶 (THB)', '泰国段车力费率'),
+('songkhla_rate_box', 0.00, '宋卡段车力/盒 (THB)', '泰国段车力费率'),
+('pattani_rate_tong', 0.00, '北大年段车力/桶 (THB)', '泰国段车力费率'),
+('pattani_rate_box', 0.00, '北大年段车力/盒 (THB)', '泰国段车力费率')
 ON CONFLICT (key) DO NOTHING;
 `;
 

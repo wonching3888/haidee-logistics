@@ -11,6 +11,7 @@ import { loadFleetPayrollAggregate } from "@/lib/payroll-fleet";
 import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
 import { aggregateLkimMaqisCost } from "@/lib/operations-lkim-maqis";
+import { aggregateThaiSegmentFreightCost } from "@/lib/operations-thai-segment";
 import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
@@ -94,6 +95,7 @@ export async function getOperationsDashboard(input: {
     payroll,
     tripCosts,
     lkimMaqis,
+    thaiSegmentFreight,
     exchangeRateRow,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month),
@@ -101,6 +103,7 @@ export async function getOperationsDashboard(input: {
     aggregateFleetPayroll(input.year, input.month),
     aggregateOperationsCosts(input.year, input.month),
     aggregateLkimMaqisCost(input.year, input.month),
+    aggregateThaiSegmentFreightCost(input.year, input.month),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
   ]);
 
@@ -118,5 +121,6 @@ export async function getOperationsDashboard(input: {
     mcThirdPartyMyr,
     tripCosts,
     lkimMaqis,
+    thaiSegmentFreight,
   });
 }

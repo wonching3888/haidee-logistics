@@ -72,6 +72,11 @@ export interface OperationsDashboardData {
     totalBoxes?: number;
     ratePerBox?: number;
   };
+  thaiSegmentFreight: {
+    totalAmountMyr: number;
+    assignedLineCount: number;
+    exchangeRate: number;
+  };
 }
 
 function roundMoney(value: number) {
@@ -171,6 +176,11 @@ export function buildOperationsDashboardMetrics(input: {
     ratePerCrate: number;
     totalBoxes?: number;
     ratePerBox?: number;
+  };
+  thaiSegmentFreight: {
+    totalAmountMyr: number;
+    assignedLineCount: number;
+    exchangeRate: number;
   };
 }): OperationsDashboardData {
   const mode1aMyr = thbToMyr(input.income.mode1aThb, input.exchangeRate);
@@ -332,6 +342,14 @@ export function buildOperationsDashboardMetrics(input: {
       detail: `${(input.lkimMaqis.totalCrates ?? 0).toLocaleString("en-MY")} 桶 × RM ${(input.lkimMaqis.ratePerCrate ?? 0).toFixed(2)} + ${(input.lkimMaqis.totalBoxes ?? 0).toLocaleString("en-MY")} 盒 × RM ${(input.lkimMaqis.ratePerBox ?? 0).toFixed(2)} = RM ${(input.lkimMaqis.totalAmountMyr ?? 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
+      key: "thaiSegmentFreight",
+      label: "泰国段车力",
+      labelEn: "Thai Segment Freight",
+      amountMyr: input.thaiSegmentFreight.totalAmountMyr,
+      source: "estimate",
+      detail: `${input.thaiSegmentFreight.assignedLineCount.toLocaleString("en-MY")} 行 · 汇率 ${input.thaiSegmentFreight.exchangeRate.toFixed(4)} · 内部成本分拆`,
+    },
+    {
       key: "mcThirdParty",
       label: "MC第三方费用",
       labelEn: "MC Third Party",
@@ -378,6 +396,7 @@ export function buildOperationsDashboardMetrics(input: {
     grossProfitMyr: roundMoney(totalRevenueMyr - subtotalMyr),
     tripCosts: input.tripCosts,
     lkimMaqis: input.lkimMaqis,
+    thaiSegmentFreight: input.thaiSegmentFreight,
   };
 }
 

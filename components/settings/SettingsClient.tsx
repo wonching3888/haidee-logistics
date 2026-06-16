@@ -163,9 +163,13 @@ interface SettingsClientProps {
     operationalSettings: {
       mcThirdPartyRateTong: number | null;
       mcThirdPartyRateBox: number | null;
-      mySegmentRateTong: number | null;
-      mySegmentRateBox: number | null;
       driverAllowancePerCrate: number | null;
+    };
+    thaiSegmentRates: {
+      songkhlaRateTong: number;
+      songkhlaRateBox: number;
+      pattaniRateTong: number;
+      pattaniRateBox: number;
     };
     marketOperationalRates: {
       marketId: string;
@@ -720,6 +724,7 @@ export function SettingsClient({
             exchangeAlert={freightData.exchangeAlert}
             fuelPrice={freightData.fuelPrice}
             operationalSettings={freightData.operationalSettings}
+            thaiSegmentRates={freightData.thaiSegmentRates}
           />
           </>
         )}

@@ -1,3 +1,5 @@
+import { THAI_SEGMENT_RATE_UI } from "@/lib/constants/thai-segment-rates";
+
 export const GLOBAL_TRIP_COST_SETTING_KEYS = [
   "border_pass",
   "epermit",
@@ -14,6 +16,10 @@ export type GlobalTripCostSettingKey =
 export const GLOBAL_COST_SETTING_KEYS = [
   ...GLOBAL_TRIP_COST_SETTING_KEYS,
   "fuel_price_myr",
+  "songkhla_rate_tong",
+  "songkhla_rate_box",
+  "pattani_rate_tong",
+  "pattani_rate_box",
 ] as const;
 
 export type GlobalCostSettingKey = (typeof GLOBAL_COST_SETTING_KEYS)[number];
@@ -74,6 +80,30 @@ export const DEFAULT_GLOBAL_COST_SETTINGS: GlobalCostSettingSeed[] = [
     label: "Diesel Price (MYR/L)",
     notes: "统一油价，每月更新",
   },
+  {
+    key: "songkhla_rate_tong",
+    valueMyr: 0,
+    label: "宋卡段车力/桶 (THB)",
+    notes: "泰国段车力费率",
+  },
+  {
+    key: "songkhla_rate_box",
+    valueMyr: 0,
+    label: "宋卡段车力/盒 (THB)",
+    notes: "泰国段车力费率",
+  },
+  {
+    key: "pattani_rate_tong",
+    valueMyr: 0,
+    label: "北大年段车力/桶 (THB)",
+    notes: "泰国段车力费率",
+  },
+  {
+    key: "pattani_rate_box",
+    valueMyr: 0,
+    label: "北大年段车力/盒 (THB)",
+    notes: "泰国段车力费率",
+  },
 ];
 
 export const GLOBAL_COST_UI_LABELS: Record<
@@ -94,4 +124,8 @@ export const GLOBAL_COST_UI_LABELS: Record<
     notes: "MYR/盒，当月派车总箱数 × 费率",
   },
   fuel_price_myr: { label: "Diesel Price", notes: "MYR/L，每月更新" },
+  songkhla_rate_tong: THAI_SEGMENT_RATE_UI.songkhla_rate_tong,
+  songkhla_rate_box: THAI_SEGMENT_RATE_UI.songkhla_rate_box,
+  pattani_rate_tong: THAI_SEGMENT_RATE_UI.pattani_rate_tong,
+  pattani_rate_box: THAI_SEGMENT_RATE_UI.pattani_rate_box,
 };

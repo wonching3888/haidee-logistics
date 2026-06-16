@@ -4,9 +4,7 @@ import {
   WTL_SST_MULTIPLIER,
 } from "@/lib/constants/freight-settings";
 import type { PickupLocation } from "@/lib/constants/pickup-locations";
-import { usesThSegmentSplit } from "@/lib/constants/pickup-locations";
 import {
-  convertMyrToThb,
   convertThbToMyr,
   decimalToNumber,
   pickEffectiveRates,
@@ -310,24 +308,6 @@ function mcThirdPartyUnitRate(
   });
 }
 
-function mySegmentUnitRate(isBox: boolean, settings: OperationalFreightSettings) {
-  return pickUnitRate(isBox, {
-    rateTong: settings.mySegmentRateTong,
-    rateBox: settings.mySegmentRateBox,
-  });
-}
-
-function customerUnitRateInThb(
-  unitRate: number,
-  currency: string,
-  exchangeRate: number
-) {
-  if (currency === "MYR") {
-    return roundMoney(convertMyrToThb(unitRate, exchangeRate));
-  }
-  return unitRate;
-}
-
 export function buildInboundFreightMaps(input: {
   shipperRates: RateRow[];
   consigneeRates: ConsigneeRateRow[];
@@ -452,7 +432,6 @@ export function computeInboundLineFreight(
   let mySegmentFreightAmount: number | null = null;
   let thFreightRate: number | null = null;
   let thFreightAmount: number | null = null;
-  let usedWtlDualSegment = false;
 
   const isWtlShipperRate =
     !isDualPayment && !consigneePays && shipperRate?.isWtl === true;
@@ -460,7 +439,6 @@ export function computeInboundLineFreight(
     consigneePays && consigneeRate != null && hasWtlThaiSegment(consigneeRate);
 
   if (isWtlShipperRate && shipperRate && line.quantity > 0) {
-    usedWtlDualSegment = true;
     const segments = computeWtlDualSegment(
       isBox,
       line.quantity,
@@ -475,7 +453,6 @@ export function computeInboundLineFreight(
     freightRate = segments.totalUnitRate;
     freightAmount = segments.totalAmount;
   } else if (isWtlConsigneeDual && consigneeRate && line.quantity > 0) {
-    usedWtlDualSegment = true;
     const segments = computeWtlDualSegment(
       isBox,
       line.quantity,
@@ -523,30 +500,6 @@ export function computeInboundLineFreight(
     const mcRate = mcThirdPartyUnitRate(isBox, ctx.operationalSettings);
     if (mcRate != null) {
       thirdPartyFee = roundMoney(line.quantity * mcRate);
-    }
-  }
-
-  if (
-    !usedWtlDualSegment &&
-    !isMcMarket &&
-    usesThSegmentSplit(ctx.pickupLocation) &&
-    line.quantity > 0 &&
-    unitRate != null
-  ) {
-    const myRate = mySegmentUnitRate(isBox, ctx.operationalSettings);
-    if (myRate != null) {
-      mySegmentFreightRate = myRate;
-      mySegmentFreightAmount = roundMoney(line.quantity * myRate);
-
-      const customerThb = customerUnitRateInThb(
-        unitRate,
-        currency,
-        ctx.exchangeRate
-      );
-      const myThb = roundMoney(convertMyrToThb(myRate, ctx.exchangeRate));
-      const thUnit = roundMoney(customerThb - myThb);
-      thFreightRate = thUnit;
-      thFreightAmount = roundMoney(line.quantity * thUnit);
     }
   }
 

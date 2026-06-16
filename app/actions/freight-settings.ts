@@ -21,6 +21,8 @@ import {
   resolveEffectiveDateInput,
 } from "@/lib/freight-rates";
 import { sortMarkets } from "@/lib/markets";
+import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
+import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -62,6 +64,7 @@ export async function getFreightSettingsData() {
     exchangeRates,
     fuelPriceRow,
     operationalRow,
+    globalCostSettings,
   ] = await Promise.all([
     prisma.shipper.findMany({
       where: { active: true },
@@ -119,6 +122,7 @@ export async function getFreightSettingsData() {
     }),
     prisma.fuelPrice.findUnique({ where: { id: "default" } }),
     prisma.freightOperationalSettings.findUnique({ where: { id: "default" } }),
+    listGlobalCostSettings(),
   ]);
 
   const freightMarkets = serializeMarkets(markets);
@@ -210,6 +214,7 @@ export async function getFreightSettingsData() {
         DEFAULT_FUEL_PRICES.thbPerLiter,
     },
     operationalSettings: serializeOperationalSettings(operationalRow),
+    thaiSegmentRates: parseThaiSegmentRates(globalCostSettings),
     marketOperationalRates: freightMarkets.map((market) => {
       const row = markets.find((item) => item.id === market.id);
       return {

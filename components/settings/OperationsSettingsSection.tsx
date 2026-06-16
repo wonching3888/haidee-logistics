@@ -21,10 +21,16 @@ import {
 } from "@/components/ui/dialog";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
 import {
+  THAI_SEGMENT_RATE_KEYS,
+  THAI_SEGMENT_RATE_UI,
+  type ThaiSegmentRateKey,
+} from "@/lib/constants/thai-segment-rates";
+import {
   saveExchangeRate,
   saveFuelPrice,
   saveOperationalFreightSettings,
 } from "@/app/actions/freight-settings";
+import { saveGlobalCostSettings } from "@/app/actions/global-cost-settings";
 import type { OperationalSettingsValues } from "@/lib/constants/operational-settings";
 
 interface ExchangeRateRow {
@@ -39,6 +45,13 @@ interface ExchangeAlert {
   currentRate: number | null;
 }
 
+interface ThaiSegmentRateValues {
+  songkhlaRateTong: number;
+  songkhlaRateBox: number;
+  pattaniRateTong: number;
+  pattaniRateBox: number;
+}
+
 interface OperationsSettingsSectionProps {
   exchangeRates: ExchangeRateRow[];
   exchangeAlert: ExchangeAlert;
@@ -46,8 +59,22 @@ interface OperationsSettingsSectionProps {
     myrPerLiter: number;
     thbPerLiter: number;
   };
-  operationalSettings: OperationalSettingsValues;
+  operationalSettings: Pick<
+    OperationalSettingsValues,
+    "mcThirdPartyRateTong" | "mcThirdPartyRateBox"
+  >;
+  thaiSegmentRates: ThaiSegmentRateValues;
 }
+
+const THAI_SEGMENT_FORM_FIELDS: {
+  key: ThaiSegmentRateKey;
+  formKey: keyof ThaiSegmentRateValues;
+}[] = [
+  { key: "songkhla_rate_tong", formKey: "songkhlaRateTong" },
+  { key: "songkhla_rate_box", formKey: "songkhlaRateBox" },
+  { key: "pattani_rate_tong", formKey: "pattaniRateTong" },
+  { key: "pattani_rate_box", formKey: "pattaniRateBox" },
+];
 
 function formatYearMonthLabel(yearMonth: string) {
   const [year, month] = yearMonth.split("-");
@@ -59,6 +86,7 @@ export function OperationsSettingsSection({
   exchangeAlert,
   fuelPrice,
   operationalSettings,
+  thaiSegmentRates,
 }: OperationsSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -73,9 +101,11 @@ export function OperationsSettingsSection({
     mcThirdPartyRateTong: "",
     mcThirdPartyRateBox: "",
   });
-  const [songkhlaForm, setSongkhlaForm] = useState({
-    mySegmentRateTong: "",
-    mySegmentRateBox: "",
+  const [thaiSegmentForm, setThaiSegmentForm] = useState({
+    songkhlaRateTong: "",
+    songkhlaRateBox: "",
+    pattaniRateTong: "",
+    pattaniRateBox: "",
   });
 
   const [form, setForm] = useState({
@@ -85,6 +115,16 @@ export function OperationsSettingsSection({
 
   function optionalRateString(value: number | null | undefined) {
     return value != null ? String(value) : "";
+  }
+
+  function parseRateInput(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new Error("费率不能为负数 Rate cannot be negative");
+    }
+    return parsed;
   }
 
   function parseOptionalRateInput(value: string) {
@@ -106,15 +146,19 @@ export function OperationsSettingsSection({
         operationalSettings.mcThirdPartyRateBox
       ),
     });
-    setSongkhlaForm({
-      mySegmentRateTong: optionalRateString(operationalSettings.mySegmentRateTong),
-      mySegmentRateBox: optionalRateString(operationalSettings.mySegmentRateBox),
+    setThaiSegmentForm({
+      songkhlaRateTong: String(thaiSegmentRates.songkhlaRateTong),
+      songkhlaRateBox: String(thaiSegmentRates.songkhlaRateBox),
+      pattaniRateTong: String(thaiSegmentRates.pattaniRateTong),
+      pattaniRateBox: String(thaiSegmentRates.pattaniRateBox),
     });
   }, [
     operationalSettings.mcThirdPartyRateTong,
     operationalSettings.mcThirdPartyRateBox,
-    operationalSettings.mySegmentRateTong,
-    operationalSettings.mySegmentRateBox,
+    thaiSegmentRates.songkhlaRateTong,
+    thaiSegmentRates.songkhlaRateBox,
+    thaiSegmentRates.pattaniRateTong,
+    thaiSegmentRates.pattaniRateBox,
   ]);
 
   function refresh() {
@@ -369,41 +413,28 @@ export function OperationsSettingsSection({
       <div className="rounded-lg border border-haidee-border bg-white p-4">
         <div className="mb-3">
           <h4 className="text-sm font-semibold text-haidee-text">
-            宋卡/北大年成本拆分 Songkhla/Pattani Cost Split
+            泰国段车力 Thai Segment
           </h4>
           <p className="text-xs text-haidee-muted">
-            宋卡 (SL) / 北大年 (SA) 路线的马来西亚段车力分拆（不含 MC 市场）。
+            内部成本分拆：按收货地点将总车力拆为泰国段与马来西亚段。不影响客户账单。
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block space-y-1 text-sm">
-            马来西亚段车力/桶 MY Segment (MYR)
-            <Input
-              value={songkhlaForm.mySegmentRateTong}
-              onChange={(e) =>
-                setSongkhlaForm({
-                  ...songkhlaForm,
-                  mySegmentRateTong: e.target.value,
-                })
-              }
-              placeholder="宋卡/北大年拆分"
-              className="min-h-[44px] font-mono"
-            />
-          </label>
-          <label className="block space-y-1 text-sm">
-            马来西亚段车力/箱 MY Segment Box (MYR)
-            <Input
-              value={songkhlaForm.mySegmentRateBox}
-              onChange={(e) =>
-                setSongkhlaForm({
-                  ...songkhlaForm,
-                  mySegmentRateBox: e.target.value,
-                })
-              }
-              placeholder="宋卡/北大年拆分"
-              className="min-h-[44px] font-mono"
-            />
-          </label>
+          {THAI_SEGMENT_FORM_FIELDS.map(({ key, formKey }) => (
+            <label key={key} className="block space-y-1 text-sm">
+              {THAI_SEGMENT_RATE_UI[key].label} ({THAI_SEGMENT_RATE_UI[key].notes})
+              <Input
+                value={thaiSegmentForm[formKey]}
+                onChange={(e) =>
+                  setThaiSegmentForm({
+                    ...thaiSegmentForm,
+                    [formKey]: e.target.value,
+                  })
+                }
+                className="min-h-[44px] font-mono"
+              />
+            </label>
+          ))}
         </div>
         <div className="mt-3 flex justify-end">
           <Button
@@ -412,18 +443,21 @@ export function OperationsSettingsSection({
             disabled={isPending}
             onClick={() =>
               runAction(async () => {
-                await saveOperationalFreightSettings({
-                  mySegmentRateTong: parseOptionalRateInput(
-                    songkhlaForm.mySegmentRateTong
-                  ),
-                  mySegmentRateBox: parseOptionalRateInput(
-                    songkhlaForm.mySegmentRateBox
-                  ),
+                await saveGlobalCostSettings({
+                  settings: THAI_SEGMENT_RATE_KEYS.map((key) => {
+                    const formKey = THAI_SEGMENT_FORM_FIELDS.find(
+                      (field) => field.key === key
+                    )!.formKey;
+                    return {
+                      key,
+                      valueMyr: parseRateInput(thaiSegmentForm[formKey]),
+                    };
+                  }),
                 });
               })
             }
           >
-            保存成本拆分 Save Cost Split
+            保存泰国段车力 Save Thai Segment
           </Button>
         </div>
       </div>

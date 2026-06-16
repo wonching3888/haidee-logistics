@@ -19,6 +19,8 @@ import {
   type RouteMasterCostRow,
 } from "@/lib/operations-cost";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
+import type { ThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
 import { getRouteLabel, getRouteGroups } from "@/lib/payroll-route-label";
 import {
   calendarDateUTC,
@@ -27,6 +29,7 @@ import {
 } from "@/lib/reports/period-report-shared";
 import { lookupUnloadRateMap } from "@/lib/unload-rates-service";
 import { prisma } from "@/lib/prisma";
+import { computeLineThaiSegmentCostMyr } from "@/lib/thai-segment-freight";
 import { toDateInputValue } from "@/lib/date-utils";
 import type {
   PnlCustomerData,
@@ -350,6 +353,11 @@ async function loadExchangeRate(year: number, month: number) {
   return rate && rate > 0 ? rate : DEFAULT_EXCHANGE_RATE;
 }
 
+async function loadThaiSegmentRates() {
+  const rows = await listGlobalCostSettings();
+  return parseThaiSegmentRates(rows);
+}
+
 async function loadLkimRate() {
   const rows = await listGlobalCostSettings();
   return {
@@ -407,6 +415,9 @@ const dispatchPnlSelect = {
           quantity: true,
           dispatchStatus: true,
           mcDeliveryMode: true,
+          freightAmount: true,
+          currency: true,
+          paymentMode: true,
           tongType: { select: { code: true, isBox: true } },
           stall: { select: { market: { select: { code: true } } } },
           session: {
@@ -449,6 +460,9 @@ type DispatchPnlRow = {
       quantity: unknown;
       dispatchStatus: string;
       mcDeliveryMode: string | null;
+      freightAmount: unknown;
+      currency: string | null;
+      paymentMode: string | null;
       tongType: { code: string; isBox: boolean } | null;
       stall: { market: { code: string } | null };
       session: {
@@ -469,6 +483,7 @@ interface PnlComputationContext {
   exchangeRate: number;
   lkimRatePerCrate: number;
   lkimRatePerBox: number;
+  thaiSegmentRates: ThaiSegmentRates;
   routes: RouteMasterCostRow[];
   unloadRateMap: Awaited<ReturnType<typeof lookupUnloadRateMap>>;
   rentalRateByType: Map<string, number>;
@@ -520,10 +535,11 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRates, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
+  const [exchangeRate, lkimRates, thaiSegmentRates, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
+      loadThaiSegmentRates(),
       prisma.routeMaster.findMany({
         where: { active: true },
         select: {
@@ -695,6 +711,7 @@ async function loadPnlComputationContext(
     exchangeRate,
     lkimRatePerCrate: lkimRates.crate,
     lkimRatePerBox: lkimRates.box,
+    thaiSegmentRates,
     routes,
     unloadRateMap,
     rentalRateByType,
@@ -776,6 +793,7 @@ async function computeTripPnlRow(
       revenueMyr: number;
       crateRentalMyr: number;
       lkimMaqisMyr: number;
+      thaiSegmentMyr: number;
       unloadFeeMyr: number;
     }
   >();
@@ -853,6 +871,21 @@ async function computeTripPnlRow(
       const lkim =
         quantity *
         (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);
+      const linePickup = resolveSessionPickupLocation(
+        inbound.session.pickupLocation,
+        inbound.session.shipper.pickupLocation
+      );
+      const thaiSegmentMyr = computeLineThaiSegmentCostMyr({
+        pickupLocation: linePickup,
+        quantity,
+        isBox: inbound.tongType.isBox,
+        freightAmount: inbound.freightAmount ?? snapshot.freightAmount,
+        currency: inbound.currency ?? snapshot.currency,
+        paymentMode: inbound.paymentMode ?? snapshot.paymentMode,
+        exchangeRate: ctx.exchangeRate,
+        rates: ctx.thaiSegmentRates,
+        marketCode,
+      });
       const unload = allocateShare(
         quantity,
         tripQuantity,
@@ -867,6 +900,7 @@ async function computeTripPnlRow(
         revenueMyr: 0,
         crateRentalMyr: 0,
         lkimMaqisMyr: 0,
+        thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
       };
 
@@ -876,6 +910,9 @@ async function computeTripPnlRow(
         existing.crateRentalMyr + crateRental
       );
       existing.lkimMaqisMyr = roundMoney(existing.lkimMaqisMyr + lkim);
+      existing.thaiSegmentMyr = roundMoney(
+        existing.thaiSegmentMyr + thaiSegmentMyr
+      );
       existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
       shipperMap.set(shipperId, existing);
 
@@ -889,7 +926,10 @@ async function computeTripPnlRow(
   const shippers: PnlShipperRow[] = Array.from(shipperMap.values()).map(
     (row) => {
       const directCostMyr = roundMoney(
-        row.crateRentalMyr + row.lkimMaqisMyr + row.unloadFeeMyr
+        row.crateRentalMyr +
+          row.lkimMaqisMyr +
+          row.thaiSegmentMyr +
+          row.unloadFeeMyr
       );
       const allocatedFuelMyr = allocateShare(
         row.quantity,
@@ -1171,6 +1211,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       revenueMyr: number;
       crateRentalMyr: number;
       lkimMaqisMyr: number;
+      thaiSegmentMyr: number;
       unloadFeeMyr: number;
       allocatedCostMyr: number;
     }
@@ -1306,6 +1347,21 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       const lkim =
         quantity *
         (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);
+      const linePickup = resolveSessionPickupLocation(
+        inbound.session.pickupLocation,
+        inbound.session.shipper.pickupLocation
+      );
+      const thaiSegmentMyr = computeLineThaiSegmentCostMyr({
+        pickupLocation: linePickup,
+        quantity,
+        isBox: inbound.tongType.isBox,
+        freightAmount: inbound.freightAmount ?? snapshot.freightAmount,
+        currency: inbound.currency ?? snapshot.currency,
+        paymentMode: inbound.paymentMode ?? snapshot.paymentMode,
+        exchangeRate: ctx.exchangeRate,
+        rates: ctx.thaiSegmentRates,
+        marketCode,
+      });
       const unload = allocateShare(
         quantity,
         tripQuantity,
@@ -1322,6 +1378,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         revenueMyr: 0,
         crateRentalMyr: 0,
         lkimMaqisMyr: 0,
+        thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
         allocatedCostMyr: 0,
       };
@@ -1332,6 +1389,9 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         existing.crateRentalMyr + crateRental
       );
       existing.lkimMaqisMyr = roundMoney(existing.lkimMaqisMyr + lkim);
+      existing.thaiSegmentMyr = roundMoney(
+        existing.thaiSegmentMyr + thaiSegmentMyr
+      );
       existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
       existing.allocatedCostMyr = roundMoney(
         existing.allocatedCostMyr + allocatedCostMyr
@@ -1343,7 +1403,10 @@ export async function buildPnlCustomerMarketBreakdown(input: {
   return Array.from(marketMap.entries())
     .map(([marketCode, row]) => {
       const directCostMyr = roundMoney(
-        row.crateRentalMyr + row.lkimMaqisMyr + row.unloadFeeMyr
+        row.crateRentalMyr +
+          row.lkimMaqisMyr +
+          row.thaiSegmentMyr +
+          row.unloadFeeMyr
       );
       const totalCostMyr = roundMoney(directCostMyr + row.allocatedCostMyr);
       const grossProfitMyr = roundMoney(row.revenueMyr - totalCostMyr);
@@ -1356,6 +1419,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         revenueMyr: row.revenueMyr,
         crateRentalMyr: row.crateRentalMyr,
         lkimMaqisMyr: row.lkimMaqisMyr,
+        thaiSegmentMyr: row.thaiSegmentMyr,
         unloadFeeMyr: row.unloadFeeMyr,
         allocatedCostMyr: row.allocatedCostMyr,
         totalCostMyr,
