@@ -116,6 +116,7 @@ export async function getSettingsData() {
       plate: t.plate,
       type: t.type,
       country: isTruckCountry(t.country) ? t.country : "MY",
+      tollClass: (t.tollClass as "class2" | "class3" | null) ?? "class3",
       capacityTong: t.capacityTong,
       defaultDriverId: t.defaultDriverId,
       defaultDriverName: t.defaultDriver?.name ?? "",
@@ -305,6 +306,7 @@ export async function saveTruck(input: {
   plate: string;
   type: string;
   country: string;
+  tollClass?: string;
   capacityTong?: number;
   defaultDriverId?: string | null;
   sortOrder?: number | null;
@@ -339,6 +341,7 @@ export async function saveTruck(input: {
     plate: input.plate.trim().toUpperCase(),
     type: input.type,
     country,
+    tollClass: input.tollClass === "class2" ? "class2" : "class3",
     capacityTong: input.capacityTong ?? null,
     defaultDriverId: input.defaultDriverId || null,
     sortOrder: input.sortOrder ?? null,

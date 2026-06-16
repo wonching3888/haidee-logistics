@@ -65,6 +65,8 @@ model RouteMaster {
   markets           String[]
   sadooMileageKm    Decimal? @map("sadoo_mileage_km") @db.Decimal(10, 2)
   tollFee           Decimal? @map("toll_fee") @db.Decimal(10, 2)
+  tollFeeClass2     Decimal? @map("toll_fee_class2") @db.Decimal(10, 2)
+  tollFeeClass3     Decimal? @map("toll_fee_class3") @db.Decimal(10, 2)
   fishCheckingFee   Decimal? @map("fish_checking_fee") @db.Decimal(10, 2)
   kpbFee            Decimal? @map("kpb_fee") @db.Decimal(10, 2)
   parkingFee        Decimal? @map("parking_fee") @db.Decimal(10, 2)
@@ -402,6 +404,7 @@ model Truck {
   plate                String   @unique
   type                 String   @default("big")
   country              String   @default("MY")
+  tollClass            String   @default("class3") @map("toll_class")
   capacityTong         Int?     @map("capacity_tong")
   defaultDriverId      String?  @map("default_driver_id") @db.Uuid
   sortOrder            Int?     @map("sort_order")

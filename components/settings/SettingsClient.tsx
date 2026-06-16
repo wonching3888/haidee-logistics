@@ -116,6 +116,7 @@ interface SettingsData {
     plate: string;
     type: string;
     country: TruckCountry;
+    tollClass: "class2" | "class3";
     capacityTong: number | null;
     defaultDriverId: string | null;
     defaultDriverName: string;
@@ -561,6 +562,7 @@ export function SettingsClient({
                 <TableHead>国家 Country</TableHead>
                 <TableHead>默认司机 Default Driver</TableHead>
                 <TableHead>类型 Type</TableHead>
+                <TableHead>Toll Class</TableHead>
                 <TableHead className="text-right">容量 Capacity</TableHead>
                 <TableHead className="text-right">合计/km Total</TableHead>
                 <TableHead>状态</TableHead>
@@ -591,6 +593,7 @@ export function SettingsClient({
                   </TableCell>
                   <TableCell>{t.defaultDriverName || "—"}</TableCell>
                   <TableCell>{t.type}</TableCell>
+                  <TableCell className="font-mono uppercase">{t.tollClass}</TableCell>
                   <TableCell className="text-right font-mono">
                     {t.capacityTong ?? "—"}
                   </TableCell>
@@ -608,6 +611,7 @@ export function SettingsClient({
                           plate: t.plate,
                           type: t.type,
                           country: t.country,
+                          tollClass: t.tollClass,
                           capacityTong: t.capacityTong ?? undefined,
                           defaultDriverId: t.defaultDriverId,
                           sortOrder: t.sortOrder,

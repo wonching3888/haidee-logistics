@@ -110,7 +110,8 @@ function resolveTripsDateRange(input: {
   return getMonthDateRange(input.year, input.month);
 }
 
-const DEFAULT_LKIM_RATE = 2.5;
+const DEFAULT_LKIM_RATE_CRATE = 2.5;
+const DEFAULT_LKIM_RATE_BOX = 1.0;
 
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -351,10 +352,14 @@ async function loadExchangeRate(year: number, month: number) {
 
 async function loadLkimRate() {
   const rows = await listGlobalCostSettings();
-  return (
-    rows.find((row) => row.key === "lkim_maqis_per_crate")?.valueMyr ??
-    DEFAULT_LKIM_RATE
-  );
+  return {
+    crate:
+      rows.find((row) => row.key === "lkim_maqis_per_crate")?.valueMyr ??
+      DEFAULT_LKIM_RATE_CRATE,
+    box:
+      rows.find((row) => row.key === "lkim_maqis_per_box")?.valueMyr ??
+      DEFAULT_LKIM_RATE_BOX,
+  };
 }
 
 function driverTripAllowance(dispatch: {
@@ -463,6 +468,7 @@ type DispatchPnlRow = {
 interface PnlComputationContext {
   exchangeRate: number;
   lkimRatePerCrate: number;
+  lkimRatePerBox: number;
   routes: RouteMasterCostRow[];
   unloadRateMap: Awaited<ReturnType<typeof lookupUnloadRateMap>>;
   rentalRateByType: Map<string, number>;
@@ -472,6 +478,7 @@ interface PnlComputationContext {
     {
       fuelEfficiencyKmPerL: number | null;
       annualMileageKm: number | null;
+      tollClass: string | null;
       costItems: { annualAmount: number }[];
     }
   >;
@@ -513,7 +520,7 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
+  const [exchangeRate, lkimRates, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -524,6 +531,8 @@ async function loadPnlComputationContext(
           markets: true,
           sadooMileageKm: true,
           tollFee: true,
+          tollFeeClass2: true,
+          tollFeeClass3: true,
           fishCheckingFee: true,
           parkingFee: true,
         },
@@ -615,6 +624,8 @@ async function loadPnlComputationContext(
     markets: route.markets,
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
+    tollFeeClass2: decimalToNumber(route.tollFeeClass2),
+    tollFeeClass3: decimalToNumber(route.tollFeeClass3),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     parkingFee: decimalToNumber(route.parkingFee),
   }));
@@ -625,6 +636,7 @@ async function loadPnlComputationContext(
       {
         fuelEfficiencyKmPerL: decimalToNumber(truck.fuelEfficiencyKmPerL),
         annualMileageKm: truck.annualMileageKm,
+        tollClass: truck.tollClass,
         costItems: truck.costItems.map((item) => ({
           annualAmount: decimalToNumber(item.annualAmount) ?? 0,
         })),
@@ -681,7 +693,8 @@ async function loadPnlComputationContext(
 
   return {
     exchangeRate,
-    lkimRatePerCrate,
+    lkimRatePerCrate: lkimRates.crate,
+    lkimRatePerBox: lkimRates.box,
     routes,
     unloadRateMap,
     rentalRateByType,
@@ -706,7 +719,12 @@ async function computeTripPnlRow(
   const routeKey = buildRouteKey(dispatch.markets);
 
   const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
-  const routeCosts = computeTripRouteCosts(applicableRoutes, ctx.globalCosts);
+  const truck = ctx.truckById.get(dispatch.truckId);
+  const routeCosts = computeTripRouteCosts(
+    applicableRoutes,
+    ctx.globalCosts,
+    truck?.tollClass
+  );
   const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
   const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
   const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
@@ -726,7 +744,6 @@ async function computeTripPnlRow(
     tripVoucher?.chopBorderActual ??
     tripVoucher?.chopBorderAmt ??
     routeCosts.borderPass;
-  const truck = ctx.truckById.get(dispatch.truckId);
   const truckCosts = truck
     ? computeTripTruckCosts(
         routeCosts.tripMileageKm,
@@ -833,7 +850,9 @@ async function computeTripPnlRow(
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
-      const lkim = quantity * ctx.lkimRatePerCrate;
+      const lkim =
+        quantity *
+        (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);
       const unload = allocateShare(
         quantity,
         tripQuantity,
@@ -1159,7 +1178,12 @@ export async function buildPnlCustomerMarketBreakdown(input: {
 
   for (const dispatch of dispatches) {
     const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
-    const routeCosts = computeTripRouteCosts(applicableRoutes, ctx.globalCosts);
+    const truck = ctx.truckById.get(dispatch.truckId);
+    const routeCosts = computeTripRouteCosts(
+      applicableRoutes,
+      ctx.globalCosts,
+      truck?.tollClass
+    );
     const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
     const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
     const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
@@ -1179,7 +1203,6 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       tripVoucher?.chopBorderActual ??
       tripVoucher?.chopBorderAmt ??
       routeCosts.borderPass;
-    const truck = ctx.truckById.get(dispatch.truckId);
     const truckCosts = truck
       ? computeTripTruckCosts(
           routeCosts.tripMileageKm,
@@ -1280,7 +1303,9 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
-      const lkim = quantity * ctx.lkimRatePerCrate;
+      const lkim =
+        quantity *
+        (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);
       const unload = allocateShare(
         quantity,
         tripQuantity,

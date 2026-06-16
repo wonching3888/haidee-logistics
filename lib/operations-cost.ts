@@ -29,6 +29,8 @@ export interface RouteMasterCostRow {
   markets: string[];
   sadooMileageKm: number | null;
   tollFee: number | null;
+  tollFeeClass2: number | null;
+  tollFeeClass3: number | null;
   fishCheckingFee: number | null;
   parkingFee: number | null;
 }
@@ -50,6 +52,16 @@ export interface TripRouteCosts {
   epermit: number;
   dagangNet: number;
   forwarding: number;
+}
+
+export function resolveRouteTollFee(
+  route: Pick<RouteMasterCostRow, "tollFee" | "tollFeeClass2" | "tollFeeClass3">,
+  tollClass?: string | null
+) {
+  if (tollClass === "class2") {
+    return route.tollFeeClass2 ?? route.tollFeeClass3 ?? route.tollFee ?? 0;
+  }
+  return route.tollFeeClass3 ?? route.tollFee ?? 0;
 }
 
 export interface TripTruckCosts {
@@ -101,11 +113,14 @@ export function computeTripRouteCosts(
   globalCosts: Pick<
     GlobalTripCostValues,
     "borderPass" | "epermit" | "dagangNet" | "forwardingOutbound"
-  >
+  >,
+  tollClass?: string | null
 ): TripRouteCosts {
   return {
     tripMileageKm: maxFee(applicableRoutes.map((route) => route.sadooMileageKm)),
-    tollFee: maxFee(applicableRoutes.map((route) => route.tollFee)),
+    tollFee: maxFee(
+      applicableRoutes.map((route) => resolveRouteTollFee(route, tollClass))
+    ),
     fishCheckingFee: sumFees(
       applicableRoutes.map((route) => route.fishCheckingFee)
     ),
@@ -212,6 +227,8 @@ export async function aggregateOperationsCosts(
         markets: true,
         sadooMileageKm: true,
         tollFee: true,
+        tollFeeClass2: true,
+        tollFeeClass3: true,
         fishCheckingFee: true,
         parkingFee: true,
       },
@@ -253,7 +270,13 @@ export async function aggregateOperationsCosts(
     loadGlobalTripCostValues(),
     prisma.truck.findMany({
       where: { active: true, country: "MY" },
-      include: { costItems: true },
+      select: {
+        id: true,
+        tollClass: true,
+        fuelEfficiencyKmPerL: true,
+        annualMileageKm: true,
+        costItems: true,
+      },
     }),
     prisma.unloadingFee.findMany({
       where: { tripDate: { gte: start, lte: end } },
@@ -293,6 +316,8 @@ export async function aggregateOperationsCosts(
     markets: route.markets,
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
+    tollFeeClass2: decimalToNumber(route.tollFeeClass2),
+    tollFeeClass3: decimalToNumber(route.tollFeeClass3),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     parkingFee: decimalToNumber(route.parkingFee),
   }));
@@ -303,6 +328,7 @@ export async function aggregateOperationsCosts(
       {
         fuelEfficiencyKmPerL: decimalToNumber(truck.fuelEfficiencyKmPerL),
         annualMileageKm: truck.annualMileageKm,
+        tollClass: truck.tollClass,
         costItems: truck.costItems.map((item) => ({
           annualAmount: decimalToNumber(item.annualAmount) ?? 0,
         })),
@@ -336,8 +362,13 @@ export async function aggregateOperationsCosts(
   ).size;
 
   for (const dispatch of dispatches) {
+    const truck = truckById.get(dispatch.truckId);
     const applicableRoutes = findApplicableRoutes(dispatch.markets, routes);
-    const routeCosts = computeTripRouteCosts(applicableRoutes, globalCosts);
+    const routeCosts = computeTripRouteCosts(
+      applicableRoutes,
+      globalCosts,
+      truck?.tollClass
+    );
 
     totals.tollFee += routeCosts.tollFee;
     const tripVoucher = voucherByTrip.get(dispatch.id);
@@ -361,7 +392,6 @@ export async function aggregateOperationsCosts(
     totals.forwarding += routeCosts.forwarding;
     totals.totalMileageKm += routeCosts.tripMileageKm;
 
-    const truck = truckById.get(dispatch.truckId);
     if (truck) {
       const truckCosts = computeTripTruckCosts(
         routeCosts.tripMileageKm,

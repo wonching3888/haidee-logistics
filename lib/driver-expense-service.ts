@@ -669,6 +669,8 @@ export async function suggestVoucherAmounts(tripId: string) {
     markets: route.markets,
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
+    tollFeeClass2: decimalToNumber(route.tollFeeClass2),
+    tollFeeClass3: decimalToNumber(route.tollFeeClass3),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     parkingFee: decimalToNumber(route.parkingFee),
   }));
@@ -865,6 +867,8 @@ export async function getVoucherPrintBreakdown(tripId: string) {
     markets: route.markets,
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
+    tollFeeClass2: decimalToNumber(route.tollFeeClass2),
+    tollFeeClass3: decimalToNumber(route.tollFeeClass3),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     parkingFee: decimalToNumber(route.parkingFee),
   }));

@@ -35,6 +35,7 @@ export interface TruckFormValue {
   plate: string;
   type: string;
   country: TruckCountry;
+  tollClass?: "class2" | "class3";
   capacityTong?: number;
   defaultDriverId?: string | null;
   sortOrder?: number | null;
@@ -67,6 +68,7 @@ function defaultTruckForm(country: TruckCountry = "MY"): TruckFormValue {
     plate: "",
     type: "big",
     country,
+    tollClass: "class3",
     capacityTong: undefined,
     defaultDriverId: null,
     sortOrder: null,
@@ -109,6 +111,7 @@ export function TruckFormDialog({
   const [plate, setPlate] = useState("");
   const [type, setType] = useState("big");
   const [country, setCountry] = useState<TruckCountry>("MY");
+  const [tollClass, setTollClass] = useState<"class2" | "class3">("class3");
   const [capacityTong, setCapacityTong] = useState("");
   const [defaultDriverId, setDefaultDriverId] = useState("");
   const [sortOrder, setSortOrder] = useState("");
@@ -123,6 +126,7 @@ export function TruckFormDialog({
     setPlate(value.plate);
     setType(value.type);
     setCountry(value.country);
+    setTollClass(value.tollClass ?? "class3");
     setCapacityTong(value.capacityTong?.toString() ?? "");
     setDefaultDriverId(value.defaultDriverId ?? "");
     setSortOrder(value.sortOrder?.toString() ?? "");
@@ -211,6 +215,7 @@ export function TruckFormDialog({
       plate,
       type,
       country,
+      tollClass,
       capacityTong: capacityTong ? parseInt(capacityTong, 10) : undefined,
       defaultDriverId: defaultDriverId || null,
       sortOrder: sortOrder ? parseInt(sortOrder, 10) : null,
@@ -259,6 +264,18 @@ export function TruckFormDialog({
               >
                 <option value="big">大车 Big</option>
                 <option value="small">小车 Small</option>
+              </select>
+            </FormField>
+            <FormField label="过路费分类 Toll Class">
+              <select
+                value={tollClass}
+                onChange={(e) =>
+                  setTollClass(e.target.value === "class2" ? "class2" : "class3")
+                }
+                className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+              >
+                <option value="class2">CLASS2</option>
+                <option value="class3">CLASS3</option>
               </select>
             </FormField>
             <FormField label="容量 Capacity (crates)">

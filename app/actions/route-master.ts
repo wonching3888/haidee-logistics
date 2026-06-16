@@ -29,6 +29,8 @@ function serializeRouteMaster(route: {
   markets: string[];
   sadooMileageKm: unknown;
   tollFee: unknown;
+  tollFeeClass2: unknown;
+  tollFeeClass3: unknown;
   fishCheckingFee: unknown;
   kpbFee: unknown;
   parkingFee: unknown;
@@ -42,6 +44,8 @@ function serializeRouteMaster(route: {
     markets: sortMarkets(route.markets),
     sadooMileageKm: decimalToNumber(route.sadooMileageKm),
     tollFee: decimalToNumber(route.tollFee),
+    tollFeeClass2: decimalToNumber(route.tollFeeClass2),
+    tollFeeClass3: decimalToNumber(route.tollFeeClass3),
     fishCheckingFee: decimalToNumber(route.fishCheckingFee),
     kpbFee: decimalToNumber(route.kpbFee),
     parkingFee: decimalToNumber(route.parkingFee),
@@ -67,6 +71,8 @@ export async function saveRouteMaster(input: {
   markets: string[];
   sadooMileageKm?: number | null;
   tollFee?: number | null;
+  tollFeeClass2?: number | null;
+  tollFeeClass3?: number | null;
   fishCheckingFee?: number | null;
   parkingFee?: number | null;
   displayOrder?: number | null;
@@ -96,6 +102,8 @@ export async function saveRouteMaster(input: {
     markets,
     sadooMileageKm: parseOptionalDecimal(input.sadooMileageKm),
     tollFee: parseOptionalDecimal(input.tollFee),
+    tollFeeClass2: parseOptionalDecimal(input.tollFeeClass2),
+    tollFeeClass3: parseOptionalDecimal(input.tollFeeClass3),
     fishCheckingFee: parseOptionalDecimal(input.fishCheckingFee),
     parkingFee: parseOptionalDecimal(input.parkingFee),
     displayOrder: input.displayOrder ?? null,

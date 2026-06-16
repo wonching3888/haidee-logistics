@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -103,6 +102,7 @@ export function CrateRentalRatesSection({
         await saveCrateRentalRates({
           rates: rates.map((row) => ({
             crateType: row.crateType,
+            isRental: row.isRental,
             rateMyr: row.isRental
               ? parseRate(rateForm[row.crateType] ?? "", row.crateType)
               : 0,
@@ -171,13 +171,25 @@ export function CrateRentalRatesSection({
                   {row.crateType}
                 </TableCell>
                 <TableCell>
-                  {row.isRental ? (
-                    <Badge className="border-transparent bg-haidee-blue/10 text-haidee-blue hover:bg-haidee-blue/10">
-                      租桶 Rental
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">自有 Own</Badge>
-                  )}
+                  <select
+                    value={row.isRental ? "rental" : "own"}
+                    onChange={(e) =>
+                      setRates((prev) =>
+                        prev.map((item) =>
+                          item.id === row.id
+                            ? {
+                                ...item,
+                                isRental: e.target.value === "rental",
+                              }
+                            : item
+                        )
+                      )
+                    }
+                    className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+                  >
+                    <option value="rental">租桶 Rental</option>
+                    <option value="own">自有 Own</option>
+                  </select>
                 </TableCell>
                 <TableCell>
                   {row.isRental ? (
@@ -194,7 +206,7 @@ export function CrateRentalRatesSection({
                     />
                   ) : (
                     <span className="inline-flex min-h-[44px] w-[120px] items-center justify-end rounded-md bg-gray-100 px-3 font-mono text-sm text-haidee-muted">
-                      —
+                      0.00
                     </span>
                   )}
                 </TableCell>

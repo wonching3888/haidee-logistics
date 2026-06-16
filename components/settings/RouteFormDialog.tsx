@@ -18,6 +18,8 @@ export interface RouteFormValue {
   markets: string[];
   sadooMileageKm: string;
   tollFee: string;
+  tollFeeClass2: string;
+  tollFeeClass3: string;
   fishCheckingFee: string;
   parkingFee: string;
   displayOrder: string;
@@ -31,6 +33,8 @@ export interface RouteMasterRow {
   markets: string[];
   sadooMileageKm: number | null;
   tollFee: number | null;
+  tollFeeClass2: number | null;
+  tollFeeClass3: number | null;
   fishCheckingFee: number | null;
   kpbFee: number | null;
   parkingFee: number | null;
@@ -49,6 +53,8 @@ export function routeToFormValue(route?: RouteMasterRow): RouteFormValue {
     markets: route?.markets ?? [],
     sadooMileageKm: optionalNumberString(route?.sadooMileageKm),
     tollFee: optionalNumberString(route?.tollFee),
+    tollFeeClass2: optionalNumberString(route?.tollFeeClass2),
+    tollFeeClass3: optionalNumberString(route?.tollFeeClass3),
     fishCheckingFee: optionalNumberString(route?.fishCheckingFee),
     parkingFee: optionalNumberString(route?.parkingFee),
     displayOrder:
@@ -84,6 +90,8 @@ export function parseRouteFormValue(value: RouteFormValue) {
     markets: value.markets,
     sadooMileageKm: parseOptionalNumberInput(value.sadooMileageKm, "里程"),
     tollFee: parseOptionalNumberInput(value.tollFee, "过路费/大道费"),
+    tollFeeClass2: parseOptionalNumberInput(value.tollFeeClass2, "CLASS2过路费"),
+    tollFeeClass3: parseOptionalNumberInput(value.tollFeeClass3, "CLASS3过路费"),
     fishCheckingFee: parseOptionalNumberInput(
       value.fishCheckingFee,
       "Fish Checking Fee"
@@ -226,10 +234,28 @@ export function RouteFormDialog({
               路线费用 Route Fees (MYR)
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <FormField label="过路费/大道费 Toll">
+              <FormField label="过路费(兼容旧字段) Toll Legacy">
                 <Input
                   value={form.tollFee}
                   onChange={(e) => setForm({ ...form, tollFee: e.target.value })}
+                  className="min-h-[44px] font-mono"
+                />
+              </FormField>
+              <FormField label="过路费 CLASS2">
+                <Input
+                  value={form.tollFeeClass2}
+                  onChange={(e) =>
+                    setForm({ ...form, tollFeeClass2: e.target.value })
+                  }
+                  className="min-h-[44px] font-mono"
+                />
+              </FormField>
+              <FormField label="过路费 CLASS3">
+                <Input
+                  value={form.tollFeeClass3}
+                  onChange={(e) =>
+                    setForm({ ...form, tollFeeClass3: e.target.value })
+                  }
                   className="min-h-[44px] font-mono"
                 />
               </FormField>
@@ -288,7 +314,7 @@ function formatMoney(value: number | null) {
 
 export function formatRouteFeeTotal(route: RouteMasterRow) {
   const total =
-    (route.tollFee ?? 0) +
+    (route.tollFeeClass3 ?? route.tollFee ?? 0) +
     (route.fishCheckingFee ?? 0) +
     (route.parkingFee ?? 0);
   return total > 0 ? total.toFixed(2) : "—";

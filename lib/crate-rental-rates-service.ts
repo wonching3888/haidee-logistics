@@ -116,6 +116,7 @@ function parseRateMyr(value: number, label: string) {
 export async function saveCrateRentalRatesBatch(
   input: {
     crateType: string;
+    isRental: boolean;
     rateMyr: number;
     notes?: string | null;
   }[]
@@ -131,7 +132,7 @@ export async function saveCrateRentalRatesBatch(
         return prisma.crateRentalRate.create({
           data: {
             crateType: item.crateType,
-            isRental: true,
+            isRental: item.isRental,
             rateMyr: parseRateMyr(item.rateMyr, item.crateType),
             notes: item.notes?.trim() || null,
           },
@@ -141,9 +142,8 @@ export async function saveCrateRentalRatesBatch(
       return prisma.crateRentalRate.update({
         where: { crateType: item.crateType },
         data: {
-          rateMyr: current.isRental
-            ? parseRateMyr(item.rateMyr, item.crateType)
-            : 0,
+          isRental: item.isRental,
+          rateMyr: item.isRental ? parseRateMyr(item.rateMyr, item.crateType) : 0,
           notes: item.notes?.trim() || null,
         },
       });

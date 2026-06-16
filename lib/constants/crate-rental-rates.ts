@@ -36,7 +36,7 @@ export const DEFAULT_CRATE_RENTAL_RATES: CrateRentalRateSeed[] = [
   { crateType: "GLY", isRental: false, rateMyr: 0.0, notes: "顾客自有" },
   { crateType: "BS", isRental: false, rateMyr: 0.0, notes: "顾客自有" },
   { crateType: "SHS", isRental: false, rateMyr: 0.0, notes: "顾客自有" },
-  { crateType: "BOX", isRental: false, rateMyr: 0.0, notes: "无租桶费" },
+  { crateType: "BOX", isRental: false, rateMyr: 0.0, notes: "顾客自有" },
 ];
 
 export function sortCrateRentalRates<T extends { crateType: string }>(rows: T[]) {

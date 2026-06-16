@@ -40,6 +40,7 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as {
       rates?: {
         crateType: string;
+        isRental: boolean;
         rateMyr: number;
         notes?: string | null;
       }[];

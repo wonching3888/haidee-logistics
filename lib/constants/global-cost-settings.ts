@@ -5,6 +5,7 @@ export const GLOBAL_TRIP_COST_SETTING_KEYS = [
   "forwarding_outbound",
   "forwarding_return",
   "lkim_maqis_per_crate",
+  "lkim_maqis_per_box",
 ] as const;
 
 export type GlobalTripCostSettingKey =
@@ -62,6 +63,12 @@ export const DEFAULT_GLOBAL_COST_SETTINGS: GlobalCostSettingSeed[] = [
     notes: "当月派车总桶数 × 费率",
   },
   {
+    key: "lkim_maqis_per_box",
+    valueMyr: 1.0,
+    label: "LKIM-MAQIS费（MYR/盒）",
+    notes: "当月派车总箱数 × 费率",
+  },
+  {
     key: "fuel_price_myr",
     valueMyr: 2.05,
     label: "Diesel Price (MYR/L)",
@@ -81,6 +88,10 @@ export const GLOBAL_COST_UI_LABELS: Record<
   lkim_maqis_per_crate: {
     label: "LKIM-MAQIS费",
     notes: "MYR/桶，当月派车总桶数 × 费率",
+  },
+  lkim_maqis_per_box: {
+    label: "LKIM-MAQIS费(盒)",
+    notes: "MYR/盒，当月派车总箱数 × 费率",
   },
   fuel_price_myr: { label: "Diesel Price", notes: "MYR/L，每月更新" },
 };

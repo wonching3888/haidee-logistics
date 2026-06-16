@@ -76,7 +76,6 @@ export function OperationsSettingsSection({
   const [songkhlaForm, setSongkhlaForm] = useState({
     mySegmentRateTong: "",
     mySegmentRateBox: "",
-    driverAllowancePerCrate: "",
   });
 
   const [form, setForm] = useState({
@@ -110,16 +109,12 @@ export function OperationsSettingsSection({
     setSongkhlaForm({
       mySegmentRateTong: optionalRateString(operationalSettings.mySegmentRateTong),
       mySegmentRateBox: optionalRateString(operationalSettings.mySegmentRateBox),
-      driverAllowancePerCrate: optionalRateString(
-        operationalSettings.driverAllowancePerCrate
-      ),
     });
   }, [
     operationalSettings.mcThirdPartyRateTong,
     operationalSettings.mcThirdPartyRateBox,
     operationalSettings.mySegmentRateTong,
     operationalSettings.mySegmentRateBox,
-    operationalSettings.driverAllowancePerCrate,
   ]);
 
   function refresh() {
@@ -377,10 +372,10 @@ export function OperationsSettingsSection({
             宋卡/北大年成本拆分 Songkhla/Pattani Cost Split
           </h4>
           <p className="text-xs text-haidee-muted">
-            宋卡 (SL) / 北大年 (SA) 路线的马来西亚段车力与司机津贴（不含 MC 市场）。
+            宋卡 (SL) / 北大年 (SA) 路线的马来西亚段车力分拆（不含 MC 市场）。
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-1 text-sm">
             马来西亚段车力/桶 MY Segment (MYR)
             <Input
@@ -409,20 +404,6 @@ export function OperationsSettingsSection({
               className="min-h-[44px] font-mono"
             />
           </label>
-          <label className="block space-y-1 text-sm">
-            司机津贴/桶 Driver Allowance (MYR)
-            <Input
-              value={songkhlaForm.driverAllowancePerCrate}
-              onChange={(e) =>
-                setSongkhlaForm({
-                  ...songkhlaForm,
-                  driverAllowancePerCrate: e.target.value,
-                })
-              }
-              placeholder="不含 MC 市场"
-              className="min-h-[44px] font-mono"
-            />
-          </label>
         </div>
         <div className="mt-3 flex justify-end">
           <Button
@@ -437,9 +418,6 @@ export function OperationsSettingsSection({
                   ),
                   mySegmentRateBox: parseOptionalRateInput(
                     songkhlaForm.mySegmentRateBox
-                  ),
-                  driverAllowancePerCrate: parseOptionalRateInput(
-                    songkhlaForm.driverAllowancePerCrate
                   ),
                 });
               })

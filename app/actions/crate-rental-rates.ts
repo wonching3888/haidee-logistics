@@ -24,6 +24,7 @@ export async function getCrateRentalRates(): Promise<CrateRentalRateRow[]> {
 export async function saveCrateRentalRates(input: {
   rates: {
     crateType: string;
+    isRental: boolean;
     rateMyr: number;
     notes?: string | null;
   }[];
