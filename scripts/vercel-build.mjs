@@ -23,7 +23,7 @@ function baselineExistingDatabase() {
   console.log(
     "\n[P3005] Database has schema but no migration history; syncing with db push..."
   );
-  run("npx prisma db push --skip-generate");
+  run("npx prisma db push");
   for (const migration of listMigrations()) {
     run(`npx prisma migrate resolve --applied ${migration}`);
   }
