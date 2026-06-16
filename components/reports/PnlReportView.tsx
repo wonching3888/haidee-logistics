@@ -1,8 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { getPnlReport } from "@/app/actions/pnl-report";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import {
   Table,
@@ -12,13 +11,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PnlReportData } from "@/lib/pnl-report-types";
+import type {
+  PnlCustomerData,
+  PnlPeriodData,
+  PnlPeriodMode,
+  PnlRouteFilter,
+  PnlTripListItem,
+  PnlTripRow,
+  PnlTripsListData,
+} from "@/lib/pnl-report-types";
 import {
   PNL_ROUTE_FILTERS,
   type PnlCustomerSort,
   type PnlCustomerStatus,
-  type PnlPeriodMode,
-  type PnlRouteFilter,
 } from "@/lib/pnl-report-types";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +66,7 @@ const STATUS_LABELS: Record<
 function PnlTrendChart({
   points,
 }: {
-  points: PnlReportData["periodSummary"]["trend"];
+  points: PnlPeriodData["periodSummary"]["trend"];
 }) {
   if (points.length === 0) {
     return (
@@ -115,13 +120,20 @@ function PnlTrendChart({
 interface PnlReportViewProps {
   initialYear: number;
   initialMonth: number;
-  initialData: PnlReportData;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  const body = (await res.json()) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error ?? "加载失败");
+  }
+  return body;
 }
 
 export function PnlReportView({
   initialYear,
   initialMonth,
-  initialData,
 }: PnlReportViewProps) {
   const [activeTab, setActiveTab] = useState<PnlTab>("trip");
   const [year, setYear] = useState(initialYear);
@@ -135,59 +147,126 @@ export function PnlReportView({
   const [routeFilter, setRouteFilter] = useState<PnlRouteFilter>("ALL");
   const [driverFilter, setDriverFilter] = useState("ALL");
   const [customerSort, setCustomerSort] = useState<PnlCustomerSort>("profit");
-  const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
-  const [data, setData] = useState(initialData);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const skipInitialFetch = useRef(true);
 
-  function loadReport() {
-    startTransition(async () => {
-      setError(null);
-      try {
-        const result = await getPnlReport({
-          year,
-          month,
-          periodMode: activeTab === "period" ? periodMode : "month",
-          day: activeTab === "period" && periodMode === "day" ? day : undefined,
-          rangeStart:
-            activeTab === "period" && periodMode === "range"
-              ? rangeStart
-              : undefined,
-          rangeEnd:
-            activeTab === "period" && periodMode === "range"
-              ? rangeEnd
-              : undefined,
-          routeFilter: activeTab === "trip" ? routeFilter : "ALL",
-          driverFilter: activeTab === "trip" ? driverFilter : "ALL",
-          customerSort: activeTab === "customer" ? customerSort : "profit",
-        });
-        setData(result);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "加载失败");
-      }
-    });
-  }
+  const [tripsData, setTripsData] = useState<PnlTripsListData | null>(null);
+  const [tripsLoading, setTripsLoading] = useState(false);
+  const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
+  const [tripDetails, setTripDetails] = useState<Record<string, PnlTripRow>>({});
+  const [loadingTripId, setLoadingTripId] = useState<string | null>(null);
+
+  const [periodData, setPeriodData] = useState<PnlPeriodData | null>(null);
+  const [periodLoading, setPeriodLoading] = useState(false);
+
+  const [customerData, setCustomerData] = useState<PnlCustomerData | null>(null);
+  const [customerLoading, setCustomerLoading] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTrips = useCallback(async () => {
+    setTripsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+        routeFilter,
+        driverFilter,
+      });
+      const data = await fetchJson<PnlTripsListData>(
+        `/api/pnl/trips?${params}`
+      );
+      setTripsData(data);
+      setExpandedTripId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setTripsLoading(false);
+    }
+  }, [year, month, routeFilter, driverFilter]);
 
   useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
+    void loadTrips();
+  }, [loadTrips]);
+
+  async function loadTripDetail(tripId: string) {
+    if (tripDetails[tripId]) return;
+
+    setLoadingTripId(tripId);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+      });
+      const detail = await fetchJson<PnlTripRow>(
+        `/api/pnl/trip/${tripId}?${params}`
+      );
+      setTripDetails((prev) => ({ ...prev, [tripId]: detail }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载趟次详情失败");
+      setExpandedTripId(null);
+    } finally {
+      setLoadingTripId(null);
+    }
+  }
+
+  async function toggleTripExpand(tripId: string) {
+    if (expandedTripId === tripId) {
+      setExpandedTripId(null);
       return;
     }
-    loadReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    year,
-    month,
-    periodMode,
-    day,
-    rangeStart,
-    rangeEnd,
-    routeFilter,
-    driverFilter,
-    customerSort,
-    activeTab,
-  ]);
+    setExpandedTripId(tripId);
+    await loadTripDetail(tripId);
+  }
+
+  async function loadPeriod() {
+    setPeriodLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+        periodMode,
+      });
+      if (periodMode === "day") params.set("day", day);
+      if (periodMode === "range") {
+        params.set("rangeStart", rangeStart);
+        params.set("rangeEnd", rangeEnd);
+      }
+      const data = await fetchJson<PnlPeriodData>(
+        `/api/pnl/period?${params}`
+      );
+      setPeriodData(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setPeriodLoading(false);
+    }
+  }
+
+  async function loadCustomers() {
+    setCustomerLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+        customerSort,
+      });
+      const data = await fetchJson<PnlCustomerData>(
+        `/api/pnl/customers?${params}`
+      );
+      setCustomerData(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setCustomerLoading(false);
+    }
+  }
+
+  const trips = tripsData?.trips ?? [];
+  const drivers = tripsData?.drivers ?? [];
+  const totalCrates = trips.reduce((sum, t) => sum + t.totalCrates, 0);
 
   return (
     <div className="space-y-6">
@@ -243,179 +322,61 @@ export function PnlReportView({
               onChange={setDriverFilter}
               options={[
                 { value: "ALL", label: "全部 All" },
-                ...data.drivers.map((driver) => ({
+                ...drivers.map((driver) => ({
                   value: driver,
                   label: driver,
                 })),
               ]}
             />
+            <QueryButton onClick={loadTrips} loading={tripsLoading} />
           </div>
 
-          <ScrollMatrixTable>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead />
-                  <TableHead>日期 Date</TableHead>
-                  <TableHead>路线 Route</TableHead>
-                  <TableHead>司机 Driver</TableHead>
-                  <TableHead>车牌 Plate</TableHead>
-                  <TableHead className="text-right">总桶数</TableHead>
-                  <TableHead className="text-right">总收入 MYR</TableHead>
-                  <TableHead className="text-right">直接成本</TableHead>
-                  <TableHead className="text-right">分摊成本</TableHead>
-                  <TableHead className="text-right">总成本</TableHead>
-                  <TableHead className="text-right">毛利 MYR</TableHead>
-                  <TableHead className="text-right">毛利率%</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.trips.map((trip) => {
-                  const expanded = expandedTripId === trip.dispatchOrderId;
-                  return (
-                    <Fragment key={trip.dispatchOrderId}>
-                      <TableRow>
-                        <TableCell>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedTripId(
-                                expanded ? null : trip.dispatchOrderId
-                              )
-                            }
-                            className="text-haidee-teal"
-                          >
-                            {expanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </button>
-                        </TableCell>
-                        <TableCell>{trip.date}</TableCell>
-                        <TableCell>{trip.routeLabel}</TableCell>
-                        <TableCell>{trip.driverName ?? "—"}</TableCell>
-                        <TableCell>{trip.truckPlate}</TableCell>
-                        <TableCell className="text-right">
-                          {trip.totalQuantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatMyr(trip.revenueMyr)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatMyr(trip.directCostMyr)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatMyr(trip.allocatedCostMyr)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatMyr(trip.totalCostMyr)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatMyr(trip.grossProfitMyr)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatPct(trip.marginPct)}
-                        </TableCell>
-                      </TableRow>
-                      {expanded && (
-                        <TableRow>
-                          <TableCell colSpan={12} className="bg-slate-50 p-0">
-                            <div className="overflow-x-auto p-4">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>寄货人</TableHead>
-                                    <TableHead className="text-right">桶数</TableHead>
-                                    <TableHead className="text-right">收入</TableHead>
-                                    <TableHead className="text-right">租桶费</TableHead>
-                                    <TableHead className="text-right">LKIM</TableHead>
-                                    <TableHead className="text-right">下货费</TableHead>
-                                    <TableHead className="text-right">分摊油费</TableHead>
-                                    <TableHead className="text-right">分摊过路费</TableHead>
-                                    <TableHead className="text-right">分摊司机</TableHead>
-                                    <TableHead className="text-right">总成本</TableHead>
-                                    <TableHead className="text-right">毛利</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {trip.shippers.map((shipper) => (
-                                    <TableRow key={shipper.shipperId}>
-                                      <TableCell>
-                                        {shipper.shipperName}
-                                        <div className="text-xs text-haidee-muted">
-                                          {shipper.shipperCode}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {shipper.quantity}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.revenueMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.crateRentalMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.lkimMaqisMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.unloadFeeMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.allocatedFuelMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.allocatedTollMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.allocatedDriverMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.totalCostMyr)}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatMyr(shipper.grossProfitMyr)}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
-                  );
-                })}
-                <TableRow className="bg-slate-100 font-semibold">
-                  <TableCell colSpan={5}>当月合计 Month Total</TableCell>
-                  <TableCell className="text-right">
-                    {data.tripTotals.totalQuantity}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMyr(data.tripTotals.revenueMyr)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMyr(data.tripTotals.directCostMyr)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMyr(data.tripTotals.allocatedCostMyr)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMyr(data.tripTotals.totalCostMyr)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMyr(data.tripTotals.grossProfitMyr)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatPct(data.tripTotals.marginPct)}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-          </ScrollMatrixTable>
+          {tripsLoading && !tripsData ? (
+            <LoadingState />
+          ) : (
+            <ScrollMatrixTable>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead />
+                    <TableHead>日期 Date</TableHead>
+                    <TableHead>路线 Route</TableHead>
+                    <TableHead>司机 Driver</TableHead>
+                    <TableHead>车牌 Plate</TableHead>
+                    <TableHead className="text-right">总桶数</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {trips.map((trip) => (
+                    <TripListRow
+                      key={trip.tripId}
+                      trip={trip}
+                      expanded={expandedTripId === trip.tripId}
+                      loading={loadingTripId === trip.tripId}
+                      detail={tripDetails[trip.tripId]}
+                      onToggle={() => void toggleTripExpand(trip.tripId)}
+                    />
+                  ))}
+                  {trips.length === 0 && !tripsLoading && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-8 text-center text-haidee-muted"
+                      >
+                        暂无趟次数据
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {trips.length > 0 && (
+                    <TableRow className="bg-slate-100 font-semibold">
+                      <TableCell colSpan={5}>当月合计 Month Total</TableCell>
+                      <TableCell className="text-right">{totalCrates}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollMatrixTable>
+          )}
         </div>
       )}
 
@@ -476,36 +437,46 @@ export function PnlReportView({
                 }))}
               />
             )}
+            <QueryButton onClick={loadPeriod} loading={periodLoading} />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <SummaryCard
-              label="总收入 Total Revenue"
-              value={`${formatMyr(data.periodSummary.revenueMyr)} MYR`}
-            />
-            <SummaryCard
-              label="总成本 Total Cost"
-              value={`${formatMyr(data.periodSummary.costMyr)} MYR`}
-            />
-            <SummaryCard
-              label="毛利 Gross Profit"
-              value={`${formatMyr(data.periodSummary.grossProfitMyr)} MYR`}
-            />
-            <SummaryCard
-              label="毛利率 Margin"
-              value={formatPct(data.periodSummary.marginPct)}
-            />
-            <SummaryCard
-              label="总趟次 Trips"
-              value={String(data.periodSummary.tripCount)}
-            />
-            <SummaryCard
-              label="总桶数 Crates"
-              value={String(data.periodSummary.totalQuantity)}
-            />
-          </div>
-
-          <PnlTrendChart points={data.periodSummary.trend} />
+          {periodLoading && <LoadingState />}
+          {!periodLoading && !periodData && (
+            <p className="text-sm text-haidee-muted">
+              请选择筛选条件后点击「查询」加载数据
+            </p>
+          )}
+          {periodData && !periodLoading && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <SummaryCard
+                  label="总收入 Total Revenue"
+                  value={`${formatMyr(periodData.periodSummary.revenueMyr)} MYR`}
+                />
+                <SummaryCard
+                  label="总成本 Total Cost"
+                  value={`${formatMyr(periodData.periodSummary.costMyr)} MYR`}
+                />
+                <SummaryCard
+                  label="毛利 Gross Profit"
+                  value={`${formatMyr(periodData.periodSummary.grossProfitMyr)} MYR`}
+                />
+                <SummaryCard
+                  label="毛利率 Margin"
+                  value={formatPct(periodData.periodSummary.marginPct)}
+                />
+                <SummaryCard
+                  label="总趟次 Trips"
+                  value={String(periodData.periodSummary.tripCount)}
+                />
+                <SummaryCard
+                  label="总桶数 Crates"
+                  value={String(periodData.periodSummary.totalQuantity)}
+                />
+              </div>
+              <PnlTrendChart points={periodData.periodSummary.trend} />
+            </>
+          )}
         </div>
       )}
 
@@ -528,108 +499,282 @@ export function PnlReportView({
                 { value: "revenue", label: "按收入 Revenue" },
               ]}
             />
+            <QueryButton onClick={loadCustomers} loading={customerLoading} />
           </div>
 
-          <ScrollMatrixTable>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>寄货人</TableHead>
-                  <TableHead className="text-right">总桶数</TableHead>
-                  <TableHead className="text-right">总收入 MYR</TableHead>
-                  <TableHead className="text-right">直接成本</TableHead>
-                  <TableHead className="text-right">分摊成本</TableHead>
-                  <TableHead className="text-right">总成本</TableHead>
-                  <TableHead className="text-right">毛利 MYR</TableHead>
-                  <TableHead className="text-right">每桶毛利</TableHead>
-                  <TableHead className="text-right">毛利率%</TableHead>
-                  <TableHead>状态</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.customers.map((customer) => (
-                  <TableRow key={customer.shipperId}>
-                    <TableCell>
-                      {customer.shipperName}
-                      <div className="text-xs text-haidee-muted">
-                        {customer.shipperCode}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {customer.totalQuantity}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.revenueMyr)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.directCostMyr)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.allocatedCostMyr)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.totalCostMyr)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.grossProfitMyr)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMyr(customer.profitPerCrate)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatPct(customer.marginPct)}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "rounded px-2 py-1 text-xs font-medium",
-                          STATUS_LABELS[customer.status].className
-                        )}
+          {customerLoading && <LoadingState />}
+          {!customerLoading && !customerData && (
+            <p className="text-sm text-haidee-muted">
+              请选择筛选条件后点击「查询」加载数据
+            </p>
+          )}
+          {customerData && !customerLoading && (
+            <>
+              <ScrollMatrixTable>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>寄货人</TableHead>
+                      <TableHead className="text-right">总桶数</TableHead>
+                      <TableHead className="text-right">总收入 MYR</TableHead>
+                      <TableHead className="text-right">直接成本</TableHead>
+                      <TableHead className="text-right">分摊成本</TableHead>
+                      <TableHead className="text-right">总成本</TableHead>
+                      <TableHead className="text-right">毛利 MYR</TableHead>
+                      <TableHead className="text-right">每桶毛利</TableHead>
+                      <TableHead className="text-right">毛利率%</TableHead>
+                      <TableHead>状态</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerData.customers.map((customer) => (
+                      <TableRow key={customer.shipperId}>
+                        <TableCell>
+                          {customer.shipperName}
+                          <div className="text-xs text-haidee-muted">
+                            {customer.shipperCode}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {customer.totalQuantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.revenueMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.directCostMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.allocatedCostMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.totalCostMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.grossProfitMyr)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(customer.profitPerCrate)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatPct(customer.marginPct)}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "rounded px-2 py-1 text-xs font-medium",
+                              STATUS_LABELS[customer.status].className
+                            )}
+                          >
+                            {STATUS_LABELS[customer.status].label}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollMatrixTable>
+
+              <div className="rounded-xl border border-haidee-border bg-white p-4">
+                <h3 className="text-lg font-semibold text-haidee-text">
+                  建议 Suggestions
+                </h3>
+                {customerData.lossCustomers.length === 0 ? (
+                  <p className="mt-2 text-sm text-haidee-muted">
+                    当前筛选周期内暂无亏损或低毛利客户。
+                  </p>
+                ) : (
+                  <ul className="mt-3 space-y-2 text-sm">
+                    {customerData.lossCustomers.map((item) => (
+                      <li
+                        key={item.shipperCode}
+                        className="rounded-lg border border-haidee-border px-3 py-2"
                       >
-                        {STATUS_LABELS[customer.status].label}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollMatrixTable>
-
-          <div className="rounded-xl border border-haidee-border bg-white p-4">
-            <h3 className="text-lg font-semibold text-haidee-text">
-              建议 Suggestions
-            </h3>
-            {data.lossCustomers.length === 0 ? (
-              <p className="mt-2 text-sm text-haidee-muted">
-                当前筛选周期内暂无亏损或低毛利客户。
-              </p>
-            ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {data.lossCustomers.map((item) => (
-                  <li
-                    key={item.shipperCode}
-                    className="rounded-lg border border-haidee-border px-3 py-2"
-                  >
-                    <div className="font-medium">
-                      {item.shipperName} ({item.shipperCode})
-                    </div>
-                    <div className="text-haidee-muted">
-                      毛利 {formatMyr(item.grossProfitMyr)} · 毛利率{" "}
-                      {formatPct(item.marginPct)}
-                    </div>
-                    <div>{item.message}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                        <div className="font-medium">
+                          {item.shipperName} ({item.shipperCode})
+                        </div>
+                        <div className="text-haidee-muted">
+                          毛利 {formatMyr(item.grossProfitMyr)} · 毛利率{" "}
+                          {formatPct(item.marginPct)}
+                        </div>
+                        <div>{item.message}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
-
-      {isPending && (
-        <p className="text-sm text-haidee-muted">加载中 Loading…</p>
-      )}
     </div>
+  );
+}
+
+function TripListRow({
+  trip,
+  expanded,
+  loading,
+  detail,
+  onToggle,
+}: {
+  trip: PnlTripListItem;
+  expanded: boolean;
+  loading: boolean;
+  detail?: PnlTripRow;
+  onToggle: () => void;
+}) {
+  return (
+    <Fragment>
+      <TableRow>
+        <TableCell>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="text-haidee-teal"
+            aria-label={expanded ? "收起" : "展开"}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+        </TableCell>
+        <TableCell>{trip.date}</TableCell>
+        <TableCell>{trip.route}</TableCell>
+        <TableCell>{trip.driver ?? "—"}</TableCell>
+        <TableCell>{trip.plate}</TableCell>
+        <TableCell className="text-right">{trip.totalCrates}</TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow>
+          <TableCell colSpan={6} className="bg-slate-50 p-0">
+            {loading && !detail ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-haidee-muted">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                计算收入成本中…
+              </div>
+            ) : detail ? (
+              <div className="space-y-3 p-4">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                  <span>
+                    收入 <strong>{formatMyr(detail.revenueMyr)}</strong> MYR
+                  </span>
+                  <span>
+                    直接成本 <strong>{formatMyr(detail.directCostMyr)}</strong>
+                  </span>
+                  <span>
+                    分摊成本{" "}
+                    <strong>{formatMyr(detail.allocatedCostMyr)}</strong>
+                  </span>
+                  <span>
+                    总成本 <strong>{formatMyr(detail.totalCostMyr)}</strong>
+                  </span>
+                  <span>
+                    毛利 <strong>{formatMyr(detail.grossProfitMyr)}</strong> MYR
+                  </span>
+                  <span>
+                    毛利率 <strong>{formatPct(detail.marginPct)}</strong>
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>寄货人</TableHead>
+                        <TableHead className="text-right">桶数</TableHead>
+                        <TableHead className="text-right">收入</TableHead>
+                        <TableHead className="text-right">租桶费</TableHead>
+                        <TableHead className="text-right">LKIM</TableHead>
+                        <TableHead className="text-right">下货费</TableHead>
+                        <TableHead className="text-right">分摊油费</TableHead>
+                        <TableHead className="text-right">分摊过路费</TableHead>
+                        <TableHead className="text-right">分摊司机</TableHead>
+                        <TableHead className="text-right">总成本</TableHead>
+                        <TableHead className="text-right">毛利</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detail.shippers.map((shipper) => (
+                        <TableRow key={shipper.shipperId}>
+                          <TableCell>
+                            {shipper.shipperName}
+                            <div className="text-xs text-haidee-muted">
+                              {shipper.shipperCode}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {shipper.quantity}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.revenueMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.crateRentalMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.lkimMaqisMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.unloadFeeMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.allocatedFuelMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.allocatedTollMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.allocatedDriverMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.totalCostMyr)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatMyr(shipper.grossProfitMyr)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : null}
+          </TableCell>
+        </TableRow>
+      )}
+    </Fragment>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="flex items-center justify-center gap-2 py-12 text-sm text-haidee-muted">
+      <Loader2 className="h-5 w-5 animate-spin" />
+      加载中 Loading…
+    </div>
+  );
+}
+
+function QueryButton({
+  onClick,
+  loading,
+}: {
+  onClick: () => void;
+  loading: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className="min-h-[44px] rounded-lg bg-haidee-teal px-4 text-sm font-medium text-white disabled:opacity-60"
+    >
+      {loading ? "查询中…" : "查询 Query"}
+    </button>
   );
 }
 

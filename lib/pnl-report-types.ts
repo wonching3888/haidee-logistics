@@ -108,6 +108,35 @@ export interface PnlCustomerSuggestion {
   message: string;
 }
 
+export interface PnlTripListItem {
+  tripId: string;
+  date: string;
+  route: string;
+  driver: string | null;
+  plate: string;
+  totalCrates: number;
+}
+
+export interface PnlTripsListData {
+  year: number;
+  month: number;
+  drivers: string[];
+  trips: PnlTripListItem[];
+}
+
+export interface PnlPeriodData {
+  year: number;
+  month: number;
+  periodSummary: PnlPeriodSummary;
+}
+
+export interface PnlCustomerData {
+  year: number;
+  month: number;
+  customers: PnlCustomerRow[];
+  lossCustomers: PnlCustomerSuggestion[];
+}
+
 export interface PnlReportData {
   year: number;
   month: number;
