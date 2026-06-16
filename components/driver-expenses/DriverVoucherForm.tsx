@@ -412,7 +412,8 @@ export function DriverVoucherForm({
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="no-print space-y-6">
       <div className="no-print flex items-center gap-3">
         <Link
           href={backHref}
@@ -656,14 +657,15 @@ export function DriverVoucherForm({
             </div>
           </section>
 
-          {printData && (
-            <DriverVoucherPrintArea
-              voucher={printData}
-              breakdown={printBreakdown}
-            />
-          )}
         </>
       )}
-    </div>
+      </div>
+      {printData && (
+        <DriverVoucherPrintArea
+          voucher={printData}
+          breakdown={printBreakdown}
+        />
+      )}
+    </>
   );
 }

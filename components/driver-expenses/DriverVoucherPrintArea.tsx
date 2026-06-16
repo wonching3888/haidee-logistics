@@ -99,7 +99,7 @@ export function DriverVoucherPrintArea({
         : "";
 
   return (
-    <div id="voucher-print-area" style={{ display: "none" }} aria-hidden="true">
+    <div className="voucher-print-area" aria-hidden="true">
       <div className="voucher-print-company">Hai Dee Logistics Co.,Ltd</div>
 
       <div className="voucher-print-header-grid">
