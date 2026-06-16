@@ -397,55 +397,105 @@ export function PnlReportView({
           <p className="text-sm text-haidee-muted">
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
-          <div className="space-y-3 rounded-lg border border-haidee-border bg-white p-4">
-            <div className="flex flex-wrap items-end gap-4">
-              <FilterYearMonth
-                year={year}
-                month={month}
-                onYearChange={setYear}
-                onMonthChange={setMonth}
-              />
-              <FilterSelect
-                label="路线 Route"
-                value={routeFilter}
-                onChange={(value) => setRouteFilter(value as PnlRouteFilter)}
-                options={PNL_ROUTE_FILTERS.map((route) => ({
-                  value: route,
-                  label: route === "ALL" ? "全部 All" : route,
-                }))}
-              />
-              <FilterSelect
-                label="司机 Driver"
-                value={driverFilter}
-                onChange={setDriverFilter}
-                options={[
-                  { value: "ALL", label: "全部 All" },
-                  ...drivers.map((driver) => ({
-                    value: driver,
-                    label: driver,
-                  })),
-                ]}
-              />
+          <div
+            style={{
+              padding: "16px",
+              border: "1px solid #e5e7eb",
+              borderRadius: "8px",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+                marginBottom: "12px",
+              }}
+            >
+              <label>
+                年份 Year
+                <select
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  style={{ marginLeft: "4px" }}
+                >
+                  {[2024, 2025, 2026].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                月份 Month
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                  style={{ marginLeft: "4px" }}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                路线 Route
+                <select
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value as PnlRouteFilter)}
+                  style={{ marginLeft: "4px" }}
+                >
+                  <option value="ALL">全部 All</option>
+                  {PNL_ROUTE_FILTERS.filter((r) => r !== "ALL").map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                司机 Driver
+                <select
+                  value={driverFilter}
+                  onChange={(e) => setDriverFilter(e.target.value)}
+                  style={{ marginLeft: "4px" }}
+                >
+                  <option value="ALL">全部 All</option>
+                  {drivers.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <div className="flex flex-wrap items-end gap-4">
-              <FilterInput
-                label="日期 Date（可选：只看当日）"
-                type="date"
-                value={tripDay}
-                onChange={setTripDay}
-              />
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <label>
+                日期 Date（可选）
+                <input
+                  type="date"
+                  value={tripDay}
+                  onChange={(e) => setTripDay(e.target.value)}
+                  style={{ marginLeft: "4px" }}
+                />
+              </label>
+              <button onClick={() => setTripDay("")}>清空日期</button>
               <button
-                type="button"
-                onClick={() => setTripDay("")}
-                className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm text-haidee-muted hover:text-haidee-text"
-              >
-                清空日期（整月）
-              </button>
-              <button
-                type="button"
                 onClick={handleSearch}
-                className="relative z-10 mt-2 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-6 py-2 font-medium text-white opacity-100 shadow-sm hover:bg-blue-700"
-                style={{ visibility: "visible" }}
+                style={{
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  padding: "8px 24px",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: "500",
+                  fontSize: "14px",
+                }}
               >
                 查询 Search
               </button>
