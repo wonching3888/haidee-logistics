@@ -22,7 +22,6 @@ import type {
   PnlTripsListData,
 } from "@/lib/pnl-report-types";
 import {
-  PNL_ROUTE_FILTERS,
   type PnlCustomerSort,
   type PnlCustomerStatus,
 } from "@/lib/pnl-report-types";
@@ -366,7 +365,6 @@ export function PnlReportView({
 
   const trips = tripsData?.trips ?? [];
   const totals = tripsData?.totals;
-  const drivers = tripsData?.drivers ?? [];
   const isTodayView = tripDay === getTodayDateInput();
   const emptyTripMessage = isTodayView
     ? "今日暂无趟次记录"
@@ -1073,28 +1071,6 @@ function SearchButton({
       className="min-h-[44px] rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
     >
       {loading ? "查询中…" : "🔍 查询 Search"}
-    </button>
-  );
-}
-
-function QueryButton({
-  onClick,
-  loading,
-}: {
-  onClick: () => void;
-  loading: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      className="min-h-[44px] rounded-lg bg-haidee-teal px-4 text-sm font-medium text-white disabled:opacity-60"
-    >
-      <span className="inline-flex items-center gap-2">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {loading ? "查询中…" : "查询 Search"}
-      </span>
     </button>
   );
 }

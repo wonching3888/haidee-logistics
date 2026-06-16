@@ -15,9 +15,9 @@ interface Props {
 export default function TripPnlFilter({ onSearch }: Props) {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [route, setRoute] = useState("");
-  const [driver, setDriver] = useState("");
   const [date, setDate] = useState("");
+  const route = "";
+  const driver = "";
 
   return (
     <div>
