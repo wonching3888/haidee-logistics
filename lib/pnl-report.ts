@@ -31,6 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/date-utils";
 import type {
   PnlCustomerData,
+  PnlCustomerMarketRow,
   PnlCustomerRow,
   PnlCustomerSort,
   PnlCustomerStatus,
@@ -50,6 +51,7 @@ import type {
 
 export type {
   PnlCustomerData,
+  PnlCustomerMarketRow,
   PnlCustomerRow,
   PnlCustomerSort,
   PnlCustomerStatus,
@@ -67,6 +69,45 @@ export type {
   PnlTripsListData,
 } from "@/lib/pnl-report-types";
 export { PNL_ROUTE_FILTERS } from "@/lib/pnl-report-types";
+
+const PNL_TRIP_ROUTE_ORDER = [
+  "KL",
+  "MC",
+  "BM",
+  "A",
+  "KD",
+  "JB",
+  "OTHER",
+] as const;
+
+function pnlTripRouteSortIndex(routeGroups: string[]): number {
+  for (let i = 0; i < PNL_TRIP_ROUTE_ORDER.length; i++) {
+    if (routeGroups.includes(PNL_TRIP_ROUTE_ORDER[i])) return i;
+  }
+  return PNL_TRIP_ROUTE_ORDER.length;
+}
+
+function comparePnlTrips(a: PnlTripListItem, b: PnlTripListItem): number {
+  const dateCmp = a.date.localeCompare(b.date);
+  if (dateCmp !== 0) return dateCmp;
+  const routeCmp =
+    pnlTripRouteSortIndex(a.routeGroups) - pnlTripRouteSortIndex(b.routeGroups);
+  if (routeCmp !== 0) return routeCmp;
+  return a.route.localeCompare(b.route);
+}
+
+function resolveTripsDateRange(input: {
+  year: number;
+  month: number;
+  day?: string | null;
+}) {
+  if (input.day) {
+    const [y, m, d] = input.day.split("-").map(Number);
+    const date = calendarDateUTC(y, m, d);
+    return { start: date, end: date };
+  }
+  return getMonthDateRange(input.year, input.month);
+}
 
 const DEFAULT_LKIM_RATE = 2.5;
 
@@ -437,23 +478,6 @@ async function loadPnlComputationContext(
   };
 }
 
-function countTripCratesFromLines(
-  lines: Array<{
-    inboundLine: {
-      quantity: unknown;
-      dispatchStatus: string;
-    } | null;
-  }>
-): number {
-  let total = 0;
-  for (const line of lines) {
-    const inbound = line.inboundLine;
-    if (!inbound || inbound.dispatchStatus !== "assigned") continue;
-    const quantity = decimalToNumber(inbound.quantity) ?? 0;
-    if (quantity > 0) total += quantity;
-  }
-  return total;
-}
 async function computeTripPnlRow(
   dispatch: DispatchPnlRow,
   ctx: PnlComputationContext,
@@ -722,37 +746,24 @@ async function computeTripPnlRow(
 export async function buildPnlTripsList(input: {
   year: number;
   month: number;
+  day?: string | null;
   routeFilter?: PnlRouteFilter;
   driverFilter?: string;
 }): Promise<PnlTripsListData> {
   const routeFilter = input.routeFilter ?? "ALL";
   const driverFilter = input.driverFilter ?? "ALL";
-  const { start, end } = getMonthDateRange(input.year, input.month);
+  const { start, end } = resolveTripsDateRange(input);
+  const { end: monthEnd } = getMonthDateRange(input.year, input.month);
+  const ctx = await loadPnlComputationContext(input.year, input.month);
 
-  const dispatches = await prisma.dispatchOrder.findMany({
+  const dispatches = (await prisma.dispatchOrder.findMany({
     where: {
       status: { notIn: ["draft", "cancelled"] },
       date: { gte: start, lte: end },
     },
-    select: {
-      id: true,
-      date: true,
-      markets: true,
-      driverName: true,
-      truck: { select: { plate: true } },
-      lines: {
-        select: {
-          inboundLine: {
-            select: {
-              quantity: true,
-              dispatchStatus: true,
-            },
-          },
-        },
-      },
-    },
+    select: dispatchPnlSelect,
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-  });
+  })) as DispatchPnlRow[];
 
   const drivers = Array.from(
     new Set(
@@ -771,25 +782,247 @@ export async function buildPnlTripsList(input: {
     if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
     if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
 
-    const totalCrates = countTripCratesFromLines(dispatch.lines);
-    if (totalCrates <= 0) continue;
+    const trip = await computeTripPnlRow(dispatch, ctx, monthEnd);
+    if (!trip) continue;
 
     trips.push({
-      tripId: dispatch.id,
-      date: toDateInputValue(dispatch.date),
+      tripId: trip.dispatchOrderId,
+      date: trip.date,
       route: routeLabel || routeKey || "—",
-      driver: dispatch.driverName,
-      plate: dispatch.truck.plate,
-      totalCrates,
+      routeGroups: trip.routeGroups,
+      driver: trip.driverName,
+      plate: trip.truckPlate,
+      totalCrates: trip.totalQuantity,
+      revenueMyr: trip.revenueMyr,
+      directCostMyr: trip.directCostMyr,
+      allocatedCostMyr: trip.allocatedCostMyr,
+      totalCostMyr: trip.totalCostMyr,
+      grossProfitMyr: trip.grossProfitMyr,
+      marginPct: trip.marginPct,
     });
   }
+
+  trips.sort(comparePnlTrips);
+
+  const totals: PnlTripTotals = {
+    revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
+    directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
+    allocatedCostMyr: roundMoney(
+      trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
+    ),
+    totalCostMyr: roundMoney(trips.reduce((s, t) => s + t.totalCostMyr, 0)),
+    grossProfitMyr: roundMoney(trips.reduce((s, t) => s + t.grossProfitMyr, 0)),
+    marginPct: 0,
+    tripCount: trips.length,
+    totalQuantity: trips.reduce((s, t) => s + t.totalCrates, 0),
+  };
+  totals.marginPct =
+    totals.revenueMyr > 0
+      ? roundMoney((totals.grossProfitMyr / totals.revenueMyr) * 100)
+      : 0;
 
   return {
     year: input.year,
     month: input.month,
+    day: input.day ?? null,
     drivers,
     trips,
+    totals,
   };
+}
+
+export async function buildPnlCustomerMarketBreakdown(input: {
+  shipperId: string;
+  year: number;
+  month: number;
+}): Promise<PnlCustomerMarketRow[]> {
+  const { start, end } = getMonthDateRange(input.year, input.month);
+  const { end: monthEnd } = getMonthDateRange(input.year, input.month);
+  const ctx = await loadPnlComputationContext(input.year, input.month);
+
+  const dispatches = (await prisma.dispatchOrder.findMany({
+    where: {
+      status: { notIn: ["draft", "cancelled"] },
+      date: { gte: start, lte: end },
+      lines: {
+        some: {
+          inboundLine: {
+            dispatchStatus: "assigned",
+            session: { shipperId: input.shipperId },
+          },
+        },
+      },
+    },
+    select: dispatchPnlSelect,
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  })) as DispatchPnlRow[];
+
+  const marketMap = new Map<
+    string,
+    {
+      quantity: number;
+      revenueMyr: number;
+      crateRentalMyr: number;
+      lkimMaqisMyr: number;
+      unloadFeeMyr: number;
+      allocatedCostMyr: number;
+    }
+  >();
+
+  for (const dispatch of dispatches) {
+    const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
+    const routeCosts = computeTripRouteCosts(applicableRoutes, ctx.globalCosts);
+    const truck = ctx.truckById.get(dispatch.truckId);
+    const truckCosts = truck
+      ? computeTripTruckCosts(
+          routeCosts.tripMileageKm,
+          truck,
+          ctx.globalCosts.fuelPriceMyr
+        )
+      : { fuelMyr: 0, maintenanceMyr: 0 };
+
+    const tripAllocated = {
+      fuelMyr: truckCosts.fuelMyr,
+      maintenanceMyr: truckCosts.maintenanceMyr,
+      tollMyr: routeCosts.tollFee,
+      borderPassMyr: routeCosts.borderPass,
+      epermitMyr: routeCosts.epermit,
+      dagangNetMyr: routeCosts.dagangNet,
+      forwardingMyr: routeCosts.forwarding,
+      driverMyr: driverTripAllowance(dispatch),
+    };
+    const tripAllocatedTotal = roundMoney(
+      tripAllocated.fuelMyr +
+        tripAllocated.maintenanceMyr +
+        tripAllocated.tollMyr +
+        tripAllocated.borderPassMyr +
+        tripAllocated.epermitMyr +
+        tripAllocated.dagangNetMyr +
+        tripAllocated.forwardingMyr +
+        tripAllocated.driverMyr
+    );
+
+    const lines = dispatch.lines
+      .map((line) => line.inboundLine)
+      .filter((line): line is NonNullable<typeof line> => line != null);
+
+    let tripQuantity = 0;
+    const shipperLines = lines.filter(
+      (line) =>
+        line.dispatchStatus === "assigned" &&
+        line.session.shipperId === input.shipperId
+    );
+    if (shipperLines.length === 0) continue;
+
+    for (const line of lines) {
+      if (line.dispatchStatus !== "assigned") continue;
+      const quantity = decimalToNumber(line.quantity) ?? 0;
+      if (quantity > 0) tripQuantity += quantity;
+    }
+    if (tripQuantity <= 0) continue;
+
+    const first = shipperLines[0]!;
+    const pickup = resolveSessionPickupLocation(
+      first.session.pickupLocation,
+      first.session.shipper.pickupLocation
+    );
+    const stallIds = Array.from(new Set(shipperLines.map((line) => line.stallId)));
+    const tongTypeIds = Array.from(
+      new Set(shipperLines.map((line) => line.tongTypeId))
+    );
+    const freightCtx = await ensureFreightCtx(
+      ctx.freightCtxCache,
+      ctx.freightCtxStallIds,
+      ctx.freightCtxTongTypeIds,
+      input.shipperId,
+      stallIds,
+      tongTypeIds,
+      pickup,
+      monthEnd
+    );
+
+    for (const inbound of shipperLines) {
+      if (!inbound.tongType?.code) continue;
+
+      const marketCode = freightCtx.stalls.get(inbound.stallId)?.marketCode ?? "";
+      if (!marketCode || isOtherMarket(marketCode)) continue;
+
+      const quantity = decimalToNumber(inbound.quantity) ?? 0;
+      if (quantity <= 0) continue;
+
+      const snapshot = computeInboundLineFreight(
+        {
+          stallId: inbound.stallId,
+          tongTypeId: inbound.tongTypeId,
+          quantity,
+          mcDeliveryMode: normalizeMcDeliveryMode(
+            marketCode,
+            inbound.mcDeliveryMode
+          ),
+        },
+        freightCtx
+      );
+
+      const revenue = lineRevenueMyr(snapshot, ctx.exchangeRate);
+      const crateType = inbound.tongType.code;
+      const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
+      const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
+      const lkim = quantity * ctx.lkimRatePerCrate;
+      const unload =
+        quantity *
+        (ctx.unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0);
+      const allocatedCostMyr = allocateShare(
+        quantity,
+        tripQuantity,
+        tripAllocatedTotal
+      );
+
+      const existing = marketMap.get(marketCode) ?? {
+        quantity: 0,
+        revenueMyr: 0,
+        crateRentalMyr: 0,
+        lkimMaqisMyr: 0,
+        unloadFeeMyr: 0,
+        allocatedCostMyr: 0,
+      };
+
+      existing.quantity += quantity;
+      existing.revenueMyr = roundMoney(existing.revenueMyr + revenue);
+      existing.crateRentalMyr = roundMoney(
+        existing.crateRentalMyr + crateRental
+      );
+      existing.lkimMaqisMyr = roundMoney(existing.lkimMaqisMyr + lkim);
+      existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
+      existing.allocatedCostMyr = roundMoney(
+        existing.allocatedCostMyr + allocatedCostMyr
+      );
+      marketMap.set(marketCode, existing);
+    }
+  }
+
+  return Array.from(marketMap.entries())
+    .map(([marketCode, row]) => {
+      const directCostMyr = roundMoney(
+        row.crateRentalMyr + row.lkimMaqisMyr + row.unloadFeeMyr
+      );
+      const totalCostMyr = roundMoney(directCostMyr + row.allocatedCostMyr);
+      const grossProfitMyr = roundMoney(row.revenueMyr - totalCostMyr);
+      const ratePerCrate =
+        row.quantity > 0 ? roundMoney(row.revenueMyr / row.quantity) : 0;
+      return {
+        marketCode,
+        quantity: row.quantity,
+        ratePerCrate,
+        revenueMyr: row.revenueMyr,
+        crateRentalMyr: row.crateRentalMyr,
+        lkimMaqisMyr: row.lkimMaqisMyr,
+        unloadFeeMyr: row.unloadFeeMyr,
+        allocatedCostMyr: row.allocatedCostMyr,
+        totalCostMyr,
+        grossProfitMyr,
+      };
+    })
+    .sort((a, b) => a.marketCode.localeCompare(b.marketCode));
 }
 
 export async function buildPnlTripDetail(input: {

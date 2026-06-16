@@ -112,16 +112,38 @@ export interface PnlTripListItem {
   tripId: string;
   date: string;
   route: string;
+  routeGroups: string[];
   driver: string | null;
   plate: string;
   totalCrates: number;
+  revenueMyr: number;
+  directCostMyr: number;
+  allocatedCostMyr: number;
+  totalCostMyr: number;
+  grossProfitMyr: number;
+  marginPct: number;
 }
 
 export interface PnlTripsListData {
   year: number;
   month: number;
+  day: string | null;
   drivers: string[];
   trips: PnlTripListItem[];
+  totals: PnlTripTotals;
+}
+
+export interface PnlCustomerMarketRow {
+  marketCode: string;
+  quantity: number;
+  ratePerCrate: number;
+  revenueMyr: number;
+  crateRentalMyr: number;
+  lkimMaqisMyr: number;
+  unloadFeeMyr: number;
+  allocatedCostMyr: number;
+  totalCostMyr: number;
+  grossProfitMyr: number;
 }
 
 export interface PnlPeriodData {

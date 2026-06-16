@@ -8,6 +8,11 @@ import {
 } from "@/lib/reports/parse-report-params";
 import type { UserRole } from "@/types";
 
+function todayDateInput() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export const dynamic = "force-dynamic";
 
 interface PnlReportPageProps {
@@ -35,7 +40,11 @@ export default async function PnlReportPage({ searchParams }: PnlReportPageProps
         </p>
       </div>
 
-      <PnlReportView initialYear={year} initialMonth={month} />
+      <PnlReportView
+        initialYear={year}
+        initialMonth={month}
+        initialDay={todayDateInput()}
+      />
     </div>
   );
 }
