@@ -7,6 +7,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  FileText,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,10 +17,6 @@ import { canAccessDriverPayroll, canViewOperationsDashboard } from "@/lib/auth-r
 import {
   MAIN_NAV_CRATE,
   MAIN_NAV_DASHBOARD,
-  MAIN_NAV_DOCUMENTS,
-  MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
-  MAIN_NAV_DOCUMENTS_GENERATE,
-  MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
   MAIN_NAV_HISTORY,
   MAIN_NAV_OPERATIONS,
   MAIN_NAV_REPORTS_BASE,
@@ -32,16 +29,28 @@ import {
   type MainNavLink,
 } from "@/lib/constants/main-nav";
 
-function buildDocumentsNavGroup(): MainNavGroup {
-  return {
-    ...MAIN_NAV_DOCUMENTS,
-    children: [
-      MAIN_NAV_DOCUMENTS_GENERATE,
-      MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
-      MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
-    ],
-  };
-}
+/** Documents submenu rendered by Sidebar — keep all items in this file. */
+const DOCUMENTS_SIDEBAR_CHILDREN: MainNavLink[] = [
+  { href: "/documents", label: "文件生成", labelEn: "Documents" },
+  {
+    href: "/documents/monthly-invoice",
+    label: "月结账单",
+    labelEn: "Monthly Invoice",
+  },
+  {
+    href: "/documents/driver-expenses",
+    label: "司机费用单",
+    labelEn: "Driver Expenses",
+  },
+];
+
+const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
+  id: "documents",
+  label: "文件",
+  labelEn: "Documents",
+  icon: FileText,
+  children: DOCUMENTS_SIDEBAR_CHILDREN,
+};
 
 interface SidebarProps {
   role: UserRole;
@@ -58,7 +67,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const navGroups = useMemo<MainNavGroup[]>(
     () => [
       MAIN_NAV_OPERATIONS,
-      buildDocumentsNavGroup(),
+      DOCUMENTS_SIDEBAR_GROUP,
       MAIN_NAV_CRATE,
       {
         id: "reports",
@@ -124,7 +133,11 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             <ExpandableNavGroup
               key={group.id}
               group={group}
-              open={openGroups[group.id] ?? false}
+              open={
+                group.id === "documents"
+                  ? true
+                  : (openGroups[group.id] ?? false)
+              }
               onToggle={() => toggleGroup(group.id)}
               pathname={pathname}
               onNavigate={onNavigate}
