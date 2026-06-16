@@ -21,6 +21,7 @@ export interface DriverVoucherData {
   minyakMotoEnabled: boolean;
   minyakMotoAmt: number;
   minyakMotoActual: number | null;
+  otherActual: number | null;
   duitJalan: number | null;
   belanja: number | null;
   baki: number | null;
@@ -34,6 +35,7 @@ export const VOUCHER_LABELS = {
   cadanganRm: "Cadangan / Suggested (RM)",
   sebenarRm: "Sebenar / Actual (RM)",
   minyakMoto: "Minyak Moto / Petrol (Moto)",
+  lainLain: "Lain-lain / Other",
   subtotal: "Jumlah Kecil / Subtotal",
   belanja: "Belanja / Expenses",
   baki: "Baki / Balance",
@@ -90,6 +92,65 @@ export const VOUCHER_LINE_ITEMS = [
   },
 ] as const;
 
+/** Labels used only in print output (@media print). */
+export const VOUCHER_PRINT_LABELS = {
+  perkara: "Perkara / Item",
+  cadangan: "Cadangan / Suggested",
+  sebenar: "Sebenar / Actual",
+  cadanganRm: "Cadangan / Suggested (RM)",
+  sebenarRm: "Sebenar / Actual (RM)",
+  minyakMoto: "Minyak Moto / Petrol (Moto)",
+  lainLain: "Lain-lain / Other",
+  subtotal: "Jumlah Kecil / Subtotal",
+  duitJalan: "Duit Jalan",
+  belanja: "Belanja / Expenses",
+  baki: "Baki / Balance",
+  nama: "Nama",
+  noLorry: "No Lorry",
+  tarikh: "Tarikh",
+  trip: "Trip",
+  voucherNo: "Voucher No",
+} as const;
+
+export const VOUCHER_PRINT_LINE_ITEMS = [
+  {
+    key: "chopBorder",
+    label: "Chop Border",
+    amtKey: "chopBorderAmt" as const,
+    actualKey: "chopBorderActual" as const,
+  },
+  {
+    key: "parking",
+    label: "Parking",
+    amtKey: "parkingAmt" as const,
+    actualKey: "parkingActual" as const,
+  },
+  {
+    key: "kpb",
+    label: "KPB",
+    amtKey: "kpbAmt" as const,
+    actualKey: "kpbActual" as const,
+  },
+  {
+    key: "fishCheck",
+    label: "Semak Ikan / Fish Check",
+    amtKey: "fishCheckAmt" as const,
+    actualKey: "fishCheckActual" as const,
+  },
+  {
+    key: "upahTurun",
+    label: "Upah Turun / Unloading",
+    amtKey: "upahTurunAmt" as const,
+    actualKey: "upahTurunActual" as const,
+  },
+  {
+    key: "upahNaikTong",
+    label: "Upah Naik Tong / Crate Loading",
+    amtKey: "upahNaikTongAmt" as const,
+    actualKey: "upahNaikTongActual" as const,
+  },
+] as const;
+
 export function formatMyr(value: number) {
   return value.toLocaleString("en-MY", {
     minimumFractionDigits: 2,
@@ -117,6 +178,7 @@ export function sumActualBelanja(v: {
   upahNaikTongActual: number | null;
   minyakMotoEnabled: boolean;
   minyakMotoActual: number | null;
+  otherActual: number | null;
 }) {
   let total = 0;
   for (const value of [
@@ -126,6 +188,7 @@ export function sumActualBelanja(v: {
     v.fishCheckActual,
     v.upahTurunActual,
     v.upahNaikTongActual,
+    v.otherActual,
   ]) {
     if (value != null) total += value;
   }

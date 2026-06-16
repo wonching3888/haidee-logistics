@@ -38,6 +38,7 @@ interface VoucherFormState {
   minyakMotoEnabled: boolean;
   minyakMotoAmt: string;
   minyakMotoActual: string;
+  otherActual: string;
   duitJalan: string;
   lorry: string;
   driverName: string;
@@ -94,6 +95,7 @@ function suggestionToForm(
     minyakMotoEnabled: false,
     minyakMotoAmt: "8",
     minyakMotoActual: "",
+    otherActual: "",
     duitJalan: "",
     lorry: s.lorry,
     driverName: s.driverName,
@@ -121,6 +123,7 @@ function voucherToForm(v: DriverVoucherData): VoucherFormState {
     minyakMotoEnabled: v.minyakMotoEnabled,
     minyakMotoAmt: String(v.minyakMotoAmt ?? "8"),
     minyakMotoActual: String(v.minyakMotoActual ?? ""),
+    otherActual: String(v.otherActual ?? ""),
     duitJalan: String(v.duitJalan ?? ""),
     lorry: v.lorry,
     driverName: v.driverName,
@@ -152,6 +155,7 @@ function formToPrintData(form: VoucherFormState, belanja: number, baki: number |
     minyakMotoEnabled: form.minyakMotoEnabled,
     minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
     minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+    otherActual: parseOptionalNumber(form.otherActual),
     duitJalan: parseOptionalNumber(form.duitJalan),
     belanja,
     baki,
@@ -309,6 +313,7 @@ export function DriverVoucherForm({
       upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
       minyakMotoEnabled: form.minyakMotoEnabled,
       minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+      otherActual: parseOptionalNumber(form.otherActual),
     });
   }, [form]);
 
@@ -353,6 +358,7 @@ export function DriverVoucherForm({
         minyakMotoEnabled: form.minyakMotoEnabled,
         minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
         minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+        otherActual: parseOptionalNumber(form.otherActual),
         duitJalan: parseOptionalNumber(form.duitJalan),
       };
 
@@ -545,6 +551,27 @@ export function DriverVoucherForm({
                 onChange={(e) =>
                   setForm((prev) =>
                     prev ? { ...prev, minyakMotoActual: e.target.value } : prev
+                  )
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-3 items-center gap-3">
+              <label className="text-sm">{VOUCHER_LABELS.lainLain}</label>
+              <Input
+                readOnly
+                className="bg-muted/50 text-right font-mono"
+                value=""
+                tabIndex={-1}
+              />
+              <Input
+                type="number"
+                step="0.01"
+                className="text-right font-mono"
+                value={form.otherActual}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    prev ? { ...prev, otherActual: e.target.value } : prev
                   )
                 }
               />

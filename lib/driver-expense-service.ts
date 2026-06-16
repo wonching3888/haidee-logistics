@@ -492,6 +492,7 @@ function sumActualBelanja(voucher: {
   upahNaikTongActual: number | null;
   minyakMotoEnabled: boolean;
   minyakMotoActual: number | null;
+  otherActual?: number | null;
 }) {
   let total = 0;
   const fields = [
@@ -501,6 +502,7 @@ function sumActualBelanja(voucher: {
     voucher.fishCheckActual,
     voucher.upahTurunActual,
     voucher.upahNaikTongActual,
+    voucher.otherActual ?? null,
   ];
   for (const value of fields) {
     if (value != null) total += value;
@@ -620,6 +622,7 @@ export async function createDriverVoucher(input: {
   minyakMotoEnabled?: boolean;
   minyakMotoAmt?: number;
   minyakMotoActual?: number | null;
+  otherActual?: number | null;
   duitJalan?: number | null;
 }) {
   const suggestion = await suggestVoucherAmounts(input.tripId);
@@ -648,6 +651,7 @@ export async function createDriverVoucher(input: {
     minyakMotoEnabled: input.minyakMotoEnabled ?? false,
     minyakMotoAmt: input.minyakMotoAmt ?? 8,
     minyakMotoActual: input.minyakMotoActual ?? null,
+    otherActual: input.otherActual ?? null,
     duitJalan: input.duitJalan ?? null,
     belanja: null as number | null,
     baki: null as number | null,
@@ -680,6 +684,7 @@ export async function updateDriverVoucher(
     minyakMotoEnabled: boolean;
     minyakMotoAmt: number;
     minyakMotoActual: number | null;
+    otherActual: number | null;
     duitJalan: number | null;
   }>
 ) {

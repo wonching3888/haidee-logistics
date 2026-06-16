@@ -742,6 +742,7 @@ model DriverVoucher {
   minyakMotoEnabled  Boolean  @default(false) @map("minyak_moto_enabled")
   minyakMotoAmt      Float    @default(8) @map("minyak_moto_amt")
   minyakMotoActual   Float?   @map("minyak_moto_actual")
+  otherActual        Float?   @map("other_actual")
   duitJalan          Float?   @map("duit_jalan")
   belanja            Float?   @map("belanja")
   baki               Float?   @map("baki")
