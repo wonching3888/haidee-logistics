@@ -2,8 +2,9 @@ import {
   formatMyr,
   sumSuggestedAmounts,
   VOUCHER_PRINT_LABELS,
-  VOUCHER_PRINT_LINE_ITEMS,
   type DriverVoucherData,
+  type VoucherPrintBreakdown,
+  type VoucherPrintMarketRow,
 } from "@/lib/driver-expense/voucher-utils";
 
 function escapeHtml(value: string): string {
@@ -30,7 +31,28 @@ function buildFeeRow(
   </tr>`;
 }
 
-export function buildDriverVoucherPrintHtml(voucher: DriverVoucherData): string {
+function buildMarketSplitRows(
+  labelPrefix: string,
+  rows: VoucherPrintMarketRow[],
+  actualTotal: number | null
+): string {
+  if (rows.length === 0) return "";
+  return rows
+    .map((row, index) => {
+      const isLast = index === rows.length - 1;
+      return buildFeeRow(
+        `${labelPrefix} ${row.market}`,
+        row.suggested,
+        isLast ? actualTotal : null
+      );
+    })
+    .join("");
+}
+
+export function buildDriverVoucherPrintHtml(
+  voucher: DriverVoucherData,
+  breakdown?: VoucherPrintBreakdown | null
+): string {
   const displayDate = voucher.tripDate;
   const suggestedSubtotal = sumSuggestedAmounts({
     chopBorderAmt: voucher.chopBorderAmt,
@@ -43,9 +65,37 @@ export function buildDriverVoucherPrintHtml(voucher: DriverVoucherData): string 
     minyakMotoAmt: voucher.minyakMotoAmt,
   });
 
-  const lineRows = VOUCHER_PRINT_LINE_ITEMS.map(({ label, amtKey, actualKey }) =>
-    buildFeeRow(label, voucher[amtKey], voucher[actualKey])
-  ).join("");
+  const parkingRows = breakdown
+    ? buildMarketSplitRows("Parking", breakdown.parking, voucher.parkingActual)
+    : buildFeeRow("Parking", voucher.parkingAmt, voucher.parkingActual);
+
+  const kpbRows = breakdown
+    ? buildMarketSplitRows("KPB", breakdown.kpb, voucher.kpbActual)
+    : buildFeeRow("KPB", voucher.kpbAmt, voucher.kpbActual);
+
+  const upahTurunRows = breakdown
+    ? buildMarketSplitRows(
+        "Upah Turun / Unloading",
+        breakdown.upahTurun,
+        voucher.upahTurunActual
+      )
+    : buildFeeRow(
+        "Upah Turun / Unloading",
+        voucher.upahTurunAmt,
+        voucher.upahTurunActual
+      );
+
+  const upahNaikTongRow = breakdown
+    ? buildFeeRow(
+        breakdown.upahNaikTongLabel,
+        breakdown.upahNaikTongSuggested,
+        voucher.upahNaikTongActual
+      )
+    : buildFeeRow(
+        "Upah Naik Tong / Crate Loading",
+        voucher.upahNaikTongAmt,
+        voucher.upahNaikTongActual
+      );
 
   const minyakRow = voucher.minyakMotoEnabled
     ? buildFeeRow(
@@ -119,7 +169,12 @@ export function buildDriverVoucherPrintHtml(voucher: DriverVoucherData): string 
       </tr>
     </thead>
     <tbody>
-      ${lineRows}
+      ${buildFeeRow("Chop Border", voucher.chopBorderAmt, voucher.chopBorderActual)}
+      ${parkingRows}
+      ${kpbRows}
+      ${buildFeeRow("Semak Ikan / Fish Check", voucher.fishCheckAmt, voucher.fishCheckActual)}
+      ${upahTurunRows}
+      ${upahNaikTongRow}
       ${minyakRow}
       ${otherRow}
       <tr class="subtotal">
@@ -153,23 +208,38 @@ export function buildDriverVoucherPrintHtml(voucher: DriverVoucherData): string 
     <div>Driver Signature / Tandatangan Pemandu</div>
     <div class="signature-line"></div>
   </div>
-
-  <script>
-    window.onload = function () { window.print(); };
-  </script>
 </body>
 </html>`;
 }
 
-export function openDriverVoucherPrintWindow(voucher: DriverVoucherData): void {
-  const html = buildDriverVoucherPrintHtml(voucher);
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+export async function openDriverVoucherPrintWindow(
+  voucher: DriverVoucherData
+): Promise<void> {
+  let breakdown: VoucherPrintBreakdown | null = null;
+  try {
+    const res = await fetch(
+      `/api/driver-vouchers/print-breakdown?tripId=${encodeURIComponent(voucher.tripId)}`
+    );
+    if (res.ok) {
+      const data = (await res.json()) as { breakdown?: VoucherPrintBreakdown };
+      breakdown = data.breakdown ?? null;
+    }
+  } catch {
+    breakdown = null;
+  }
+
+  const htmlContent = buildDriverVoucherPrintHtml(voucher, breakdown);
+  const printWindow = window.open("", "_blank");
   if (!printWindow) {
     window.alert("Please allow pop-ups to print the voucher.");
     return;
   }
-  printWindow.document.open();
-  printWindow.document.write(html);
+  printWindow.document.write(htmlContent);
   printWindow.document.close();
-  printWindow.focus();
+  printWindow.onload = () => {
+    printWindow.print();
+  };
+  if (printWindow.document.readyState === "complete") {
+    printWindow.print();
+  }
 }

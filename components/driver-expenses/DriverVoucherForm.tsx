@@ -618,7 +618,7 @@ export function DriverVoucherForm({
                 variant="outline"
                 className="gap-1"
                 onClick={() => {
-                  if (printData) openDriverVoucherPrintWindow(printData);
+                  if (printData) void openDriverVoucherPrintWindow(printData);
                 }}
               >
                 <Printer className="h-4 w-4" />

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/date-utils";
 import { calendarDateUTC } from "@/lib/reports/period-report-shared";
-import { formatTripRouteLabel } from "@/lib/trip-allowance";
+import { formatTripRouteLabel, normalizeTripMarkets } from "@/lib/trip-allowance";
 import {
   DEFAULT_CRATE_LOADING_RATES,
   calculateTripCrateLoadingFees,
@@ -825,6 +825,98 @@ export async function updateDriverVoucher(
     upahNaikTongActual: voucher.upahNaikTongActual,
   });
   return voucher;
+}
+
+function parkingFeeForMarket(
+  market: string,
+  routes: RouteMasterCostRow[]
+): number {
+  const matching = routes.filter((route) => route.markets.includes(market));
+  if (matching.length === 0) return 0;
+  matching.sort((a, b) => a.markets.length - b.markets.length);
+  return matching[0].parkingFee ?? 0;
+}
+
+function orderMarketFeeRows(
+  tripMarkets: string[],
+  feesByMarket: Map<string, number>
+) {
+  const rows: { market: string; suggested: number }[] = [];
+  for (const market of tripMarkets) {
+    const suggested = feesByMarket.get(market);
+    if (suggested != null && suggested > 0) {
+      rows.push({ market, suggested });
+    }
+  }
+  for (const market of Array.from(feesByMarket.keys())) {
+    const suggested = feesByMarket.get(market);
+    if (!tripMarkets.includes(market) && suggested != null && suggested > 0) {
+      rows.push({ market, suggested });
+    }
+  }
+  return rows;
+}
+
+export async function getVoucherPrintBreakdown(tripId: string) {
+  const dispatch = await loadDispatchForExpense(tripId);
+  const [unloadingFees, loadingFees, routes] = await Promise.all([
+    listUnloadingFees({ tripId }),
+    listCrateLoadingFees({ tripId }),
+    prisma.routeMaster.findMany({ where: { active: true } }),
+  ]);
+
+  const routeRows: RouteMasterCostRow[] = routes.map((route) => ({
+    code: route.code,
+    markets: route.markets,
+    sadooMileageKm: decimalToNumber(route.sadooMileageKm),
+    tollFee: decimalToNumber(route.tollFee),
+    fishCheckingFee: decimalToNumber(route.fishCheckingFee),
+    parkingFee: decimalToNumber(route.parkingFee),
+  }));
+
+  const tripMarkets = normalizeTripMarkets(dispatch.markets);
+
+  const parking = tripMarkets
+    .map((market) => ({
+      market,
+      suggested: roundMoney(parkingFeeForMarket(market, routeRows)),
+    }))
+    .filter((row) => row.suggested > 0);
+
+  const kpbByMarket = new Map<string, number>();
+  for (const row of unloadingFees) {
+    const fee = effectiveKpbFee(row);
+    if (fee <= 0) continue;
+    kpbByMarket.set(
+      row.market,
+      roundMoney((kpbByMarket.get(row.market) ?? 0) + fee)
+    );
+  }
+
+  const upahTurunByMarket = new Map<string, number>();
+  for (const row of unloadingFees) {
+    const fee = effectiveUnloadFee(row);
+    if (fee <= 0) continue;
+    upahTurunByMarket.set(
+      row.market,
+      roundMoney((upahTurunByMarket.get(row.market) ?? 0) + fee)
+    );
+  }
+
+  const upahNaikTongSuggested = roundMoney(
+    loadingFees.reduce(
+      (sum, row) => sum + (row.loadingFeeOverride ?? row.loadingFee),
+      0
+    )
+  );
+
+  return {
+    parking,
+    kpb: orderMarketFeeRows(tripMarkets, kpbByMarket),
+    upahTurun: orderMarketFeeRows(tripMarkets, upahTurunByMarket),
+    upahNaikTongLabel: `Upah Naik Tong / Crate Loading ${formatTripRouteLabel(dispatch.markets)}`,
+    upahNaikTongSuggested,
+  };
 }
 
 export async function syncTripDriverExpenses(tripId: string) {

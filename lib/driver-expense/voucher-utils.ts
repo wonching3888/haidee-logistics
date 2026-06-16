@@ -27,6 +27,19 @@ export interface DriverVoucherData {
   baki: number | null;
 }
 
+export interface VoucherPrintMarketRow {
+  market: string;
+  suggested: number;
+}
+
+export interface VoucherPrintBreakdown {
+  parking: VoucherPrintMarketRow[];
+  kpb: VoucherPrintMarketRow[];
+  upahTurun: VoucherPrintMarketRow[];
+  upahNaikTongLabel: string;
+  upahNaikTongSuggested: number;
+}
+
 export const VOUCHER_LABELS = {
   duitJalan: "Duit Jalan",
   perkara: "项目 Item",
