@@ -513,6 +513,115 @@ function sumActualBelanja(voucher: {
   return roundMoney(total);
 }
 
+function allocateByProportion(total: number, weights: number[]): number[] {
+  if (weights.length === 0) return [];
+  if (weights.length === 1) return [roundMoney(total)];
+
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const effectiveWeights = weightSum > 0 ? weights : weights.map(() => 1);
+  const denominator = effectiveWeights.reduce((sum, weight) => sum + weight, 0);
+
+  const shares: number[] = [];
+  let allocated = 0;
+  for (let index = 0; index < effectiveWeights.length; index++) {
+    if (index === effectiveWeights.length - 1) {
+      shares.push(roundMoney(total - allocated));
+    } else {
+      const share = roundMoney(
+        total * (effectiveWeights[index] / denominator)
+      );
+      shares.push(share);
+      allocated += share;
+    }
+  }
+  return shares;
+}
+
+async function writebackVoucherActuals(voucher: {
+  tripId: string;
+  kpbActual: number | null;
+  upahTurunActual: number | null;
+  upahNaikTongActual: number | null;
+}) {
+  if (voucher.kpbActual != null) {
+    const unloadingRows = await prisma.unloadingFee.findMany({
+      where: { tripId: voucher.tripId },
+      orderBy: { createdAt: "asc" },
+    });
+    if (unloadingRows.length === 1) {
+      await prisma.unloadingFee.update({
+        where: { id: unloadingRows[0].id },
+        data: { kpbFeeOverride: voucher.kpbActual },
+      });
+    } else if (unloadingRows.length > 1) {
+      const shares = allocateByProportion(
+        voucher.kpbActual,
+        unloadingRows.map((row) => row.kpbFee)
+      );
+      await Promise.all(
+        unloadingRows.map((row, index) =>
+          prisma.unloadingFee.update({
+            where: { id: row.id },
+            data: { kpbFeeOverride: shares[index] },
+          })
+        )
+      );
+    }
+  }
+
+  if (voucher.upahTurunActual != null) {
+    const unloadingRows = await prisma.unloadingFee.findMany({
+      where: { tripId: voucher.tripId },
+      orderBy: { createdAt: "asc" },
+    });
+    if (unloadingRows.length === 1) {
+      await prisma.unloadingFee.update({
+        where: { id: unloadingRows[0].id },
+        data: { unloadFeeOverride: voucher.upahTurunActual },
+      });
+    } else if (unloadingRows.length > 1) {
+      const shares = allocateByProportion(
+        voucher.upahTurunActual,
+        unloadingRows.map((row) => row.unloadFee)
+      );
+      await Promise.all(
+        unloadingRows.map((row, index) =>
+          prisma.unloadingFee.update({
+            where: { id: row.id },
+            data: { unloadFeeOverride: shares[index] },
+          })
+        )
+      );
+    }
+  }
+
+  if (voucher.upahNaikTongActual != null) {
+    const loadingRows = await prisma.crateLoadingFee.findMany({
+      where: { tripId: voucher.tripId },
+      orderBy: { createdAt: "asc" },
+    });
+    if (loadingRows.length === 1) {
+      await prisma.crateLoadingFee.update({
+        where: { id: loadingRows[0].id },
+        data: { loadingFeeOverride: voucher.upahNaikTongActual },
+      });
+    } else if (loadingRows.length > 1) {
+      const shares = allocateByProportion(
+        voucher.upahNaikTongActual,
+        loadingRows.map((row) => row.loadingFee)
+      );
+      await Promise.all(
+        loadingRows.map((row, index) =>
+          prisma.crateLoadingFee.update({
+            where: { id: row.id },
+            data: { loadingFeeOverride: shares[index] },
+          })
+        )
+      );
+    }
+  }
+}
+
 export async function suggestVoucherAmounts(tripId: string) {
   const dispatch = await loadDispatchForExpense(tripId);
   const [unloadingFees, loadingFees, routes, globalCosts] = await Promise.all([
@@ -663,7 +772,14 @@ export async function createDriverVoucher(input: {
       ? roundMoney(draft.duitJalan - draft.belanja)
       : null;
 
-  return prisma.driverVoucher.create({ data: draft });
+  const voucher = await prisma.driverVoucher.create({ data: draft });
+  await writebackVoucherActuals({
+    tripId: voucher.tripId,
+    kpbActual: voucher.kpbActual,
+    upahTurunActual: voucher.upahTurunActual,
+    upahNaikTongActual: voucher.upahNaikTongActual,
+  });
+  return voucher;
 }
 
 export async function updateDriverVoucher(
@@ -698,10 +814,17 @@ export async function updateDriverVoucher(
       ? roundMoney(merged.duitJalan - belanja)
       : null;
 
-  return prisma.driverVoucher.update({
+  const voucher = await prisma.driverVoucher.update({
     where: { id },
     data: { ...input, belanja, baki },
   });
+  await writebackVoucherActuals({
+    tripId: voucher.tripId,
+    kpbActual: voucher.kpbActual,
+    upahTurunActual: voucher.upahTurunActual,
+    upahNaikTongActual: voucher.upahNaikTongActual,
+  });
+  return voucher;
 }
 
 export async function syncTripDriverExpenses(tripId: string) {
