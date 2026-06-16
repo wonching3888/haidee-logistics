@@ -13,6 +13,7 @@ import {
   truckSizeLabel,
 } from "@/lib/driver-expense/constants";
 import {
+  bmPindahTripUnloadFee,
   calculateTripUnloadingFees,
   effectiveKpbFee,
   effectiveUnloadFee,
@@ -872,8 +873,9 @@ export async function getVoucherPrintBreakdown(tripId: string) {
 
   const KL_GROUP = ["KL", "BP", "MP", "SL"];
   const BM_PINDAH_GROUP = ["P", "TP", "KT", "NT", "SA"];
-  const bmPindahTripFee =
-    resolveTruckSize(dispatch.truck.type) === "small" ? 12 : 20;
+  const bmPindahTripFee = bmPindahTripUnloadFee(
+    resolveTruckSize(dispatch.truck.type)
+  );
 
   const parking: { market: string; suggested: number }[] = [];
   if (hasAnyMarket(tripMarkets, KL_GROUP)) {

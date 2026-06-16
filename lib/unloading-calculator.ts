@@ -52,6 +52,14 @@ function rateForTruck(
   return size === "small" ? small : large;
 }
 
+export function bmPindahTripUnloadFee(truckSize: TruckSize) {
+  return rateForTruck(
+    truckSize,
+    BM_PINDAH_SMALL_TRUCK_FEE,
+    BM_PINDAH_LARGE_TRUCK_FEE
+  );
+}
+
 function isKlKpbExempt(storeCode: string | null | undefined) {
   const code = (storeCode ?? "").trim();
   if (!code) return true;
@@ -96,11 +104,7 @@ export function calculateTripUnloadingFees(input: {
 
     if (PER_TRIP_UNLOAD_MARKETS.has(market)) {
       if (!perTripUnloadCharged) {
-        unloadFee = rateForTruck(
-          truckSize,
-          BM_PINDAH_SMALL_TRUCK_FEE,
-          BM_PINDAH_LARGE_TRUCK_FEE
-        );
+        unloadFee = bmPindahTripUnloadFee(truckSize);
         perTripUnloadCharged = true;
         tripLevelNote = "TP/KT/P/SA/NT 整趟一次";
       } else {
