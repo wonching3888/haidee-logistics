@@ -393,48 +393,54 @@ export function PnlReportView({
           <p className="text-sm text-haidee-muted">
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
-          <div className="flex flex-wrap items-end gap-4">
-            <FilterYearMonth
-              year={year}
-              month={month}
-              onYearChange={setYear}
-              onMonthChange={setMonth}
-            />
-            <FilterInput
-              label="日期 Date"
-              type="date"
-              value={tripDay}
-              onChange={setTripDay}
-            />
-            <button
-              type="button"
-              onClick={() => setTripDay("")}
-              className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm text-haidee-muted hover:text-haidee-text"
-            >
-              清空日期（整月）
-            </button>
-            <FilterSelect
-              label="路线 Route"
-              value={routeFilter}
-              onChange={(value) => setRouteFilter(value as PnlRouteFilter)}
-              options={PNL_ROUTE_FILTERS.map((route) => ({
-                value: route,
-                label: route === "ALL" ? "全部 All" : route,
-              }))}
-            />
-            <FilterSelect
-              label="司机 Driver"
-              value={driverFilter}
-              onChange={setDriverFilter}
-              options={[
-                { value: "ALL", label: "全部 All" },
-                ...drivers.map((driver) => ({
-                  value: driver,
-                  label: driver,
-                })),
-              ]}
-            />
-            <QueryButton onClick={loadTrips} loading={tripsLoading} />
+          <div className="space-y-3 rounded-lg border border-haidee-border bg-white p-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <FilterYearMonth
+                year={year}
+                month={month}
+                onYearChange={setYear}
+                onMonthChange={setMonth}
+              />
+              <FilterSelect
+                label="路线 Route"
+                value={routeFilter}
+                onChange={(value) => setRouteFilter(value as PnlRouteFilter)}
+                options={PNL_ROUTE_FILTERS.map((route) => ({
+                  value: route,
+                  label: route === "ALL" ? "全部 All" : route,
+                }))}
+              />
+              <FilterSelect
+                label="司机 Driver"
+                value={driverFilter}
+                onChange={setDriverFilter}
+                options={[
+                  { value: "ALL", label: "全部 All" },
+                  ...drivers.map((driver) => ({
+                    value: driver,
+                    label: driver,
+                  })),
+                ]}
+              />
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <FilterInput
+                label="日期 Date（可选：只看当日）"
+                type="date"
+                value={tripDay}
+                onChange={setTripDay}
+              />
+              <button
+                type="button"
+                onClick={() => setTripDay("")}
+                className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm text-haidee-muted hover:text-haidee-text"
+              >
+                清空日期（整月）
+              </button>
+            </div>
+            <div className="flex">
+              <QueryButton onClick={loadTrips} loading={tripsLoading} />
+            </div>
           </div>
 
           {tripsLoading && !tripsData ? (
