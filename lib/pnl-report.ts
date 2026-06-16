@@ -123,6 +123,32 @@ function allocateShare(part: number, total: number, amount: number) {
   return roundMoney((part / total) * amount);
 }
 
+function tripLoadUnloadActualTotal(
+  unloadingRows: {
+    unloadFee: number;
+    unloadFeeOverride: number | null;
+    kpbFee: number;
+    kpbFeeOverride: number | null;
+    isKpbExempt: boolean;
+  }[],
+  loadingRows: {
+    loadingFee: number;
+    loadingFeeOverride: number | null;
+  }[]
+) {
+  let total = 0;
+  for (const row of unloadingRows) {
+    total += row.unloadFeeOverride ?? row.unloadFee;
+    if (!row.isKpbExempt) {
+      total += row.kpbFeeOverride ?? row.kpbFee;
+    }
+  }
+  for (const row of loadingRows) {
+    total += row.loadingFeeOverride ?? row.loadingFee;
+  }
+  return roundMoney(total);
+}
+
 function lineRevenueMyr(
   snapshot: InboundLineFreightSnapshot,
   exchangeRate: number
@@ -408,13 +434,42 @@ interface PnlComputationContext {
   freightCtxCache: Map<string, FreightCtxCache>;
   freightCtxStallIds: Map<string, Set<string>>;
   freightCtxTongTypeIds: Map<string, Set<string>>;
+  unloadingByTripId: Map<
+    string,
+    {
+      unloadFee: number;
+      unloadFeeOverride: number | null;
+      kpbFee: number;
+      kpbFeeOverride: number | null;
+      isKpbExempt: boolean;
+    }[]
+  >;
+  loadingByTripId: Map<
+    string,
+    {
+      loadingFee: number;
+      loadingFeeOverride: number | null;
+    }[]
+  >;
+  voucherByTripId: Map<
+    string,
+    {
+      chopBorderAmt: number | null;
+      chopBorderActual: number | null;
+      parkingAmt: number | null;
+      parkingActual: number | null;
+      fishCheckAmt: number | null;
+      fishCheckActual: number | null;
+    }
+  >;
 }
 
 async function loadPnlComputationContext(
   year: number,
   month: number
 ): Promise<PnlComputationContext> {
-  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks] =
+  const { start, end } = getMonthDateRange(year, month);
+  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -435,6 +490,37 @@ async function loadPnlComputationContext(
       prisma.truck.findMany({
         where: { active: true, country: "MY" },
         include: { costItems: true },
+      }),
+      prisma.unloadingFee.findMany({
+        where: { tripDate: { gte: start, lte: end } },
+        select: {
+          tripId: true,
+          unloadFee: true,
+          unloadFeeOverride: true,
+          kpbFee: true,
+          kpbFeeOverride: true,
+          isKpbExempt: true,
+        },
+      }),
+      prisma.crateLoadingFee.findMany({
+        where: { tripDate: { gte: start, lte: end } },
+        select: {
+          tripId: true,
+          loadingFee: true,
+          loadingFeeOverride: true,
+        },
+      }),
+      prisma.driverVoucher.findMany({
+        where: { tripDate: { gte: start, lte: end } },
+        select: {
+          tripId: true,
+          chopBorderAmt: true,
+          chopBorderActual: true,
+          parkingAmt: true,
+          parkingActual: true,
+          fishCheckAmt: true,
+          fishCheckActual: true,
+        },
       }),
     ]);
 
@@ -466,6 +552,47 @@ async function loadPnlComputationContext(
       .map((row) => [row.crateType, row.rateMyr])
   );
 
+  const unloadingByTripId = new Map<
+    string,
+    {
+      unloadFee: number;
+      unloadFeeOverride: number | null;
+      kpbFee: number;
+      kpbFeeOverride: number | null;
+      isKpbExempt: boolean;
+    }[]
+  >();
+  for (const row of unloadingFees) {
+    const group = unloadingByTripId.get(row.tripId) ?? [];
+    group.push(row);
+    unloadingByTripId.set(row.tripId, group);
+  }
+  const loadingByTripId = new Map<
+    string,
+    {
+      loadingFee: number;
+      loadingFeeOverride: number | null;
+    }[]
+  >();
+  for (const row of loadingFees) {
+    const group = loadingByTripId.get(row.tripId) ?? [];
+    group.push(row);
+    loadingByTripId.set(row.tripId, group);
+  }
+  const voucherByTripId = new Map(
+    vouchers.map((v) => [
+      v.tripId,
+      {
+        chopBorderAmt: decimalToNumber(v.chopBorderAmt),
+        chopBorderActual: decimalToNumber(v.chopBorderActual),
+        parkingAmt: decimalToNumber(v.parkingAmt),
+        parkingActual: decimalToNumber(v.parkingActual),
+        fishCheckAmt: decimalToNumber(v.fishCheckAmt),
+        fishCheckActual: decimalToNumber(v.fishCheckActual),
+      },
+    ])
+  );
+
   return {
     exchangeRate,
     lkimRatePerCrate,
@@ -477,6 +604,9 @@ async function loadPnlComputationContext(
     freightCtxCache: new Map(),
     freightCtxStallIds: new Map(),
     freightCtxTongTypeIds: new Map(),
+    unloadingByTripId,
+    loadingByTripId,
+    voucherByTripId,
   };
 }
 
@@ -491,6 +621,25 @@ async function computeTripPnlRow(
 
   const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
   const routeCosts = computeTripRouteCosts(applicableRoutes, ctx.globalCosts);
+  const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
+  const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
+  const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
+  const tripLoadUnloadTotal = tripLoadUnloadActualTotal(
+    tripUnloadingRows,
+    tripLoadingRows
+  );
+  const tripFishMyr =
+    tripVoucher?.fishCheckActual ??
+    tripVoucher?.fishCheckAmt ??
+    routeCosts.fishCheckingFee;
+  const tripParkingMyr =
+    tripVoucher?.parkingActual ??
+    tripVoucher?.parkingAmt ??
+    routeCosts.parkingFee;
+  const tripBorderMyr =
+    tripVoucher?.chopBorderActual ??
+    tripVoucher?.chopBorderAmt ??
+    routeCosts.borderPass;
   const truck = ctx.truckById.get(dispatch.truckId);
   const truckCosts = truck
     ? computeTripTruckCosts(
@@ -504,7 +653,10 @@ async function computeTripPnlRow(
     fuelMyr: truckCosts.fuelMyr,
     maintenanceMyr: truckCosts.maintenanceMyr,
     tollMyr: routeCosts.tollFee,
-    borderPassMyr: routeCosts.borderPass,
+    borderPassMyr: tripBorderMyr,
+    fishCheckingMyr: tripFishMyr,
+    parkingMyr: tripParkingMyr,
+    loadUnloadMyr: tripLoadUnloadTotal,
     epermitMyr: routeCosts.epermit,
     dagangNetMyr: routeCosts.dagangNet,
     forwardingMyr: routeCosts.forwarding,
@@ -596,9 +748,11 @@ async function computeTripPnlRow(
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
       const lkim = quantity * ctx.lkimRatePerCrate;
-      const unload =
-        quantity *
-        (ctx.unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0);
+      const unload = allocateShare(
+        quantity,
+        tripQuantity,
+        tripAllocated.loadUnloadMyr
+      );
 
       const existing = shipperMap.get(shipperId) ?? {
         shipperId,
@@ -652,6 +806,21 @@ async function computeTripPnlRow(
         tripQuantity,
         tripAllocated.borderPassMyr
       );
+      const allocatedFishCheckingMyr = allocateShare(
+        row.quantity,
+        tripQuantity,
+        tripAllocated.fishCheckingMyr
+      );
+      const allocatedParkingMyr = allocateShare(
+        row.quantity,
+        tripQuantity,
+        tripAllocated.parkingMyr
+      );
+      const allocatedLoadUnloadMyr = allocateShare(
+        row.quantity,
+        tripQuantity,
+        tripAllocated.loadUnloadMyr
+      );
       const allocatedEpermitMyr = allocateShare(
         row.quantity,
         tripQuantity,
@@ -677,6 +846,9 @@ async function computeTripPnlRow(
           allocatedMaintenanceMyr +
           allocatedTollMyr +
           allocatedBorderPassMyr +
+          allocatedFishCheckingMyr +
+          allocatedParkingMyr +
+          allocatedLoadUnloadMyr +
           allocatedEpermitMyr +
           allocatedDagangNetMyr +
           allocatedForwardingMyr +
@@ -716,6 +888,9 @@ async function computeTripPnlRow(
       tripAllocated.maintenanceMyr +
       tripAllocated.tollMyr +
       tripAllocated.borderPassMyr +
+      tripAllocated.fishCheckingMyr +
+      tripAllocated.parkingMyr +
+      tripAllocated.loadUnloadMyr +
       tripAllocated.epermitMyr +
       tripAllocated.dagangNetMyr +
       tripAllocated.forwardingMyr +
@@ -887,6 +1062,25 @@ export async function buildPnlCustomerMarketBreakdown(input: {
   for (const dispatch of dispatches) {
     const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
     const routeCosts = computeTripRouteCosts(applicableRoutes, ctx.globalCosts);
+    const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
+    const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
+    const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
+    const tripLoadUnloadTotal = tripLoadUnloadActualTotal(
+      tripUnloadingRows,
+      tripLoadingRows
+    );
+    const tripFishMyr =
+      tripVoucher?.fishCheckActual ??
+      tripVoucher?.fishCheckAmt ??
+      routeCosts.fishCheckingFee;
+    const tripParkingMyr =
+      tripVoucher?.parkingActual ??
+      tripVoucher?.parkingAmt ??
+      routeCosts.parkingFee;
+    const tripBorderMyr =
+      tripVoucher?.chopBorderActual ??
+      tripVoucher?.chopBorderAmt ??
+      routeCosts.borderPass;
     const truck = ctx.truckById.get(dispatch.truckId);
     const truckCosts = truck
       ? computeTripTruckCosts(
@@ -900,7 +1094,10 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       fuelMyr: truckCosts.fuelMyr,
       maintenanceMyr: truckCosts.maintenanceMyr,
       tollMyr: routeCosts.tollFee,
-      borderPassMyr: routeCosts.borderPass,
+      borderPassMyr: tripBorderMyr,
+      fishCheckingMyr: tripFishMyr,
+      parkingMyr: tripParkingMyr,
+      loadUnloadMyr: tripLoadUnloadTotal,
       epermitMyr: routeCosts.epermit,
       dagangNetMyr: routeCosts.dagangNet,
       forwardingMyr: routeCosts.forwarding,
@@ -911,6 +1108,9 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         tripAllocated.maintenanceMyr +
         tripAllocated.tollMyr +
         tripAllocated.borderPassMyr +
+        tripAllocated.fishCheckingMyr +
+        tripAllocated.parkingMyr +
+        tripAllocated.loadUnloadMyr +
         tripAllocated.epermitMyr +
         tripAllocated.dagangNetMyr +
         tripAllocated.forwardingMyr +
@@ -983,9 +1183,11 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
       const lkim = quantity * ctx.lkimRatePerCrate;
-      const unload =
-        quantity *
-        (ctx.unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0);
+      const unload = allocateShare(
+        quantity,
+        tripQuantity,
+        tripAllocated.loadUnloadMyr
+      );
       const allocatedCostMyr = allocateShare(
         quantity,
         tripQuantity,

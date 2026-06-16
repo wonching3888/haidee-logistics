@@ -201,6 +201,9 @@ export async function aggregateOperationsCosts(
     crateRentalRates,
     globalCosts,
     trucks,
+    unloadingFees,
+    crateLoadingFees,
+    vouchers,
   ] = await Promise.all([
     prisma.routeMaster.findMany({
       where: { active: true },
@@ -252,6 +255,37 @@ export async function aggregateOperationsCosts(
       where: { active: true, country: "MY" },
       include: { costItems: true },
     }),
+    prisma.unloadingFee.findMany({
+      where: { tripDate: { gte: start, lte: end } },
+      select: {
+        tripId: true,
+        unloadFee: true,
+        unloadFeeOverride: true,
+        kpbFee: true,
+        kpbFeeOverride: true,
+        isKpbExempt: true,
+      },
+    }),
+    prisma.crateLoadingFee.findMany({
+      where: { tripDate: { gte: start, lte: end } },
+      select: {
+        tripId: true,
+        loadingFee: true,
+        loadingFeeOverride: true,
+      },
+    }),
+    prisma.driverVoucher.findMany({
+      where: { tripDate: { gte: start, lte: end } },
+      select: {
+        tripId: true,
+        chopBorderAmt: true,
+        chopBorderActual: true,
+        parkingAmt: true,
+        parkingActual: true,
+        fishCheckAmt: true,
+        fishCheckActual: true,
+      },
+    }),
   ]);
 
   const routes: RouteMasterCostRow[] = routeMasters.map((route) => ({
@@ -281,6 +315,19 @@ export async function aggregateOperationsCosts(
       .filter((row) => row.isRental)
       .map((row) => [row.crateType, row.rateMyr])
   );
+  const unloadingByTrip = new Map<string, typeof unloadingFees>();
+  for (const row of unloadingFees) {
+    const group = unloadingByTrip.get(row.tripId) ?? [];
+    group.push(row);
+    unloadingByTrip.set(row.tripId, group);
+  }
+  const loadingByTrip = new Map<string, typeof crateLoadingFees>();
+  for (const row of crateLoadingFees) {
+    const group = loadingByTrip.get(row.tripId) ?? [];
+    group.push(row);
+    loadingByTrip.set(row.tripId, group);
+  }
+  const voucherByTrip = new Map(vouchers.map((v) => [v.tripId, v]));
 
   const totals = emptyOperationsCostTotals();
   totals.tripCount = dispatches.length;
@@ -293,9 +340,22 @@ export async function aggregateOperationsCosts(
     const routeCosts = computeTripRouteCosts(applicableRoutes, globalCosts);
 
     totals.tollFee += routeCosts.tollFee;
-    totals.fishCheckingFee += routeCosts.fishCheckingFee;
-    totals.parkingFee += routeCosts.parkingFee;
-    totals.borderPass += routeCosts.borderPass;
+    const tripVoucher = voucherByTrip.get(dispatch.id);
+    const tripFish =
+      tripVoucher?.fishCheckActual ??
+      tripVoucher?.fishCheckAmt ??
+      routeCosts.fishCheckingFee;
+    const tripParking =
+      tripVoucher?.parkingActual ??
+      tripVoucher?.parkingAmt ??
+      routeCosts.parkingFee;
+    const tripBorder =
+      tripVoucher?.chopBorderActual ??
+      tripVoucher?.chopBorderAmt ??
+      routeCosts.borderPass;
+    totals.fishCheckingFee += tripFish;
+    totals.parkingFee += tripParking;
+    totals.borderPass += tripBorder;
     totals.epermit += routeCosts.epermit;
     totals.dagangNet += routeCosts.dagangNet;
     totals.forwarding += routeCosts.forwarding;
@@ -312,6 +372,38 @@ export async function aggregateOperationsCosts(
       totals.maintenanceMyr += truckCosts.maintenanceMyr;
     }
 
+    const tripUnloadingRows = unloadingByTrip.get(dispatch.id) ?? [];
+    const tripLoadingRows = loadingByTrip.get(dispatch.id) ?? [];
+    let tripLoadUnloadFee = 0;
+    if (tripUnloadingRows.length > 0 || tripLoadingRows.length > 0) {
+      for (const row of tripUnloadingRows) {
+        tripLoadUnloadFee += row.unloadFeeOverride ?? row.unloadFee;
+        if (!row.isKpbExempt) {
+          tripLoadUnloadFee += row.kpbFeeOverride ?? row.kpbFee;
+        }
+      }
+      for (const row of tripLoadingRows) {
+        tripLoadUnloadFee += row.loadingFeeOverride ?? row.loadingFee;
+      }
+    } else {
+      for (const line of dispatch.lines) {
+        const inboundLine = line.inboundLine;
+        if (!inboundLine?.tongType?.code) continue;
+
+        const marketCode = inboundLine.stall?.market?.code;
+        if (!marketCode || isOtherMarket(marketCode)) continue;
+
+        const quantity = decimalToNumber(inboundLine.quantity) ?? 0;
+        if (quantity <= 0) continue;
+
+        const crateType = inboundLine.tongType.code;
+        const unloadRate =
+          unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0;
+        tripLoadUnloadFee += quantity * unloadRate;
+      }
+    }
+    totals.loadUnloadFee += tripLoadUnloadFee;
+
     for (const line of dispatch.lines) {
       const inboundLine = line.inboundLine;
       if (!inboundLine?.tongType?.code) continue;
@@ -323,10 +415,6 @@ export async function aggregateOperationsCosts(
       if (quantity <= 0) continue;
 
       const crateType = inboundLine.tongType.code;
-      const unloadRate =
-        unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0;
-      totals.loadUnloadFee += quantity * unloadRate;
-
       const rentalRate = rentalRateByType.get(crateType);
       if (rentalRate != null && Number.isFinite(rentalRate)) {
         totals.crateRental += quantity * rentalRate;
