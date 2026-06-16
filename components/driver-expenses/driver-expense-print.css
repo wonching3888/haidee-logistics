@@ -1,10 +1,17 @@
 @media print {
+  @page {
+    size: A5;
+    margin: 10mm;
+  }
+
   body * {
     visibility: hidden;
   }
 
   .driver-expense-print-area,
-  .driver-expense-print-area * {
+  .driver-expense-print-area *,
+  .driver-voucher-print-a5,
+  .driver-voucher-print-a5 * {
     visibility: visible;
   }
 
@@ -13,6 +20,16 @@
     left: 0;
     top: 0;
     width: 100%;
+  }
+
+  .driver-voucher-print-a5 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 128mm;
+    font-size: 9pt;
+    line-height: 1.35;
+    color: #111;
   }
 
   .no-print {
@@ -42,4 +59,77 @@
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 12px;
+}
+
+.driver-voucher-print-a5 {
+  font-family: Arial, sans-serif;
+  color: #111;
+}
+
+.driver-voucher-print-a5 .voucher-print-company {
+  text-align: center;
+  font-size: 13pt;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.driver-voucher-print-a5 .voucher-print-header-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 9pt;
+}
+
+.driver-voucher-print-a5 .voucher-print-header-right {
+  text-align: right;
+}
+
+.driver-voucher-print-a5 .voucher-print-label {
+  font-weight: 600;
+}
+
+.driver-voucher-print-a5 .voucher-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  font-size: 8.5pt;
+}
+
+.driver-voucher-print-a5 .voucher-print-table th,
+.driver-voucher-print-a5 .voucher-print-table td {
+  border: 1px solid #333;
+  padding: 3px 5px;
+}
+
+.driver-voucher-print-a5 .text-right {
+  text-align: right;
+}
+
+.driver-voucher-print-a5 .voucher-print-summary-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.driver-voucher-print-a5 .voucher-print-summary {
+  border-collapse: collapse;
+  font-size: 8.5pt;
+  min-width: 42%;
+}
+
+.driver-voucher-print-a5 .voucher-print-summary td {
+  border: 1px solid #333;
+  padding: 3px 6px;
+}
+
+.driver-voucher-print-a5 .voucher-print-signature {
+  margin-top: 20px;
+  font-size: 8.5pt;
+}
+
+.driver-voucher-print-a5 .voucher-print-signature-line {
+  margin-top: 28px;
+  border-top: 1px solid #333;
+  width: 55%;
 }

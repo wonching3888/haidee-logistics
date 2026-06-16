@@ -21,6 +21,12 @@ import {
   type UnloadingRateConfigInput,
 } from "@/lib/unloading-calculator";
 import { decimalToNumber } from "@/lib/freight-rates";
+import {
+  computeTripRouteCosts,
+  findApplicableRoutes,
+  loadGlobalTripCostValues,
+  type RouteMasterCostRow,
+} from "@/lib/operations-cost";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   {
@@ -379,6 +385,9 @@ export async function listUnloadingFees(filters: {
   } = {};
 
   if (filters.tripId) where.tripId = filters.tripId;
+  if (!filters.tripId && !filters.startDate && !filters.endDate) {
+    return [];
+  }
   if (filters.startDate || filters.endDate) {
     where.tripDate = {};
     if (filters.startDate) where.tripDate.gte = parseDateInput(filters.startDate);
@@ -402,6 +411,9 @@ export async function listCrateLoadingFees(filters: {
   } = {};
 
   if (filters.tripId) where.tripId = filters.tripId;
+  if (!filters.tripId && !filters.startDate && !filters.endDate) {
+    return [];
+  }
   if (filters.startDate || filters.endDate) {
     where.tripDate = {};
     if (filters.startDate) where.tripDate.gte = parseDateInput(filters.startDate);
@@ -448,6 +460,9 @@ export async function listDriverVouchers(filters: {
   } = {};
 
   if (filters.tripId) where.tripId = filters.tripId;
+  if (!filters.tripId && !filters.startDate && !filters.endDate) {
+    return [];
+  }
   if (filters.startDate || filters.endDate) {
     where.tripDate = {};
     if (filters.startDate) where.tripDate.gte = parseDateInput(filters.startDate);
@@ -498,20 +513,31 @@ function sumActualBelanja(voucher: {
 
 export async function suggestVoucherAmounts(tripId: string) {
   const dispatch = await loadDispatchForExpense(tripId);
-  const [unloadingFees, loadingFees, routes] = await Promise.all([
+  const [unloadingFees, loadingFees, routes, globalCosts] = await Promise.all([
     listUnloadingFees({ tripId }),
     listCrateLoadingFees({ tripId }),
     prisma.routeMaster.findMany({ where: { active: true } }),
+    loadGlobalTripCostValues(),
   ]);
 
-  const upahTurun = roundMoney(
+  const upahTurunAmt = roundMoney(
     unloadingFees.reduce(
       (sum, row) =>
         sum +
-        lineSubtotal({
+        effectiveUnloadFee({
           unloadFee: row.unloadFee,
-          kpbFee: row.kpbFee,
           unloadFeeOverride: row.unloadFeeOverride,
+        }),
+      0
+    )
+  );
+
+  const kpbAmt = roundMoney(
+    unloadingFees.reduce(
+      (sum, row) =>
+        sum +
+        effectiveKpbFee({
+          kpbFee: row.kpbFee,
           kpbFeeOverride: row.kpbFeeOverride,
           isKpbExempt: row.isKpbExempt,
         }),
@@ -519,43 +545,24 @@ export async function suggestVoucherAmounts(tripId: string) {
     )
   );
 
-  const upahNaikTong = roundMoney(
+  const upahNaikTongAmt = roundMoney(
     loadingFees.reduce(
-      (sum, row) =>
-        sum + (row.loadingFeeOverride ?? row.loadingFee),
+      (sum, row) => sum + (row.loadingFeeOverride ?? row.loadingFee),
       0
     )
   );
 
-  const dispatchMarkets = dispatch.markets.map((m) => m.toUpperCase());
-  const matchedRoutes = routes.filter((route) =>
-    route.markets.some((m) => dispatchMarkets.includes(m.toUpperCase()))
-  );
+  const routeRows: RouteMasterCostRow[] = routes.map((route) => ({
+    code: route.code,
+    markets: route.markets,
+    sadooMileageKm: decimalToNumber(route.sadooMileageKm),
+    tollFee: decimalToNumber(route.tollFee),
+    fishCheckingFee: decimalToNumber(route.fishCheckingFee),
+    parkingFee: decimalToNumber(route.parkingFee),
+  }));
 
-  const parkingAmt = roundMoney(
-    matchedRoutes.reduce(
-      (sum, route) => sum + (decimalToNumber(route.parkingFee) ?? 0),
-      0
-    )
-  );
-  const fishCheckAmt = roundMoney(
-    matchedRoutes.reduce(
-      (sum, route) => sum + (decimalToNumber(route.fishCheckingFee) ?? 0),
-      0
-    )
-  );
-  const kpbAmt = roundMoney(
-    matchedRoutes.reduce(
-      (sum, route) => sum + (decimalToNumber(route.kpbFee) ?? 0),
-      0
-    )
-  );
-  const chopBorderAmt = roundMoney(
-    matchedRoutes.reduce(
-      (sum, route) => sum + (decimalToNumber(route.tollFee) ?? 0),
-      0
-    )
-  );
+  const applicableRoutes = findApplicableRoutes(dispatch.markets, routeRows);
+  const routeCosts = computeTripRouteCosts(applicableRoutes, globalCosts);
 
   return {
     tripId,
@@ -563,12 +570,12 @@ export async function suggestVoucherAmounts(tripId: string) {
     lorry: dispatch.truck.plate,
     driverName: dispatch.driverName ?? "",
     route: formatTripRouteLabel(dispatch.markets),
-    chopBorderAmt,
-    parkingAmt,
+    chopBorderAmt: routeCosts.borderPass,
+    parkingAmt: routeCosts.parkingFee,
     kpbAmt,
-    fishCheckAmt,
-    upahTurunAmt: upahTurun,
-    upahNaikTongAmt: upahNaikTong,
+    fishCheckAmt: routeCosts.fishCheckingFee,
+    upahTurunAmt,
+    upahNaikTongAmt,
     totalQuantity: dispatch.lines.reduce((sum, dl) => {
       const qty = decimalToNumber(dl.inboundLine?.quantity) ?? 0;
       return sum + qty;
