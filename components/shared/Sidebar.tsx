@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useLayoutEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   ChevronDown,
@@ -17,6 +17,9 @@ import {
   MAIN_NAV_CRATE,
   MAIN_NAV_DASHBOARD,
   MAIN_NAV_DOCUMENTS,
+  MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
+  MAIN_NAV_DOCUMENTS_GENERATE,
+  MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
   MAIN_NAV_HISTORY,
   MAIN_NAV_OPERATIONS,
   MAIN_NAV_REPORTS_BASE,
@@ -28,6 +31,17 @@ import {
   type MainNavGroup,
   type MainNavLink,
 } from "@/lib/constants/main-nav";
+
+function buildDocumentsNavGroup(): MainNavGroup {
+  return {
+    ...MAIN_NAV_DOCUMENTS,
+    children: [
+      MAIN_NAV_DOCUMENTS_GENERATE,
+      MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
+      MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
+    ],
+  };
+}
 
 interface SidebarProps {
   role: UserRole;
@@ -44,7 +58,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const navGroups = useMemo<MainNavGroup[]>(
     () => [
       MAIN_NAV_OPERATIONS,
-      MAIN_NAV_DOCUMENTS,
+      buildDocumentsNavGroup(),
       MAIN_NAV_CRATE,
       {
         id: "reports",
@@ -65,7 +79,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setOpenGroups((prev) => {
       const next = { ...prev };
       for (const group of navGroups) {

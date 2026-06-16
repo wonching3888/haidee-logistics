@@ -41,23 +41,33 @@ export const MAIN_NAV_OPERATIONS: MainNavGroup = {
   ],
 };
 
+export const MAIN_NAV_DOCUMENTS_GENERATE: MainNavLink = {
+  href: "/documents",
+  label: "文件生成",
+  labelEn: "Documents",
+};
+
+export const MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE: MainNavLink = {
+  href: "/documents/monthly-invoice",
+  label: "月结账单",
+  labelEn: "Monthly Invoice",
+};
+
+export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES: MainNavLink = {
+  href: "/documents/driver-expenses",
+  label: "司机费用单",
+  labelEn: "Driver Expenses",
+};
+
 export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   id: "documents",
   label: "文件",
   labelEn: "Documents",
   icon: FileText,
   children: [
-    { href: "/documents", label: "文件生成", labelEn: "Documents" },
-    {
-      href: "/documents/monthly-invoice",
-      label: "月结账单",
-      labelEn: "Monthly Invoice",
-    },
-    {
-      href: "/documents/driver-expenses",
-      label: "司机费用单",
-      labelEn: "Driver Expenses",
-    },
+    MAIN_NAV_DOCUMENTS_GENERATE,
+    MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
+    MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
   ],
 };
 
