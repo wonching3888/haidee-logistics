@@ -132,7 +132,7 @@ export function buildInboundChangeLogs(input: {
         "桶数 Crates",
         String(prev.quantity),
         "0",
-        lineId
+        null
       );
       continue;
     }

@@ -447,7 +447,8 @@ async function syncInboundLines(
   typeMap: Map<string, TongTypeMeta>,
   freightSnapshots: InboundLineFreightSnapshot[],
   tx: Prisma.TransactionClient = prisma
-) {
+): Promise<Map<number, string>> {
+  const lineIdByIndex = new Map<number, string>();
   const existingLineIds = new Set(existingLines.map((line) => line.id));
   const inputLineIds = new Set(
     allLines.filter((line) => line.lineId).map((line) => line.lineId!)
@@ -466,6 +467,8 @@ async function syncInboundLines(
     const line = allLines[index];
     const freight = freightSnapshots[index];
     if (!line.lineId || !existingLineIds.has(line.lineId)) continue;
+
+    lineIdByIndex.set(index, line.lineId);
 
     const prev = existingLines.find((existing) => existing.id === line.lineId)!;
     const changed =
@@ -507,7 +510,7 @@ async function syncInboundLines(
     );
 
   if (createLineEntries.length > 0) {
-    await tx.inboundLine.createMany({
+    const created = await tx.inboundLine.createManyAndReturn({
       data: createLineEntries.map(({ line, index }) => ({
         sessionId,
         stallId: line.stallId,
@@ -517,7 +520,15 @@ async function syncInboundLines(
         ...freightFields(freightSnapshots[index]),
       })),
     });
+    createLineEntries.forEach(({ index }, createdIndex) => {
+      const createdLine = created[createdIndex];
+      if (createdLine) {
+        lineIdByIndex.set(index, createdLine.id);
+      }
+    });
   }
+
+  return lineIdByIndex;
 }
 
 export interface InboundSessionFilters {
@@ -1073,28 +1084,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
         : [];
 
     const { stallMeta, tongMeta } = await loadLineMeta(allLines);
-    const changeLogs =
-      existing.status === "confirmed" && status === "confirmed"
-        ? buildInboundChangeLogs({
-            sessionId: input.sessionId,
-            userId: user.id,
-            before: beforeSnapshot,
-            after: {
-              date,
-              shipperId: input.shipperId,
-              shipperName: afterShipper.name,
-              shipperPickupLocation: afterShipper.pickupLocation,
-              pickupLocation: sessionPickupLocation,
-              areaNote: input.areaNote || null,
-              thVehiclePlate: input.thVehiclePlate || null,
-              lines: allLines,
-            },
-            afterLineMeta: stallMeta,
-            afterTongMeta: tongMeta,
-          })
-        : [];
-
     let sessionNo = existing.sessionNo;
+    let lineIdByIndex = new Map<number, string>();
     const existingLinesForSync = existing.lines.map((line) => ({
       id: line.id,
       quantity: line.quantity,
@@ -1106,7 +1097,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     if (status === "confirmed" && !existing.sessionNo) {
       for (let attempt = 0; attempt < SESSION_NO_MAX_RETRIES; attempt++) {
         try {
-          await prisma.$transaction(
+          lineIdByIndex = await prisma.$transaction(
             async (tx) => {
             sessionNo = await generateSessionNo(date, tx);
             await tx.inboundSession.update({
@@ -1122,7 +1113,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
                 shipperCurrency,
               },
             });
-            await syncInboundLines(
+            return syncInboundLines(
               input.sessionId!,
               allLines,
               existingLinesForSync,
@@ -1144,7 +1135,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
         }
       }
     } else {
-      await prisma.$transaction(
+      lineIdByIndex = await prisma.$transaction(
         async (tx) => {
         await tx.inboundSession.update({
           where: { id: input.sessionId },
@@ -1159,7 +1150,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             shipperCurrency,
           },
         });
-        await syncInboundLines(
+        return syncInboundLines(
           input.sessionId!,
           allLines,
           existingLinesForSync,
@@ -1199,11 +1190,38 @@ export async function saveInboundSession(input: SaveInboundInput) {
       );
     }
 
+    const allLinesWithIds = allLines.map((line, index) => ({
+      ...line,
+      lineId: lineIdByIndex.get(index) ?? line.lineId,
+    }));
+    const changeLogs =
+      existing.status === "confirmed" && status === "confirmed"
+        ? buildInboundChangeLogs({
+            sessionId: input.sessionId!,
+            userId: user.id,
+            before: beforeSnapshot,
+            after: {
+              date,
+              shipperId: input.shipperId,
+              shipperName: afterShipper.name,
+              shipperPickupLocation: afterShipper.pickupLocation,
+              pickupLocation: sessionPickupLocation,
+              areaNote: input.areaNote || null,
+              thVehiclePlate: input.thVehiclePlate || null,
+              lines: allLinesWithIds,
+            },
+            afterLineMeta: stallMeta,
+            afterTongMeta: tongMeta,
+          })
+        : [];
+
     if (changeLogs.length > 0) {
+      const validLineIds = new Set(lineIdByIndex.values());
       await prisma.inboundChangeLog.createMany({
         data: changeLogs.map((log) => ({
           sessionId: log.sessionId,
-          lineId: log.lineId ?? null,
+          lineId:
+            log.lineId && validLineIds.has(log.lineId) ? log.lineId : null,
           userId: log.userId,
           field: log.field,
           fromValue: log.fromValue,
