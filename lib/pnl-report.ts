@@ -76,21 +76,81 @@ function lineRevenueMyr(
   snapshot: InboundLineFreightSnapshot,
   exchangeRate: number
 ): number {
-  let total = 0;
-  if ((snapshot.freightAmount ?? 0) > 0) {
-    if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
-      total += convertThbToMyr(snapshot.freightAmount!, exchangeRate);
-    } else if (snapshot.currency === "MYR") {
-      total += snapshot.freightAmount!;
-    } else {
-      const eq = freightAmountMyrEquivalent(snapshot);
-      if (eq != null) total += eq;
-    }
+  if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
+    return 0;
   }
+
+  let total = 0;
+  if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
+    total += convertThbToMyr(snapshot.freightAmount, exchangeRate);
+  } else if (snapshot.currency === "MYR") {
+    total += snapshot.freightAmount;
+  } else {
+    const eq = freightAmountMyrEquivalent(snapshot);
+    if (eq != null) total += eq;
+  }
+
   if ((snapshot.dualPaymentWtlAmount ?? 0) > 0) {
     total += snapshot.dualPaymentWtlAmount!;
   }
   return roundMoney(total);
+}
+
+type FreightCtxCache = Awaited<
+  ReturnType<typeof loadInboundFreightContext>
+>["ctx"];
+
+function freightCtxCacheKey(
+  shipperId: string,
+  pickup: ReturnType<typeof resolveSessionPickupLocation>,
+  asOfDate: Date
+) {
+  return `${shipperId}|${pickup}|${toDateInputValue(asOfDate)}`;
+}
+
+async function ensureFreightCtx(
+  cache: Map<string, FreightCtxCache>,
+  stallIdsByKey: Map<string, Set<string>>,
+  tongTypeIdsByKey: Map<string, Set<string>>,
+  shipperId: string,
+  stallIds: string[],
+  tongTypeIds: string[],
+  pickup: ReturnType<typeof resolveSessionPickupLocation>,
+  asOfDate: Date
+): Promise<FreightCtxCache> {
+  const key = freightCtxCacheKey(shipperId, pickup, asOfDate);
+  const stalls = stallIdsByKey.get(key) ?? new Set<string>();
+  const tongTypes = tongTypeIdsByKey.get(key) ?? new Set<string>();
+  let needsReload = !cache.has(key);
+
+  for (const id of stallIds) {
+    if (!stalls.has(id)) {
+      stalls.add(id);
+      needsReload = true;
+    }
+  }
+  for (const id of tongTypeIds) {
+    if (!tongTypes.has(id)) {
+      tongTypes.add(id);
+      needsReload = true;
+    }
+  }
+
+  stallIdsByKey.set(key, stalls);
+  tongTypeIdsByKey.set(key, tongTypes);
+
+  if (needsReload) {
+    const { ctx } = await loadInboundFreightContext(
+      shipperId,
+      Array.from(stalls),
+      Array.from(tongTypes),
+      asOfDate,
+      pickup
+    );
+    cache.set(key, ctx);
+  }
+
+  return cache.get(key)!;
 }
 
 function customerStatus(marginPct: number, profit: number): PnlCustomerStatus {
@@ -245,7 +305,7 @@ export async function buildPnlReport(input: {
     }),
     prisma.dispatchOrder.findMany({
       where: {
-        status: { not: "cancelled" },
+        status: { notIn: ["draft", "cancelled"] },
         date: { gte: start, lte: end },
       },
       select: {
@@ -270,6 +330,7 @@ export async function buildPnlReport(input: {
                 stallId: true,
                 tongTypeId: true,
                 quantity: true,
+                dispatchStatus: true,
                 mcDeliveryMode: true,
                 tongType: { select: { code: true, isBox: true } },
                 stall: { select: { market: { select: { code: true } } } },
@@ -331,10 +392,9 @@ export async function buildPnlReport(input: {
       .map((row) => [row.crateType, row.rateMyr])
   );
 
-  const freightCtxByShipper = new Map<
-    string,
-    Awaited<ReturnType<typeof loadInboundFreightContext>>["ctx"]
-  >();
+  const freightCtxCache = new Map<string, FreightCtxCache>();
+  const freightCtxStallIds = new Map<string, Set<string>>();
+  const freightCtxTongTypeIds = new Map<string, Set<string>>();
 
   const drivers = Array.from(
     new Set(
@@ -397,86 +457,99 @@ export async function buildPnlReport(input: {
       .map((line) => line.inboundLine)
       .filter((line): line is NonNullable<typeof line> => line != null);
 
-    const shipperIdsOnTrip = Array.from(
-      new Set(lines.map((line) => line.session.shipperId))
-    );
+    const linesByShipper = new Map<string, typeof lines>();
+    for (const line of lines) {
+      const group = linesByShipper.get(line.session.shipperId) ?? [];
+      group.push(line);
+      linesByShipper.set(line.session.shipperId, group);
+    }
 
-    for (const shipperId of shipperIdsOnTrip) {
-      if (freightCtxByShipper.has(shipperId)) continue;
-      const shipperLines = lines.filter(
-        (line) => line.session.shipperId === shipperId
-      );
+    for (const [shipperId, shipperLines] of Array.from(
+      linesByShipper.entries()
+    )) {
       const first = shipperLines[0];
       if (!first) continue;
+
+      const assignedLines = shipperLines.filter(
+        (line) => line.dispatchStatus === "assigned"
+      );
+      if (assignedLines.length === 0) continue;
+
       const pickup = resolveSessionPickupLocation(
         first.session.pickupLocation,
         first.session.shipper.pickupLocation
       );
-      const { ctx } = await loadInboundFreightContext(
-        shipperId,
-        shipperLines.map((line) => line.stallId),
-        shipperLines.map((line) => line.tongTypeId),
-        dispatch.date,
-        pickup
+      const stallIds = Array.from(
+        new Set(assignedLines.map((line) => line.stallId))
       );
-      freightCtxByShipper.set(shipperId, ctx);
-    }
-
-    for (const inbound of lines) {
-      if (!inbound.tongType?.code) continue;
-
-      const marketCode = inbound.stall?.market?.code;
-      if (!marketCode || isOtherMarket(marketCode)) continue;
-
-      const quantity = decimalToNumber(inbound.quantity) ?? 0;
-      if (quantity <= 0) continue;
-
-      const shipperId = inbound.session.shipperId;
-      const ctx = freightCtxByShipper.get(shipperId);
-      if (!ctx) continue;
-
-      const snapshot = computeInboundLineFreight(
-        {
-          stallId: inbound.stallId,
-          tongTypeId: inbound.tongTypeId,
-          quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            inbound.mcDeliveryMode
-          ),
-        },
-        ctx
+      const tongTypeIds = Array.from(
+        new Set(assignedLines.map((line) => line.tongTypeId))
+      );
+      const ctx = await ensureFreightCtx(
+        freightCtxCache,
+        freightCtxStallIds,
+        freightCtxTongTypeIds,
+        shipperId,
+        stallIds,
+        tongTypeIds,
+        pickup,
+        end
       );
 
-      const revenue = lineRevenueMyr(snapshot, exchangeRate);
-      const crateType = inbound.tongType.code;
-      const rentalRate = rentalRateByType.get(crateType) ?? 0;
-      const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
-      const lkim = quantity * lkimRatePerCrate;
-      const unload =
-        quantity *
-        (unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0);
+      for (const inbound of assignedLines) {
+        if (!inbound.tongType?.code) continue;
 
-      const existing = shipperMap.get(shipperId) ?? {
-        shipperId,
-        shipperCode: inbound.session.shipper.code,
-        shipperName: inbound.session.shipper.name,
-        quantity: 0,
-        revenueMyr: 0,
-        crateRentalMyr: 0,
-        lkimMaqisMyr: 0,
-        unloadFeeMyr: 0,
-      };
+        const marketCode = ctx.stalls.get(inbound.stallId)?.marketCode ?? "";
+        if (!marketCode || isOtherMarket(marketCode)) continue;
 
-      existing.quantity += quantity;
-      existing.revenueMyr = roundMoney(existing.revenueMyr + revenue);
-      existing.crateRentalMyr = roundMoney(existing.crateRentalMyr + crateRental);
-      existing.lkimMaqisMyr = roundMoney(existing.lkimMaqisMyr + lkim);
-      existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
-      shipperMap.set(shipperId, existing);
+        const quantity = decimalToNumber(inbound.quantity) ?? 0;
+        if (quantity <= 0) continue;
 
-      tripQuantity += quantity;
-      tripRevenue = roundMoney(tripRevenue + revenue);
+        const snapshot = computeInboundLineFreight(
+          {
+            stallId: inbound.stallId,
+            tongTypeId: inbound.tongTypeId,
+            quantity,
+            mcDeliveryMode: normalizeMcDeliveryMode(
+              marketCode,
+              inbound.mcDeliveryMode
+            ),
+          },
+          ctx
+        );
+
+        const revenue = lineRevenueMyr(snapshot, exchangeRate);
+        const crateType = inbound.tongType.code;
+        const rentalRate = rentalRateByType.get(crateType) ?? 0;
+        const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
+        const lkim = quantity * lkimRatePerCrate;
+        const unload =
+          quantity *
+          (unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0);
+
+        const existing = shipperMap.get(shipperId) ?? {
+          shipperId,
+          shipperCode: inbound.session.shipper.code,
+          shipperName: inbound.session.shipper.name,
+          quantity: 0,
+          revenueMyr: 0,
+          crateRentalMyr: 0,
+          lkimMaqisMyr: 0,
+          unloadFeeMyr: 0,
+        };
+
+        existing.quantity += quantity;
+        existing.revenueMyr = roundMoney(existing.revenueMyr + revenue);
+        existing.crateRentalMyr = roundMoney(
+          existing.crateRentalMyr + crateRental
+        );
+        existing.lkimMaqisMyr = roundMoney(existing.lkimMaqisMyr + lkim);
+        existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
+        shipperMap.set(shipperId, existing);
+
+        tripQuantity += quantity;
+        tripRevenue = roundMoney(tripRevenue + revenue);
+      }
     }
 
     const shippers: PnlShipperRow[] = Array.from(shipperMap.values()).map(
