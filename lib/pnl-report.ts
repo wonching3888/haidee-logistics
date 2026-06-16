@@ -298,6 +298,51 @@ function periodLabel(input: {
   return `${input.year}-${String(input.month).padStart(2, "0")}`;
 }
 
+function buildPeriodSummaryFromTrips(input: {
+  year: number;
+  month: number;
+  mode: PnlPeriodMode;
+  day?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  trips: PnlTripListItem[];
+}): PnlPeriodSummary {
+  const trendMap = new Map<string, PnlDailyTrendPoint>();
+  for (const trip of input.trips) {
+    const point = trendMap.get(trip.date) ?? {
+      date: trip.date,
+      revenueMyr: 0,
+      costMyr: 0,
+      profitMyr: 0,
+    };
+    point.revenueMyr = roundMoney(point.revenueMyr + trip.revenueMyr);
+    point.costMyr = roundMoney(point.costMyr + trip.totalCostMyr);
+    point.profitMyr = roundMoney(point.profitMyr + trip.grossProfitMyr);
+    trendMap.set(trip.date, point);
+  }
+  const revenueMyr = roundMoney(input.trips.reduce((s, t) => s + t.revenueMyr, 0));
+  const costMyr = roundMoney(input.trips.reduce((s, t) => s + t.totalCostMyr, 0));
+  const grossProfitMyr = roundMoney(revenueMyr - costMyr);
+  return {
+    mode: input.mode,
+    periodLabel: periodLabel({
+      mode: input.mode,
+      year: input.year,
+      month: input.month,
+      day: input.day,
+      rangeStart: input.rangeStart,
+      rangeEnd: input.rangeEnd,
+    }),
+    revenueMyr,
+    costMyr,
+    grossProfitMyr,
+    marginPct: revenueMyr > 0 ? roundMoney((grossProfitMyr / revenueMyr) * 100) : 0,
+    tripCount: input.trips.length,
+    totalQuantity: input.trips.reduce((s, t) => s + t.totalCrates, 0),
+    trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+  };
+}
+
 async function loadExchangeRate(year: number, month: number) {
   const yearMonth = `${year}-${String(month).padStart(2, "0")}`;
   const row = await prisma.exchangeRate.findUnique({ where: { yearMonth } });
@@ -469,7 +514,7 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
+  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -491,7 +536,12 @@ async function loadPnlComputationContext(
         where: { active: true, country: "MY" },
         include: { costItems: true },
       }),
-      prisma.unloadingFee.findMany({
+    ]);
+  // Fail-open strategy: if actual-first tables cannot be read, keep report alive
+  // with original estimate-based logic instead of crashing the API.
+  const [unloadingFees, loadingFees, vouchers] = await Promise.all([
+    prisma.unloadingFee
+      .findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
@@ -501,16 +551,29 @@ async function loadPnlComputationContext(
           kpbFeeOverride: true,
           isKpbExempt: true,
         },
+      })
+      .catch((error) => {
+        console.error("PNL actual-first fallback: unloadingFee read failed", error);
+        return [];
       }),
-      prisma.crateLoadingFee.findMany({
+    prisma.crateLoadingFee
+      .findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
           loadingFee: true,
           loadingFeeOverride: true,
         },
+      })
+      .catch((error) => {
+        console.error(
+          "PNL actual-first fallback: crateLoadingFee read failed",
+          error
+        );
+        return [];
       }),
-      prisma.driverVoucher.findMany({
+    prisma.driverVoucher
+      .findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
@@ -521,8 +584,12 @@ async function loadPnlComputationContext(
           fishCheckAmt: true,
           fishCheckActual: true,
         },
+      })
+      .catch((error) => {
+        console.error("PNL actual-first fallback: driverVoucher read failed", error);
+        return [];
       }),
-    ]);
+  ]);
 
   const routes: RouteMasterCostRow[] = routeMasters.map((route) => ({
     code: route.code,
@@ -1273,6 +1340,45 @@ export async function buildPnlPeriodSummary(input: {
   rangeStart?: string;
   rangeEnd?: string;
 }): Promise<PnlPeriodData> {
+  if ((input.periodMode ?? "month") === "month") {
+    const trips = await buildPnlTripsList({
+      year: input.year,
+      month: input.month,
+      day: null,
+      routeFilter: "ALL",
+      driverFilter: "ALL",
+    });
+    return {
+      year: input.year,
+      month: input.month,
+      periodSummary: buildPeriodSummaryFromTrips({
+        year: input.year,
+        month: input.month,
+        mode: "month",
+        trips: trips.trips,
+      }),
+    };
+  }
+  if ((input.periodMode ?? "month") === "day") {
+    const trips = await buildPnlTripsList({
+      year: input.year,
+      month: input.month,
+      day: input.day?.trim() || null,
+      routeFilter: "ALL",
+      driverFilter: "ALL",
+    });
+    return {
+      year: input.year,
+      month: input.month,
+      periodSummary: buildPeriodSummaryFromTrips({
+        year: input.year,
+        month: input.month,
+        mode: "day",
+        day: input.day,
+        trips: trips.trips,
+      }),
+    };
+  }
   const report = await buildPnlReport({
     ...input,
     periodMode: input.periodMode ?? "month",
