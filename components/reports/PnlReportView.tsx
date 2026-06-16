@@ -484,23 +484,23 @@ export function PnlReportView({
                 />
               </label>
               <button onClick={() => setTripDay("")}>清空日期</button>
-              <button
-                onClick={handleSearch}
-                style={{
-                  backgroundColor: "#2563eb",
-                  color: "white",
-                  padding: "8px 24px",
-                  borderRadius: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: "500",
-                  fontSize: "14px",
-                }}
-              >
-                查询 Search
-              </button>
             </div>
           </div>
+          <button
+            onClick={handleSearch}
+            style={{
+              backgroundColor: "#2563eb",
+              color: "white",
+              padding: "8px 24px",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "500",
+              fontSize: "14px",
+            }}
+          >
+            查询 Search
+          </button>
 
           {tripsLoading && !tripsData ? (
             <LoadingState />
