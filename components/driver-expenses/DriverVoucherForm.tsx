@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { openDriverVoucherPrintWindow } from "@/lib/driver-expense/voucher-print-html";
+import {
+  DriverVoucherPrintArea,
+  fetchVoucherPrintBreakdown,
+} from "@/components/driver-expenses/DriverVoucherPrintArea";
 import {
   formatMyr,
   parseOptionalNumber,
@@ -16,8 +19,10 @@ import {
   VOUCHER_LABELS,
   VOUCHER_LINE_ITEMS,
   type DriverVoucherData,
+  type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
 import { cn } from "@/lib/utils";
+import "./driver-expense-print.css";
 
 interface VoucherFormState {
   tripId: string;
@@ -175,6 +180,8 @@ export function DriverVoucherForm({
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printBreakdown, setPrintBreakdown] =
+    useState<VoucherPrintBreakdown | null>(null);
 
   const backHref = `/documents/driver-expenses?date=${date}`;
 
@@ -385,6 +392,29 @@ export function DriverVoucherForm({
 
   const printData = form ? formToPrintData(form, belanja, baki) : null;
   const availableTrips = dispatches.filter((d) => !existingTripIds.has(d.id));
+
+  useEffect(() => {
+    if (!form?.tripId) {
+      setPrintBreakdown(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchVoucherPrintBreakdown(form.tripId).then((breakdown) => {
+      if (!cancelled) setPrintBreakdown(breakdown);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [form?.tripId]);
+
+  async function handlePrint() {
+    if (!printData) return;
+    const breakdown = await fetchVoucherPrintBreakdown(printData.tripId);
+    setPrintBreakdown(breakdown);
+    window.setTimeout(() => {
+      window.print();
+    }, 100);
+  }
 
   return (
     <div className="space-y-6">
@@ -617,9 +647,7 @@ export function DriverVoucherForm({
                 type="button"
                 variant="outline"
                 className="gap-1"
-                onClick={() => {
-                  if (printData) void openDriverVoucherPrintWindow(printData);
-                }}
+                onClick={() => void handlePrint()}
               >
                 <Printer className="h-4 w-4" />
                 {VOUCHER_LABELS.cetak}
@@ -632,6 +660,13 @@ export function DriverVoucherForm({
               </Link>
             </div>
           </section>
+
+          {printData && (
+            <DriverVoucherPrintArea
+              voucher={printData}
+              breakdown={printBreakdown}
+            />
+          )}
         </>
       )}
     </div>
