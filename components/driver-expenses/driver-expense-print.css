@@ -123,6 +123,10 @@
   padding: 3px 6px;
 }
 
+.driver-voucher-print-a5 .voucher-print-subtotal-row td {
+  border-top: 2px solid #333;
+}
+
 .driver-voucher-print-a5 .voucher-print-signature {
   margin-top: 20px;
   font-size: 8.5pt;

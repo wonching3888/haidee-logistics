@@ -1,5 +1,7 @@
 import {
   formatMyr,
+  sumSuggestedAmounts,
+  VOUCHER_LABELS,
   VOUCHER_LINE_ITEMS,
   type DriverVoucherData,
 } from "@/lib/driver-expense/voucher-utils";
@@ -11,6 +13,16 @@ interface DriverVoucherPrintProps {
 
 export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
   const displayDate = voucher.tripDate || date;
+  const suggestedSubtotal = sumSuggestedAmounts({
+    chopBorderAmt: voucher.chopBorderAmt,
+    parkingAmt: voucher.parkingAmt,
+    kpbAmt: voucher.kpbAmt,
+    fishCheckAmt: voucher.fishCheckAmt,
+    upahTurunAmt: voucher.upahTurunAmt,
+    upahNaikTongAmt: voucher.upahNaikTongAmt,
+    minyakMotoEnabled: voucher.minyakMotoEnabled,
+    minyakMotoAmt: voucher.minyakMotoAmt,
+  });
 
   return (
     <div className="driver-voucher-print-a5 hidden print:block">
@@ -19,22 +31,26 @@ export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
       <div className="voucher-print-header-grid">
         <div>
           <div>
-            <span className="voucher-print-label">Nama</span> {voucher.driverName}
+            <span className="voucher-print-label">{VOUCHER_LABELS.nama}</span>{" "}
+            {voucher.driverName}
           </div>
           <div>
-            <span className="voucher-print-label">No Lorry</span> {voucher.lorry}
+            <span className="voucher-print-label">{VOUCHER_LABELS.noLorry}</span>{" "}
+            {voucher.lorry}
           </div>
         </div>
         <div className="voucher-print-header-right">
           <div>
-            <span className="voucher-print-label">Voucher No</span>{" "}
+            <span className="voucher-print-label">{VOUCHER_LABELS.voucherNo}</span>{" "}
             {voucher.voucherNo}
           </div>
           <div>
-            <span className="voucher-print-label">Tarikh</span> {displayDate}
+            <span className="voucher-print-label">{VOUCHER_LABELS.tarikh}</span>{" "}
+            {displayDate}
           </div>
           <div>
-            <span className="voucher-print-label">Trip</span> {voucher.route}
+            <span className="voucher-print-label">{VOUCHER_LABELS.trip}</span>{" "}
+            {voucher.route}
           </div>
         </div>
       </div>
@@ -42,9 +58,9 @@ export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
       <table className="voucher-print-table">
         <thead>
           <tr>
-            <th>Perkara</th>
-            <th className="text-right">系统建议 (RM)</th>
-            <th className="text-right">实际 (RM)</th>
+            <th>{VOUCHER_LABELS.perkara}</th>
+            <th className="text-right">{VOUCHER_LABELS.cadanganRm}</th>
+            <th className="text-right">{VOUCHER_LABELS.sebenarRm}</th>
           </tr>
         </thead>
         <tbody>
@@ -63,7 +79,7 @@ export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
           ))}
           {voucher.minyakMotoEnabled && (
             <tr>
-              <td>Minyak Moto</td>
+              <td>{VOUCHER_LABELS.minyakMoto}</td>
               <td className="text-right">{formatMyr(voucher.minyakMotoAmt)}</td>
               <td className="text-right">
                 {voucher.minyakMotoActual != null
@@ -72,6 +88,15 @@ export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
               </td>
             </tr>
           )}
+          <tr className="voucher-print-subtotal-row">
+            <td className="font-bold">{VOUCHER_LABELS.subtotal}</td>
+            <td className="text-right font-bold font-mono">
+              {formatMyr(suggestedSubtotal)}
+            </td>
+            <td className="text-right font-bold font-mono">
+              {voucher.belanja != null ? formatMyr(voucher.belanja) : "—"}
+            </td>
+          </tr>
         </tbody>
       </table>
 
@@ -79,19 +104,19 @@ export function DriverVoucherPrint({ voucher, date }: DriverVoucherPrintProps) {
         <table className="voucher-print-summary">
           <tbody>
             <tr>
-              <td>Duit Jalan</td>
+              <td>{VOUCHER_LABELS.duitJalan}</td>
               <td className="text-right">
                 {voucher.duitJalan != null ? formatMyr(voucher.duitJalan) : "—"}
               </td>
             </tr>
             <tr>
-              <td>Belanja</td>
+              <td>{VOUCHER_LABELS.belanja}</td>
               <td className="text-right">
                 {voucher.belanja != null ? formatMyr(voucher.belanja) : "—"}
               </td>
             </tr>
             <tr>
-              <td>Baki</td>
+              <td>{VOUCHER_LABELS.baki}</td>
               <td
                 className={`text-right font-semibold ${
                   voucher.baki != null && voucher.baki >= 0

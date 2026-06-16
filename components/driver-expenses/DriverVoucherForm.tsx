@@ -12,6 +12,8 @@ import {
   parseOptionalNumber,
   roundMoney,
   sumActualBelanja,
+  sumSuggestedAmounts,
+  VOUCHER_LABELS,
   VOUCHER_LINE_ITEMS,
   type DriverVoucherData,
 } from "@/lib/driver-expense/voucher-utils";
@@ -182,9 +184,9 @@ export function DriverVoucherForm({
       try {
         if (mode === "edit" && voucherId) {
           const res = await fetch(`/api/driver-vouchers/${voucherId}`);
-          if (!res.ok) throw new Error("加载报销单失败");
+          if (!res.ok) throw new Error("Gagal memuatkan baucar / Failed to load voucher");
           const data = (await res.json()) as { voucher?: DriverVoucherData & { tripDate: string } };
-          if (!data.voucher) throw new Error("报销单不存在");
+          if (!data.voucher) throw new Error("Baucar tidak wujud / Voucher not found");
           if (!cancelled) {
             setForm(
               voucherToForm({
@@ -205,7 +207,7 @@ export function DriverVoucherForm({
           fetch(`/api/driver-vouchers?${qs}`),
         ]);
 
-        if (!dispatchRes.ok) throw new Error("加载趟次失败");
+        if (!dispatchRes.ok) throw new Error("Gagal memuatkan trip / Failed to load trips");
         const dispatchData = (await dispatchRes.json()) as {
           dispatches?: DispatchOption[];
         };
@@ -227,7 +229,7 @@ export function DriverVoucherForm({
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "加载失败");
+          setError(e instanceof Error ? e.message : "Gagal memuatkan / Load failed");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -245,12 +247,12 @@ export function DriverVoucherForm({
           }),
           fetch(`/api/driver-vouchers/voucher-no?tripDate=${date}`),
         ]);
-        if (!prepRes.ok || !noRes.ok) throw new Error("无法获取建议金额");
+        if (!prepRes.ok || !noRes.ok) throw new Error("Tidak dapat cadangan / Cannot fetch suggestions");
         const prepData = (await prepRes.json()) as {
           suggestion?: Parameters<typeof suggestionToForm>[0];
         };
         const noData = (await noRes.json()) as { voucherNo?: string };
-        if (!prepData.suggestion) throw new Error("无建议数据");
+        if (!prepData.suggestion) throw new Error("Tiada data cadangan / No suggestion data");
         if (!cancelled) {
           setForm(
             suggestionToForm(prepData.suggestion, noData.voucherNo ?? "")
@@ -279,18 +281,18 @@ export function DriverVoucherForm({
         }),
         fetch(`/api/driver-vouchers/voucher-no?tripDate=${date}`),
       ]);
-      if (!prepRes.ok || !noRes.ok) throw new Error("无法获取建议金额");
+      if (!prepRes.ok || !noRes.ok) throw new Error("Tidak dapat cadangan / Cannot fetch suggestions");
       const prepData = (await prepRes.json()) as {
         suggestion?: Parameters<typeof suggestionToForm>[0];
       };
       const noData = (await noRes.json()) as { voucherNo?: string };
-      if (!prepData.suggestion) throw new Error("无建议数据");
+      if (!prepData.suggestion) throw new Error("Tiada data cadangan / No suggestion data");
       setForm(suggestionToForm(prepData.suggestion, noData.voucherNo ?? ""));
       router.replace(
         `/documents/driver-expenses/new?date=${date}&tripId=${tripId}`
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "准备失败");
+      setError(e instanceof Error ? e.message : "Gagal menyediakan / Prepare failed");
     } finally {
       setPreparing(false);
     }
@@ -307,6 +309,20 @@ export function DriverVoucherForm({
       upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
       minyakMotoEnabled: form.minyakMotoEnabled,
       minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+    });
+  }, [form]);
+
+  const suggestedSubtotal = useMemo(() => {
+    if (!form) return 0;
+    return sumSuggestedAmounts({
+      chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
+      parkingAmt: parseOptionalNumber(form.parkingAmt),
+      kpbAmt: parseOptionalNumber(form.kpbAmt),
+      fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
+      upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
+      upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
+      minyakMotoEnabled: form.minyakMotoEnabled,
+      minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
     });
   }, [form]);
 
@@ -351,12 +367,12 @@ export function DriverVoucherForm({
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "保存失败");
+        throw new Error(data.error ?? "Gagal menyimpan / Save failed");
       }
       router.push(backHref);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      setError(e instanceof Error ? e.message : "Gagal menyimpan / Save failed");
     } finally {
       setSaving(false);
     }
@@ -373,10 +389,12 @@ export function DriverVoucherForm({
           className="inline-flex h-8 items-center gap-1 rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {VOUCHER_LABELS.kembali}
         </Link>
         <h2 className="text-xl font-bold text-haidee-text">
-          {mode === "edit" ? "编辑报销单 Edit Voucher" : "新增报销单 New Voucher"}
+          {mode === "edit"
+            ? VOUCHER_LABELS.editVoucher
+            : VOUCHER_LABELS.newVoucher}
         </h2>
       </div>
 
@@ -389,20 +407,22 @@ export function DriverVoucherForm({
       {loading && (
         <div className="flex items-center gap-2 text-sm text-haidee-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
-          加载中…
+          Memuatkan… / Loading…
         </div>
       )}
 
       {!loading && !form && mode === "new" && (
         <section className="no-print rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
-          <h3 className="mb-3 font-semibold">选择趟次 Select trip</h3>
+          <h3 className="mb-3 font-semibold">{VOUCHER_LABELS.selectTrip}</h3>
           {preparing ? (
             <div className="flex items-center gap-2 text-sm text-haidee-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              加载建议金额…
+              Memuatkan cadangan… / Loading suggestions…
             </div>
           ) : availableTrips.length === 0 ? (
-            <p className="text-sm text-haidee-muted">此日期无可用趟次</p>
+            <p className="text-sm text-haidee-muted">
+              Tiada trip tersedia pada tarikh ini / No trips available for this date
+            </p>
           ) : (
             <div className="space-y-1">
               {availableTrips.map((d) => (
@@ -427,30 +447,30 @@ export function DriverVoucherForm({
           <section className="no-print space-y-4 rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <div>
-                <p className="text-xs text-haidee-muted">司机 Nama</p>
+                <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.nama}</p>
                 <p className="font-medium">{form.driverName}</p>
               </div>
               <div>
-                <p className="text-xs text-haidee-muted">车牌 No Lorry</p>
+                <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.noLorry}</p>
                 <p className="font-medium">{form.lorry}</p>
               </div>
               <div>
-                <p className="text-xs text-haidee-muted">日期 Tarikh</p>
+                <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.tarikh}</p>
                 <p className="font-medium">{form.tripDate}</p>
               </div>
               <div>
-                <p className="text-xs text-haidee-muted">路线 Trip</p>
+                <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.trip}</p>
                 <p className="font-medium">{form.route}</p>
               </div>
               <div>
-                <p className="text-xs text-haidee-muted">单号 Voucher No</p>
+                <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.voucherNo}</p>
                 <p className="font-mono font-medium">{form.voucherNo}</p>
               </div>
             </div>
 
             <div className="rounded-lg border border-haidee-border bg-haidee-surface/30 p-4">
               <label className="mb-2 block text-sm font-semibold">
-                Duit Jalan（路费）
+                {VOUCHER_LABELS.duitJalan}
               </label>
               <Input
                 type="number"
@@ -466,9 +486,9 @@ export function DriverVoucherForm({
             </div>
 
             <div className="grid grid-cols-3 gap-3 border-b border-haidee-border pb-2 text-sm font-medium">
-              <div>项目 Item</div>
-              <div className="text-right">系统建议 Suggested</div>
-              <div className="text-right">实际 Actual</div>
+              <div>{VOUCHER_LABELS.perkara}</div>
+              <div className="text-right">{VOUCHER_LABELS.cadangan}</div>
+              <div className="text-right">{VOUCHER_LABELS.sebenar}</div>
             </div>
 
             {VOUCHER_LINE_ITEMS.map(({ label, amtKey, actualKey }) => (
@@ -508,7 +528,7 @@ export function DriverVoucherForm({
                   }
                 />
                 <label htmlFor="minyakMoto" className="text-sm">
-                  Minyak Moto
+                  {VOUCHER_LABELS.minyakMoto}
                 </label>
               </div>
               <Input
@@ -530,15 +550,23 @@ export function DriverVoucherForm({
               />
             </div>
 
+            <div className="grid grid-cols-3 items-center gap-3 border-t border-haidee-border pt-3 font-semibold">
+              <div>{VOUCHER_LABELS.subtotal}</div>
+              <div className="text-right font-mono">
+                {formatMyr(suggestedSubtotal)}
+              </div>
+              <div className="text-right font-mono">{formatMyr(belanja)}</div>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-haidee-surface/40 px-4 py-3 text-sm">
               <span>
-                Belanja（支出）:{" "}
+                {VOUCHER_LABELS.belanja}:{" "}
                 <span className="font-mono font-semibold">
                   {formatMyr(belanja)}
                 </span>
               </span>
               <span>
-                Baki（余额）:{" "}
+                {VOUCHER_LABELS.baki}:{" "}
                 <span
                   className={cn(
                     "font-mono font-semibold",
@@ -556,7 +584,7 @@ export function DriverVoucherForm({
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "保存 Save"
+                  VOUCHER_LABELS.simpan
                 )}
               </Button>
               <Button
@@ -566,8 +594,14 @@ export function DriverVoucherForm({
                 onClick={() => window.print()}
               >
                 <Printer className="h-4 w-4" />
-                打印 Print
+                {VOUCHER_LABELS.cetak}
               </Button>
+              <Link
+                href={backHref}
+                className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
+              >
+                {VOUCHER_LABELS.batal}
+              </Link>
             </div>
           </section>
 

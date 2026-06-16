@@ -26,13 +26,68 @@ export interface DriverVoucherData {
   baki: number | null;
 }
 
+export const VOUCHER_LABELS = {
+  duitJalan: "Duit Jalan",
+  perkara: "Perkara / Item",
+  cadangan: "Cadangan / Suggested",
+  sebenar: "Sebenar / Actual",
+  cadanganRm: "Cadangan / Suggested (RM)",
+  sebenarRm: "Sebenar / Actual (RM)",
+  minyakMoto: "Minyak Moto / Petrol (Moto)",
+  subtotal: "Jumlah Kecil / Subtotal",
+  belanja: "Belanja / Expenses",
+  baki: "Baki / Balance",
+  simpan: "Simpan / Save",
+  cetak: "Cetak / Print",
+  batal: "Batal / Cancel",
+  kembali: "Kembali / Back",
+  nama: "Nama",
+  noLorry: "No Lorry",
+  tarikh: "Tarikh",
+  trip: "Trip",
+  voucherNo: "Voucher No",
+  newVoucher: "Baucar Baru / New Voucher",
+  editVoucher: "Edit Baucar / Edit Voucher",
+  selectTrip: "Pilih Trip / Select Trip",
+} as const;
+
 export const VOUCHER_LINE_ITEMS = [
-  { key: "chopBorder", label: "Chop/Border", amtKey: "chopBorderAmt", actualKey: "chopBorderActual" },
-  { key: "parking", label: "Parking", amtKey: "parkingAmt", actualKey: "parkingActual" },
-  { key: "kpb", label: "KPB", amtKey: "kpbAmt", actualKey: "kpbActual" },
-  { key: "fishCheck", label: "Fish Check", amtKey: "fishCheckAmt", actualKey: "fishCheckActual" },
-  { key: "upahTurun", label: "Upah Turun", amtKey: "upahTurunAmt", actualKey: "upahTurunActual" },
-  { key: "upahNaikTong", label: "Upah Naik Tong", amtKey: "upahNaikTongAmt", actualKey: "upahNaikTongActual" },
+  {
+    key: "chopBorder",
+    label: "Chop Border",
+    amtKey: "chopBorderAmt",
+    actualKey: "chopBorderActual",
+  },
+  {
+    key: "parking",
+    label: "Parking",
+    amtKey: "parkingAmt",
+    actualKey: "parkingActual",
+  },
+  {
+    key: "kpb",
+    label: "KPB",
+    amtKey: "kpbAmt",
+    actualKey: "kpbActual",
+  },
+  {
+    key: "fishCheck",
+    label: "Semak Ikan / Fish Check",
+    amtKey: "fishCheckAmt",
+    actualKey: "fishCheckActual",
+  },
+  {
+    key: "upahTurun",
+    label: "Upah Turun / Unloading",
+    amtKey: "upahTurunAmt",
+    actualKey: "upahTurunActual",
+  },
+  {
+    key: "upahNaikTong",
+    label: "Upah Naik Tong / Crate Loading",
+    amtKey: "upahNaikTongAmt",
+    actualKey: "upahNaikTongActual",
+  },
 ] as const;
 
 export function formatMyr(value: number) {
@@ -76,6 +131,33 @@ export function sumActualBelanja(v: {
   }
   if (v.minyakMotoEnabled && v.minyakMotoActual != null) {
     total += v.minyakMotoActual;
+  }
+  return roundMoney(total);
+}
+
+export function sumSuggestedAmounts(v: {
+  chopBorderAmt: number | null;
+  parkingAmt: number | null;
+  kpbAmt: number | null;
+  fishCheckAmt: number | null;
+  upahTurunAmt: number | null;
+  upahNaikTongAmt: number | null;
+  minyakMotoEnabled: boolean;
+  minyakMotoAmt: number;
+}) {
+  let total = 0;
+  for (const value of [
+    v.chopBorderAmt,
+    v.parkingAmt,
+    v.kpbAmt,
+    v.fishCheckAmt,
+    v.upahTurunAmt,
+    v.upahNaikTongAmt,
+  ]) {
+    if (value != null) total += value;
+  }
+  if (v.minyakMotoEnabled) {
+    total += v.minyakMotoAmt;
   }
   return roundMoney(total);
 }
