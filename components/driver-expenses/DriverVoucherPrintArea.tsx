@@ -99,7 +99,7 @@ export function DriverVoucherPrintArea({
         : "";
 
   return (
-    <div id="voucher-print-area" aria-hidden="true">
+    <div id="voucher-print-area" style={{ display: "none" }} aria-hidden="true">
       <div className="voucher-print-company">Hai Dee Logistics Co.,Ltd</div>
 
       <div className="voucher-print-header-grid">
@@ -183,7 +183,7 @@ export function DriverVoucherPrintArea({
               actual={voucher.minyakMotoActual}
             />
           )}
-          {voucher.otherActual != null && (
+          {(voucher.otherActual ?? 0) > 0 && (
             <FeeRow
               label={VOUCHER_PRINT_LABELS.lainLain}
               suggested={null}

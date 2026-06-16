@@ -17,7 +17,7 @@
 
   .driver-expense-print-area,
   #voucher-print-area {
-    position: absolute;
+    position: fixed;
     left: 0;
     top: 0;
     width: 100%;

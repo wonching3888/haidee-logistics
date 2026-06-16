@@ -407,13 +407,8 @@ export function DriverVoucherForm({
     };
   }, [form?.tripId]);
 
-  async function handlePrint() {
-    if (!printData) return;
-    const breakdown = await fetchVoucherPrintBreakdown(printData.tripId);
-    setPrintBreakdown(breakdown);
-    window.setTimeout(() => {
-      window.print();
-    }, 100);
+  function handlePrint() {
+    window.print();
   }
 
   return (
@@ -647,7 +642,7 @@ export function DriverVoucherForm({
                 type="button"
                 variant="outline"
                 className="gap-1"
-                onClick={() => void handlePrint()}
+                onClick={handlePrint}
               >
                 <Printer className="h-4 w-4" />
                 {VOUCHER_LABELS.cetak}
