@@ -33,6 +33,7 @@ export interface VoucherPrintMarketRow {
 }
 
 export interface VoucherPrintBreakdown {
+  driverDisplayName?: string;
   parking: VoucherPrintMarketRow[];
   kpb: VoucherPrintMarketRow[];
   upahTurun: VoucherPrintMarketRow[];

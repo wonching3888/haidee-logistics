@@ -827,34 +827,28 @@ export async function updateDriverVoucher(
   return voucher;
 }
 
-function parkingFeeForMarket(
-  market: string,
-  routes: RouteMasterCostRow[]
-): number {
+function parkingFeeForMarket(market: string, routes: RouteMasterCostRow[]): number {
   const matching = routes.filter((route) => route.markets.includes(market));
   if (matching.length === 0) return 0;
   matching.sort((a, b) => a.markets.length - b.markets.length);
   return matching[0].parkingFee ?? 0;
 }
 
-function orderMarketFeeRows(
-  tripMarkets: string[],
-  feesByMarket: Map<string, number>
+function sumUnloadingByMarkets(
+  rows: Awaited<ReturnType<typeof listUnloadingFees>>,
+  markets: string[],
+  mode: "kpb" | "unload"
 ) {
-  const rows: { market: string; suggested: number }[] = [];
-  for (const market of tripMarkets) {
-    const suggested = feesByMarket.get(market);
-    if (suggested != null && suggested > 0) {
-      rows.push({ market, suggested });
-    }
+  let total = 0;
+  for (const row of rows) {
+    if (!markets.includes(row.market)) continue;
+    total += mode === "kpb" ? effectiveKpbFee(row) : effectiveUnloadFee(row);
   }
-  for (const market of Array.from(feesByMarket.keys())) {
-    const suggested = feesByMarket.get(market);
-    if (!tripMarkets.includes(market) && suggested != null && suggested > 0) {
-      rows.push({ market, suggested });
-    }
-  }
-  return rows;
+  return roundMoney(total);
+}
+
+function hasAnyMarket(tripMarkets: string[], markets: string[]) {
+  return markets.some((market) => tripMarkets.includes(market));
 }
 
 export async function getVoucherPrintBreakdown(tripId: string) {
@@ -876,31 +870,48 @@ export async function getVoucherPrintBreakdown(tripId: string) {
 
   const tripMarkets = normalizeTripMarkets(dispatch.markets);
 
-  const parking = tripMarkets
-    .map((market) => ({
-      market,
-      suggested: roundMoney(parkingFeeForMarket(market, routeRows)),
-    }))
-    .filter((row) => row.suggested > 0);
+  const KL_GROUP = ["KL", "BP", "MP", "SL"];
+  const BM_PINDAH_GROUP = ["P", "TP", "KT", "NT", "SA"];
 
-  const kpbByMarket = new Map<string, number>();
-  for (const row of unloadingFees) {
-    const fee = effectiveKpbFee(row);
-    if (fee <= 0) continue;
-    kpbByMarket.set(
-      row.market,
-      roundMoney((kpbByMarket.get(row.market) ?? 0) + fee)
-    );
+  const parking: { market: string; suggested: number }[] = [];
+  if (hasAnyMarket(tripMarkets, KL_GROUP)) {
+    const value = roundMoney(parkingFeeForMarket("KL", routeRows));
+    if (value > 0) parking.push({ market: "KL", suggested: value });
+  }
+  for (const market of ["BM", "A", "KD", "MC"]) {
+    if (!tripMarkets.includes(market)) continue;
+    const value = roundMoney(parkingFeeForMarket(market, routeRows));
+    if (value > 0) parking.push({ market, suggested: value });
   }
 
-  const upahTurunByMarket = new Map<string, number>();
-  for (const row of unloadingFees) {
-    const fee = effectiveUnloadFee(row);
-    if (fee <= 0) continue;
-    upahTurunByMarket.set(
-      row.market,
-      roundMoney((upahTurunByMarket.get(row.market) ?? 0) + fee)
-    );
+  const kpb: { market: string; suggested: number }[] = [];
+  if (hasAnyMarket(tripMarkets, KL_GROUP)) {
+    const value = sumUnloadingByMarkets(unloadingFees, KL_GROUP, "kpb");
+    if (value > 0) kpb.push({ market: "KL", suggested: value });
+  }
+  for (const market of ["BM", "A", "KD", "MC"]) {
+    if (!tripMarkets.includes(market)) continue;
+    const value = sumUnloadingByMarkets(unloadingFees, [market], "kpb");
+    if (value > 0) kpb.push({ market, suggested: value });
+  }
+
+  const upahTurun: { market: string; suggested: number }[] = [];
+  if (hasAnyMarket(tripMarkets, KL_GROUP)) {
+    const value = sumUnloadingByMarkets(unloadingFees, KL_GROUP, "unload");
+    if (value > 0) upahTurun.push({ market: "KL", suggested: value });
+  }
+  if (tripMarkets.includes("BM")) {
+    const value = sumUnloadingByMarkets(unloadingFees, ["BM"], "unload");
+    if (value > 0) upahTurun.push({ market: "BM", suggested: value });
+  }
+  if (hasAnyMarket(tripMarkets, BM_PINDAH_GROUP)) {
+    const value = sumUnloadingByMarkets(unloadingFees, BM_PINDAH_GROUP, "unload");
+    if (value > 0) upahTurun.push({ market: "BM Pindah", suggested: value });
+  }
+  for (const market of ["A", "KD", "MC"]) {
+    if (!tripMarkets.includes(market)) continue;
+    const value = sumUnloadingByMarkets(unloadingFees, [market], "unload");
+    if (value > 0) upahTurun.push({ market, suggested: value });
   }
 
   const upahNaikTongSuggested = roundMoney(
@@ -910,10 +921,30 @@ export async function getVoucherPrintBreakdown(tripId: string) {
     )
   );
 
+  const driver = dispatch.driverName
+    ? await prisma.driver.findFirst({
+        where: {
+          OR: [
+            { name: dispatch.driverName },
+            { fullName: dispatch.driverName },
+            { nickname: dispatch.driverName },
+          ],
+        },
+        select: { nickname: true, name: true, fullName: true },
+      })
+    : null;
+  const driverDisplayName =
+    driver?.nickname?.trim() ||
+    dispatch.driverName ||
+    driver?.name ||
+    driver?.fullName ||
+    "";
+
   return {
+    driverDisplayName,
     parking,
-    kpb: orderMarketFeeRows(tripMarkets, kpbByMarket),
-    upahTurun: orderMarketFeeRows(tripMarkets, upahTurunByMarket),
+    kpb,
+    upahTurun,
     upahNaikTongLabel: `Upah Naik Tong / Crate Loading ${formatTripRouteLabel(dispatch.markets)}`,
     upahNaikTongSuggested,
   };

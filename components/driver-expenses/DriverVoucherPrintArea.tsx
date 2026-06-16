@@ -106,7 +106,7 @@ export function DriverVoucherPrintArea({
         <div>
           <div>
             <span className="voucher-print-label">{VOUCHER_PRINT_LABELS.nama}</span>{" "}
-            {voucher.driverName}
+            {breakdown?.driverDisplayName || voucher.driverName}
           </div>
           <div>
             <span className="voucher-print-label">{VOUCHER_PRINT_LABELS.noLorry}</span>{" "}
