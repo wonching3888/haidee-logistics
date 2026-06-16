@@ -55,7 +55,7 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
     },
     {
       href: "/documents/driver-expenses",
-      label: "司机费用",
+      label: "司机费用单",
       labelEn: "Driver Expenses",
     },
   ],
