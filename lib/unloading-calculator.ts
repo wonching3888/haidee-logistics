@@ -37,6 +37,9 @@ export interface UnloadingFeeCalcResult {
   tripLevelNote: string | null;
 }
 
+const BM_PINDAH_SMALL_TRUCK_FEE = 12;
+const BM_PINDAH_LARGE_TRUCK_FEE = 20;
+
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -95,8 +98,8 @@ export function calculateTripUnloadingFees(input: {
       if (!perTripUnloadCharged) {
         unloadFee = rateForTruck(
           truckSize,
-          rate.smallCrate,
-          rate.largeCrate
+          BM_PINDAH_SMALL_TRUCK_FEE,
+          BM_PINDAH_LARGE_TRUCK_FEE
         );
         perTripUnloadCharged = true;
         tripLevelNote = "TP/KT/P/SA/NT 整趟一次";

@@ -872,6 +872,8 @@ export async function getVoucherPrintBreakdown(tripId: string) {
 
   const KL_GROUP = ["KL", "BP", "MP", "SL"];
   const BM_PINDAH_GROUP = ["P", "TP", "KT", "NT", "SA"];
+  const bmPindahTripFee =
+    resolveTruckSize(dispatch.truck.type) === "small" ? 12 : 20;
 
   const parking: { market: string; suggested: number }[] = [];
   if (hasAnyMarket(tripMarkets, KL_GROUP)) {
@@ -905,7 +907,7 @@ export async function getVoucherPrintBreakdown(tripId: string) {
     if (value > 0) upahTurun.push({ market: "BM", suggested: value });
   }
   if (hasAnyMarket(tripMarkets, BM_PINDAH_GROUP)) {
-    const value = sumUnloadingByMarkets(unloadingFees, BM_PINDAH_GROUP, "unload");
+    const value = roundMoney(bmPindahTripFee);
     if (value > 0) upahTurun.push({ market: "BM Pindah", suggested: value });
   }
   for (const market of ["A", "KD", "MC"]) {
