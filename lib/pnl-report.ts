@@ -1,5 +1,4 @@
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { unloadRateKey } from "@/lib/constants/unload-rates";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { loadInboundFreightContext } from "@/lib/freight-context";
