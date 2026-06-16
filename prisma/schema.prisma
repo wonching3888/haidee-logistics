@@ -548,6 +548,7 @@ model DispatchOrder {
   lines         DispatchLine[]
   payrollTrip   DriverPayrollTrip?
 
+  @@index([date])
   @@map("dispatch_orders")
 }
 
@@ -560,6 +561,7 @@ model DispatchLine {
   dispatchOrder DispatchOrder @relation(fields: [dispatchOrderId], references: [id])
   inboundLine   InboundLine   @relation(fields: [inboundLineId], references: [id])
 
+  @@index([dispatchOrderId])
   @@map("dispatch_lines")
 }
 

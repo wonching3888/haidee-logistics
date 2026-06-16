@@ -513,7 +513,7 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks] =
+  const [exchangeRate, lkimRatePerCrate, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -535,12 +535,9 @@ async function loadPnlComputationContext(
         where: { active: true, country: "MY" },
         include: { costItems: true },
       }),
-    ]);
-  // Fail-open strategy: if actual-first tables cannot be read, keep report alive
-  // with original estimate-based logic instead of crashing the API.
-  const [unloadingFees, loadingFees, vouchers] = await Promise.all([
-    prisma.unloadingFee
-      .findMany({
+      // Fail-open strategy: if actual-first tables cannot be read, keep report alive
+      // with original estimate-based logic instead of crashing the API.
+      prisma.unloadingFee.findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
@@ -554,9 +551,17 @@ async function loadPnlComputationContext(
       .catch((error) => {
         console.error("PNL actual-first fallback: unloadingFee read failed", error);
         return [];
-      }),
-    prisma.crateLoadingFee
-      .findMany({
+      }) as Promise<
+        {
+          tripId: string;
+          unloadFee: number;
+          unloadFeeOverride: number | null;
+          kpbFee: number;
+          kpbFeeOverride: number | null;
+          isKpbExempt: boolean;
+        }[]
+      >,
+      prisma.crateLoadingFee.findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
@@ -570,9 +575,14 @@ async function loadPnlComputationContext(
           error
         );
         return [];
-      }),
-    prisma.driverVoucher
-      .findMany({
+      }) as Promise<
+        {
+          tripId: string;
+          loadingFee: number;
+          loadingFeeOverride: number | null;
+        }[]
+      >,
+      prisma.driverVoucher.findMany({
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
@@ -587,8 +597,18 @@ async function loadPnlComputationContext(
       .catch((error) => {
         console.error("PNL actual-first fallback: driverVoucher read failed", error);
         return [];
-      }),
-  ]);
+      }) as Promise<
+        {
+          tripId: string;
+          chopBorderAmt: number | null;
+          chopBorderActual: number | null;
+          parkingAmt: number | null;
+          parkingActual: number | null;
+          fishCheckAmt: number | null;
+          fishCheckActual: number | null;
+        }[]
+      >,
+    ]);
 
   const routes: RouteMasterCostRow[] = routeMasters.map((route) => ({
     code: route.code,
@@ -1029,7 +1049,12 @@ export async function buildPnlTripsList(input: {
     )
   ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
 
-  const trips: PnlTripListItem[] = [];
+  const filteredDispatches: {
+    dispatch: DispatchPnlRow;
+    routeLabel: string;
+    routeKey: string;
+    routeGroups: string[];
+  }[] = [];
   for (const dispatch of dispatches) {
     const routeGroups = getRouteGroups(dispatch.markets);
     const routeLabel = getRouteLabel(dispatch.markets);
@@ -1037,15 +1062,22 @@ export async function buildPnlTripsList(input: {
 
     if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
     if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
+    filteredDispatches.push({ dispatch, routeGroups, routeLabel, routeKey });
+  }
 
-    const trip = await computeTripPnlRow(dispatch, ctx, monthEnd);
+  const computedTrips = await Promise.all(
+    filteredDispatches.map(({ dispatch }) => computeTripPnlRow(dispatch, ctx, monthEnd))
+  );
+  const trips: PnlTripListItem[] = [];
+  for (let i = 0; i < filteredDispatches.length; i++) {
+    const trip = computedTrips[i];
     if (!trip) continue;
-
+    const meta = filteredDispatches[i];
     trips.push({
       tripId: trip.dispatchOrderId,
       date: trip.date,
-      route: routeLabel || routeKey || "—",
-      routeGroups: trip.routeGroups,
+      route: meta.routeLabel || meta.routeKey || "—",
+      routeGroups: meta.routeGroups,
       driver: trip.driverName,
       plate: trip.truckPlate,
       totalCrates: trip.totalQuantity,
@@ -1454,16 +1486,16 @@ export async function buildPnlReport(input: {
     )
   ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
 
-  const trips: PnlTripRow[] = [];
-
+  const matchedDispatches: DispatchPnlRow[] = [];
   for (const dispatch of dispatches) {
     const routeGroups = getRouteGroups(dispatch.markets);
     if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
     if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
-
-    const trip = await computeTripPnlRow(dispatch, ctx, end);
-    if (trip) trips.push(trip);
+    matchedDispatches.push(dispatch);
   }
+  const trips = (await Promise.all(
+    matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
+  )).filter((trip): trip is PnlTripRow => trip != null);
 
   const tripTotals: PnlTripTotals = {
     revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
