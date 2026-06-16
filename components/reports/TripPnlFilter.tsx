@@ -29,6 +29,13 @@ const labelStyle: CSSProperties = {
   fontSize: "14px",
 };
 
+const selectStyle: CSSProperties = {
+  border: "1px solid #6b7280",
+  borderRadius: "6px",
+  padding: "6px 8px",
+  marginLeft: "4px",
+};
+
 export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -44,7 +51,7 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            style={{ marginLeft: "4px" }}
+            style={selectStyle}
           >
             {[2024, 2025, 2026].map((y) => (
               <option key={y} value={y}>
@@ -58,7 +65,7 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            style={{ marginLeft: "4px" }}
+            style={selectStyle}
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
@@ -72,7 +79,7 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
           <select
             value={route}
             onChange={(e) => setRoute(e.target.value)}
-            style={{ marginLeft: "4px" }}
+            style={selectStyle}
           >
             {PNL_ROUTE_FILTERS.map((r) => (
               <option key={r} value={r}>
@@ -86,7 +93,7 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
           <select
             value={driver}
             onChange={(e) => setDriver(e.target.value)}
-            style={{ marginLeft: "4px" }}
+            style={selectStyle}
           >
             <option value="ALL">全部 All</option>
             {drivers.map((d) => (
@@ -104,7 +111,7 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            style={{ marginLeft: "4px" }}
+            style={selectStyle}
           />
         </label>
         <button type="button" onClick={() => setDate("")}>

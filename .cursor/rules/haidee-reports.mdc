@@ -1,0 +1,30 @@
+---
+description: P&L reports, trip filter UI, and AppShell layout conventions
+globs: components/reports/**,components/shared/AppShell.tsx,app/**/reports/**
+alwaysApply: false
+---
+
+# Reports & P&L
+
+## Trip P&L filter (`TripPnlFilter.tsx`)
+
+- Trip tab filter lives in `components/reports/TripPnlFilter.tsx` (not inline in `PnlReportView.tsx`).
+- Three-row layout: year/month/route/driver → date + clear → blue search button.
+- Use **inline styles** for filter controls (not Tailwind) to avoid clipping/visibility issues.
+- Pass `drivers={tripsData?.drivers ?? []}` from parent; options populate after first search.
+- `onSearch` should call `loadTrips` with override params to avoid stale React state.
+
+## AppShell scrolling
+
+- `main` in `AppShell.tsx` must use `overflow-y-auto`, not `overflow-hidden`.
+- Nested `overflow-hidden` on `main` + inner scroll clipped the trip P&L search button.
+
+## P&L API / build
+
+- `/api/*` routes must stay exempt from auth redirect in middleware (JSON, not HTML login page).
+- Remove unused imports/vars in `PnlReportView.tsx` before push — ESLint errors block Vercel deploy.
+
+## Driver expenses module
+
+- Voucher UI/print: bilingual A5 pages under `documents/driver-expenses/`.
+- Cost reading in reports: actual-first from fees/vouchers (`lib/pnl-report.ts`, `lib/operations-cost.ts`).
