@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DriverVoucherPrint } from "@/components/driver-expenses/DriverVoucherPrint";
+import { openDriverVoucherPrintWindow } from "@/lib/driver-expense/voucher-print-html";
 import {
   formatMyr,
   parseOptionalNumber,
@@ -18,7 +18,6 @@ import {
   type DriverVoucherData,
 } from "@/lib/driver-expense/voucher-utils";
 import { cn } from "@/lib/utils";
-import "./driver-expense-print.css";
 
 interface VoucherFormState {
   tripId: string;
@@ -618,7 +617,9 @@ export function DriverVoucherForm({
                 type="button"
                 variant="outline"
                 className="gap-1"
-                onClick={() => window.print()}
+                onClick={() => {
+                  if (printData) openDriverVoucherPrintWindow(printData);
+                }}
               >
                 <Printer className="h-4 w-4" />
                 {VOUCHER_LABELS.cetak}
@@ -631,10 +632,6 @@ export function DriverVoucherForm({
               </Link>
             </div>
           </section>
-
-          {printData && (
-            <DriverVoucherPrint voucher={printData} date={form.tripDate} />
-          )}
         </>
       )}
     </div>
