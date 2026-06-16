@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  listUnloadingRateConfigs,
+  upsertUnloadingRateConfig,
+} from "@/lib/driver-expense-service";
+
+async function requireAuth() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  return user;
+}
+
+export async function GET() {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
+    }
+    const rates = await listUnloadingRateConfigs();
+    return NextResponse.json({ rates });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
+    }
+    const body = (await request.json()) as {
+      market?: string;
+      smallCrate?: number;
+      largeCrate?: number;
+      box?: number;
+      kpbSmall?: number;
+      kpbLarge?: number;
+      kpbBox?: number;
+      kpbMode?: string;
+      unloadMode?: string;
+    };
+    if (!body.market) {
+      return NextResponse.json({ error: "market is required" }, { status: 400 });
+    }
+    const rate = await upsertUnloadingRateConfig({
+      market: body.market.toUpperCase(),
+      smallCrate: Number(body.smallCrate ?? 0),
+      largeCrate: Number(body.largeCrate ?? 0),
+      box: Number(body.box ?? 0),
+      kpbSmall: Number(body.kpbSmall ?? 0),
+      kpbLarge: Number(body.kpbLarge ?? 0),
+      kpbBox: Number(body.kpbBox ?? 0),
+      kpbMode: body.kpbMode ?? "per_crate",
+      unloadMode: body.unloadMode ?? "per_crate",
+    });
+    return NextResponse.json({ rate });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}

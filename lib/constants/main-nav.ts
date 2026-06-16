@@ -53,6 +53,11 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
       label: "月结账单",
       labelEn: "Monthly Invoice",
     },
+    {
+      href: "/documents/driver-expenses",
+      label: "司机费用",
+      labelEn: "Driver Expenses",
+    },
   ],
 };
 
@@ -108,7 +113,8 @@ export function isPathActive(pathname: string, href: string) {
     return (
       pathname === "/documents" ||
       (pathname.startsWith("/documents/") &&
-        !pathname.startsWith("/documents/monthly-invoice"))
+        !pathname.startsWith("/documents/monthly-invoice") &&
+        !pathname.startsWith("/documents/driver-expenses"))
     );
   }
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -643,3 +643,112 @@ model CustomerCrateLedger {
 
   @@map("customer_crate_ledger")
 }
+
+// ─── Driver Expense Module ─────────────────────────────────────────────────────
+
+model UnloadingRateConfig {
+  id         String   @id @default(cuid())
+  market     String   @unique
+  smallCrate Float    @default(0)
+  largeCrate Float    @default(0)
+  box        Float    @default(0)
+  kpbSmall   Float    @default(0)
+  kpbLarge   Float    @default(0)
+  kpbBox     Float    @default(0)
+  kpbMode    String   @default("per_crate")
+  unloadMode String   @default("per_crate")
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@map("unloading_rate_configs")
+}
+
+model CrateLoadingRateConfig {
+  id         String   @id @default(cuid())
+  market     String   @unique
+  smallTruck Float    @default(0)
+  largeTruck Float    @default(0)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@map("crate_loading_rate_configs")
+}
+
+model UnloadingFee {
+  id                String   @id @default(cuid())
+  tripId            String   @map("trip_id")
+  tripDate          DateTime @map("trip_date") @db.Date
+  lorry             String
+  driver            String
+  route             String
+  market            String
+  storeCode         String?  @map("store_code")
+  smallCrateQty     Int      @default(0) @map("small_crate_qty")
+  largeCrateQty     Int      @default(0) @map("large_crate_qty")
+  boxQty            Int      @default(0) @map("box_qty")
+  unloadFee         Float    @default(0) @map("unload_fee")
+  kpbFee            Float    @default(0) @map("kpb_fee")
+  unloadFeeOverride Float?   @map("unload_fee_override")
+  kpbFeeOverride    Float?   @map("kpb_fee_override")
+  isKpbExempt       Boolean  @default(false) @map("is_kpb_exempt")
+  tripLevelNote     String?  @map("trip_level_note")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([tripId])
+  @@index([tripDate])
+  @@map("unloading_fees")
+}
+
+model CrateLoadingFee {
+  id                 String   @id @default(cuid())
+  tripId             String   @map("trip_id")
+  tripDate           DateTime @map("trip_date") @db.Date
+  lorry              String
+  driver             String
+  route              String
+  market             String
+  truckSize          String   @map("truck_size")
+  loadingFee         Float    @default(0) @map("loading_fee")
+  loadingFeeOverride Float?   @map("loading_fee_override")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([tripId])
+  @@index([tripDate])
+  @@map("crate_loading_fees")
+}
+
+model DriverVoucher {
+  id                 String   @id @default(cuid())
+  voucherNo          String   @unique @map("voucher_no")
+  tripId             String   @map("trip_id")
+  tripDate           DateTime @map("trip_date") @db.Date
+  lorry              String
+  driverName         String   @map("driver_name")
+  route              String
+  chopBorderAmt      Float?   @map("chop_border_amt")
+  chopBorderActual   Float?   @map("chop_border_actual")
+  parkingAmt         Float?   @map("parking_amt")
+  parkingActual      Float?   @map("parking_actual")
+  kpbAmt             Float?   @map("kpb_amt")
+  kpbActual          Float?   @map("kpb_actual")
+  fishCheckAmt       Float?   @map("fish_check_amt")
+  fishCheckActual    Float?   @map("fish_check_actual")
+  upahTurunAmt       Float?   @map("upah_turun_amt")
+  upahTurunActual    Float?   @map("upah_turun_actual")
+  upahNaikTongAmt    Float?   @map("upah_naik_tong_amt")
+  upahNaikTongActual Float?   @map("upah_naik_tong_actual")
+  minyakMotoEnabled  Boolean  @default(false) @map("minyak_moto_enabled")
+  minyakMotoAmt      Float    @default(8) @map("minyak_moto_amt")
+  minyakMotoActual   Float?   @map("minyak_moto_actual")
+  duitJalan          Float?   @map("duit_jalan")
+  belanja            Float?   @map("belanja")
+  baki               Float?   @map("baki")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([tripId])
+  @@index([tripDate])
+  @@map("driver_vouchers")
+}
