@@ -28,9 +28,7 @@ export async function GET(
     });
     return NextResponse.json({ markets });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Server error" },
-      { status: 500 }
-    );
+    console.error("PNL API Error:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

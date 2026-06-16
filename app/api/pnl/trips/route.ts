@@ -35,9 +35,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(data);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Server error" },
-      { status: 500 }
-    );
+    console.error("PNL API Error:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

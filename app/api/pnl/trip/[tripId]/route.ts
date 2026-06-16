@@ -24,10 +24,11 @@ export async function GET(
     const trip = await buildPnlTripDetail({ tripId, year, month });
     return NextResponse.json(trip);
   } catch (error) {
+    console.error("PNL API Error:", error);
     const message = error instanceof Error ? error.message : "Server error";
     const status = message.includes("not found") || message.includes("不存在")
       ? 404
       : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: String(error) }, { status });
   }
 }
