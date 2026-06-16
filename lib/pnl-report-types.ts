@@ -37,6 +37,18 @@ export interface PnlShipperRow {
   marginPct: number;
 }
 
+export interface PnlTripVehicleCosts {
+  fuelMyr: number;
+  maintenanceMyr: number;
+  tollMyr: number;
+  borderPassMyr: number;
+  epermitMyr: number;
+  dagangNetMyr: number;
+  forwardingMyr: number;
+  driverMyr: number;
+  totalMyr: number;
+}
+
 export interface PnlTripRow {
   dispatchOrderId: string;
   date: string;
@@ -52,6 +64,7 @@ export interface PnlTripRow {
   totalCostMyr: number;
   grossProfitMyr: number;
   marginPct: number;
+  vehicleCosts: PnlTripVehicleCosts;
   shippers: PnlShipperRow[];
 }
 

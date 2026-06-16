@@ -46,6 +46,7 @@ import type {
   PnlTripListItem,
   PnlTripRow,
   PnlTripTotals,
+  PnlTripVehicleCosts,
   PnlTripsListData,
 } from "@/lib/pnl-report-types";
 
@@ -66,6 +67,7 @@ export type {
   PnlTripListItem,
   PnlTripRow,
   PnlTripTotals,
+  PnlTripVehicleCosts,
   PnlTripsListData,
 } from "@/lib/pnl-report-types";
 export { PNL_ROUTE_FILTERS } from "@/lib/pnl-report-types";
@@ -724,6 +726,18 @@ async function computeTripPnlRow(
   const marginPct =
     tripRevenue > 0 ? roundMoney((grossProfitMyr / tripRevenue) * 100) : 0;
 
+  const vehicleCosts: PnlTripVehicleCosts = {
+    fuelMyr: tripAllocated.fuelMyr,
+    maintenanceMyr: tripAllocated.maintenanceMyr,
+    tollMyr: tripAllocated.tollMyr,
+    borderPassMyr: tripAllocated.borderPassMyr,
+    epermitMyr: tripAllocated.epermitMyr,
+    dagangNetMyr: tripAllocated.dagangNetMyr,
+    forwardingMyr: tripAllocated.forwardingMyr,
+    driverMyr: tripAllocated.driverMyr,
+    totalMyr: allocatedCostMyr,
+  };
+
   return {
     dispatchOrderId: dispatch.id,
     date: toDateInputValue(dispatch.date),
@@ -739,6 +753,7 @@ async function computeTripPnlRow(
     totalCostMyr,
     grossProfitMyr,
     marginPct,
+    vehicleCosts,
     shippers: shippers.sort((a, b) => b.revenueMyr - a.revenueMyr),
   };
 }

@@ -563,7 +563,7 @@ export function PnlReportView({
                 }))}
               />
             )}
-            <QueryButton onClick={loadPeriod} loading={periodLoading} />
+            <SearchButton onClick={loadPeriod} loading={periodLoading} />
           </div>
 
           {periodLoading && <LoadingState />}
@@ -625,7 +625,7 @@ export function PnlReportView({
                 { value: "revenue", label: "按收入 Revenue" },
               ]}
             />
-            <QueryButton onClick={loadCustomers} loading={customerLoading} />
+            <SearchButton onClick={loadCustomers} loading={customerLoading} />
           </div>
 
           {customerLoading && <LoadingState />}
@@ -706,6 +706,21 @@ export function PnlReportView({
   );
 }
 
+function VehicleCostRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <TableRow>
+      <TableCell>{label}</TableCell>
+      <TableCell className="text-right">{formatMyr(value)}</TableCell>
+    </TableRow>
+  );
+}
+
 function TripListRow({
   trip,
   expanded,
@@ -765,7 +780,60 @@ function TripListRow({
                 加载寄货人明细…
               </div>
             ) : detail ? (
-              <div className="overflow-x-auto p-4">
+              <div className="space-y-4 overflow-x-auto p-4">
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold text-haidee-text">
+                    车辆开销 Vehicle Costs
+                  </h4>
+                  <Table className={cn(PNL_TABLE_CLASS, "max-w-xl")}>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>费用项目</TableHead>
+                        <TableHead className="text-right">金额 (MYR)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <VehicleCostRow
+                        label="油费 Fuel"
+                        value={detail.vehicleCosts.fuelMyr}
+                      />
+                      <VehicleCostRow
+                        label="维修/保险 Maintenance & Insurance"
+                        value={detail.vehicleCosts.maintenanceMyr}
+                      />
+                      <VehicleCostRow
+                        label="过路费 Toll"
+                        value={detail.vehicleCosts.tollMyr}
+                      />
+                      <VehicleCostRow
+                        label="Border Pass"
+                        value={detail.vehicleCosts.borderPassMyr}
+                      />
+                      <VehicleCostRow
+                        label="EPERMIT"
+                        value={detail.vehicleCosts.epermitMyr}
+                      />
+                      <VehicleCostRow
+                        label="Dagang Net"
+                        value={detail.vehicleCosts.dagangNetMyr}
+                      />
+                      <VehicleCostRow
+                        label="Forwarding (Zaewe)"
+                        value={detail.vehicleCosts.forwardingMyr}
+                      />
+                      <VehicleCostRow
+                        label="司机津贴 Driver Allowance"
+                        value={detail.vehicleCosts.driverMyr}
+                      />
+                      <TableRow className="bg-slate-100 font-semibold">
+                        <TableCell>合计 Total</TableCell>
+                        <TableCell className="text-right">
+                          {formatMyr(detail.vehicleCosts.totalMyr)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
                 <Table className={PNL_TABLE_CLASS}>
                   <TableHeader>
                     <TableRow>
@@ -982,6 +1050,25 @@ function LoadingState() {
       <Loader2 className="h-5 w-5 animate-spin" />
       加载中 Loading…
     </div>
+  );
+}
+
+function SearchButton({
+  onClick,
+  loading,
+}: {
+  onClick: () => void;
+  loading: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className="min-h-[44px] rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+    >
+      {loading ? "查询中…" : "🔍 查询 Search"}
+    </button>
   );
 }
 
