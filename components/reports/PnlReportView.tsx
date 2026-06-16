@@ -441,11 +441,11 @@ export function PnlReportView({
               >
                 清空日期（整月）
               </button>
-            </div>
-            <div className="flex">
               <button
+                type="button"
                 onClick={handleSearch}
-                className="mt-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700"
+                className="relative z-10 mt-2 inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-6 py-2 font-medium text-white opacity-100 shadow-sm hover:bg-blue-700"
+                style={{ visibility: "visible" }}
               >
                 查询 Search
               </button>
