@@ -214,6 +214,10 @@ export function PnlReportView({
     }
   }, [year, month, tripDay, routeFilter, driverFilter]);
 
+  function handleSearch() {
+    void loadTrips();
+  }
+
   async function loadTripDetail(tripId: string) {
     if (tripDetails[tripId]) return;
 
@@ -440,13 +444,10 @@ export function PnlReportView({
             </div>
             <div className="flex">
               <button
-                type="button"
-                onClick={() => void loadTrips()}
-                disabled={tripsLoading}
-                className="inline-flex min-h-[46px] min-w-[180px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 text-base font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleSearch}
+                className="mt-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700"
               >
-                {tripsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {tripsLoading ? "查询中..." : "查询 Search"}
+                查询 Search
               </button>
             </div>
           </div>
