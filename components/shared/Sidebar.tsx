@@ -133,11 +133,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             <ExpandableNavGroup
               key={group.id}
               group={group}
-              open={
-                group.id === "documents"
-                  ? true
-                  : (openGroups[group.id] ?? false)
-              }
+              open={openGroups[group.id] ?? false}
               onToggle={() => toggleGroup(group.id)}
               pathname={pathname}
               onNavigate={onNavigate}
