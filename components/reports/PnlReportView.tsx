@@ -408,6 +408,7 @@ export function PnlReportView({
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
           <TripPnlFilter
+            drivers={tripsData?.drivers ?? []}
             onSearch={({ year: searchYear, month: searchMonth, route, driver, date }) => {
               const nextRoute = (route || "ALL") as PnlRouteFilter;
               const nextDriver = driver || "ALL";
