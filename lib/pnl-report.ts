@@ -807,7 +807,8 @@ export async function buildPnlTripDetail(input: {
   }
 
   const ctx = await loadPnlComputationContext(input.year, input.month);
-  const trip = await computeTripPnlRow(dispatch, ctx, dispatch.date);
+  const { end } = getMonthDateRange(input.year, input.month);
+  const trip = await computeTripPnlRow(dispatch, ctx, end);
   if (!trip) {
     throw new Error("该趟次无有效桶数 No assigned crates for this trip");
   }
