@@ -12,6 +12,9 @@ import {
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
+/** Handwritten on paper after print — never bind inbound/session fields here. */
+const BLANK_REMARKS_CELL = "\u00A0";
+
 interface DeliveryOrderPrintProps {
   data: DeliveryOrderData;
   showConsignor: boolean;
@@ -86,7 +89,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
-                  <td className="do-remarks-col">&nbsp;</td>
+                  <td className="do-remarks-col">{BLANK_REMARKS_CELL}</td>
                 </tr>
               );
             }}
@@ -106,7 +109,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{areaQty}</td>
-                  <td className="do-remarks-col">&nbsp;</td>
+                  <td className="do-remarks-col">{BLANK_REMARKS_CELL}</td>
                 </tr>
               );
             }}
@@ -121,7 +124,7 @@ export function DeliveryOrderPrint({
               </td>
             ))}
             <td className="do-qty-col">{grandQty}</td>
-            <td className="do-remarks-col">&nbsp;</td>
+            <td className="do-remarks-col">{BLANK_REMARKS_CELL}</td>
           </tr>
         </tbody>
       </table>

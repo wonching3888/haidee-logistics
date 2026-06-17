@@ -3,6 +3,8 @@ import { getDeliveryOrderData } from "@/app/actions/documents";
 import { DeliveryOrderPrint } from "@/components/documents/DeliveryOrderPrint";
 import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
 
+export const dynamic = "force-dynamic";
+
 interface DOExternalPageProps {
   searchParams: Promise<{ dispatchId?: string }>;
 }
