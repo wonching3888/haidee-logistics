@@ -1001,6 +1001,7 @@ async function computeTripPnlRow(
   >();
 
   let tripQuantity = 0;
+  let totalTripQuantity = 0;
   let tripRevenue = 0;
 
   const lines = dispatch.lines
@@ -1013,6 +1014,51 @@ async function computeTripPnlRow(
     group.push(line);
     linesByShipper.set(line.session.shipperId, group);
   }
+
+  for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
+    const first = shipperLines[0];
+    if (!first) continue;
+
+    const assignedLines = shipperLines.filter(
+      (line) => line.dispatchStatus === "assigned"
+    );
+    if (assignedLines.length === 0) continue;
+
+    const pickup = resolveSessionPickupLocation(
+      first.session.pickupLocation,
+      first.session.shipper.pickupLocation
+    );
+    const stallIds = Array.from(
+      new Set(assignedLines.map((line) => line.stallId))
+    );
+    const tongTypeIds = Array.from(
+      new Set(assignedLines.map((line) => line.tongTypeId))
+    );
+    const freightCtx = await ensureFreightCtx(
+      ctx.freightCtxCache,
+      ctx.freightCtxStallIds,
+      ctx.freightCtxTongTypeIds,
+      shipperId,
+      stallIds,
+      tongTypeIds,
+      pickup,
+      asOfDate
+    );
+
+    for (const inbound of assignedLines) {
+      if (!inbound.tongType?.code) continue;
+
+      const marketCode = freightCtx.stalls.get(inbound.stallId)?.marketCode ?? "";
+      if (!marketCode || isOtherMarket(marketCode)) continue;
+
+      const quantity = decimalToNumber(inbound.quantity) ?? 0;
+      if (quantity <= 0) continue;
+
+      totalTripQuantity += quantity;
+    }
+  }
+
+  if (totalTripQuantity <= 0) return null;
 
   for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
     const first = shipperLines[0];
@@ -1090,7 +1136,7 @@ async function computeTripPnlRow(
       });
       const unload = allocateShare(
         quantity,
-        tripQuantity,
+        totalTripQuantity,
         tripAllocated.loadUnloadMyr
       );
 
@@ -1125,13 +1171,23 @@ async function computeTripPnlRow(
 
   if (tripQuantity <= 0) return null;
 
+  const tripAllocatedWithoutLoadUnload = roundMoney(
+    tripAllocated.fuelMyr +
+      tripAllocated.maintenanceMyr +
+      tripAllocated.tollMyr +
+      tripAllocated.borderPassMyr +
+      tripAllocated.fishCheckingMyr +
+      tripAllocated.parkingMyr +
+      tripAllocated.epermitMyr +
+      tripAllocated.dagangNetMyr +
+      tripAllocated.forwardingMyr +
+      tripAllocated.driverMyr
+  );
+
   const shippers: PnlShipperRow[] = Array.from(shipperMap.values()).map(
     (row) => {
       const directCostMyr = roundMoney(
-        row.crateRentalMyr +
-          row.lkimMaqisMyr +
-          row.thaiSegmentMyr +
-          row.unloadFeeMyr
+        row.crateRentalMyr + row.lkimMaqisMyr + row.thaiSegmentMyr
       );
       const allocatedFuelMyr = allocateShare(
         row.quantity,
@@ -1163,11 +1219,6 @@ async function computeTripPnlRow(
         tripQuantity,
         tripAllocated.parkingMyr
       );
-      const allocatedLoadUnloadMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
-        tripAllocated.loadUnloadMyr
-      );
       const allocatedEpermitMyr = allocateShare(
         row.quantity,
         tripQuantity,
@@ -1195,13 +1246,14 @@ async function computeTripPnlRow(
           allocatedBorderPassMyr +
           allocatedFishCheckingMyr +
           allocatedParkingMyr +
-          allocatedLoadUnloadMyr +
           allocatedEpermitMyr +
           allocatedDagangNetMyr +
           allocatedForwardingMyr +
           allocatedDriverMyr
       );
-      const totalCostMyr = roundMoney(directCostMyr + allocatedCostMyr);
+      const totalCostMyr = roundMoney(
+        directCostMyr + row.unloadFeeMyr + allocatedCostMyr
+      );
       const grossProfitMyr = roundMoney(row.revenueMyr - totalCostMyr);
       const marginPct =
         row.revenueMyr > 0
@@ -1228,21 +1280,13 @@ async function computeTripPnlRow(
   );
 
   const directCostMyr = roundMoney(
-    shippers.reduce((sum, row) => sum + row.directCostMyr, 0)
+    shippers.reduce(
+      (sum, row) =>
+        sum + row.directCostMyr + row.unloadFeeMyr,
+      0
+    )
   );
-  const allocatedCostMyr = roundMoney(
-    tripAllocated.fuelMyr +
-      tripAllocated.maintenanceMyr +
-      tripAllocated.tollMyr +
-      tripAllocated.borderPassMyr +
-      tripAllocated.fishCheckingMyr +
-      tripAllocated.parkingMyr +
-      tripAllocated.loadUnloadMyr +
-      tripAllocated.epermitMyr +
-      tripAllocated.dagangNetMyr +
-      tripAllocated.forwardingMyr +
-      tripAllocated.driverMyr
-  );
+  const allocatedCostMyr = tripAllocatedWithoutLoadUnload;
   const totalCostMyr = roundMoney(directCostMyr + allocatedCostMyr);
   const grossProfitMyr = roundMoney(tripRevenue - totalCostMyr);
   const marginPct =
@@ -1257,7 +1301,7 @@ async function computeTripPnlRow(
     dagangNetMyr: tripAllocated.dagangNetMyr,
     forwardingMyr: tripAllocated.forwardingMyr,
     driverMyr: tripAllocated.driverMyr,
-    totalMyr: allocatedCostMyr,
+    totalMyr: tripAllocatedWithoutLoadUnload,
   };
 
   return {
@@ -1394,14 +1438,13 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       forwardingMyr: routeCosts.forwarding,
       driverMyr: driverTripAllowance(dispatch),
     };
-    const tripAllocatedTotal = roundMoney(
+    const tripAllocatedWithoutLoadUnload = roundMoney(
       tripAllocated.fuelMyr +
         tripAllocated.maintenanceMyr +
         tripAllocated.tollMyr +
         tripAllocated.borderPassMyr +
         tripAllocated.fishCheckingMyr +
         tripAllocated.parkingMyr +
-        tripAllocated.loadUnloadMyr +
         tripAllocated.epermitMyr +
         tripAllocated.dagangNetMyr +
         tripAllocated.forwardingMyr +
