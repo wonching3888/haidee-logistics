@@ -9,31 +9,32 @@ import {
   flattenAreaGroupRows,
   GroupedAreaTruckRows,
 } from "@/components/documents/GroupedAreaTruckRows";
-import { PrintCompanyHeader } from "@/components/shared/PrintLogo";
+import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface DeliveryOrderPrintProps {
   data: DeliveryOrderData;
   showConsignor: boolean;
+  showPickupLocation?: boolean;
 }
 
 export function DeliveryOrderPrint({
   data,
   showConsignor,
+  showPickupLocation = true,
 }: DeliveryOrderPrintProps) {
   const activeColumns = getActiveDOColumns(data.rows);
   const totals = sumQuantities(data.rows);
   const grandQty = data.rows.reduce((s, r) => s + r.qty, 0);
   const areaGroups = groupRowsByAreaAndTruck(data.rows);
   const colsBeforeCrates = showConsignor ? 5 : 4;
-  const totalColSpan = colsBeforeCrates + activeColumns.length + 2;
+  const totalColSpan =
+    colsBeforeCrates + activeColumns.length + 1 + (showPickupLocation ? 1 : 0);
   let rowNo = 0;
 
   return (
     <div className="document-print">
-      <PrintCompanyHeader>
-        海利物流有限公司 HAI DEE LOGISTICS CO.,LTD
-      </PrintCompanyHeader>
+      <PrintLetterhead />
       <div className="header-row">
         <span>LORRY NO: {data.lorryNo}</span>
         <span style={{ fontWeight: "bold" }}>*** DELIVERY ORDER ***</span>
@@ -58,7 +59,9 @@ export function DeliveryOrderPrint({
               </th>
             ))}
             <th className="do-qty-col">Qty</th>
-            <th className="do-remarks-col">收货地点 Pickup</th>
+            {showPickupLocation && (
+              <th className="do-remarks-col">收货地点 Pickup</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -88,7 +91,9 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
-                  <td className="do-remarks-col">{row.pickupLocation}</td>
+                  {showPickupLocation && (
+                    <td className="do-remarks-col">{row.pickupLocation}</td>
+                  )}
                 </tr>
               );
             }}
@@ -108,7 +113,9 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{areaQty}</td>
-                  <td className="do-remarks-col">&nbsp;</td>
+                  {showPickupLocation && (
+                    <td className="do-remarks-col">&nbsp;</td>
+                  )}
                 </tr>
               );
             }}
@@ -123,7 +130,7 @@ export function DeliveryOrderPrint({
               </td>
             ))}
             <td className="do-qty-col">{grandQty}</td>
-            <td className="do-remarks-col">&nbsp;</td>
+            {showPickupLocation && <td className="do-remarks-col">&nbsp;</td>}
           </tr>
         </tbody>
       </table>

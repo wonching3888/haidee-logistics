@@ -52,13 +52,13 @@ const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
   children: DOCUMENTS_SIDEBAR_CHILDREN,
 };
 
-const SIDEBAR_BG = "bg-[#A8C5A0]";
-const SIDEBAR_TEXT = "text-[#2d4a2d]";
-const SIDEBAR_LABEL_MUTED = "text-[#2d4a2d]/60";
-const SIDEBAR_NAV_ACTIVE = "bg-[#8FB585] text-white";
+const SIDEBAR_BG = "bg-[#8FB585]";
+const SIDEBAR_TEXT = "text-[#1a2e1a]";
+const SIDEBAR_LABEL_MUTED = "text-[#2d4a2d]";
+const SIDEBAR_NAV_ACTIVE = "bg-[#6B9B5E] text-[#ffffff]";
 const SIDEBAR_NAV_INACTIVE =
-  "text-[#2d4a2d] hover:bg-[#8FB585]/25 hover:text-[#2d4a2d]";
-const SIDEBAR_ACTIVE_LABEL_MUTED = "text-white/80";
+  "text-[#1a2e1a] hover:bg-[#6B9B5E]/25 hover:text-[#1a2e1a]";
+const SIDEBAR_ACTIVE_LABEL_MUTED = "text-[#ffffff]/85";
 
 interface SidebarProps {
   role: UserRole;
@@ -126,7 +126,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
         "md:relative md:translate-x-0"
       )}
     >
-      <div className="border-b border-[#2d4a2d]/10 px-5 py-5">
+      <div className="border-b border-[#1a2e1a]/15 px-5 py-5">
         <div className="flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -137,10 +137,10 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             style={{ marginRight: "8px", mixBlendMode: "multiply" }}
           />
           <div>
-            <p className="text-sm font-semibold leading-tight text-[#2d4a2d]">
+            <p className="text-sm font-bold leading-tight text-[#1a2e1a]">
               海利物流有限公司
             </p>
-            <p className="mt-0.5 text-xs text-[#2d4a2d]/70">
+            <p className="mt-0.5 text-xs font-normal text-[#2d4a2d]">
               HAI DEE LOGISTICS CO.,LTD
             </p>
           </div>
@@ -195,8 +195,8 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-[#2d4a2d]/10 px-5 py-4">
-        <p className="text-center text-[10px] text-[#2d4a2d]/50">
+      <div className="border-t border-[#1a2e1a]/15 px-5 py-4">
+        <p className="text-center text-[10px] text-[#2d4a2d]/70">
           © 2026 DMC SYSTEM
           <br />
           All Rights Reserved.

@@ -9,7 +9,7 @@ import {
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
-import { PrintLogo } from "@/components/shared/PrintLogo";
+import { PrintLetterhead } from "@/components/shared/PrintLogo";
 
 function formatAmt(value: number | null): string {
   return value != null ? formatMyr(value) : "—";
@@ -95,10 +95,7 @@ export function DriverVoucherPrintArea({
 
   return (
     <div className="voucher-print-area" aria-hidden="true">
-      <div className="voucher-print-company">
-        <PrintLogo />
-        Hai Dee Logistics Co.,Ltd
-      </div>
+      <PrintLetterhead nameEn="Hai Dee Logistics Co.,Ltd" />
 
       <div className="voucher-print-header-grid">
         <div>

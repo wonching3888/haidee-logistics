@@ -3,7 +3,7 @@ import {
   INVOICE_COMPANY_HEADERS,
 } from "@/lib/constants/monthly-invoice";
 import { getPaymentModeLabel } from "@/lib/constants/freight-settings";
-import { PrintCompanyHeader } from "@/components/shared/PrintLogo";
+import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface MonthlyInvoicePrintProps {
@@ -21,10 +21,10 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
 
   return (
     <div className="document-print monthly-invoice-print">
-      <div className="header-title">{company.nameZh}</div>
-      <PrintCompanyHeader className="header-sub">
-        {company.nameEn}
-      </PrintCompanyHeader>
+      <PrintLetterhead
+        nameZh={company.nameZh}
+        nameEn={company.nameEn}
+      />
 
       <div className="monthly-invoice-title">月结账单 Monthly Invoice</div>
       <div className="header-sub">{data.mode.labelEn}</div>
