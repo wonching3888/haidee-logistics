@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import {
@@ -27,6 +27,10 @@ import {
 } from "@/lib/pnl-report-types";
 import { cn } from "@/lib/utils";
 import TripPnlFilter from "./TripPnlFilter";
+import {
+  buildPnlTripsApiSearchParams,
+  resolveTripSearchDay,
+} from "@/lib/pnl-trip-search-params";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 type PnlTab = "trip" | "period" | "customer";
@@ -158,7 +162,7 @@ export function PnlReportView({
   const [activeTab, setActiveTab] = useState<PnlTab>("trip");
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
-  const [tripDay, setTripDay] = useState(initialDay);
+  const [tripDay, setTripDay] = useState("");
   const [periodMode, setPeriodMode] = useState<PnlPeriodMode>("month");
   const [periodDay, setPeriodDay] = useState(initialDay);
   const [rangeStart, setRangeStart] = useState(initialDay);
@@ -196,24 +200,24 @@ export function PnlReportView({
       month?: number;
       routeFilter?: PnlRouteFilter;
       driverFilter?: string;
-      tripDay?: string | null;
+      tripDay?: string;
     }) => {
       const searchYear = override?.year ?? year;
       const searchMonth = override?.month ?? month;
       const searchRoute = override?.routeFilter ?? routeFilter;
       const searchDriver = override?.driverFilter ?? driverFilter;
-      const searchDay = override?.tripDay ?? tripDay;
+      const searchDay = resolveTripSearchDay(tripDay, override);
 
       setTripsLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({
-          year: String(searchYear),
-          month: String(searchMonth),
+        const params = buildPnlTripsApiSearchParams({
+          year: searchYear,
+          month: searchMonth,
           routeFilter: searchRoute,
           driverFilter: searchDriver,
+          tripDay: searchDay,
         });
-        if (searchDay) params.set("day", searchDay);
         const data = await fetchJson<PnlTripsListData>(
           `/api/pnl/trips?${params}`
         );
@@ -228,6 +232,17 @@ export function PnlReportView({
     },
     [year, month, tripDay, routeFilter, driverFilter]
   );
+
+  useEffect(() => {
+    void loadTrips({
+      year: initialYear,
+      month: initialMonth,
+      routeFilter: "ALL",
+      driverFilter: "ALL",
+      tripDay: "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only default: full month
+  }, []);
 
   async function loadTripDetail(tripId: string) {
     if (tripDetails[tripId]) return;
@@ -423,7 +438,7 @@ export function PnlReportView({
                 month: searchMonth,
                 routeFilter: nextRoute,
                 driverFilter: nextDriver,
-                tripDay: nextDate || null,
+                tripDay: nextDate,
               });
             }}
           />
