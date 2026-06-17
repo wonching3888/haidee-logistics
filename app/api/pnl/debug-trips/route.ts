@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { buildPnlTripsList } from "@/lib/pnl-report";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function GET() {
   try {
