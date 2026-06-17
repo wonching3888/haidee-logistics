@@ -40,3 +40,9 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local data-repair backups (do not commit)
+scripts/backup-44-rows-before-fix-*.json
+scripts/backup-pnl-before-44-row-fix.json
+scripts/backup-10-rows-best-brother-0608-*.json
+scripts/backup-pnl-before-best-brother-0608-fix.json
