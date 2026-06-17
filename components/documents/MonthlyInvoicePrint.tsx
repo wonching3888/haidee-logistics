@@ -1,8 +1,5 @@
 import type { MonthlyInvoiceData } from "@/lib/monthly-invoice";
-import {
-  INVOICE_COMPANY_HEADERS,
-} from "@/lib/constants/monthly-invoice";
-import { getPaymentModeLabel } from "@/lib/constants/freight-settings";
+import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
@@ -27,16 +24,14 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
       />
 
       <div className="monthly-invoice-title">月结账单 Monthly Invoice</div>
-      <div className="header-sub">{data.mode.labelEn}</div>
+      <div className="header-sub">
+        {data.customerName} · {data.periodLabel} · {data.currency}
+      </div>
 
       <div className="monthly-invoice-meta">
         <div>
           <div>
             <strong>账单月份 Period:</strong> {data.periodLabel}
-          </div>
-          <div>
-            <strong>付款模式 Payment Mode:</strong>{" "}
-            {getPaymentModeLabel(data.mode.paymentMode)}
           </div>
           <div>
             <strong>币种 Currency:</strong> {data.currency}
