@@ -47,6 +47,7 @@ export interface OperationsDashboardData {
     mode1bMyr: number;
     mode2Myr: number;
     haideeTotalMyr: number;
+    wtlShipperMyr: number;
     wtlMode3Myr: number;
     totalMyr: number;
     lines: MetricLine[];
@@ -150,6 +151,7 @@ export function buildOperationsDashboardMetrics(input: {
     mode1bMyr: number;
     mode2Myr: number;
     wtlMode3Myr: number;
+    wtlShipperMyr: number;
     missingRateLineCount: number;
     missingRateQuantity: number;
     gapReasons: Partial<Record<InboundFreightGapReason, number>>;
@@ -204,7 +206,7 @@ export function buildOperationsDashboardMetrics(input: {
     mode1aMyr + input.income.mode1bMyr + input.income.mode2Myr
   );
   const totalRevenueMyr = roundMoney(
-    haideeTotalMyr + input.income.wtlMode3Myr
+    haideeTotalMyr + input.income.wtlShipperMyr + input.income.wtlMode3Myr
   );
 
   const revenueLines: MetricLine[] = [
@@ -236,6 +238,13 @@ export function buildOperationsDashboardMetrics(input: {
       label: "海利总收入",
       labelEn: "HAIDEE Total Revenue",
       amountMyr: haideeTotalMyr,
+      source: "actual",
+    },
+    {
+      key: "wtlShipper",
+      label: "WTL收入 - 寄货人付（MYR含SST）",
+      labelEn: "WTL Revenue - Shipper Paid (MYR incl. SST)",
+      amountMyr: input.income.wtlShipperMyr,
       source: "actual",
     },
     {
@@ -471,6 +480,7 @@ export function buildOperationsDashboardMetrics(input: {
       mode1bMyr: input.income.mode1bMyr,
       mode2Myr: input.income.mode2Myr,
       haideeTotalMyr,
+      wtlShipperMyr: input.income.wtlShipperMyr,
       wtlMode3Myr: input.income.wtlMode3Myr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,

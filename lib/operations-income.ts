@@ -28,12 +28,23 @@ function addIncomeAmount(
     mode1bMyr: number;
     mode2Myr: number;
     wtlMode3Myr: number;
+    wtlShipperMyr: number;
   },
   paymentMode: PaymentMode,
   amount: number,
-  currency: string
+  currency: string,
+  billingCompany?: string | null
 ) {
   if (amount <= 0) return;
+
+  if (
+    paymentMode === "1b" &&
+    currency === "MYR" &&
+    billingCompany === "wtl"
+  ) {
+    totals.wtlShipperMyr += amount;
+    return;
+  }
 
   if (paymentMode === "1a" && currency === "THB") {
     totals.mode1aThb += amount;
@@ -65,6 +76,7 @@ export interface OperationsIncomeResult {
   mode1bMyr: number;
   mode2Myr: number;
   wtlMode3Myr: number;
+  wtlShipperMyr: number;
   lineCount: number;
   missingRateLineCount: number;
   missingRateQuantity: number;
@@ -151,6 +163,7 @@ export async function aggregateOperationsIncome(
     mode1bMyr: 0,
     mode2Myr: 0,
     wtlMode3Myr: 0,
+    wtlShipperMyr: 0,
   };
   const gapReasons: Partial<Record<InboundFreightGapReason, number>> = {};
   const warningSamples: OperationsIncomeWarningSample[] = [];
@@ -218,7 +231,8 @@ export async function aggregateOperationsIncome(
         totals,
         snapshot.paymentMode,
         snapshot.freightAmount,
-        snapshot.currency
+        snapshot.currency,
+        snapshot.billingCompany
       );
 
       if ((snapshot.dualPaymentWtlAmount ?? 0) > 0) {
@@ -235,6 +249,7 @@ export async function aggregateOperationsIncome(
     mode1bMyr: roundMoney(totals.mode1bMyr),
     mode2Myr: roundMoney(totals.mode2Myr),
     wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
+    wtlShipperMyr: roundMoney(totals.wtlShipperMyr),
     lineCount: lines.length,
     missingRateLineCount,
     missingRateQuantity,
