@@ -432,7 +432,7 @@ export function OperationsSettingsSection({
         <div className="grid gap-4 sm:grid-cols-2">
           {THAI_SEGMENT_FORM_FIELDS.map(({ key, formKey }) => (
             <label key={key} className="block space-y-1 text-sm">
-              {THAI_SEGMENT_RATE_UI[key].label} ({THAI_SEGMENT_RATE_UI[key].notes})
+              {THAI_SEGMENT_RATE_UI[key].label} (THB)
               <Input
                 value={thaiSegmentForm[formKey]}
                 onChange={(e) =>

@@ -29,25 +29,57 @@ function baselineExistingDatabase() {
   }
 }
 
-const migrate = migrateDeploy();
-const output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
+function resolveFailedMigration(output) {
+  const failedMatch = output.match(/The `([^`]+)` migration/);
+  const failedMigration = failedMatch?.[1];
+  if (!failedMigration) {
+    console.error("[P3009] Could not parse failed migration name from output.");
+    return false;
+  }
 
-if (migrate.stdout) process.stdout.write(migrate.stdout);
-if (migrate.stderr) process.stderr.write(migrate.stderr);
+  console.log(
+    `[P3009] Resolving failed migration as rolled back: ${failedMigration}`
+  );
+  run(`npx prisma migrate resolve --rolled-back ${failedMigration}`);
+  return true;
+}
 
-if (migrate.status !== 0) {
+function migrateDeployWithRecovery() {
+  let migrate = migrateDeploy();
+  let output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
+
+  if (migrate.stdout) process.stdout.write(migrate.stdout);
+  if (migrate.stderr) process.stderr.write(migrate.stderr);
+
+  if (migrate.status === 0) {
+    return;
+  }
+
   if (output.includes("P3005")) {
     baselineExistingDatabase();
-    const retry = migrateDeploy();
-    if (retry.stdout) process.stdout.write(retry.stdout);
-    if (retry.stderr) process.stderr.write(retry.stderr);
-    if (retry.status !== 0) {
-      process.exit(retry.status ?? 1);
+    migrate = migrateDeploy();
+    output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
+    if (migrate.stdout) process.stdout.write(migrate.stdout);
+    if (migrate.stderr) process.stderr.write(migrate.stderr);
+    if (migrate.status === 0) {
+      return;
     }
-  } else {
-    process.exit(migrate.status ?? 1);
   }
+
+  if (output.includes("P3009") && resolveFailedMigration(output)) {
+    migrate = migrateDeploy();
+    output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
+    if (migrate.stdout) process.stdout.write(migrate.stdout);
+    if (migrate.stderr) process.stderr.write(migrate.stderr);
+    if (migrate.status === 0) {
+      return;
+    }
+  }
+
+  process.exit(migrate.status ?? 1);
 }
+
+migrateDeployWithRecovery();
 
 run("npx prisma generate");
 run("npx next build");

@@ -45,6 +45,11 @@ export function GlobalCostSettingsSection({
   }, [settings, tripCostsOnly]);
 
   useEffect(() => {
+    setSettings(initialSettings);
+    setLoading(initialSettings.length === 0);
+  }, [initialSettings]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadSettings() {

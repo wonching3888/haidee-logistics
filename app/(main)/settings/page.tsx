@@ -13,6 +13,8 @@ import {
   settingsSectionHref,
 } from "@/lib/constants/settings-nav";
 
+export const dynamic = "force-dynamic";
+
 interface SettingsPageProps {
   searchParams: Promise<{ section?: string }>;
 }
