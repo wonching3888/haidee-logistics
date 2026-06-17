@@ -45,38 +45,33 @@ function resolveFailedMigration(output) {
 }
 
 function migrateDeployWithRecovery() {
-  let migrate = migrateDeploy();
-  let output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const migrate = migrateDeploy();
+    const output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
 
-  if (migrate.stdout) process.stdout.write(migrate.stdout);
-  if (migrate.stderr) process.stderr.write(migrate.stderr);
-
-  if (migrate.status === 0) {
-    return;
-  }
-
-  if (output.includes("P3005")) {
-    baselineExistingDatabase();
-    migrate = migrateDeploy();
-    output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
     if (migrate.stdout) process.stdout.write(migrate.stdout);
     if (migrate.stderr) process.stderr.write(migrate.stderr);
+
     if (migrate.status === 0) {
       return;
     }
-  }
 
-  if (output.includes("P3009") && resolveFailedMigration(output)) {
-    migrate = migrateDeploy();
-    output = `${migrate.stdout ?? ""}${migrate.stderr ?? ""}`;
-    if (migrate.stdout) process.stdout.write(migrate.stdout);
-    if (migrate.stderr) process.stderr.write(migrate.stderr);
-    if (migrate.status === 0) {
-      return;
+    if (output.includes("P3005")) {
+      baselineExistingDatabase();
+      continue;
     }
+
+    if (
+      (output.includes("P3009") || output.includes("P3018")) &&
+      resolveFailedMigration(output)
+    ) {
+      continue;
+    }
+
+    process.exit(migrate.status ?? 1);
   }
 
-  process.exit(migrate.status ?? 1);
+  process.exit(1);
 }
 
 migrateDeployWithRecovery();
