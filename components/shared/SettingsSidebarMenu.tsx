@@ -44,8 +44,8 @@ export function SettingsSidebarMenu({ onNavigate }: SettingsSidebarMenuProps) {
                 className={cn(
                   "flex min-h-[40px] w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
                   freightGroupActive
-                    ? "bg-[#6B9B5E] text-[#ffffff]"
-                    : "text-[#1a2e1a] hover:bg-[#6B9B5E]/25 hover:text-[#1a2e1a]"
+                    ? "bg-[#5A8950] font-bold text-[#FFFFFF]"
+                    : "font-medium text-[#0d1a0d] hover:bg-[#5A8950]/25 hover:text-[#0d1a0d]"
                 )}
               >
                 <span className="flex flex-1 items-center justify-between gap-2 text-left">
@@ -55,8 +55,8 @@ export function SettingsSidebarMenu({ onNavigate }: SettingsSidebarMenuProps) {
                       className={cn(
                         "text-xs",
                         freightGroupActive
-                          ? "text-[#ffffff]/85"
-                          : "text-[#2d4a2d]"
+                          ? "font-bold text-[#FFFFFF]"
+                          : "font-medium text-[#0d1a0d]"
                       )}
                     >
                       {item.labelEn}
@@ -130,8 +130,8 @@ function SettingsSubLink({
         "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
         compact ? "min-h-[36px]" : "min-h-[40px]",
         isActive
-          ? "bg-[#6B9B5E] text-[#ffffff]"
-          : "text-[#1a2e1a] hover:bg-[#6B9B5E]/25 hover:text-[#1a2e1a]"
+          ? "bg-[#5A8950] font-bold text-[#FFFFFF]"
+          : "font-medium text-[#0d1a0d] hover:bg-[#5A8950]/25 hover:text-[#0d1a0d]"
       )}
     >
       <span>
@@ -139,7 +139,7 @@ function SettingsSubLink({
         <span
           className={cn(
             "text-xs",
-            isActive ? "text-[#ffffff]/85" : "text-[#2d4a2d]"
+            isActive ? "font-bold text-[#FFFFFF]" : "font-medium text-[#0d1a0d]"
           )}
         >
           {labelEn}

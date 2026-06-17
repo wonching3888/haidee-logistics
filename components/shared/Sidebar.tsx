@@ -53,12 +53,12 @@ const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
 };
 
 const SIDEBAR_BG = "bg-[#9DC08B]";
-const SIDEBAR_TEXT = "text-[#1a2e1a]";
-const SIDEBAR_LABEL_MUTED = "text-[#2d4a2d]";
-const SIDEBAR_NAV_ACTIVE = "bg-[#6B9B5E] text-[#ffffff]";
+const SIDEBAR_TEXT = "text-[#0d1a0d]";
+const SIDEBAR_LABEL_MUTED = "text-[#0d1a0d] font-medium";
+const SIDEBAR_NAV_ACTIVE = "bg-[#5A8950] font-bold text-[#FFFFFF]";
 const SIDEBAR_NAV_INACTIVE =
-  "text-[#1a2e1a] hover:bg-[#6B9B5E]/25 hover:text-[#1a2e1a]";
-const SIDEBAR_ACTIVE_LABEL_MUTED = "text-[#ffffff]/85";
+  "font-medium text-[#0d1a0d] hover:bg-[#5A8950]/25 hover:text-[#0d1a0d]";
+const SIDEBAR_ACTIVE_LABEL_MUTED = "text-[#FFFFFF] font-bold";
 
 interface SidebarProps {
   role: UserRole;
