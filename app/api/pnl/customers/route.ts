@@ -9,6 +9,9 @@ import {
 
 const CUSTOMER_SORTS: PnlCustomerSort[] = ["profit", "quantity", "revenue"];
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
 export async function GET(request: Request) {
   try {
     const user = await requirePnlApiAccess();

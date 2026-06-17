@@ -29,6 +29,14 @@ import {
 } from "@/lib/reports/period-report-shared";
 import { lookupUnloadRateMap } from "@/lib/unload-rates-service";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedPnlMonthTrips,
+  getInflightPnlMonthTrips,
+  pnlMonthTripsCacheKey,
+  setCachedPnlMonthTrips,
+  setInflightPnlMonthTrips,
+  type PnlMonthTripsCacheEntry,
+} from "@/lib/pnl-month-cache";
 import { computeLineThaiSegmentCostMyr } from "@/lib/thai-segment-freight";
 import { toDateInputValue } from "@/lib/date-utils";
 import type {
@@ -190,8 +198,8 @@ function freightCtxCacheKey(
 
 async function ensureFreightCtx(
   cache: Map<string, FreightCtxCache>,
-  stallIdsByKey: Map<string, Set<string>>,
-  tongTypeIdsByKey: Map<string, Set<string>>,
+  _stallIdsByKey: Map<string, Set<string>>,
+  _tongTypeIdsByKey: Map<string, Set<string>>,
   shipperId: string,
   stallIds: string[],
   tongTypeIds: string[],
@@ -199,38 +207,232 @@ async function ensureFreightCtx(
   asOfDate: Date
 ): Promise<FreightCtxCache> {
   const key = freightCtxCacheKey(shipperId, pickup, asOfDate);
-  const stalls = stallIdsByKey.get(key) ?? new Set<string>();
-  const tongTypes = tongTypeIdsByKey.get(key) ?? new Set<string>();
-  let needsReload = !cache.has(key);
+  const cached = cache.get(key);
+  if (cached) return cached;
 
-  for (const id of stallIds) {
-    if (!stalls.has(id)) {
-      stalls.add(id);
-      needsReload = true;
+  const { ctx } = await loadInboundFreightContext(
+    shipperId,
+    stallIds,
+    tongTypeIds,
+    asOfDate,
+    pickup
+  );
+  cache.set(key, ctx);
+  return ctx;
+}
+
+type FreightContextRequirement = {
+  shipperId: string;
+  pickup: ReturnType<typeof resolveSessionPickupLocation>;
+  stallIds: Set<string>;
+  tongTypeIds: Set<string>;
+};
+
+function collectFreightRequirementsFromDispatches(
+  dispatches: DispatchPnlRow[],
+  asOfDate: Date
+): Map<string, FreightContextRequirement> {
+  const requirements = new Map<string, FreightContextRequirement>();
+
+  for (const dispatch of dispatches) {
+    const lines = dispatch.lines
+      .map((line) => line.inboundLine)
+      .filter((line): line is NonNullable<typeof line> => line != null);
+
+    const linesByShipper = new Map<string, typeof lines>();
+    for (const line of lines) {
+      if (line.dispatchStatus !== "assigned") continue;
+      const group = linesByShipper.get(line.session.shipperId) ?? [];
+      group.push(line);
+      linesByShipper.set(line.session.shipperId, group);
+    }
+
+    for (const [shipperId, shipperLines] of Array.from(
+      linesByShipper.entries()
+    )) {
+      const first = shipperLines[0];
+      if (!first) continue;
+
+      const pickup = resolveSessionPickupLocation(
+        first.session.pickupLocation,
+        first.session.shipper.pickupLocation
+      );
+      const key = freightCtxCacheKey(shipperId, pickup, asOfDate);
+      const existing = requirements.get(key) ?? {
+        shipperId,
+        pickup,
+        stallIds: new Set<string>(),
+        tongTypeIds: new Set<string>(),
+      };
+
+      for (const line of shipperLines) {
+        existing.stallIds.add(line.stallId);
+        existing.tongTypeIds.add(line.tongTypeId);
+      }
+      requirements.set(key, existing);
     }
   }
-  for (const id of tongTypeIds) {
-    if (!tongTypes.has(id)) {
-      tongTypes.add(id);
-      needsReload = true;
+
+  return requirements;
+}
+
+async function preloadPnlFreightContexts(
+  ctx: PnlComputationContext,
+  dispatches: DispatchPnlRow[],
+  asOfDate: Date
+): Promise<void> {
+  const requirements = collectFreightRequirementsFromDispatches(
+    dispatches,
+    asOfDate
+  );
+
+  await Promise.all(
+    Array.from(requirements.entries()).map(async ([key, req]) => {
+      if (ctx.freightCtxCache.has(key)) return;
+
+      const { ctx: freightCtx } = await loadInboundFreightContext(
+        req.shipperId,
+        Array.from(req.stallIds),
+        Array.from(req.tongTypeIds),
+        asOfDate,
+        req.pickup
+      );
+      ctx.freightCtxCache.set(key, freightCtx);
+      ctx.freightCtxStallIds.set(key, req.stallIds);
+      ctx.freightCtxTongTypeIds.set(key, req.tongTypeIds);
+    })
+  );
+}
+
+function pnlTripRowToListItem(
+  trip: PnlTripRow,
+  meta: { routeLabel: string; routeGroups: string[] }
+): PnlTripListItem {
+  return {
+    tripId: trip.dispatchOrderId,
+    date: trip.date,
+    route: meta.routeLabel || trip.routeKey || "—",
+    routeGroups: meta.routeGroups,
+    driver: trip.driverName,
+    plate: trip.truckPlate,
+    totalCrates: trip.totalQuantity,
+    revenueMyr: trip.revenueMyr,
+    directCostMyr: trip.directCostMyr,
+    allocatedCostMyr: trip.allocatedCostMyr,
+    totalCostMyr: trip.totalCostMyr,
+    grossProfitMyr: trip.grossProfitMyr,
+    marginPct: trip.marginPct,
+  };
+}
+
+function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
+  const totals: PnlTripTotals = {
+    revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
+    directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
+    allocatedCostMyr: roundMoney(
+      trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
+    ),
+    totalCostMyr: roundMoney(trips.reduce((s, t) => s + t.totalCostMyr, 0)),
+    grossProfitMyr: roundMoney(trips.reduce((s, t) => s + t.grossProfitMyr, 0)),
+    marginPct: 0,
+    tripCount: trips.length,
+    totalQuantity: trips.reduce((s, t) => s + t.totalQuantity, 0),
+  };
+  totals.marginPct =
+    totals.revenueMyr > 0
+      ? roundMoney((totals.grossProfitMyr / totals.revenueMyr) * 100)
+      : 0;
+  return totals;
+}
+
+async function computeFilteredPnlTrips(input: {
+  year: number;
+  month: number;
+  day?: string | null;
+  routeFilter?: PnlRouteFilter;
+  driverFilter?: string;
+}): Promise<PnlMonthTripsCacheEntry> {
+  const routeFilter = input.routeFilter ?? "ALL";
+  const driverFilter = input.driverFilter ?? "ALL";
+  const cacheKey = pnlMonthTripsCacheKey({
+    year: input.year,
+    month: input.month,
+    day: input.day,
+    routeFilter,
+    driverFilter,
+  });
+
+  const cached = getCachedPnlMonthTrips(cacheKey);
+  if (cached) return cached;
+
+  const inflight = getInflightPnlMonthTrips(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async (): Promise<PnlMonthTripsCacheEntry> => {
+    const { start, end } = resolveTripsDateRange(input);
+    const { end: monthEnd } = getMonthDateRange(input.year, input.month);
+    const ctx = await loadPnlComputationContext(input.year, input.month);
+
+    const dispatches = (await prisma.dispatchOrder.findMany({
+      where: {
+        status: { notIn: ["draft", "cancelled"] },
+        date: { gte: start, lte: end },
+      },
+      select: dispatchPnlSelect,
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    })) as DispatchPnlRow[];
+
+    await preloadPnlFreightContexts(ctx, dispatches, monthEnd);
+
+    const drivers = Array.from(
+      new Set(
+        dispatches
+          .map((d) => d.driverName?.trim())
+          .filter((name): name is string => Boolean(name))
+      )
+    ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
+
+    const matchedDispatches: DispatchPnlRow[] = [];
+    for (const dispatch of dispatches) {
+      const routeGroups = getRouteGroups(dispatch.markets);
+      if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
+      if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
+      matchedDispatches.push(dispatch);
     }
-  }
 
-  stallIdsByKey.set(key, stalls);
-  tongTypeIdsByKey.set(key, tongTypes);
+    const trips = (
+      await Promise.all(
+        matchedDispatches.map((dispatch) =>
+          computeTripPnlRow(dispatch, ctx, monthEnd)
+        )
+      )
+    ).filter((trip): trip is PnlTripRow => trip != null);
 
-  if (needsReload) {
-    const { ctx } = await loadInboundFreightContext(
-      shipperId,
-      Array.from(stalls),
-      Array.from(tongTypes),
-      asOfDate,
-      pickup
+    trips.sort((a, b) =>
+      comparePnlTrips(
+        pnlTripRowToListItem(a, {
+          routeLabel: a.routeLabel,
+          routeGroups: a.routeGroups,
+        }),
+        pnlTripRowToListItem(b, {
+          routeLabel: b.routeLabel,
+          routeGroups: b.routeGroups,
+        })
+      )
     );
-    cache.set(key, ctx);
-  }
 
-  return cache.get(key)!;
+    const entry: PnlMonthTripsCacheEntry = {
+      expiresAt: 0,
+      drivers,
+      trips,
+      tripTotals: buildTripTotalsFromRows(trips),
+    };
+    setCachedPnlMonthTrips(cacheKey, entry);
+    return getCachedPnlMonthTrips(cacheKey)!;
+  })();
+
+  setInflightPnlMonthTrips(cacheKey, promise);
+  return promise;
 }
 
 function customerStatus(marginPct: number, profit: number): PnlCustomerStatus {
@@ -1085,96 +1287,21 @@ export async function buildPnlTripsList(input: {
   routeFilter?: PnlRouteFilter;
   driverFilter?: string;
 }): Promise<PnlTripsListData> {
-  const routeFilter = input.routeFilter ?? "ALL";
-  const driverFilter = input.driverFilter ?? "ALL";
-  const { start, end } = resolveTripsDateRange(input);
-  const { end: monthEnd } = getMonthDateRange(input.year, input.month);
-  const ctx = await loadPnlComputationContext(input.year, input.month);
-
-  const dispatches = (await prisma.dispatchOrder.findMany({
-    where: {
-      status: { notIn: ["draft", "cancelled"] },
-      date: { gte: start, lte: end },
-    },
-    select: dispatchPnlSelect,
-    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-  })) as DispatchPnlRow[];
-
-  const drivers = Array.from(
-    new Set(
-      dispatches
-        .map((d) => d.driverName?.trim())
-        .filter((name): name is string => Boolean(name))
-    )
-  ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
-
-  const filteredDispatches: {
-    dispatch: DispatchPnlRow;
-    routeLabel: string;
-    routeKey: string;
-    routeGroups: string[];
-  }[] = [];
-  for (const dispatch of dispatches) {
-    const routeGroups = getRouteGroups(dispatch.markets);
-    const routeLabel = getRouteLabel(dispatch.markets);
-    const routeKey = buildRouteKey(dispatch.markets);
-
-    if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
-    if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
-    filteredDispatches.push({ dispatch, routeGroups, routeLabel, routeKey });
-  }
-
-  const computedTrips = await Promise.all(
-    filteredDispatches.map(({ dispatch }) => computeTripPnlRow(dispatch, ctx, monthEnd))
+  const computed = await computeFilteredPnlTrips(input);
+  const trips = computed.trips.map((trip) =>
+    pnlTripRowToListItem(trip, {
+      routeLabel: trip.routeLabel,
+      routeGroups: trip.routeGroups,
+    })
   );
-  const trips: PnlTripListItem[] = [];
-  for (let i = 0; i < filteredDispatches.length; i++) {
-    const trip = computedTrips[i];
-    if (!trip) continue;
-    const meta = filteredDispatches[i];
-    trips.push({
-      tripId: trip.dispatchOrderId,
-      date: trip.date,
-      route: meta.routeLabel || meta.routeKey || "—",
-      routeGroups: meta.routeGroups,
-      driver: trip.driverName,
-      plate: trip.truckPlate,
-      totalCrates: trip.totalQuantity,
-      revenueMyr: trip.revenueMyr,
-      directCostMyr: trip.directCostMyr,
-      allocatedCostMyr: trip.allocatedCostMyr,
-      totalCostMyr: trip.totalCostMyr,
-      grossProfitMyr: trip.grossProfitMyr,
-      marginPct: trip.marginPct,
-    });
-  }
-
-  trips.sort(comparePnlTrips);
-
-  const totals: PnlTripTotals = {
-    revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
-    directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
-    allocatedCostMyr: roundMoney(
-      trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
-    ),
-    totalCostMyr: roundMoney(trips.reduce((s, t) => s + t.totalCostMyr, 0)),
-    grossProfitMyr: roundMoney(trips.reduce((s, t) => s + t.grossProfitMyr, 0)),
-    marginPct: 0,
-    tripCount: trips.length,
-    totalQuantity: trips.reduce((s, t) => s + t.totalCrates, 0),
-  };
-  totals.marginPct =
-    totals.revenueMyr > 0
-      ? roundMoney((totals.grossProfitMyr / totals.revenueMyr) * 100)
-      : 0;
 
   return {
     year: input.year,
     month: input.month,
     day: input.day ?? null,
-    drivers,
+    drivers: computed.drivers,
     trips,
-    totals,
+    totals: computed.tripTotals,
   };
 }
 
@@ -1203,6 +1330,8 @@ export async function buildPnlCustomerMarketBreakdown(input: {
     select: dispatchPnlSelect,
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
   })) as DispatchPnlRow[];
+
+  await preloadPnlFreightContexts(ctx, dispatches, monthEnd);
 
   const marketMap = new Map<
     string,
@@ -1445,6 +1574,7 @@ export async function buildPnlTripDetail(input: {
 
   const ctx = await loadPnlComputationContext(input.year, input.month);
   const { end } = getMonthDateRange(input.year, input.month);
+  await preloadPnlFreightContexts(ctx, [dispatch], end);
   const trip = await computeTripPnlRow(dispatch, ctx, end);
   if (!trip) {
     throw new Error("该趟次无有效桶数 No assigned crates for this trip");
@@ -1452,192 +1582,13 @@ export async function buildPnlTripDetail(input: {
   return trip;
 }
 
-export async function buildPnlPeriodSummary(input: {
-  year: number;
-  month: number;
-  periodMode?: PnlPeriodMode;
-  day?: string;
-  rangeStart?: string;
-  rangeEnd?: string;
-}): Promise<PnlPeriodData> {
-  if ((input.periodMode ?? "month") === "month") {
-    const trips = await buildPnlTripsList({
-      year: input.year,
-      month: input.month,
-      day: null,
-      routeFilter: "ALL",
-      driverFilter: "ALL",
-    });
-    return {
-      year: input.year,
-      month: input.month,
-      periodSummary: buildPeriodSummaryFromTrips({
-        year: input.year,
-        month: input.month,
-        mode: "month",
-        trips: trips.trips,
-      }),
-    };
-  }
-  if ((input.periodMode ?? "month") === "day") {
-    const trips = await buildPnlTripsList({
-      year: input.year,
-      month: input.month,
-      day: input.day?.trim() || null,
-      routeFilter: "ALL",
-      driverFilter: "ALL",
-    });
-    return {
-      year: input.year,
-      month: input.month,
-      periodSummary: buildPeriodSummaryFromTrips({
-        year: input.year,
-        month: input.month,
-        mode: "day",
-        day: input.day,
-        trips: trips.trips,
-      }),
-    };
-  }
-  const report = await buildPnlReport({
-    ...input,
-    periodMode: input.periodMode ?? "month",
-    routeFilter: "ALL",
-    driverFilter: "ALL",
-  });
-  return {
-    year: report.year,
-    month: report.month,
-    periodSummary: report.periodSummary,
-  };
-}
-
-export async function buildPnlCustomerAnalysis(input: {
-  year: number;
-  month: number;
-  customerSort?: PnlCustomerSort;
-}): Promise<PnlCustomerData> {
-  const report = await buildPnlReport({
-    year: input.year,
-    month: input.month,
-    customerSort: input.customerSort ?? "profit",
-    routeFilter: "ALL",
-    driverFilter: "ALL",
-  });
-  return {
-    year: report.year,
-    month: report.month,
-    customers: report.customers,
-    lossCustomers: report.lossCustomers,
-  };
-}
-
-export async function buildPnlReport(input: {
-  year: number;
-  month: number;
-  periodMode?: PnlPeriodMode;
-  day?: string;
-  rangeStart?: string;
-  rangeEnd?: string;
-  routeFilter?: PnlRouteFilter;
-  driverFilter?: string;
-  customerSort?: PnlCustomerSort;
-}): Promise<PnlReportData> {
-  const periodMode = input.periodMode ?? "month";
-  const routeFilter = input.routeFilter ?? "ALL";
-  const driverFilter = input.driverFilter ?? "ALL";
-  const customerSort = input.customerSort ?? "profit";
-  const { start, end } = resolveDateRange({
-    mode: periodMode,
-    year: input.year,
-    month: input.month,
-    day: input.day,
-    rangeStart: input.rangeStart,
-    rangeEnd: input.rangeEnd,
-  });
-
-  const ctx = await loadPnlComputationContext(input.year, input.month);
-
-  const dispatches = (await prisma.dispatchOrder.findMany({
-    where: {
-      status: { notIn: ["draft", "cancelled"] },
-      date: { gte: start, lte: end },
-    },
-    select: dispatchPnlSelect,
-    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-  })) as DispatchPnlRow[];
-
-  const drivers = Array.from(
-    new Set(
-      dispatches
-        .map((d) => d.driverName?.trim())
-        .filter((name): name is string => Boolean(name))
-    )
-  ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
-
-  const matchedDispatches: DispatchPnlRow[] = [];
-  for (const dispatch of dispatches) {
-    const routeGroups = getRouteGroups(dispatch.markets);
-    if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
-    if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
-    matchedDispatches.push(dispatch);
-  }
-  const trips = (await Promise.all(
-    matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
-  )).filter((trip): trip is PnlTripRow => trip != null);
-
-  const tripTotals: PnlTripTotals = {
-    revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
-    directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
-    allocatedCostMyr: roundMoney(
-      trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
-    ),
-    totalCostMyr: roundMoney(trips.reduce((s, t) => s + t.totalCostMyr, 0)),
-    grossProfitMyr: roundMoney(trips.reduce((s, t) => s + t.grossProfitMyr, 0)),
-    marginPct: 0,
-    tripCount: trips.length,
-    totalQuantity: trips.reduce((s, t) => s + t.totalQuantity, 0),
-  };
-  tripTotals.marginPct =
-    tripTotals.revenueMyr > 0
-      ? roundMoney((tripTotals.grossProfitMyr / tripTotals.revenueMyr) * 100)
-      : 0;
-
-  const trendMap = new Map<string, PnlDailyTrendPoint>();
-  for (const trip of trips) {
-    const point = trendMap.get(trip.date) ?? {
-      date: trip.date,
-      revenueMyr: 0,
-      costMyr: 0,
-      profitMyr: 0,
-    };
-    point.revenueMyr = roundMoney(point.revenueMyr + trip.revenueMyr);
-    point.costMyr = roundMoney(point.costMyr + trip.totalCostMyr);
-    point.profitMyr = roundMoney(point.profitMyr + trip.grossProfitMyr);
-    trendMap.set(trip.date, point);
-  }
-
-  const periodSummary: PnlPeriodSummary = {
-    mode: periodMode,
-    periodLabel: periodLabel({
-      mode: periodMode,
-      year: input.year,
-      month: input.month,
-      day: input.day,
-      rangeStart: input.rangeStart,
-      rangeEnd: input.rangeEnd,
-    }),
-    revenueMyr: tripTotals.revenueMyr,
-    costMyr: tripTotals.totalCostMyr,
-    grossProfitMyr: tripTotals.grossProfitMyr,
-    marginPct: tripTotals.marginPct,
-    tripCount: tripTotals.tripCount,
-    totalQuantity: tripTotals.totalQuantity,
-    trend: Array.from(trendMap.values()).sort((a, b) =>
-      a.date.localeCompare(b.date)
-    ),
-  };
-
+function buildCustomersFromTrips(
+  trips: PnlTripRow[],
+  customerSort: PnlCustomerSort
+): {
+  customers: PnlCustomerRow[];
+  lossCustomers: PnlCustomerSuggestion[];
+} {
   const customerMap = new Map<string, PnlCustomerRow>();
   for (const trip of trips) {
     for (const shipper of trip.shippers) {
@@ -1709,6 +1660,267 @@ export async function buildPnlReport(input: {
           ? "该客户当月毛利为负，建议复核费率、路线组合与下货成本。"
           : "毛利率偏低，建议关注桶型结构、租桶费与路线分摊成本。",
     }));
+
+  return { customers, lossCustomers };
+}
+
+export async function buildPnlPeriodSummary(input: {
+  year: number;
+  month: number;
+  periodMode?: PnlPeriodMode;
+  day?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+}): Promise<PnlPeriodData> {
+  if ((input.periodMode ?? "month") === "month") {
+    const computed = await computeFilteredPnlTrips({
+      year: input.year,
+      month: input.month,
+      day: null,
+      routeFilter: "ALL",
+      driverFilter: "ALL",
+    });
+    const trips = computed.trips.map((trip) =>
+      pnlTripRowToListItem(trip, {
+        routeLabel: trip.routeLabel,
+        routeGroups: trip.routeGroups,
+      })
+    );
+    return {
+      year: input.year,
+      month: input.month,
+      periodSummary: buildPeriodSummaryFromTrips({
+        year: input.year,
+        month: input.month,
+        mode: "month",
+        trips,
+      }),
+    };
+  }
+  if ((input.periodMode ?? "month") === "day") {
+    const computed = await computeFilteredPnlTrips({
+      year: input.year,
+      month: input.month,
+      day: input.day?.trim() || null,
+      routeFilter: "ALL",
+      driverFilter: "ALL",
+    });
+    const trips = computed.trips.map((trip) =>
+      pnlTripRowToListItem(trip, {
+        routeLabel: trip.routeLabel,
+        routeGroups: trip.routeGroups,
+      })
+    );
+    return {
+      year: input.year,
+      month: input.month,
+      periodSummary: buildPeriodSummaryFromTrips({
+        year: input.year,
+        month: input.month,
+        mode: "day",
+        day: input.day,
+        trips,
+      }),
+    };
+  }
+  const report = await buildPnlReport({
+    ...input,
+    periodMode: input.periodMode ?? "month",
+    routeFilter: "ALL",
+    driverFilter: "ALL",
+  });
+  return {
+    year: report.year,
+    month: report.month,
+    periodSummary: report.periodSummary,
+  };
+}
+
+export async function buildPnlCustomerAnalysis(input: {
+  year: number;
+  month: number;
+  customerSort?: PnlCustomerSort;
+}): Promise<PnlCustomerData> {
+  const customerSort = input.customerSort ?? "profit";
+  const computed = await computeFilteredPnlTrips({
+    year: input.year,
+    month: input.month,
+    day: null,
+    routeFilter: "ALL",
+    driverFilter: "ALL",
+  });
+  const { customers, lossCustomers } = buildCustomersFromTrips(
+    computed.trips,
+    customerSort
+  );
+  return {
+    year: input.year,
+    month: input.month,
+    customers,
+    lossCustomers,
+  };
+}
+
+export async function buildPnlReport(input: {
+  year: number;
+  month: number;
+  periodMode?: PnlPeriodMode;
+  day?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  routeFilter?: PnlRouteFilter;
+  driverFilter?: string;
+  customerSort?: PnlCustomerSort;
+}): Promise<PnlReportData> {
+  const periodMode = input.periodMode ?? "month";
+  const routeFilter = input.routeFilter ?? "ALL";
+  const driverFilter = input.driverFilter ?? "ALL";
+  const customerSort = input.customerSort ?? "profit";
+
+  if (
+    periodMode === "month" &&
+    routeFilter === "ALL" &&
+    driverFilter === "ALL" &&
+    !input.day
+  ) {
+    const computed = await computeFilteredPnlTrips({
+      year: input.year,
+      month: input.month,
+      day: null,
+      routeFilter,
+      driverFilter,
+    });
+    const ctx = await loadPnlComputationContext(input.year, input.month);
+    const { customers, lossCustomers } = buildCustomersFromTrips(
+      computed.trips,
+      customerSort
+    );
+    const trendMap = new Map<string, PnlDailyTrendPoint>();
+    for (const trip of computed.trips) {
+      const point = trendMap.get(trip.date) ?? {
+        date: trip.date,
+        revenueMyr: 0,
+        costMyr: 0,
+        profitMyr: 0,
+      };
+      point.revenueMyr = roundMoney(point.revenueMyr + trip.revenueMyr);
+      point.costMyr = roundMoney(point.costMyr + trip.totalCostMyr);
+      point.profitMyr = roundMoney(point.profitMyr + trip.grossProfitMyr);
+      trendMap.set(trip.date, point);
+    }
+    const periodSummary: PnlPeriodSummary = {
+      mode: periodMode,
+      periodLabel: periodLabel({
+        mode: periodMode,
+        year: input.year,
+        month: input.month,
+      }),
+      revenueMyr: computed.tripTotals.revenueMyr,
+      costMyr: computed.tripTotals.totalCostMyr,
+      grossProfitMyr: computed.tripTotals.grossProfitMyr,
+      marginPct: computed.tripTotals.marginPct,
+      tripCount: computed.tripTotals.tripCount,
+      totalQuantity: computed.tripTotals.totalQuantity,
+      trend: Array.from(trendMap.values()).sort((a, b) =>
+        a.date.localeCompare(b.date)
+      ),
+    };
+    return {
+      year: input.year,
+      month: input.month,
+      exchangeRate: ctx.exchangeRate,
+      lkimRatePerCrate: ctx.lkimRatePerCrate,
+      drivers: computed.drivers,
+      trips: computed.trips,
+      tripTotals: computed.tripTotals,
+      periodSummary,
+      customers,
+      lossCustomers,
+    };
+  }
+
+  const { start, end } = resolveDateRange({
+    mode: periodMode,
+    year: input.year,
+    month: input.month,
+    day: input.day,
+    rangeStart: input.rangeStart,
+    rangeEnd: input.rangeEnd,
+  });
+
+  const ctx = await loadPnlComputationContext(input.year, input.month);
+
+  const dispatches = (await prisma.dispatchOrder.findMany({
+    where: {
+      status: { notIn: ["draft", "cancelled"] },
+      date: { gte: start, lte: end },
+    },
+    select: dispatchPnlSelect,
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  })) as DispatchPnlRow[];
+
+  await preloadPnlFreightContexts(ctx, dispatches, end);
+
+  const drivers = Array.from(
+    new Set(
+      dispatches
+        .map((d) => d.driverName?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+  ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
+
+  const matchedDispatches: DispatchPnlRow[] = [];
+  for (const dispatch of dispatches) {
+    const routeGroups = getRouteGroups(dispatch.markets);
+    if (!tripMatchesRouteFilter(routeGroups, routeFilter)) continue;
+    if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
+    matchedDispatches.push(dispatch);
+  }
+  const trips = (await Promise.all(
+    matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
+  )).filter((trip): trip is PnlTripRow => trip != null);
+
+  const tripTotals = buildTripTotalsFromRows(trips);
+
+  const trendMap = new Map<string, PnlDailyTrendPoint>();
+  for (const trip of trips) {
+    const point = trendMap.get(trip.date) ?? {
+      date: trip.date,
+      revenueMyr: 0,
+      costMyr: 0,
+      profitMyr: 0,
+    };
+    point.revenueMyr = roundMoney(point.revenueMyr + trip.revenueMyr);
+    point.costMyr = roundMoney(point.costMyr + trip.totalCostMyr);
+    point.profitMyr = roundMoney(point.profitMyr + trip.grossProfitMyr);
+    trendMap.set(trip.date, point);
+  }
+
+  const periodSummary: PnlPeriodSummary = {
+    mode: periodMode,
+    periodLabel: periodLabel({
+      mode: periodMode,
+      year: input.year,
+      month: input.month,
+      day: input.day,
+      rangeStart: input.rangeStart,
+      rangeEnd: input.rangeEnd,
+    }),
+    revenueMyr: tripTotals.revenueMyr,
+    costMyr: tripTotals.totalCostMyr,
+    grossProfitMyr: tripTotals.grossProfitMyr,
+    marginPct: tripTotals.marginPct,
+    tripCount: tripTotals.tripCount,
+    totalQuantity: tripTotals.totalQuantity,
+    trend: Array.from(trendMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    ),
+  };
+
+  const { customers, lossCustomers } = buildCustomersFromTrips(
+    trips,
+    customerSort
+  );
 
   return {
     year: input.year,

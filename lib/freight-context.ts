@@ -6,6 +6,7 @@ import {
   type InboundFreightContext,
 } from "@/lib/inbound-freight";
 import { getCurrentYearMonth } from "@/lib/freight-rates";
+import { incFreightContextLoadCount } from "@/lib/perf-metrics";
 import { prisma } from "@/lib/prisma";
 
 export async function loadInboundFreightContext(
@@ -15,6 +16,7 @@ export async function loadInboundFreightContext(
   asOfDate: Date,
   pickupLocation: PickupLocation
 ): Promise<{ ctx: InboundFreightContext; shipperCurrency: string }> {
+  incFreightContextLoadCount();
   const yearMonth = getCurrentYearMonth(asOfDate);
   const uniqueStallIds = Array.from(new Set(stallIds));
 

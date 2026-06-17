@@ -175,6 +175,7 @@ model FreightRate {
   shipper Shipper @relation(fields: [shipperId], references: [id])
   market  Market  @relation(fields: [marketId], references: [id])
 
+  @@index([shipperId])
   @@unique([shipperId, marketId, effectiveDate])
   @@map("freight_rates")
 }
@@ -211,6 +212,7 @@ model ConsigneeFreightRate {
   consignee Consignee @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
   market    Market    @relation(fields: [marketId], references: [id])
 
+  @@index([consigneeId])
   @@unique([consigneeId, marketId, effectiveDate])
   @@map("consignee_freight_rates")
 }
@@ -228,6 +230,7 @@ model PaymentRelation {
   consignee          Consignee  @relation(fields: [consigneeId], references: [id], onDelete: Cascade)
   secondaryConsignee Consignee? @relation("SecondaryPaymentConsignee", fields: [secondaryConsigneeId], references: [id])
 
+  @@index([shipperId])
   @@unique([shipperId, consigneeId])
   @@map("payment_relations")
 }
@@ -467,6 +470,7 @@ model InboundSession {
   lines    InboundLine[]
   changeLogs InboundChangeLog[]
 
+  @@index([date, status])
   @@map("inbound_sessions")
 }
 
@@ -509,6 +513,8 @@ model InboundLine {
   dispatchLines    DispatchLine[]
   changeLogs       InboundChangeLog[]
 
+  @@index([dispatchStatus])
+  @@index([sessionId])
   @@map("inbound_lines")
 }
 
@@ -552,6 +558,7 @@ model DispatchOrder {
   payrollTrip   DriverPayrollTrip?
 
   @@index([date])
+  @@index([date, status])
   @@map("dispatch_orders")
 }
 
@@ -565,6 +572,7 @@ model DispatchLine {
   inboundLine   InboundLine   @relation(fields: [inboundLineId], references: [id])
 
   @@index([dispatchOrderId])
+  @@index([inboundLineId])
   @@map("dispatch_lines")
 }
 

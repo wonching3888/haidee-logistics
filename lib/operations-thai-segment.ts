@@ -1,51 +1,31 @@
-import { prisma } from "@/lib/prisma";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
-import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import type { OperationsAssignedInboundLine } from "@/lib/operations-inbound-lines";
+import { fetchOperationsAssignedInboundLines } from "@/lib/operations-inbound-lines";
 import { computeLineThaiSegmentCostMyr } from "@/lib/thai-segment-freight";
+import { prisma } from "@/lib/prisma";
 
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.round(value * 100) / 100;
 }
 
-export async function aggregateThaiSegmentFreightCost(year: number, month: number) {
-  const { start, end } = getMonthDateRange(year, month);
+export async function aggregateThaiSegmentFreightCost(
+  year: number,
+  month: number,
+  preloadedLines?: OperationsAssignedInboundLine[]
+) {
   const yearMonth = `${year}-${String(month).padStart(2, "0")}`;
 
   const [globalCosts, exchangeRateRow, lines] = await Promise.all([
     listGlobalCostSettings(),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
-    prisma.inboundLine.findMany({
-      where: {
-        dispatchStatus: "assigned",
-        dispatchLines: {
-          some: {
-            dispatchOrder: {
-              date: { gte: start, lte: end },
-              status: { notIn: ["draft", "cancelled"] },
-            },
-          },
-        },
-      },
-      select: {
-        quantity: true,
-        freightAmount: true,
-        currency: true,
-        paymentMode: true,
-        tongType: { select: { isBox: true } },
-        stall: { select: { market: { select: { code: true } } } },
-        session: {
-          select: {
-            pickupLocation: true,
-            shipper: { select: { pickupLocation: true } },
-          },
-        },
-      },
-    }),
+    preloadedLines
+      ? Promise.resolve(preloadedLines)
+      : fetchOperationsAssignedInboundLines(year, month),
   ]);
 
   const rates = parseThaiSegmentRates(globalCosts);

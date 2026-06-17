@@ -1,5 +1,8 @@
 {
   "functions": {
+    "app/api/pnl/**": {
+      "maxDuration": 120
+    },
     "app/**": {
       "maxDuration": 60
     }

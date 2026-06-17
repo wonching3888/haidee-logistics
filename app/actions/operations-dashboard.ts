@@ -12,6 +12,7 @@ import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
 import { aggregateLkimMaqisCost } from "@/lib/operations-lkim-maqis";
 import { aggregateThaiSegmentFreightCost } from "@/lib/operations-thai-segment";
+import { fetchOperationsAssignedInboundLines } from "@/lib/operations-inbound-lines";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import {
   buildOperationsDashboardMetrics,
@@ -40,8 +41,12 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-async function aggregateIncome(year: number, month: number) {
-  const income = await aggregateOperationsIncome(year, month);
+async function aggregateIncome(
+  year: number,
+  month: number,
+  inboundLines?: Awaited<ReturnType<typeof fetchOperationsAssignedInboundLines>>
+) {
+  const income = await aggregateOperationsIncome(year, month, inboundLines);
   return {
     mode1aThb: income.mode1aThb,
     mode1bMyr: income.mode1bMyr,
@@ -103,6 +108,11 @@ export async function getOperationsDashboard(input: {
   await requireOperationsAccess();
   const yearMonth = parseYearMonth(input.year, input.month);
 
+  const inboundLines = await fetchOperationsAssignedInboundLines(
+    input.year,
+    input.month
+  );
+
   const [
     income,
     mcThirdPartyMyr,
@@ -113,12 +123,12 @@ export async function getOperationsDashboard(input: {
     exchangeRateRow,
     globalCostRates,
   ] = await Promise.all([
-    aggregateIncome(input.year, input.month),
+    aggregateIncome(input.year, input.month, inboundLines),
     aggregateMcThirdParty(input.year, input.month),
     aggregateFleetPayroll(input.year, input.month),
     aggregateOperationsCosts(input.year, input.month),
-    aggregateLkimMaqisCost(input.year, input.month),
-    aggregateThaiSegmentFreightCost(input.year, input.month),
+    aggregateLkimMaqisCost(input.year, input.month, inboundLines),
+    aggregateThaiSegmentFreightCost(input.year, input.month, inboundLines),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
     loadGlobalCostRates(),
   ]);

@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import type { PaymentMode } from "@/lib/constants/freight-settings";
 import { WTL_SST_MULTIPLIER } from "@/lib/constants/freight-settings";
-import { loadInboundFreightContext } from "@/lib/freight-context";
 import {
   classifyInboundFreightGap,
   computeInboundLineFreight,
@@ -11,6 +9,14 @@ import {
   type InboundFreightGapReason,
 } from "@/lib/inbound-freight";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import {
+  fetchOperationsAssignedInboundLines,
+  type OperationsAssignedInboundLine,
+} from "@/lib/operations-inbound-lines";
+import {
+  getOperationsFreightContext,
+  preloadOperationsFreightContexts,
+} from "@/lib/operations-freight-preload";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -122,36 +128,15 @@ async function aggregateNklPermitIncome(year: number, month: number) {
 
 export async function aggregateOperationsIncome(
   year: number,
-  month: number
+  month: number,
+  preloadedLines?: OperationsAssignedInboundLine[]
 ): Promise<OperationsIncomeResult> {
-  const { start, end } = getMonthDateRange(year, month);
+  const { end } = getMonthDateRange(year, month);
 
-  const lines = await prisma.inboundLine.findMany({
-    where: {
-      dispatchStatus: "assigned",
-      dispatchLines: {
-        some: {
-          dispatchOrder: {
-            date: { gte: start, lte: end },
-            status: { notIn: ["draft", "cancelled"] },
-          },
-        },
-      },
-    },
-    select: {
-      stallId: true,
-      tongTypeId: true,
-      quantity: true,
-      mcDeliveryMode: true,
-      session: {
-        select: {
-          shipperId: true,
-          pickupLocation: true,
-          shipper: { select: { code: true, name: true, pickupLocation: true } },
-        },
-      },
-    },
-  });
+  const lines =
+    preloadedLines ?? (await fetchOperationsAssignedInboundLines(year, month));
+
+  const freightCache = await preloadOperationsFreightContexts(lines, end);
 
   const linesByShipper = new Map<string, typeof lines>();
   for (const line of lines) {
@@ -172,25 +157,14 @@ export async function aggregateOperationsIncome(
   let missingRateLineCount = 0;
   let missingRateQuantity = 0;
 
-  for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
-    const stallIds = Array.from(new Set(shipperLines.map((line) => line.stallId)));
-    const tongTypeIds = Array.from(
-      new Set(shipperLines.map((line) => line.tongTypeId))
-    );
-    const pickupLocation = resolveSessionPickupLocation(
-      shipperLines[0]?.session.pickupLocation,
-      shipperLines[0]?.session.shipper.pickupLocation
-    );
-
-    const { ctx } = await loadInboundFreightContext(
-      shipperId,
-      stallIds,
-      tongTypeIds,
-      end,
-      pickupLocation
-    );
-
+  for (const shipperLines of Array.from(linesByShipper.values())) {
     for (const line of shipperLines) {
+      const ctx = getOperationsFreightContext(
+        freightCache,
+        line,
+        end,
+        shipperLines
+      );
       const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
       const snapshot = computeInboundLineFreight(
         {

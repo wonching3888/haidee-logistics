@@ -9,6 +9,9 @@ import {
 
 const PERIOD_MODES: PnlPeriodMode[] = ["day", "range", "month", "year"];
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
 export async function GET(request: Request) {
   try {
     const user = await requirePnlApiAccess();

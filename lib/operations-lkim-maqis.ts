@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
-import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import type { OperationsAssignedInboundLine } from "@/lib/operations-inbound-lines";
+import { fetchOperationsAssignedInboundLines } from "@/lib/operations-inbound-lines";
 
 const DEFAULT_LKIM_MAQIS_RATE_CRATE_MYR = 2.5;
 const DEFAULT_LKIM_MAQIS_RATE_BOX_MYR = 1.0;
@@ -11,25 +11,16 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-export async function aggregateLkimMaqisCost(year: number, month: number) {
-  const { start, end } = getMonthDateRange(year, month);
-
+export async function aggregateLkimMaqisCost(
+  year: number,
+  month: number,
+  preloadedLines?: OperationsAssignedInboundLine[]
+) {
   const [globalCosts, lines] = await Promise.all([
     listGlobalCostSettings(),
-    prisma.inboundLine.findMany({
-      where: {
-        dispatchStatus: "assigned",
-        dispatchLines: {
-          some: {
-            dispatchOrder: {
-              date: { gte: start, lte: end },
-              status: { notIn: ["draft", "cancelled"] },
-            },
-          },
-        },
-      },
-      select: { quantity: true, tongType: { select: { isBox: true } } },
-    }),
+    preloadedLines
+      ? Promise.resolve(preloadedLines)
+      : fetchOperationsAssignedInboundLines(year, month),
   ]);
 
   const ratePerCrate =

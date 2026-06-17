@@ -6,6 +6,9 @@ import {
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ shipperId: string }> }
