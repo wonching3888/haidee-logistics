@@ -9,10 +9,6 @@ import {
 } from "@/lib/reports/parse-report-params";
 
 export async function GET(request: Request) {
-  const dbUrl = process.env.DATABASE_URL || "MISSING";
-  const maskedUrl = dbUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@");
-  console.log("[DEBUG] DATABASE_URL host check:", maskedUrl);
-
   try {
     const user = await requirePnlApiAccess();
     if (!user) {
