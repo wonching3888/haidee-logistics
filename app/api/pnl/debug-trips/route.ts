@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { buildPnlTripsList } from "@/lib/pnl-report";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const data = await buildPnlTripsList({

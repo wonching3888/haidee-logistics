@@ -8,6 +8,8 @@ import {
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const dbUrl = process.env.DATABASE_URL || "MISSING";
   const refMatch =
