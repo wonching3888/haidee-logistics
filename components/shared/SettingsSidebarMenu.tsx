@@ -44,14 +44,23 @@ export function SettingsSidebarMenu({ onNavigate }: SettingsSidebarMenuProps) {
                 className={cn(
                   "flex min-h-[40px] w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
                   freightGroupActive
-                    ? "bg-haidee-accent/20 text-haidee-accent"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#8FB585] text-white"
+                    : "text-[#2d4a2d] hover:bg-[#8FB585]/25 hover:text-[#2d4a2d]"
                 )}
               >
                 <span className="flex flex-1 items-center justify-between gap-2 text-left">
                   <span>
                     {item.label}{" "}
-                    <span className="text-xs text-white/50">{item.labelEn}</span>
+                    <span
+                      className={cn(
+                        "text-xs",
+                        freightGroupActive
+                          ? "text-white/80"
+                          : "text-[#2d4a2d]/60"
+                      )}
+                    >
+                      {item.labelEn}
+                    </span>
                   </span>
                   {freightOpen ? (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
@@ -121,12 +130,20 @@ function SettingsSubLink({
         "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
         compact ? "min-h-[36px]" : "min-h-[40px]",
         isActive
-          ? "bg-haidee-accent/20 text-haidee-accent"
-          : "text-white/70 hover:bg-white/10 hover:text-white"
+          ? "bg-[#8FB585] text-white"
+          : "text-[#2d4a2d] hover:bg-[#8FB585]/25 hover:text-[#2d4a2d]"
       )}
     >
       <span>
-        {label} <span className="text-xs text-white/50">{labelEn}</span>
+        {label}{" "}
+        <span
+          className={cn(
+            "text-xs",
+            isActive ? "text-white/80" : "text-[#2d4a2d]/60"
+          )}
+        >
+          {labelEn}
+        </span>
       </span>
     </Link>
   );

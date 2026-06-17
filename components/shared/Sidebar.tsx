@@ -52,6 +52,14 @@ const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
   children: DOCUMENTS_SIDEBAR_CHILDREN,
 };
 
+const SIDEBAR_BG = "bg-[#A8C5A0]";
+const SIDEBAR_TEXT = "text-[#2d4a2d]";
+const SIDEBAR_LABEL_MUTED = "text-[#2d4a2d]/60";
+const SIDEBAR_NAV_ACTIVE = "bg-[#8FB585] text-white";
+const SIDEBAR_NAV_INACTIVE =
+  "text-[#2d4a2d] hover:bg-[#8FB585]/25 hover:text-[#2d4a2d]";
+const SIDEBAR_ACTIVE_LABEL_MUTED = "text-white/80";
+
 interface SidebarProps {
   role: UserRole;
   isOpen?: boolean;
@@ -110,13 +118,15 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "flex h-full w-60 shrink-0 flex-col bg-haidee-navy text-white shadow-lg",
+        "flex h-full w-60 shrink-0 flex-col shadow-lg",
+        SIDEBAR_BG,
+        SIDEBAR_TEXT,
         "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:transition-transform max-md:duration-300",
         isOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
         "md:relative md:translate-x-0"
       )}
     >
-      <div className="border-b border-white/10 px-5 py-5">
+      <div className="border-b border-[#2d4a2d]/10 px-5 py-5">
         <div className="flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -124,11 +134,15 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             width={32}
             height={32}
             alt="WTL Logo"
-            style={{ marginRight: "8px" }}
+            style={{ marginRight: "8px", mixBlendMode: "multiply" }}
           />
           <div>
-            <p className="text-sm font-semibold leading-tight">海利物流有限公司</p>
-            <p className="mt-0.5 text-xs text-white/60">HAI DEE LOGISTICS CO.,LTD</p>
+            <p className="text-sm font-semibold leading-tight text-[#2d4a2d]">
+              海利物流有限公司
+            </p>
+            <p className="mt-0.5 text-xs text-[#2d4a2d]/70">
+              HAI DEE LOGISTICS CO.,LTD
+            </p>
           </div>
         </div>
       </div>
@@ -181,8 +195,8 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-white/10 px-5 py-4">
-        <p className="text-center text-[10px] text-white/40">
+      <div className="border-t border-[#2d4a2d]/10 px-5 py-4">
+        <p className="text-center text-[10px] text-[#2d4a2d]/50">
           © 2026 DMC SYSTEM
           <br />
           All Rights Reserved.
@@ -220,15 +234,20 @@ function ExpandableNavGroup({
         onClick={onToggle}
         className={cn(
           "flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-          groupActive
-            ? "bg-haidee-accent/20 text-haidee-accent"
-            : "text-white/75 hover:bg-white/10 hover:text-white"
+          groupActive ? SIDEBAR_NAV_ACTIVE : SIDEBAR_NAV_INACTIVE
         )}
       >
         <Icon className="h-5 w-5 shrink-0" />
         <span className="flex-1 text-left">
           {group.label}{" "}
-          <span className="text-xs text-white/50">{group.labelEn}</span>
+          <span
+            className={cn(
+              "text-xs",
+              groupActive ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
+            )}
+          >
+            {group.labelEn}
+          </span>
         </span>
         {open ? (
           <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
@@ -270,13 +289,19 @@ function SidebarSubLink({
       onClick={onNavigate}
       className={cn(
         "flex min-h-[40px] items-center rounded-lg px-3 py-2 text-sm transition-colors",
-        isActive
-          ? "bg-haidee-accent/20 text-haidee-accent"
-          : "text-white/70 hover:bg-white/10 hover:text-white"
+        isActive ? SIDEBAR_NAV_ACTIVE : SIDEBAR_NAV_INACTIVE
       )}
     >
       <span>
-        {label} <span className="text-xs text-white/50">{labelEn}</span>
+        {label}{" "}
+        <span
+          className={cn(
+            "text-xs",
+            isActive ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
+          )}
+        >
+          {labelEn}
+        </span>
       </span>
     </Link>
   );
@@ -301,15 +326,20 @@ function NavLink({
         onClick={onNavigate}
         className={cn(
           "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-          active
-            ? "bg-haidee-accent/20 text-haidee-accent"
-            : "text-white/75 hover:bg-white/10 hover:text-white"
+          active ? SIDEBAR_NAV_ACTIVE : SIDEBAR_NAV_INACTIVE
         )}
       >
         <Icon className="h-5 w-5 shrink-0" />
         <span>
           {item.label}{" "}
-          <span className="text-xs text-white/50">{item.labelEn}</span>
+          <span
+            className={cn(
+              "text-xs",
+              active ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
+            )}
+          >
+            {item.labelEn}
+          </span>
         </span>
       </Link>
     </li>
