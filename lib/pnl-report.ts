@@ -1542,7 +1542,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       const allocatedCostMyr = allocateShare(
         quantity,
         tripQuantity,
-        tripAllocatedTotal
+        tripAllocatedWithoutLoadUnload
       );
 
       const existing = marketMap.get(marketCode) ?? {
