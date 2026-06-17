@@ -16,10 +16,6 @@ import {
   sumColumnQuantities,
 } from "@/lib/constants/tong-columns";
 import {
-  formatPickupLocationLabel,
-  resolveSessionPickupLocation,
-} from "@/lib/constants/pickup-locations";
-import {
   CRATE_TYPE_RECORD_BLOCKS,
   getCrateTypeRecordBlockTitle,
 } from "@/lib/crate-type-record-areas";
@@ -29,7 +25,7 @@ export interface DORow {
   consignor: string;
   store: string;
   area: string;
-  pickupLocation: string;
+  remarks: string;
   quantities: Record<string, number>;
   qty: number;
 }
@@ -135,7 +131,7 @@ function buildDORow(
   consignor: string,
   store: string,
   area: string,
-  pickupLocation: string,
+  remarks: string,
   tongCode: string,
   quantity: number
 ): DORow {
@@ -147,7 +143,7 @@ function buildDORow(
     consignor,
     store,
     area,
-    pickupLocation,
+    remarks,
     quantities,
     qty: isBoxColumn(col) ? 0 : quantity,
   };
@@ -217,12 +213,7 @@ export async function getDeliveryOrderData(
 
   for (const dl of order.lines) {
     const line = dl.inboundLine;
-    const pickupLocation = formatPickupLocationLabel(
-      resolveSessionPickupLocation(
-        line.session.pickupLocation,
-        line.session.shipper.pickupLocation
-      )
-    );
+    const remarks = line.session.areaNote?.trim() ?? "";
     const key = `${line.sessionId}:${line.stallId}`;
     const consignor = line.session.shipper.name;
     const store = line.stall.code;
@@ -239,7 +230,7 @@ export async function getDeliveryOrderData(
           consignor,
           store,
           area,
-          pickupLocation,
+          remarks,
           line.tongType.code,
           line.quantity
         )
