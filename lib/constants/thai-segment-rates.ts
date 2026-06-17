@@ -19,20 +19,20 @@ export const THAI_SEGMENT_RATE_UI: Record<
   { label: string; notes: string }
 > = {
   songkhla_rate_tong: {
-    label: "宋卡段车力/桶 Songkhla Rate per Tong",
-    notes: "THB/桶",
+    label: "宋卡段/桶 Songkhla per Tong",
+    notes: "THB",
   },
   songkhla_rate_box: {
-    label: "宋卡段车力/盒 Songkhla Rate per Box",
-    notes: "THB/盒",
+    label: "宋卡段/盒 Songkhla per Box",
+    notes: "THB",
   },
   pattani_rate_tong: {
-    label: "北大年段车力/桶 Pattani Rate per Tong",
-    notes: "THB/桶",
+    label: "北大年段/桶 Pattani per Tong",
+    notes: "THB",
   },
   pattani_rate_box: {
-    label: "北大年段车力/盒 Pattani Rate per Box",
-    notes: "THB/盒",
+    label: "北大年段/盒 Pattani per Box",
+    notes: "THB",
   },
 };
 

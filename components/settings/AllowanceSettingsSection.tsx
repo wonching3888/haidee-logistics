@@ -14,8 +14,6 @@ import {
 } from "@/components/ui/table";
 import { saveAllowanceSettings } from "@/app/actions/allowance-settings";
 import { formatRouteMarkets } from "@/components/settings/RouteFormDialog";
-import { GlobalCostSettingsSection } from "@/components/settings/GlobalCostSettingsSection";
-import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 
 interface RouteAllowanceRow {
   id: string;
@@ -26,7 +24,6 @@ interface RouteAllowanceRow {
 }
 
 interface PayrollSettingsSectionProps {
-  globalCosts: GlobalCostSettingRow[];
   routes: RouteAllowanceRow[];
   extraMarketAllowance: number;
   bigTruckCrateCommission: number | null;
@@ -34,7 +31,6 @@ interface PayrollSettingsSectionProps {
 }
 
 export function PayrollSettingsSection({
-  globalCosts,
   routes,
   extraMarketAllowance,
   bigTruckCrateCommission,
@@ -213,12 +209,6 @@ export function PayrollSettingsSection({
           </Button>
         </div>
       </div>
-
-      <GlobalCostSettingsSection
-        settings={globalCosts}
-        title="全局费用 Global Trip Costs"
-        tripCostsOnly
-      />
     </div>
   );
 }

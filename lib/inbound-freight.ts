@@ -15,8 +15,6 @@ export type McDeliveryMode = "self" | "third_party";
 export interface OperationalFreightSettings {
   mcThirdPartyRateTong: number | null;
   mcThirdPartyRateBox: number | null;
-  mySegmentRateTong: number | null;
-  mySegmentRateBox: number | null;
 }
 
 export interface InboundLineFreightInput {
@@ -614,15 +612,11 @@ export function normalizeMcDeliveryMode(
 export function serializeOperationalSettings(row: {
   mcThirdPartyRateTong: unknown;
   mcThirdPartyRateBox: unknown;
-  mySegmentRateTong: unknown;
-  mySegmentRateBox: unknown;
   driverAllowancePerCrate?: unknown;
 } | null): OperationalFreightSettings & { driverAllowancePerCrate: number | null } {
   return {
     mcThirdPartyRateTong: decimalToNumber(row?.mcThirdPartyRateTong),
     mcThirdPartyRateBox: decimalToNumber(row?.mcThirdPartyRateBox),
-    mySegmentRateTong: decimalToNumber(row?.mySegmentRateTong),
-    mySegmentRateBox: decimalToNumber(row?.mySegmentRateBox),
     driverAllowancePerCrate: decimalToNumber(row?.driverAllowancePerCrate),
   };
 }

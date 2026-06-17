@@ -31,6 +31,8 @@ import {
   saveOperationalFreightSettings,
 } from "@/app/actions/freight-settings";
 import { saveGlobalCostSettings } from "@/app/actions/global-cost-settings";
+import { GlobalCostSettingsSection } from "@/components/settings/GlobalCostSettingsSection";
+import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 import type { OperationalSettingsValues } from "@/lib/constants/operational-settings";
 
 interface ExchangeRateRow {
@@ -64,6 +66,7 @@ interface OperationsSettingsSectionProps {
     "mcThirdPartyRateTong" | "mcThirdPartyRateBox"
   >;
   thaiSegmentRates: ThaiSegmentRateValues;
+  globalCosts: GlobalCostSettingRow[];
 }
 
 const THAI_SEGMENT_FORM_FIELDS: {
@@ -87,6 +90,7 @@ export function OperationsSettingsSection({
   fuelPrice,
   operationalSettings,
   thaiSegmentRates,
+  globalCosts,
 }: OperationsSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -348,6 +352,12 @@ export function OperationsSettingsSection({
         </div>
       </div>
 
+      <GlobalCostSettingsSection
+        settings={globalCosts}
+        title="全局费用 Global Costs"
+        tripCostsOnly
+      />
+
       <div className="rounded-lg border border-haidee-border bg-white p-4">
         <div className="mb-3">
           <h4 className="text-sm font-semibold text-haidee-text">
@@ -413,10 +423,10 @@ export function OperationsSettingsSection({
       <div className="rounded-lg border border-haidee-border bg-white p-4">
         <div className="mb-3">
           <h4 className="text-sm font-semibold text-haidee-text">
-            泰国段车力 Thai Segment
+            泰国段车力设定 Thai Segment Freight
           </h4>
           <p className="text-xs text-haidee-muted">
-            内部成本分拆：按收货地点将总车力拆为泰国段与马来西亚段。不影响客户账单。
+            内部成本分拆：按收货地点将总车力拆为泰国段与马来西亚段（THB 费率）。不影响客户账单。
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -457,7 +467,7 @@ export function OperationsSettingsSection({
               })
             }
           >
-            保存泰国段车力 Save Thai Segment
+            保存泰国段车力设定 Save Thai Segment Freight
           </Button>
         </div>
       </div>

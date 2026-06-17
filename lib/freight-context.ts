@@ -114,8 +114,6 @@ export async function loadInboundFreightContext(
       operationalSettings: {
         mcThirdPartyRateTong: operational.mcThirdPartyRateTong,
         mcThirdPartyRateBox: operational.mcThirdPartyRateBox,
-        mySegmentRateTong: operational.mySegmentRateTong,
-        mySegmentRateBox: operational.mySegmentRateBox,
       },
       stalls: new Map(
         stalls.map((stall) => [

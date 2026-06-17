@@ -171,6 +171,7 @@ interface SettingsClientProps {
       pattaniRateTong: number;
       pattaniRateBox: number;
     };
+    globalCosts: GlobalCostSettingRow[];
     marketOperationalRates: {
       marketId: string;
       code: string;
@@ -195,7 +196,6 @@ interface SettingsClientProps {
   }[];
   routeMasters: RouteMasterRow[];
   payrollSettings: {
-    globalCosts: GlobalCostSettingRow[];
     routes: {
       id: string;
       code: string;
@@ -725,6 +725,7 @@ export function SettingsClient({
             fuelPrice={freightData.fuelPrice}
             operationalSettings={freightData.operationalSettings}
             thaiSegmentRates={freightData.thaiSegmentRates}
+            globalCosts={freightData.globalCosts}
           />
           </>
         )}
@@ -739,7 +740,6 @@ export function SettingsClient({
 
         {activeSection === "payroll-settings" && payrollSettings && (
           <PayrollSettingsSection
-            globalCosts={payrollSettings.globalCosts}
             routes={payrollSettings.routes}
             extraMarketAllowance={payrollSettings.extraMarketAllowance}
             bigTruckCrateCommission={payrollSettings.bigTruckCrateCommission}

@@ -214,6 +214,7 @@ export async function getFreightSettingsData() {
         DEFAULT_FUEL_PRICES.thbPerLiter,
     },
     operationalSettings: serializeOperationalSettings(operationalRow),
+    globalCosts: globalCostSettings,
     thaiSegmentRates: parseThaiSegmentRates(globalCostSettings),
     marketOperationalRates: freightMarkets.map((market) => {
       const row = markets.find((item) => item.id === market.id);
@@ -464,8 +465,6 @@ export async function saveFuelPrice(input: {
 export async function saveOperationalFreightSettings(input: {
   mcThirdPartyRateTong?: number | null;
   mcThirdPartyRateBox?: number | null;
-  mySegmentRateTong?: number | null;
-  mySegmentRateBox?: number | null;
   driverAllowancePerCrate?: number | null;
 }) {
   await requireAdmin();
@@ -481,8 +480,6 @@ export async function saveOperationalFreightSettings(input: {
   const updateData: {
     mcThirdPartyRateTong?: number | null;
     mcThirdPartyRateBox?: number | null;
-    mySegmentRateTong?: number | null;
-    mySegmentRateBox?: number | null;
     driverAllowancePerCrate?: number | null;
   } = {};
 
@@ -491,12 +488,6 @@ export async function saveOperationalFreightSettings(input: {
   }
   if (input.mcThirdPartyRateBox !== undefined) {
     updateData.mcThirdPartyRateBox = parseOptionalRate(input.mcThirdPartyRateBox);
-  }
-  if (input.mySegmentRateTong !== undefined) {
-    updateData.mySegmentRateTong = parseOptionalRate(input.mySegmentRateTong);
-  }
-  if (input.mySegmentRateBox !== undefined) {
-    updateData.mySegmentRateBox = parseOptionalRate(input.mySegmentRateBox);
   }
   if (input.driverAllowancePerCrate !== undefined) {
     updateData.driverAllowancePerCrate = parseOptionalRate(
@@ -510,8 +501,6 @@ export async function saveOperationalFreightSettings(input: {
       id: "default",
       mcThirdPartyRateTong: parseOptionalRate(input.mcThirdPartyRateTong),
       mcThirdPartyRateBox: parseOptionalRate(input.mcThirdPartyRateBox),
-      mySegmentRateTong: parseOptionalRate(input.mySegmentRateTong),
-      mySegmentRateBox: parseOptionalRate(input.mySegmentRateBox),
       driverAllowancePerCrate: parseOptionalRate(input.driverAllowancePerCrate),
     },
     update: updateData,
