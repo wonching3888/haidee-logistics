@@ -139,6 +139,18 @@ export function UnloadingRatesSettings() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-haidee-muted">
+        各市场下货费与 KPB 费率（MYR），驱动 P&amp;L 下货成本与司机费用模块计算。
+        Unloading and KPB rates per market; used for P&amp;L unload costs and driver
+        expense records.
+      </p>
+      <p className="rounded-lg border border-haidee-border bg-haidee-surface/50 px-4 py-3 text-sm text-haidee-text">
+        <span className="font-medium">KL 搬车子市场（SL / BP / MP）：</span>
+        基础下货费按 KL 费率、按桶/箱量计费；KPB 仅在档口编号符合 A–H
+        加数字格式时收取，无档口则豁免 KPB。
+        Sub-markets SL, BP, MP use KL unload rates; KPB applies only when stall code
+        matches the KL store pattern.
+      </p>
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}

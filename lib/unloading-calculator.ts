@@ -1,6 +1,8 @@
 import {
   KL_KPB_STORE_PATTERN,
   PER_TRIP_UNLOAD_MARKETS,
+  resolveUnloadingRateConfigMarket,
+  usesKlUnloadFeeRules,
   ZERO_UNLOAD_MARKETS,
   type TruckSize,
 } from "@/lib/driver-expense/constants";
@@ -79,7 +81,7 @@ export function calculateTripUnloadingFees(input: {
 
   for (const line of lines) {
     const market = line.market.trim().toUpperCase();
-    const rate = ratesByMarket.get(market);
+    const rate = ratesByMarket.get(resolveUnloadingRateConfigMarket(market));
     const storeCode = line.storeCode?.trim() || null;
 
     if (ZERO_UNLOAD_MARKETS.has(market) || !rate) {
@@ -111,7 +113,7 @@ export function calculateTripUnloadingFees(input: {
         tripLevelNote = "同趟已计下货费";
       }
       isKpbExempt = true;
-    } else if (market === "KL") {
+    } else if (usesKlUnloadFeeRules(market)) {
       unloadFee = roundMoney(
         line.smallCrateQty * rate.smallCrate +
           line.largeCrateQty * rate.largeCrate +
