@@ -2,8 +2,10 @@ import { isOtherMarket, sortMarkets } from "@/lib/markets";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { prisma } from "@/lib/prisma";
-import { lookupUnloadRateMap } from "@/lib/unload-rates-service";
-import { unloadRateKey } from "@/lib/constants/unload-rates";
+import {
+  estimateTripUnloadingFeesTotal,
+  getUnloadingRatesByMarket,
+} from "@/lib/driver-expense-service";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { DEFAULT_FUEL_PRICES } from "@/lib/constants/truck-cost";
@@ -211,7 +213,7 @@ export async function aggregateOperationsCosts(
   const [
     routeMasters,
     dispatches,
-    unloadRateMap,
+    unloadingRatesByMarket,
     crateRentalRates,
     globalCosts,
     trucks,
@@ -241,13 +243,16 @@ export async function aggregateOperationsCosts(
         id: true,
         markets: true,
         truckId: true,
+        truck: { select: { type: true } },
         lines: {
           select: {
             inboundLine: {
               select: {
+                dispatchStatus: true,
                 quantity: true,
                 stall: {
                   select: {
+                    code: true,
                     market: {
                       select: { code: true },
                     },
@@ -256,6 +261,7 @@ export async function aggregateOperationsCosts(
                 tongType: {
                   select: {
                     code: true,
+                    isBox: true,
                   },
                 },
               },
@@ -264,7 +270,7 @@ export async function aggregateOperationsCosts(
         },
       },
     }),
-    lookupUnloadRateMap(),
+    getUnloadingRatesByMarket(),
     listCrateRentalRates(),
     loadGlobalTripCostValues(),
     prisma.truck.findMany({
@@ -415,21 +421,10 @@ export async function aggregateOperationsCosts(
         tripLoadUnloadFee += row.loadingFeeOverride ?? row.loadingFee;
       }
     } else {
-      for (const line of dispatch.lines) {
-        const inboundLine = line.inboundLine;
-        if (!inboundLine?.tongType?.code) continue;
-
-        const marketCode = inboundLine.stall?.market?.code;
-        if (!marketCode || isOtherMarket(marketCode)) continue;
-
-        const quantity = decimalToNumber(inboundLine.quantity) ?? 0;
-        if (quantity <= 0) continue;
-
-        const crateType = inboundLine.tongType.code;
-        const unloadRate =
-          unloadRateMap.get(unloadRateKey(marketCode, crateType)) ?? 0;
-        tripLoadUnloadFee += quantity * unloadRate;
-      }
+      tripLoadUnloadFee += estimateTripUnloadingFeesTotal(
+        dispatch,
+        unloadingRatesByMarket
+      );
     }
     totals.loadUnloadFee += tripLoadUnloadFee;
 

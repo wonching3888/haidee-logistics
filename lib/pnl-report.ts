@@ -27,7 +27,6 @@ import {
   getMonthDateRange,
   getYearDateRange,
 } from "@/lib/reports/period-report-shared";
-import { lookupUnloadRateMap } from "@/lib/unload-rates-service";
 import { prisma } from "@/lib/prisma";
 import {
   getCachedPnlMonthTrips,
@@ -687,7 +686,6 @@ interface PnlComputationContext {
   lkimRatePerBox: number;
   thaiSegmentRates: ThaiSegmentRates;
   routes: RouteMasterCostRow[];
-  unloadRateMap: Awaited<ReturnType<typeof lookupUnloadRateMap>>;
   rentalRateByType: Map<string, number>;
   globalCosts: Awaited<ReturnType<typeof loadGlobalTripCostValues>>;
   truckById: Map<
@@ -737,7 +735,7 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRates, thaiSegmentRates, routeMasters, unloadRateMap, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
+  const [exchangeRate, lkimRates, thaiSegmentRates, routeMasters, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -755,7 +753,6 @@ async function loadPnlComputationContext(
           parkingFee: true,
         },
       }),
-      lookupUnloadRateMap(),
       listCrateRentalRates(),
       loadGlobalTripCostValues(),
       prisma.truck.findMany({
@@ -915,7 +912,6 @@ async function loadPnlComputationContext(
     lkimRatePerBox: lkimRates.box,
     thaiSegmentRates,
     routes,
-    unloadRateMap,
     rentalRateByType,
     globalCosts,
     truckById,

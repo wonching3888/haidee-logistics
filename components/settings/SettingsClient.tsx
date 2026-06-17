@@ -46,7 +46,7 @@ import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrol
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
 import { PayrollSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
-import { UnloadSettingsSection } from "@/components/settings/UnloadSettingsSection";
+import { UnloadingRatesSettings } from "@/components/driver-expenses/UnloadingRatesSettings";
 import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
 import {
@@ -214,16 +214,6 @@ interface SettingsClientProps {
     rateMyr: number;
     notes: string | null;
   }[];
-  unloadRatesMatrix: {
-    marketCode: string;
-    rates: {
-      id: string;
-      marketCode: string;
-      crateType: string;
-      rateMyr: number;
-      notes: string | null;
-    }[];
-  }[];
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -257,7 +247,6 @@ export function SettingsClient({
   routeMasters,
   payrollSettings,
   crateRentalRates,
-  unloadRatesMatrix,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -753,9 +742,7 @@ export function SettingsClient({
           <CrateRentalRatesSection rates={crateRentalRates} />
         )}
 
-        {activeSection === "unload-settings" && (
-          <UnloadSettingsSection matrix={unloadRatesMatrix} />
-        )}
+        {activeSection === "unload-settings" && <UnloadingRatesSettings />}
         </div>
       </div>
 

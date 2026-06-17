@@ -273,6 +273,59 @@ function aggregateDispatchUnloadingLines(
   return Array.from(byMarket.values());
 }
 
+export type UnloadingDispatchEstimateInput = {
+  truck: { type: string | null } | null;
+  lines: Array<{
+    inboundLine: {
+      dispatchStatus: string;
+      quantity: unknown;
+      stall: {
+        code: string | null;
+        market: { code: string } | null;
+      };
+      tongType: { code: string; isBox: boolean } | null;
+    } | null;
+  }>;
+};
+
+export async function getUnloadingRatesByMarket(): Promise<
+  Map<string, UnloadingRateConfigInput>
+> {
+  const rows = await listUnloadingRateConfigs();
+  return new Map(rows.map((row) => [row.market, row]));
+}
+
+export function estimateTripUnloadingFeesTotal(
+  dispatch: UnloadingDispatchEstimateInput,
+  ratesByMarket: Map<string, UnloadingRateConfigInput>
+): number {
+  const truckSize = resolveTruckSize(dispatch.truck?.type);
+  const marketLines = aggregateDispatchUnloadingLines(
+    dispatch as Awaited<ReturnType<typeof loadDispatchForExpense>>
+  );
+  const calculated = calculateTripUnloadingFees({
+    lines: marketLines,
+    ratesByMarket,
+    truckSize,
+  });
+  return roundMoney(
+    calculated.reduce(
+      (sum, row) =>
+        sum +
+        effectiveUnloadFee({
+          unloadFee: row.unloadFee,
+          unloadFeeOverride: null,
+        }) +
+        effectiveKpbFee({
+          kpbFee: row.kpbFee,
+          kpbFeeOverride: null,
+          isKpbExempt: row.isKpbExempt,
+        }),
+      0
+    )
+  );
+}
+
 async function loadDispatchForExpense(tripId: string) {
   const dispatch = await prisma.dispatchOrder.findUnique({
     where: { id: tripId },
