@@ -40,9 +40,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-haidee-surface px-4">
       <Card className="w-full max-w-md border-haidee-border shadow-lg">
         <CardHeader className="space-y-3 pb-2 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-haidee-navy text-xl font-bold text-haidee-accent">
-            HD
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            width={64}
+            height={64}
+            alt="WTL Logo"
+            className="mx-auto"
+          />
           <div>
             <h1 className="text-xl font-bold text-haidee-text">
               海利物流有限公司

@@ -32,6 +32,7 @@ import {
 } from "@/lib/unloading-calculator";
 import { formatMyr } from "@/lib/driver-expense/voucher-utils";
 import { cn } from "@/lib/utils";
+import { PrintCompanyHeader } from "@/components/shared/PrintLogo";
 import "./driver-expense-print.css";
 
 interface DriverExpensesClientProps {
@@ -590,6 +591,9 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
 
       {printUnloadingGroup && (
         <div className="driver-expense-print-area hidden print:block">
+          <PrintCompanyHeader className="print-title">
+            Hai Dee Logistics Co.,Ltd
+          </PrintCompanyHeader>
           <div className="print-title">
             Upah Turun — {printUnloadingGroup.lorry}
           </div>

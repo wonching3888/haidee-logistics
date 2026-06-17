@@ -117,8 +117,20 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
       )}
     >
       <div className="border-b border-white/10 px-5 py-5">
-        <p className="text-sm font-semibold leading-tight">海利物流有限公司</p>
-        <p className="mt-0.5 text-xs text-white/60">HAI DEE LOGISTICS CO.,LTD</p>
+        <div className="flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            width={32}
+            height={32}
+            alt="WTL Logo"
+            style={{ marginRight: "8px" }}
+          />
+          <div>
+            <p className="text-sm font-semibold leading-tight">海利物流有限公司</p>
+            <p className="mt-0.5 text-xs text-white/60">HAI DEE LOGISTICS CO.,LTD</p>
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">

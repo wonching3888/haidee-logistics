@@ -22,6 +22,8 @@
   }
 
   .voucher-print-area .voucher-print-company {
+    display: flex;
+    align-items: center;
     font-size: 16pt;
     margin-bottom: 12px;
   }
@@ -100,6 +102,9 @@
 }
 
 .voucher-print-area .voucher-print-company {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-size: 15pt;
   font-weight: bold;

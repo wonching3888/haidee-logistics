@@ -9,6 +9,7 @@ import {
   flattenAreaGroupRows,
   GroupedAreaTruckRows,
 } from "@/components/documents/GroupedAreaTruckRows";
+import { PrintCompanyHeader } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface DeliveryOrderPrintProps {
@@ -30,9 +31,9 @@ export function DeliveryOrderPrint({
 
   return (
     <div className="document-print">
-      <div className="header-title">
+      <PrintCompanyHeader>
         海利物流有限公司 HAI DEE LOGISTICS CO.,LTD
-      </div>
+      </PrintCompanyHeader>
       <div className="header-row">
         <span>LORRY NO: {data.lorryNo}</span>
         <span style={{ fontWeight: "bold" }}>*** DELIVERY ORDER ***</span>

@@ -10,6 +10,7 @@ import {
   flattenAreaGroupRows,
   GroupedAreaTruckRows,
 } from "@/components/documents/GroupedAreaTruckRows";
+import { PrintCompanyHeader } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface MarketDOPrintProps {
@@ -31,7 +32,9 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
     return (
       <div className="document-print">
         <div className="header-title">海利物流有限公司</div>
-        <div className="header-sub">HAI DEE LOGISTICS CO., LTD,</div>
+        <PrintCompanyHeader className="header-sub">
+          HAI DEE LOGISTICS CO., LTD,
+        </PrintCompanyHeader>
         <div className="header-title" style={{ marginTop: 8 }}>
           *** 每日渔桶寄至 {titleMarkets} ***
         </div>
@@ -50,7 +53,9 @@ export function MarketDOPrint({ data }: MarketDOPrintProps) {
   return (
     <div className="document-print">
       <div className="header-title">海利物流有限公司</div>
-      <div className="header-sub">HAI DEE LOGISTICS CO., LTD,</div>
+      <PrintCompanyHeader className="header-sub">
+        HAI DEE LOGISTICS CO., LTD,
+      </PrintCompanyHeader>
       <div className="header-title" style={{ marginTop: 8 }}>
         *** 每日渔桶寄至 {titleMarkets} ***
       </div>
