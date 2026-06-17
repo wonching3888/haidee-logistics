@@ -82,7 +82,7 @@ export function MonthlyInvoicePicker() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-haidee-muted">
-        选择年份与月份，按四种付款模式分别生成月结账单。每位顾客单独一份 PDF。
+        选择年份与月份，按五种付款模式分别生成月结账单。每位顾客单独一份 PDF。
         Select year/month and mode; one printable invoice per customer.
       </p>
 

@@ -45,17 +45,29 @@ async function fetchRawInvoiceLines(
 
   const { start, end } = getMonthDateRange(year, month);
 
-  const lines = await prisma.inboundLine.findMany({
-    where: {
-      paymentMode: config.paymentMode,
-      billingCompany: config.billingCompany,
-      currency: config.currency,
-      freightAmount: { gt: 0 },
-      session: {
-        status: "confirmed",
-        date: { gte: start, lte: end },
-      },
+  const sharedWhere = {
+    freightAmount: { gt: 0 },
+    session: {
+      status: "confirmed" as const,
+      date: { gte: start, lte: end },
     },
+  };
+
+  const lines = await prisma.inboundLine.findMany({
+    where:
+      mode === "4"
+        ? {
+            billingCompany: "wtl",
+            currency: "MYR",
+            paymentMode: { not: "3" },
+            ...sharedWhere,
+          }
+        : {
+            paymentMode: config.paymentMode,
+            billingCompany: config.billingCompany,
+            currency: config.currency,
+            ...sharedWhere,
+          },
     include: {
       session: {
         select: {
@@ -81,6 +93,10 @@ async function fetchRawInvoiceLines(
     quantity: line.quantity,
     freightRate: decimalToNumber(line.freightRate),
     freightAmount: decimalToNumber(line.freightAmount),
+    thFreightRate: decimalToNumber(line.thFreightRate),
+    thFreightAmount: decimalToNumber(line.thFreightAmount),
+    mySegmentFreightRate: decimalToNumber(line.mySegmentFreightRate),
+    mySegmentFreightAmount: decimalToNumber(line.mySegmentFreightAmount),
     isBox: line.isBox,
     shipperId: line.session.shipper.id,
     shipperCode: line.session.shipper.code,

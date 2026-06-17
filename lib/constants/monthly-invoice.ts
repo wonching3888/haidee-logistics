@@ -1,12 +1,13 @@
 import type { PaymentMode } from "@/lib/constants/freight-settings";
 
-export type MonthlyInvoiceMode = "1a" | "1b" | "2" | "3";
+export type MonthlyInvoiceMode = "1a" | "1b" | "2" | "3" | "4";
 
 export type MonthlyInvoiceBillTo = "shipper" | "consignee";
 
 export interface MonthlyInvoiceModeConfig {
   value: MonthlyInvoiceMode;
-  paymentMode: PaymentMode;
+  /** Omitted for mode 4 (WTL shipper filter uses billing + currency). */
+  paymentMode?: PaymentMode;
   billingCompany: "haidee" | "wtl";
   currency: "THB" | "MYR";
   billTo: MonthlyInvoiceBillTo;
@@ -14,6 +15,10 @@ export interface MonthlyInvoiceModeConfig {
   label: string;
   labelEn: string;
   sstNote?: boolean;
+  /** TH/MY dual-segment line layout (mode 4). */
+  dualSegmentDisplay?: boolean;
+  /** Footnote for MY segment SST on dual-segment invoices. */
+  mySegmentSstNote?: boolean;
 }
 
 export const MONTHLY_INVOICE_MODES: MonthlyInvoiceModeConfig[] = [
@@ -57,6 +62,17 @@ export const MONTHLY_INVOICE_MODES: MonthlyInvoiceModeConfig[] = [
     label: "模式3 — WTL EXPRESS → 马来西亚收货人 (MYR)",
     labelEn: "Mode 3 — WTL EXPRESS → MY Consignee (MYR)",
     sstNote: true,
+  },
+  {
+    value: "4",
+    billingCompany: "wtl",
+    currency: "MYR",
+    billTo: "shipper",
+    issuerKey: "wtl",
+    label: "模式4 — WTL EXPRESS → 泰国寄货人 (MYR)",
+    labelEn: "Mode 4 — WTL EXPRESS → TH Shipper (MYR)",
+    dualSegmentDisplay: true,
+    mySegmentSstNote: true,
   },
 ];
 

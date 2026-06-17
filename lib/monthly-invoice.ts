@@ -17,6 +17,10 @@ export interface MonthlyInvoiceLineItem {
   unitRate: number;
   subtotal: number;
   isBox: boolean;
+  thUnitRate?: number;
+  thSubtotal?: number;
+  myUnitRate?: number;
+  mySubtotal?: number;
 }
 
 export interface MonthlyInvoiceSection {
@@ -25,6 +29,8 @@ export interface MonthlyInvoiceSection {
   lines: MonthlyInvoiceLineItem[];
   totalQty: number;
   totalAmount: number;
+  thTotalAmount?: number;
+  myTotalAmount?: number;
 }
 
 export interface MonthlyInvoiceCustomerSummary {
@@ -51,9 +57,11 @@ export interface MonthlyInvoiceData {
   sections: MonthlyInvoiceSection[];
   grandTotalQty: number;
   grandTotalAmount: number;
+  grandThTotalAmount?: number;
+  grandMyTotalAmount?: number;
 }
 
-interface RawInvoiceLine {
+export interface RawInvoiceLine {
   sessionDate: Date;
   stallMarketCode: string;
   stallCode: string;
@@ -62,6 +70,10 @@ interface RawInvoiceLine {
   quantity: number;
   freightRate: number | null;
   freightAmount: number | null;
+  thFreightRate?: number | null;
+  thFreightAmount?: number | null;
+  mySegmentFreightRate?: number | null;
+  mySegmentFreightAmount?: number | null;
   isBox: boolean;
   shipperId: string;
   shipperCode: string;
@@ -94,7 +106,10 @@ function resolveCustomerKey(
   };
 }
 
-function toLineItem(line: RawInvoiceLine): MonthlyInvoiceLineItem | null {
+function toLineItem(
+  line: RawInvoiceLine,
+  dualSegment: boolean
+): MonthlyInvoiceLineItem | null {
   if (
     line.freightAmount == null ||
     line.freightAmount <= 0 ||
@@ -103,7 +118,7 @@ function toLineItem(line: RawInvoiceLine): MonthlyInvoiceLineItem | null {
     return null;
   }
 
-  return {
+  const item: MonthlyInvoiceLineItem = {
     date: line.sessionDate.toISOString(),
     dateLabel: formatDisplayDate(line.sessionDate),
     stallLabel: getStallDisplayLabel(
@@ -119,18 +134,28 @@ function toLineItem(line: RawInvoiceLine): MonthlyInvoiceLineItem | null {
     subtotal: roundMoney(line.freightAmount),
     isBox: line.isBox,
   };
+
+  if (dualSegment) {
+    item.thUnitRate = line.thFreightRate ?? 0;
+    item.thSubtotal = roundMoney(line.thFreightAmount ?? 0);
+    item.myUnitRate = line.mySegmentFreightRate ?? 0;
+    item.mySubtotal = roundMoney(line.mySegmentFreightAmount ?? 0);
+  }
+
+  return item;
 }
 
 function buildSection(
   kind: "tong" | "box",
-  lines: MonthlyInvoiceLineItem[]
+  lines: MonthlyInvoiceLineItem[],
+  dualSegment: boolean
 ): MonthlyInvoiceSection | null {
   const filtered = lines.filter((line) =>
     kind === "box" ? line.isBox : !line.isBox
   );
   if (filtered.length === 0) return null;
 
-  return {
+  const section: MonthlyInvoiceSection = {
     kind,
     title: kind === "box" ? "箱子 BOX" : "桶 Tong / Crates",
     lines: filtered,
@@ -139,6 +164,17 @@ function buildSection(
       filtered.reduce((sum, line) => sum + line.subtotal, 0)
     ),
   };
+
+  if (dualSegment) {
+    section.thTotalAmount = roundMoney(
+      filtered.reduce((sum, line) => sum + (line.thSubtotal ?? 0), 0)
+    );
+    section.myTotalAmount = roundMoney(
+      filtered.reduce((sum, line) => sum + (line.mySubtotal ?? 0), 0)
+    );
+  }
+
+  return section;
 }
 
 export function buildMonthlyInvoiceCustomerSummaries(
@@ -149,7 +185,7 @@ export function buildMonthlyInvoiceCustomerSummaries(
 
   for (const raw of rawLines) {
     const customer = resolveCustomerKey(raw, mode.billTo);
-    const item = toLineItem(raw);
+    const item = toLineItem(raw, mode.dualSegmentDisplay === true);
     if (!customer || !item) continue;
 
     const existing = map.get(customer.id);
@@ -192,11 +228,12 @@ export function buildMonthlyInvoiceData(input: {
   customerId: string;
   rawLines: RawInvoiceLine[];
 }): MonthlyInvoiceData | null {
+  const dualSegment = input.mode.dualSegmentDisplay === true;
   const customerLines = input.rawLines
     .map((raw) => {
       const customer = resolveCustomerKey(raw, input.mode.billTo);
       if (!customer || customer.id !== input.customerId) return null;
-      return toLineItem(raw);
+      return toLineItem(raw, dualSegment);
     })
     .filter((item): item is MonthlyInvoiceLineItem => item != null)
     .sort((a, b) => {
@@ -217,8 +254,8 @@ export function buildMonthlyInvoiceData(input: {
   if (!customer) return null;
 
   const sections = [
-    buildSection("tong", customerLines),
-    buildSection("box", customerLines),
+    buildSection("tong", customerLines, dualSegment),
+    buildSection("box", customerLines, dualSegment),
   ].filter((section): section is MonthlyInvoiceSection => section != null);
 
   const grandTotalAmount = roundMoney(
@@ -228,6 +265,17 @@ export function buildMonthlyInvoiceData(input: {
     (sum, section) => sum + section.totalQty,
     0
   );
+
+  const grandThTotalAmount = dualSegment
+    ? roundMoney(
+        sections.reduce((sum, section) => sum + (section.thTotalAmount ?? 0), 0)
+      )
+    : undefined;
+  const grandMyTotalAmount = dualSegment
+    ? roundMoney(
+        sections.reduce((sum, section) => sum + (section.myTotalAmount ?? 0), 0)
+      )
+    : undefined;
 
   return {
     mode: input.mode,
@@ -241,7 +289,7 @@ export function buildMonthlyInvoiceData(input: {
     sections,
     grandTotalQty,
     grandTotalAmount,
+    grandThTotalAmount,
+    grandMyTotalAmount,
   };
 }
-
-export type { RawInvoiceLine };

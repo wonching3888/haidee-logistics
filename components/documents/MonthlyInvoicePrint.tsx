@@ -15,6 +15,7 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
   const company = INVOICE_COMPANY_HEADERS[data.mode.issuerKey];
   const billToLabel =
     data.mode.billTo === "shipper" ? "寄货人 Shipper" : "收货人 Consignee";
+  const dualSegment = data.mode.dualSegmentDisplay === true;
 
   return (
     <div className="document-print monthly-invoice-print">
@@ -49,6 +50,11 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
           * 费率已含 SST / Rates include SST
         </p>
       )}
+      {data.mode.mySegmentSstNote && (
+        <p className="monthly-invoice-note">
+          * 马来西亚段费率已含 SST 6% / MY segment rates include SST 6%
+        </p>
+      )}
 
       {data.sections.map((section) => (
         <div key={section.kind} className="monthly-invoice-section">
@@ -61,8 +67,20 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
                 <th className="monthly-invoice-market-col">市场 Market</th>
                 <th className="monthly-invoice-type-col">桶款 Type</th>
                 <th className="monthly-invoice-qty-col">桶数 Qty</th>
-                <th className="monthly-invoice-rate-col">单价 Rate</th>
-                <th className="monthly-invoice-subtotal-col">小计 Subtotal</th>
+                {dualSegment ? (
+                  <>
+                    <th className="monthly-invoice-rate-col">泰国段单价 TH Rate</th>
+                    <th className="monthly-invoice-subtotal-col">泰国段小计 TH Sub</th>
+                    <th className="monthly-invoice-rate-col">马来段单价 MY Rate</th>
+                    <th className="monthly-invoice-subtotal-col">马来段小计 MY Sub</th>
+                    <th className="monthly-invoice-subtotal-col">合计 Total</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="monthly-invoice-rate-col">单价 Rate</th>
+                    <th className="monthly-invoice-subtotal-col">小计 Subtotal</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -73,12 +91,32 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
                   <td>{line.marketLabel}</td>
                   <td>{line.tongTypeCode}</td>
                   <td className="text-right">{line.quantity}</td>
-                  <td className="text-right">
-                    {line.unitRate.toFixed(2)}
-                  </td>
-                  <td className="text-right">
-                    {line.subtotal.toFixed(2)}
-                  </td>
+                  {dualSegment ? (
+                    <>
+                      <td className="text-right">
+                        {(line.thUnitRate ?? 0).toFixed(2)}
+                      </td>
+                      <td className="text-right">
+                        {(line.thSubtotal ?? 0).toFixed(2)}
+                      </td>
+                      <td className="text-right">
+                        {(line.myUnitRate ?? 0).toFixed(2)}
+                      </td>
+                      <td className="text-right">
+                        {(line.mySubtotal ?? 0).toFixed(2)}
+                      </td>
+                      <td className="text-right">{line.subtotal.toFixed(2)}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="text-right">
+                        {line.unitRate.toFixed(2)}
+                      </td>
+                      <td className="text-right">
+                        {line.subtotal.toFixed(2)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
               <tr className="monthly-invoice-section-total">
@@ -86,10 +124,28 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
                   {section.title} 小计 Subtotal
                 </td>
                 <td className="text-right">{section.totalQty}</td>
-                <td />
-                <td className="text-right">
-                  {formatMoney(section.totalAmount, data.currency)}
-                </td>
+                {dualSegment ? (
+                  <>
+                    <td />
+                    <td className="text-right">
+                      {formatMoney(section.thTotalAmount ?? 0, data.currency)}
+                    </td>
+                    <td />
+                    <td className="text-right">
+                      {formatMoney(section.myTotalAmount ?? 0, data.currency)}
+                    </td>
+                    <td className="text-right">
+                      {formatMoney(section.totalAmount, data.currency)}
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td />
+                    <td className="text-right">
+                      {formatMoney(section.totalAmount, data.currency)}
+                    </td>
+                  </>
+                )}
               </tr>
             </tbody>
           </table>
@@ -103,10 +159,28 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
               总计 Grand Total
             </td>
             <td className="text-right">{data.grandTotalQty}</td>
-            <td />
-            <td className="text-right">
-              {formatMoney(data.grandTotalAmount, data.currency)}
-            </td>
+            {dualSegment ? (
+              <>
+                <td />
+                <td className="text-right">
+                  {formatMoney(data.grandThTotalAmount ?? 0, data.currency)}
+                </td>
+                <td />
+                <td className="text-right">
+                  {formatMoney(data.grandMyTotalAmount ?? 0, data.currency)}
+                </td>
+                <td className="text-right">
+                  {formatMoney(data.grandTotalAmount, data.currency)}
+                </td>
+              </>
+            ) : (
+              <>
+                <td />
+                <td className="text-right">
+                  {formatMoney(data.grandTotalAmount, data.currency)}
+                </td>
+              </>
+            )}
           </tr>
         </tbody>
       </table>
