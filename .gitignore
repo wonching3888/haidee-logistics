@@ -47,3 +47,5 @@ scripts/backup-pnl-before-44-row-fix.json
 scripts/backup-10-rows-best-brother-0608-*.json
 scripts/backup-pnl-before-best-brother-0608-fix.json
 scripts/backup-wtl-shipper-snapshots-*.json
+scripts/backup-sl-bp-mp-unloading-fees-*.json
+scripts/backup-pnl-unload-before-sl-bp-mp-fix.json
