@@ -11,12 +11,6 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const dbUrl = process.env.DATABASE_URL || "MISSING";
-  const refMatch =
-    dbUrl.match(/postgres\.([a-z0-9]+)/) ||
-    dbUrl.match(/db\.([a-z0-9]+)\.supabase/);
-  console.log("[DEBUG] DB project ref:", refMatch ? refMatch[1] : "NOT_FOUND");
-
   try {
     const user = await requirePnlApiAccess();
     if (!user) {
