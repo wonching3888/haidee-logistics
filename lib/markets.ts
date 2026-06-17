@@ -16,6 +16,25 @@ export const MARKET_ORDER = [
   "OTHER",
 ] as const;
 
+/** Dispatch scheduling priority (JB first, then KL, …). */
+export const DISPATCH_PRIORITY_ORDER = [
+  "JB",
+  "KL",
+  "SL",
+  "BP",
+  "MC",
+  "BM",
+  "A",
+  "TP",
+  "P",
+  "KT",
+  "SA",
+  "KD",
+  "MP",
+  "NT",
+  "OTHER",
+] as const;
+
 export const OTHER_MARKET_CODE = "OTHER" as const;
 
 /** Markets excluded from fixed freight / toll master data */
@@ -37,7 +56,7 @@ export function getStallDisplayLabel(
 }
 
 /** Primary columns for dispatch matrix & daily summary */
-export const DISPATCH_MARKET_ORDER = [...MARKET_ORDER] as const;
+export const DISPATCH_MARKET_ORDER = [...DISPATCH_PRIORITY_ORDER] as const;
 
 export type MarketCode = (typeof MARKET_ORDER)[number];
 
@@ -98,6 +117,24 @@ export function sortMarkets(
   return [...codes].sort(
     (a, b) => (rank.get(a) ?? 999) - (rank.get(b) ?? 999)
   );
+}
+
+export function marketPriorityRank(
+  code: string,
+  order: readonly string[] = DISPATCH_PRIORITY_ORDER
+): number {
+  const idx = order.indexOf(code as (typeof order)[number]);
+  return idx === -1 ? 999 : idx;
+}
+
+export function compareDispatchPriority(
+  a: { marketCode: string; createdAtMs: number },
+  b: { marketCode: string; createdAtMs: number }
+): number {
+  const rankDiff =
+    marketPriorityRank(a.marketCode) - marketPriorityRank(b.marketCode);
+  if (rankDiff !== 0) return rankDiff;
+  return a.createdAtMs - b.createdAtMs;
 }
 
 export function filterOrderedMarkets(

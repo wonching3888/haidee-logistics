@@ -16,8 +16,15 @@ export interface MetricLine {
   label: string;
   labelEn: string;
   amountMyr: number;
+  amountThb?: number;
   source: DataSourceKind;
   detail?: string;
+}
+
+export interface OperationsCostWarning {
+  key: string;
+  label: string;
+  message: string;
 }
 
 export interface OperationsRevenueWarning {
@@ -25,6 +32,7 @@ export interface OperationsRevenueWarning {
   missingRateQuantity: number;
   gapReasons: Partial<Record<InboundFreightGapReason, number>>;
   samples: OperationsIncomeWarningSample[];
+  costWarnings: OperationsCostWarning[];
 }
 
 export interface OperationsDashboardData {
@@ -182,6 +190,14 @@ export function buildOperationsDashboardMetrics(input: {
     assignedLineCount: number;
     exchangeRate: number;
   };
+  globalCostRates: {
+    epermit: number;
+    dagangNet: number;
+    forwardingOutbound: number;
+    forwardingReturn: number;
+    lkimPerCrate: number;
+    lkimPerBox: number;
+  };
 }): OperationsDashboardData {
   const mode1aMyr = thbToMyr(input.income.mode1aThb, input.exchangeRate);
   const haideeTotalMyr = roundMoney(
@@ -197,8 +213,9 @@ export function buildOperationsDashboardMetrics(input: {
       label: "海利收入 - 寄货人付（THB）",
       labelEn: "HAIDEE Revenue - Shipper Paid (THB)",
       amountMyr: mode1aMyr,
+      amountThb: input.income.mode1aThb,
       source: "actual",
-      detail: `THB ${input.income.mode1aThb.toFixed(2)} ÷ ${input.exchangeRate}`,
+      detail: `换算 MYR ÷ ${input.exchangeRate}`,
     },
     {
       key: "mode1b",
@@ -362,15 +379,85 @@ export function buildOperationsDashboardMetrics(input: {
     costLines.reduce((sum, line) => sum + line.amountMyr, 0)
   );
 
-  const revenueWarning: OperationsRevenueWarning | null =
-    input.income.missingRateLineCount > 0
-      ? {
-          missingRateLineCount: input.income.missingRateLineCount,
-          missingRateQuantity: input.income.missingRateQuantity,
-          gapReasons: input.income.gapReasons,
-          samples: input.income.warningSamples,
-        }
-      : null;
+  const costWarnings: OperationsCostWarning[] = [];
+  const { globalCostRates, tripCosts, lkimMaqis } = input;
+
+  if (globalCostRates.epermit <= 0) {
+    costWarnings.push({
+      key: "epermit",
+      label: "ePermit",
+      message: "营运设定未录入 ePermit 费率（global_cost_settings）",
+    });
+  } else if (tripCosts.tripCount > 0 && tripCosts.epermit <= 0) {
+    costWarnings.push({
+      key: "epermit",
+      label: "ePermit",
+      message: `当月 ${tripCosts.tripCount} 趟派车，ePermit 金额为 0`,
+    });
+  }
+
+  if (globalCostRates.dagangNet <= 0) {
+    costWarnings.push({
+      key: "dagangNet",
+      label: "Dagang Net",
+      message: "营运设定未录入 Dagang Net 费率（global_cost_settings）",
+    });
+  } else if (tripCosts.tripCount > 0 && tripCosts.dagangNet <= 0) {
+    costWarnings.push({
+      key: "dagangNet",
+      label: "Dagang Net",
+      message: `当月 ${tripCosts.tripCount} 趟派车，Dagang Net 金额为 0`,
+    });
+  }
+
+  const forwardingRatesSet =
+    globalCostRates.forwardingOutbound > 0 ||
+    globalCostRates.forwardingReturn > 0;
+  if (!forwardingRatesSet) {
+    costWarnings.push({
+      key: "forwarding",
+      label: "Forwarding",
+      message:
+        "营运设定未录入 Forwarding 费率（出货 outbound / 回空桶 return）",
+    });
+  } else if (tripCosts.tripCount > 0 && tripCosts.forwarding <= 0) {
+    costWarnings.push({
+      key: "forwarding",
+      label: "Forwarding",
+      message: `当月 ${tripCosts.tripCount} 趟派车，Forwarding 金额为 0`,
+    });
+  }
+
+  const lkimRatesSet =
+    globalCostRates.lkimPerCrate > 0 || globalCostRates.lkimPerBox > 0;
+  const hasLkimQty =
+    (lkimMaqis.totalCrates ?? 0) > 0 || (lkimMaqis.totalBoxes ?? 0) > 0;
+  if (!lkimRatesSet) {
+    costWarnings.push({
+      key: "lkimMaqis",
+      label: "LKIM-MAQIS",
+      message: "营运设定未录入 LKIM-MAQIS 费率（桶/盒）",
+    });
+  } else if (hasLkimQty && lkimMaqis.totalAmountMyr <= 0) {
+    costWarnings.push({
+      key: "lkimMaqis",
+      label: "LKIM-MAQIS",
+      message: `当月派车 ${lkimMaqis.totalCrates} 桶 / ${lkimMaqis.totalBoxes ?? 0} 盒，LKIM-MAQIS 金额为 0`,
+    });
+  }
+
+  const hasFreightWarnings = input.income.missingRateLineCount > 0;
+  const hasAnyWarning = hasFreightWarnings || costWarnings.length > 0;
+
+  const revenueWarning: OperationsRevenueWarning | null = hasAnyWarning
+    ? {
+        missingRateLineCount: input.income.missingRateLineCount,
+        missingRateQuantity: input.income.missingRateQuantity,
+        gapReasons: input.income.gapReasons,
+        samples: input.income.warningSamples,
+        costWarnings,
+      }
+    : null;
 
   return {
     year: input.year,

@@ -12,6 +12,7 @@ import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
 import { aggregateLkimMaqisCost } from "@/lib/operations-lkim-maqis";
 import { aggregateThaiSegmentFreightCost } from "@/lib/operations-thai-segment";
+import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
@@ -82,6 +83,19 @@ async function aggregateFleetPayroll(year: number, month: number) {
   };
 }
 
+async function loadGlobalCostRates() {
+  const rows = await listGlobalCostSettings();
+  const byKey = new Map(rows.map((row) => [row.key, row.valueMyr]));
+  return {
+    epermit: byKey.get("epermit") ?? 0,
+    dagangNet: byKey.get("dagang_net") ?? 0,
+    forwardingOutbound: byKey.get("forwarding_outbound") ?? 0,
+    forwardingReturn: byKey.get("forwarding_return") ?? 0,
+    lkimPerCrate: byKey.get("lkim_maqis_per_crate") ?? 0,
+    lkimPerBox: byKey.get("lkim_maqis_per_box") ?? 0,
+  };
+}
+
 export async function getOperationsDashboard(input: {
   year: number;
   month: number;
@@ -97,6 +111,7 @@ export async function getOperationsDashboard(input: {
     lkimMaqis,
     thaiSegmentFreight,
     exchangeRateRow,
+    globalCostRates,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month),
     aggregateMcThirdParty(input.year, input.month),
@@ -105,6 +120,7 @@ export async function getOperationsDashboard(input: {
     aggregateLkimMaqisCost(input.year, input.month),
     aggregateThaiSegmentFreightCost(input.year, input.month),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
+    loadGlobalCostRates(),
   ]);
 
   const exchangeRate =
@@ -122,5 +138,6 @@ export async function getOperationsDashboard(input: {
     tripCosts,
     lkimMaqis,
     thaiSegmentFreight,
+    globalCostRates,
   });
 }

@@ -16,6 +16,13 @@ function formatMyr(value: number) {
   })} MYR`;
 }
 
+function formatThb(value: number) {
+  return `${value.toLocaleString("en-MY", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })} THB`;
+}
+
 const GAP_REASON_LABELS: Record<InboundFreightGapReason, string> = {
   no_market_on_stall: "档口未关联市场",
   stall_missing_consignee: "档口未绑定收货人（收货人付运费无法匹配）",
@@ -139,37 +146,62 @@ export function OperationsDashboardView({
 
         {data.revenue.warning && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p className="font-semibold">
-              收入警告：{data.revenue.warning.missingRateLineCount} 行派车（
-              {data.revenue.warning.missingRateQuantity} 桶）无法匹配运费费率
-            </p>
-            <p className="mt-1 text-xs text-amber-900">
-              收入按 freight_rates / consignee_freight_rates 实时计算，未使用派车单上存储的费率字段。
-            </p>
-            <ul className="mt-2 space-y-1 text-xs">
-              {Object.entries(data.revenue.warning.gapReasons)
-                .filter(([reason]) =>
-                  reason !== "mc_self_delivery" &&
-                  reason !== "mc_third_party_customer_zero"
-                )
-                .map(([reason, count]) => (
-                  <li key={reason}>
-                    {GAP_REASON_LABELS[reason as InboundFreightGapReason] ??
-                      reason}
-                    ：{count} 行
-                  </li>
-                ))}
-            </ul>
-            {data.revenue.warning.samples.length > 0 && (
-              <p className="mt-2 text-xs text-amber-900">
-                示例：
-                {data.revenue.warning.samples
-                  .map(
-                    (sample) =>
-                      `${sample.shipperName} (${sample.shipperCode}) · ${sample.marketCode} · ${sample.quantity}桶 · ${GAP_REASON_LABELS[sample.reason]}`
-                  )
-                  .join("；")}
-              </p>
+            {data.revenue.warning.missingRateLineCount > 0 && (
+              <>
+                <p className="font-semibold">
+                  收入警告：{data.revenue.warning.missingRateLineCount} 行派车（
+                  {data.revenue.warning.missingRateQuantity} 桶）无法匹配运费费率
+                </p>
+                <p className="mt-1 text-xs text-amber-900">
+                  收入按 freight_rates / consignee_freight_rates
+                  实时计算，未使用派车单上存储的费率字段。
+                </p>
+                <ul className="mt-2 space-y-1 text-xs">
+                  {Object.entries(data.revenue.warning.gapReasons)
+                    .filter(
+                      ([reason]) =>
+                        reason !== "mc_self_delivery" &&
+                        reason !== "mc_third_party_customer_zero"
+                    )
+                    .map(([reason, count]) => (
+                      <li key={reason}>
+                        {GAP_REASON_LABELS[reason as InboundFreightGapReason] ??
+                          reason}
+                        ：{count} 行
+                      </li>
+                    ))}
+                </ul>
+                {data.revenue.warning.samples.length > 0 && (
+                  <p className="mt-2 text-xs text-amber-900">
+                    示例：
+                    {data.revenue.warning.samples
+                      .map(
+                        (sample) =>
+                          `${sample.shipperName} (${sample.shipperCode}) · ${sample.marketCode} · ${sample.quantity}桶 · ${GAP_REASON_LABELS[sample.reason]}`
+                      )
+                      .join("；")}
+                  </p>
+                )}
+              </>
+            )}
+            {data.revenue.warning.costWarnings.length > 0 && (
+              <div
+                className={
+                  data.revenue.warning.missingRateLineCount > 0
+                    ? "mt-3 border-t border-amber-200 pt-3"
+                    : undefined
+                }
+              >
+                <p className="font-semibold">开销警告</p>
+                <ul className="mt-2 space-y-1 text-xs">
+                  {data.revenue.warning.costWarnings.map((warning) => (
+                    <li key={warning.key}>
+                      <span className="font-medium">{warning.label}</span>
+                      ：{warning.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
@@ -195,7 +227,16 @@ export function OperationsDashboardView({
                 )}
               </dt>
               <dd className="font-mono text-base">
-                {formatMyr(line.amountMyr)}
+                {line.key === "mode1a" && line.amountThb != null ? (
+                  <span>
+                    {formatThb(line.amountThb)}
+                    <span className="ml-2 text-sm text-haidee-muted">
+                      ({formatMyr(line.amountMyr)})
+                    </span>
+                  </span>
+                ) : (
+                  formatMyr(line.amountMyr)
+                )}
               </dd>
             </div>
           ))}

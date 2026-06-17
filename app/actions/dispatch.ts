@@ -10,8 +10,10 @@ import { buildConsignorSessionLabel } from "@/lib/consignor-label";
 import { computeDriverAllowanceAmount } from "@/lib/driver-allowance";
 import { decimalToNumber } from "@/lib/freight-rates";
 import {
+  compareDispatchPriority,
   DISPATCH_MARKET_ORDER,
-  MARKET_ORDER,
+  DISPATCH_PRIORITY_ORDER,
+  marketPriorityRank,
   sortMarkets,
 } from "@/lib/markets";
 
@@ -60,6 +62,7 @@ export interface AssignableItem {
   boxQuantity: number;
   inboundLineIds: string[];
   stalls: StallLineDetail[];
+  createdAtMs: number;
 }
 
 export interface StallAssignment {
@@ -132,11 +135,13 @@ function aggregateLines(
     const shipperId = line.session.shipperId;
     const sessionId = line.sessionId;
     const key = `${sessionId}:${marketCode}`;
+    const lineCreatedAtMs = line.session.createdAt.getTime();
 
     const existing = map.get(key);
     if (existing) {
       existing.quantity += line.quantity;
       existing.inboundLineIds.push(line.id);
+      existing.createdAtMs = Math.min(existing.createdAtMs, lineCreatedAtMs);
       existing.stalls.push({
         inboundLineId: line.id,
         stallCode: line.stall.code,
@@ -164,6 +169,7 @@ function aggregateLines(
         crateQuantity: line.isBox ? 0 : line.quantity,
         boxQuantity: line.isBox ? line.quantity : 0,
         inboundLineIds: [line.id],
+        createdAtMs: lineCreatedAtMs,
         stalls: [
           {
             inboundLineId: line.id,
@@ -177,7 +183,10 @@ function aggregateLines(
   }
 
   return Array.from(map.values()).sort((a, b) =>
-    a.shipperName.localeCompare(b.shipperName)
+    compareDispatchPriority(
+      { marketCode: a.marketCode, createdAtMs: a.createdAtMs },
+      { marketCode: b.marketCode, createdAtMs: b.createdAtMs }
+    )
   );
 }
 
@@ -188,6 +197,8 @@ export async function getUnassignedMatrix(
   const lines = await fetchUnassignedLines(date);
 
   const sessionMap = new Map<string, string>();
+  const sessionCreatedAt = new Map<string, number>();
+  const sessionBestRank = new Map<string, number>();
   const cells: Record<string, Record<string, CrateBoxQty>> = {};
   const rowTotals: Record<string, CrateBoxQty> = {};
   const colTotals: Record<string, CrateBoxQty> = {};
@@ -198,6 +209,16 @@ export async function getUnassignedMatrix(
     if (!marketCode) continue;
 
     const sessionId = line.sessionId;
+    const createdAtMs = line.session.createdAt.getTime();
+    sessionCreatedAt.set(
+      sessionId,
+      Math.min(sessionCreatedAt.get(sessionId) ?? createdAtMs, createdAtMs)
+    );
+    const rank = marketPriorityRank(marketCode);
+    sessionBestRank.set(
+      sessionId,
+      Math.min(sessionBestRank.get(sessionId) ?? rank, rank)
+    );
     sessionMap.set(
       sessionId,
       buildConsignorSessionLabel(
@@ -227,7 +248,14 @@ export async function getUnassignedMatrix(
 
   const shippers = Array.from(sessionMap.entries())
     .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const rankDiff =
+        (sessionBestRank.get(a.id) ?? 999) - (sessionBestRank.get(b.id) ?? 999);
+      if (rankDiff !== 0) return rankDiff;
+      return (
+        (sessionCreatedAt.get(a.id) ?? 0) - (sessionCreatedAt.get(b.id) ?? 0)
+      );
+    });
 
   return {
     shippers,
@@ -245,14 +273,14 @@ export async function getDispatchMarkets(): Promise<string[]> {
     select: { code: true },
   });
   const codes = new Set(markets.map((market) => market.code));
-  const ordered = DISPATCH_MARKET_ORDER.filter((code) => codes.has(code));
+  const ordered = DISPATCH_PRIORITY_ORDER.filter((code) => codes.has(code));
   const extras = markets
     .map((market) => market.code)
     .filter(
       (code) =>
-        !(DISPATCH_MARKET_ORDER as readonly string[]).includes(code)
+        !(DISPATCH_PRIORITY_ORDER as readonly string[]).includes(code)
     );
-  return [...ordered, ...sortMarkets(extras, MARKET_ORDER)];
+  return [...ordered, ...sortMarkets(extras, DISPATCH_PRIORITY_ORDER)];
 }
 
 export async function getDrivers() {
@@ -301,10 +329,23 @@ export async function getDispatchOrders(dateStr: string) {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  return orders.map((o) => ({
+  const sortedOrders = [...orders].sort((a, b) => {
+    const rankA =
+      a.markets.length > 0
+        ? Math.min(...a.markets.map((code) => marketPriorityRank(code)))
+        : 999;
+    const rankB =
+      b.markets.length > 0
+        ? Math.min(...b.markets.map((code) => marketPriorityRank(code)))
+        : 999;
+    if (rankA !== rankB) return rankA - rankB;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  return sortedOrders.map((o) => ({
     id: o.id,
     dispatchNo: o.dispatchNo,
     date: o.date,

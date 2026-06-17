@@ -96,9 +96,22 @@ export async function getDailyDispatchSummary(
   });
 
   const rowMap = new Map<string, DailyDispatchSummaryRow>();
+  const rowSortMeta = new Map<
+    string,
+    { tier: number; firstCreatedAtMs: number }
+  >();
+
+  function wtlRowTier(row: DailyDispatchSummaryRow): number {
+    const klQty = row.depots.KL ?? { crate: 0, box: 0 };
+    const mcQty = row.depots.MC ?? { crate: 0, box: 0 };
+    if (hasDepotQty(klQty)) return 0;
+    if (hasDepotQty(mcQty)) return 1;
+    return 2;
+  }
 
   for (const order of orders) {
     const lorryNo = order.truck.plate;
+    const createdAtMs = order.createdAt.getTime();
     let row = rowMap.get(lorryNo);
     if (!row) {
       row = {
@@ -107,6 +120,10 @@ export async function getDailyDispatchSummary(
         total: { crate: 0, box: 0 },
       };
       rowMap.set(lorryNo, row);
+      rowSortMeta.set(lorryNo, { tier: 2, firstCreatedAtMs: createdAtMs });
+    } else {
+      const meta = rowSortMeta.get(lorryNo)!;
+      meta.firstCreatedAtMs = Math.min(meta.firstCreatedAtMs, createdAtMs);
     }
 
     for (const dl of order.lines) {
@@ -119,11 +136,17 @@ export async function getDailyDispatchSummary(
       row.depots[depotLabel] = addLineQty(cell, line.quantity, line.isBox);
       row.total = addLineQty(row.total, line.quantity, line.isBox);
     }
+
+    const meta = rowSortMeta.get(lorryNo)!;
+    meta.tier = wtlRowTier(row);
   }
 
-  const rows = Array.from(rowMap.values()).sort((a, b) =>
-    a.lorryNo.localeCompare(b.lorryNo)
-  );
+  const rows = Array.from(rowMap.values()).sort((a, b) => {
+    const metaA = rowSortMeta.get(a.lorryNo)!;
+    const metaB = rowSortMeta.get(b.lorryNo)!;
+    if (metaA.tier !== metaB.tier) return metaA.tier - metaB.tier;
+    return metaA.firstCreatedAtMs - metaB.firstCreatedAtMs;
+  });
 
   const columnTotals = emptyDepotQty();
   let grandTotal: DepotQty = { crate: 0, box: 0 };
