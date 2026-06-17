@@ -54,10 +54,10 @@ const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
 
 const SIDEBAR_BG = "bg-[#9DC08B]";
 const SIDEBAR_TEXT = "text-[#0d1a0d]";
-const SIDEBAR_LABEL_MUTED = "text-[#0d1a0d] font-medium";
+const SIDEBAR_LABEL_MUTED = "text-[#0d1a0d] font-semibold";
 const SIDEBAR_NAV_ACTIVE = "bg-[#5A8950] font-bold text-[#FFFFFF]";
 const SIDEBAR_NAV_INACTIVE =
-  "font-medium text-[#0d1a0d] hover:bg-[#5A8950]/25 hover:text-[#0d1a0d]";
+  "font-semibold text-[#0d1a0d] hover:bg-[#5A8950]/25 hover:text-[#0d1a0d]";
 const SIDEBAR_ACTIVE_LABEL_MUTED = "text-[#FFFFFF] font-bold";
 
 interface SidebarProps {
@@ -137,7 +137,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             style={{ mixBlendMode: "multiply" }}
           />
           <div>
-            <p className="text-[18px] font-bold leading-tight text-[#1a2e1a]">
+            <p className="text-[16px] font-bold leading-tight text-[#1a2e1a]">
               海利物流有限公司
             </p>
             <p className="mt-1 text-[13px] font-normal leading-snug text-[#2d4a2d]">
