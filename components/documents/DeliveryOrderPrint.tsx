@@ -86,9 +86,7 @@ export function DeliveryOrderPrint({
                     </td>
                   ))}
                   <td className="do-qty-col">{row.qty}</td>
-                  <td className="do-remarks-col">
-                    {row.remarks?.trim() || "\u00a0"}
-                  </td>
+                  <td className="do-remarks-col">&nbsp;</td>
                 </tr>
               );
             }}

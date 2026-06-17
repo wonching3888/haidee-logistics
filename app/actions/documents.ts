@@ -25,7 +25,6 @@ export interface DORow {
   consignor: string;
   store: string;
   area: string;
-  remarks: string;
   quantities: Record<string, number>;
   qty: number;
 }
@@ -131,7 +130,6 @@ function buildDORow(
   consignor: string,
   store: string,
   area: string,
-  remarks: string,
   tongCode: string,
   quantity: number
 ): DORow {
@@ -143,7 +141,6 @@ function buildDORow(
     consignor,
     store,
     area,
-    remarks,
     quantities,
     qty: isBoxColumn(col) ? 0 : quantity,
   };
@@ -213,7 +210,6 @@ export async function getDeliveryOrderData(
 
   for (const dl of order.lines) {
     const line = dl.inboundLine;
-    const remarks = line.session.areaNote?.trim() ?? "";
     const key = `${line.sessionId}:${line.stallId}`;
     const consignor = line.session.shipper.name;
     const store = line.stall.code;
@@ -230,7 +226,6 @@ export async function getDeliveryOrderData(
           consignor,
           store,
           area,
-          remarks,
           line.tongType.code,
           line.quantity
         )
