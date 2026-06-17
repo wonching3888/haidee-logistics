@@ -197,7 +197,6 @@ export async function loadGlobalTripCostValues(): Promise<GlobalTripCostValues> 
     dagangNet: byKey.get("dagang_net") ?? 0,
     forwardingOutbound: byKey.get("forwarding_outbound") ?? 0,
     fuelPriceMyr:
-      byKey.get("fuel_price_myr") ??
       decimalToNumber(fuelPriceRow?.myrPerLiter) ??
       DEFAULT_FUEL_PRICES.myrPerLiter,
   };

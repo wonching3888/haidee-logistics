@@ -4,7 +4,7 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
 import { getRouteLabel } from "@/lib/payroll-route-label";
 import {
-  buildCrateReturnExportLookup,
+  buildCrateReturnImportLookup,
   calculateTripAllowance,
   countPayrollMarketGroups,
   crateReturnCommissionForDispatch,
@@ -14,13 +14,6 @@ import type { MaritalStatus } from "@/lib/constants/payroll";
 
 const dispatchIncludeForPayroll = {
   truck: { select: { type: true, plate: true } },
-  lines: {
-    include: {
-      inboundLine: {
-        include: { session: { select: { thVehiclePlate: true } } },
-      },
-    },
-  },
 } as const;
 
 type DispatchForPayroll = Awaited<
@@ -155,20 +148,23 @@ function computePayrollTripFields(
   };
 }
 
-async function loadCrateReturnExports(start: Date, end: Date) {
-  return prisma.tongExport.findMany({
+async function loadCrateReturnImports(start: Date, end: Date) {
+  return prisma.tongImport.findMany({
     where: {
       date: { gte: start, lte: end },
-      quantityActual: { gt: 0 },
-      tongType: { isBox: false },
+      quantity: { gt: 0 },
     },
-    select: { date: true, thVehiclePlate: true },
+    select: {
+      date: true,
+      quantity: true,
+      truck: { select: { plate: true } },
+    },
   });
 }
 
 async function loadPayrollMonthContext(year: number, month: number) {
   const { start, end } = getMonthDateRange(year, month);
-  const [dispatches, crateExports, allowanceContext] = await Promise.all([
+  const [dispatches, crateImports, allowanceContext] = await Promise.all([
     prisma.dispatchOrder.findMany({
       where: {
         status: { notIn: ["cancelled"] },
@@ -177,7 +173,7 @@ async function loadPayrollMonthContext(year: number, month: number) {
       include: dispatchIncludeForPayroll,
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     }),
-    loadCrateReturnExports(start, end),
+    loadCrateReturnImports(start, end),
     loadPayrollAllowanceContext(),
   ]);
 
@@ -186,7 +182,7 @@ async function loadPayrollMonthContext(year: number, month: number) {
     end,
     dispatches,
     allowanceContext,
-    exportLookup: buildCrateReturnExportLookup(crateExports),
+    importLookup: buildCrateReturnImportLookup(crateImports),
   };
 }
 
@@ -231,7 +227,7 @@ async function syncDispatchTripsForMonth(
   driver: PayrollDriverSync,
   dispatches: DispatchForPayroll[],
   allowanceContext: AllowanceContext,
-  exportLookup: Set<string>
+  importLookup: Set<string>
 ) {
   const existingTrips = await prisma.driverPayrollTrip.findMany({
     where: { payrollMonthId },
@@ -254,7 +250,7 @@ async function syncDispatchTripsForMonth(
     const computed = computePayrollTripFields(
       order,
       allowanceContext,
-      dispatchHasCrateReturn(order, exportLookup)
+      dispatchHasCrateReturn(order, importLookup)
     );
 
     await prisma.driverPayrollTrip.update({
@@ -278,7 +274,7 @@ async function syncDispatchTripsForMonth(
         const computed = computePayrollTripFields(
           order,
           allowanceContext,
-          dispatchHasCrateReturn(order, exportLookup)
+          dispatchHasCrateReturn(order, importLookup)
         );
         tripAllowanceTotal += computed.autoTripAllowance;
         return {
@@ -334,7 +330,7 @@ export async function syncFleetPayrollForMonth(year: number, month: number) {
       driver,
       grouped.byDriverId.get(driver.id) ?? [],
       monthContext.allowanceContext,
-      monthContext.exportLookup
+      monthContext.importLookup
     );
     driverResults.push({
       driverName: driver.name,
@@ -385,7 +381,7 @@ export async function syncDriverPayrollForMonth(
     serializedDriver,
     dispatches,
     monthContext.allowanceContext,
-    monthContext.exportLookup
+    monthContext.importLookup
   );
 
   logPayrollSyncDiagnostics({

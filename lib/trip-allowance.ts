@@ -259,32 +259,22 @@ function normalizePlate(plate: string) {
   return plate.trim().toUpperCase();
 }
 
-/** Plates linked to a dispatch (Thai session plates, then MY truck plate fallback). */
-export function collectDispatchReturnPlates(order: {
-  truck: { plate: string };
-  lines?: { inboundLine: { session: { thVehiclePlate: string | null } } }[];
-}) {
-  const plates = new Set<string>();
-  for (const line of order.lines ?? []) {
-    const thPlate = line.inboundLine.session.thVehiclePlate?.trim();
-    if (thPlate) plates.add(normalizePlate(thPlate));
-  }
-  if (plates.size === 0 && order.truck.plate.trim()) {
-    plates.add(normalizePlate(order.truck.plate));
-  }
-  return Array.from(plates);
-}
-
-export function buildCrateReturnExportLookup(
-  exports: { date: Date | string; thVehiclePlate: string }[]
+/** Plates linked to a dispatch (MY truck plate for empty-crate import matching). */
+export function buildCrateReturnImportLookup(
+  imports: {
+    date: Date | string;
+    quantity: number;
+    truck: { plate: string };
+  }[]
 ) {
   const lookup = new Set<string>();
-  for (const row of exports) {
+  for (const row of imports) {
+    if (row.quantity <= 0) continue;
     const dateKey =
       typeof row.date === "string"
         ? row.date.slice(0, 10)
         : toDateInputValue(row.date);
-    lookup.add(`${dateKey}|${normalizePlate(row.thVehiclePlate)}`);
+    lookup.add(`${dateKey}|${normalizePlate(row.truck.plate)}`);
   }
   return lookup;
 }
@@ -293,13 +283,11 @@ export function dispatchHasCrateReturn(
   order: {
     date: Date;
     truck: { plate: string };
-    lines?: { inboundLine: { session: { thVehiclePlate: string | null } } }[];
   },
-  exportLookup: Set<string>
+  importLookup: Set<string>
 ) {
   const dateKey = toDateInputValue(order.date);
-  const plates = collectDispatchReturnPlates(order);
-  return plates.some((plate) => exportLookup.has(`${dateKey}|${plate}`));
+  return importLookup.has(`${dateKey}|${normalizePlate(order.truck.plate)}`);
 }
 
 export function getDriverPayrollName(driver: {

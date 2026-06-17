@@ -1,0 +1,185 @@
+{
+  "label": "after",
+  "year": 2026,
+  "month": 6,
+  "tripsMs": 2345,
+  "tripsFreightLoads": 70,
+  "tripsTotals": {
+    "revenueMyr": 243253.54,
+    "directCostMyr": 98799.9,
+    "allocatedCostMyr": 55244.17,
+    "totalCostMyr": 154044.07,
+    "grossProfitMyr": 89209.47,
+    "marginPct": 36.67,
+    "tripCount": 30,
+    "totalQuantity": 7137
+  },
+  "tripSamples": [
+    {
+      "tripId": "b8d0c6d6-8bdd-4bac-a122-810dfd69e4f8",
+      "date": "2026-06-01",
+      "revenueMyr": 10209.49,
+      "totalCostMyr": 4986.42,
+      "grossProfitMyr": 5223.07
+    },
+    {
+      "tripId": "95455c26-7d72-4db0-9a89-d1259f9517c6",
+      "date": "2026-06-01",
+      "revenueMyr": 7591.85,
+      "totalCostMyr": 4082.93,
+      "grossProfitMyr": 3508.92
+    },
+    {
+      "tripId": "fd915350-ef56-4d86-adb0-1341fb95f4ff",
+      "date": "2026-06-01",
+      "revenueMyr": 7921.43,
+      "totalCostMyr": 4312.48,
+      "grossProfitMyr": 3608.95
+    },
+    {
+      "tripId": "616c3703-49cf-4342-aee0-d70f211cbc2b",
+      "date": "2026-06-01",
+      "revenueMyr": 2226.67,
+      "totalCostMyr": 1410.09,
+      "grossProfitMyr": 816.58
+    },
+    {
+      "tripId": "44cef129-9e3b-499d-b5d2-c87aaa764a8a",
+      "date": "2026-06-10",
+      "revenueMyr": 13222.17,
+      "totalCostMyr": 6934.7,
+      "grossProfitMyr": 6287.47
+    }
+  ],
+  "periodMs": 1,
+  "periodSummary": {
+    "mode": "month",
+    "periodLabel": "2026-06",
+    "revenueMyr": 243253.54,
+    "costMyr": 154044.07,
+    "grossProfitMyr": 89209.47,
+    "marginPct": 36.67,
+    "tripCount": 30,
+    "totalQuantity": 7137,
+    "trend": [
+      {
+        "date": "2026-06-01",
+        "revenueMyr": 27949.44,
+        "costMyr": 14791.92,
+        "profitMyr": 13157.52
+      },
+      {
+        "date": "2026-06-10",
+        "revenueMyr": 32559.38,
+        "costMyr": 20227.57,
+        "profitMyr": 12331.81
+      },
+      {
+        "date": "2026-06-11",
+        "revenueMyr": 26882,
+        "costMyr": 14576.96,
+        "profitMyr": 12305.04
+      },
+      {
+        "date": "2026-06-12",
+        "revenueMyr": 27805.45,
+        "costMyr": 23368.32,
+        "profitMyr": 4437.13
+      },
+      {
+        "date": "2026-06-13",
+        "revenueMyr": 41271.38,
+        "costMyr": 31848.56,
+        "profitMyr": 9422.82
+      },
+      {
+        "date": "2026-06-15",
+        "revenueMyr": 47734.74,
+        "costMyr": 27293.33,
+        "profitMyr": 20441.41
+      },
+      {
+        "date": "2026-06-16",
+        "revenueMyr": 39051.15,
+        "costMyr": 21937.41,
+        "profitMyr": 17113.74
+      }
+    ]
+  },
+  "customersMs": 2,
+  "customerCount": 70,
+  "topCustomers": [
+    {
+      "shipperCode": "3002-S006",
+      "revenueMyr": 35234,
+      "totalCostMyr": 21738.24,
+      "grossProfitMyr": 13495.76
+    },
+    {
+      "shipperCode": "3000-B002",
+      "revenueMyr": 20478.82,
+      "totalCostMyr": 13183.05,
+      "grossProfitMyr": 7295.77
+    },
+    {
+      "shipperCode": "3001-T003",
+      "revenueMyr": 9896.17,
+      "totalCostMyr": 5116.59,
+      "grossProfitMyr": 4779.58
+    }
+  ],
+  "tripDetails": [
+    {
+      "tripId": "b8d0c6d6-8bdd-4bac-a122-810dfd69e4f8",
+      "ms": 923,
+      "freightLoads": 24,
+      "revenueMyr": 10209.49,
+      "directCostMyr": 3449.17,
+      "allocatedCostMyr": 1537.25,
+      "totalCostMyr": 4986.42,
+      "grossProfitMyr": 5223.07,
+      "marginPct": 51.16,
+      "shipperCount": 24
+    },
+    {
+      "tripId": "95455c26-7d72-4db0-9a89-d1259f9517c6",
+      "ms": 843,
+      "freightLoads": 23,
+      "revenueMyr": 7591.85,
+      "directCostMyr": 1985.93,
+      "allocatedCostMyr": 2097,
+      "totalCostMyr": 4082.93,
+      "grossProfitMyr": 3508.92,
+      "marginPct": 46.22,
+      "shipperCount": 23
+    },
+    {
+      "tripId": "fd915350-ef56-4d86-adb0-1341fb95f4ff",
+      "ms": 789,
+      "freightLoads": 22,
+      "revenueMyr": 7921.43,
+      "directCostMyr": 3153.8,
+      "allocatedCostMyr": 1158.68,
+      "totalCostMyr": 4312.48,
+      "grossProfitMyr": 3608.95,
+      "marginPct": 45.56,
+      "shipperCount": 22
+    }
+  ],
+  "incomeMs": 1061,
+  "income": {
+    "mode1aThb": 1118183,
+    "mode1bMyr": 64221.3,
+    "mode2Myr": 40281,
+    "wtlMode3Myr": 2440.28,
+    "lineCount": 1403
+  },
+  "costsMs": 401,
+  "opsCosts": {
+    "tripCount": 30,
+    "fuelMyr": 20605.62,
+    "tollFee": 6346,
+    "loadUnloadFee": 2609.3,
+    "crateRental": 52783.5
+  }
+}

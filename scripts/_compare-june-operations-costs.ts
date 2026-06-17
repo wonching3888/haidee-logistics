@@ -58,9 +58,7 @@ async function main() {
     }),
   ]);
 
-  const byKey = new Map(globalCosts.map((row) => [row.key, row.valueMyr]));
   const fuelPriceMyr =
-    byKey.get("fuel_price_myr") ??
     decimalToNumber(fuelPriceRow?.myrPerLiter) ??
     DEFAULT_FUEL_PRICES.myrPerLiter;
 
