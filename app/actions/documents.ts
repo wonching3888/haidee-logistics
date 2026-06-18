@@ -10,7 +10,6 @@ import {
   computeDORowQty,
   DO_TONG_COLUMNS,
   emptyQuantities,
-  isBoxColumn,
   mapTongToColumn,
   sumQuantities,
   sumColumnQuantities,
@@ -19,15 +18,9 @@ import {
   CRATE_TYPE_RECORD_BLOCKS,
   getCrateTypeRecordBlockTitle,
 } from "@/lib/crate-type-record-areas";
+import { mergeDORows, type DOMergeMode, type DORow } from "@/lib/do-row-merge";
 
-export interface DORow {
-  lorryNo: string;
-  consignor: string;
-  store: string;
-  area: string;
-  quantities: Record<string, number>;
-  qty: number;
-}
+export type { DORow, DOMergeMode } from "@/lib/do-row-merge";
 
 export interface DeliveryOrderData {
   doNumber: string;
@@ -125,35 +118,6 @@ export interface CrateTypeRecordData {
   activeColumns: { code: string; header: string }[];
 }
 
-function buildDORow(
-  lorryNo: string,
-  consignor: string,
-  store: string,
-  area: string,
-  tongCode: string,
-  quantity: number
-): DORow {
-  const quantities = emptyQuantities();
-  const col = mapTongToColumn(tongCode);
-  quantities[col] = quantity;
-  return {
-    lorryNo,
-    consignor,
-    store,
-    area,
-    quantities,
-    qty: isBoxColumn(col) ? 0 : quantity,
-  };
-}
-
-function mergeDORow(existing: DORow, tongCode: string, quantity: number) {
-  const col = mapTongToColumn(tongCode);
-  existing.quantities[col] = (existing.quantities[col] ?? 0) + quantity;
-  if (!isBoxColumn(col)) {
-    existing.qty += quantity;
-  }
-}
-
 export async function getDocumentDispatchOrders(dateStr: string) {
   const date = parseDateInput(dateStr);
   const orders = await prisma.dispatchOrder.findMany({
@@ -183,8 +147,10 @@ export async function getDocumentDispatchOrders(dateStr: string) {
 }
 
 export async function getDeliveryOrderData(
-  dispatchOrderId: string
+  dispatchOrderId: string,
+  options?: { mergeMode?: DOMergeMode }
 ): Promise<DeliveryOrderData | null> {
+  const mergeMode = options?.mergeMode ?? "bySession";
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
     include: {
@@ -206,34 +172,21 @@ export async function getDeliveryOrderData(
   if (!order) return null;
 
   const lorryNo = order.truck.plate;
-  const rowMap = new Map<string, DORow>();
+  const lineInputs = order.lines
+    .map((dl) => dl.inboundLine)
+    .filter((line): line is NonNullable<typeof line> => line != null)
+    .map((line) => ({
+      sessionId: line.sessionId,
+      stallId: line.stallId,
+      shipperId: line.session.shipperId,
+      consignor: line.session.shipper.name,
+      store: line.stall.code,
+      area: line.stall.market?.code ?? "",
+      tongCode: line.tongType.code,
+      quantity: line.quantity,
+    }));
 
-  for (const dl of order.lines) {
-    const line = dl.inboundLine;
-    const key = `${line.sessionId}:${line.stallId}`;
-    const consignor = line.session.shipper.name;
-    const store = line.stall.code;
-    const area = line.stall.market?.code ?? "";
-
-    const existing = rowMap.get(key);
-    if (existing) {
-      mergeDORow(existing, line.tongType.code, line.quantity);
-    } else {
-      rowMap.set(
-        key,
-        buildDORow(
-          lorryNo,
-          consignor,
-          store,
-          area,
-          line.tongType.code,
-          line.quantity
-        )
-      );
-    }
-  }
-
-  const rows = Array.from(rowMap.values());
+  const rows = mergeDORows(lorryNo, lineInputs, mergeMode);
 
   return {
     doNumber: await getDONumber(dispatchOrderId),

@@ -16,7 +16,9 @@ export default async function DOExternalPage({
   const dispatchId = params.dispatchId?.trim();
   if (!dispatchId) notFound();
 
-  const data = await getDeliveryOrderData(dispatchId);
+  const data = await getDeliveryOrderData(dispatchId, {
+    mergeMode: "byShipperAndStall",
+  });
   if (!data) notFound();
 
   return (
