@@ -490,6 +490,107 @@ type SplittableLine = Pick<
   "id" | "sessionId" | "stallId" | "tongTypeId" | "quantity" | "isBox"
 >;
 
+const freightSnapshotSelect = {
+  consigneeId: true,
+  paymentParty: true,
+  paymentMode: true,
+  currency: true,
+  billingCompany: true,
+  freightRate: true,
+  freightAmount: true,
+  exchangeRate: true,
+  mcDeliveryMode: true,
+  thirdPartyFee: true,
+  mySegmentFreightRate: true,
+  mySegmentFreightAmount: true,
+  thFreightRate: true,
+  thFreightAmount: true,
+} as const;
+
+type FreightSnapshotRow = {
+  consigneeId: string | null;
+  paymentParty: string | null;
+  paymentMode: string | null;
+  currency: string | null;
+  billingCompany: string | null;
+  freightRate: Prisma.Decimal | null;
+  freightAmount: Prisma.Decimal | null;
+  exchangeRate: Prisma.Decimal | null;
+  mcDeliveryMode: string | null;
+  thirdPartyFee: Prisma.Decimal | null;
+  mySegmentFreightRate: Prisma.Decimal | null;
+  mySegmentFreightAmount: Prisma.Decimal | null;
+  thFreightRate: Prisma.Decimal | null;
+  thFreightAmount: Prisma.Decimal | null;
+};
+
+function prorateFreightAmount(
+  value: Prisma.Decimal | null,
+  ratio: number
+): number | null {
+  const amount = decimalToNumber(value);
+  if (amount == null) return null;
+  return Math.round(amount * ratio * 100) / 100;
+}
+
+type FreightSnapshotWrite = {
+  consigneeId: string | null;
+  paymentParty: string | null;
+  paymentMode: string | null;
+  currency: string | null;
+  billingCompany: string | null;
+  freightRate: Prisma.Decimal | null;
+  freightAmount: number | null;
+  exchangeRate: Prisma.Decimal | null;
+  mcDeliveryMode: string | null;
+  thirdPartyFee: number | null;
+  mySegmentFreightRate: Prisma.Decimal | null;
+  mySegmentFreightAmount: number | null;
+  thFreightRate: Prisma.Decimal | null;
+  thFreightAmount: number | null;
+};
+
+function splitFreightSnapshotFields(
+  snapshot: FreightSnapshotRow,
+  assignQty: number,
+  originalQty: number
+): {
+  assigned: FreightSnapshotWrite;
+  remainder: FreightSnapshotWrite;
+} {
+  const assignRatio = assignQty / originalQty;
+  const remainderRatio = (originalQty - assignQty) / originalQty;
+
+  const shared = {
+    consigneeId: snapshot.consigneeId,
+    paymentParty: snapshot.paymentParty,
+    paymentMode: snapshot.paymentMode,
+    currency: snapshot.currency,
+    billingCompany: snapshot.billingCompany,
+    freightRate: snapshot.freightRate,
+    exchangeRate: snapshot.exchangeRate,
+    mcDeliveryMode: snapshot.mcDeliveryMode,
+    mySegmentFreightRate: snapshot.mySegmentFreightRate,
+    thFreightRate: snapshot.thFreightRate,
+  };
+
+  const prorateAmounts = (ratio: number) => ({
+    ...shared,
+    freightAmount: prorateFreightAmount(snapshot.freightAmount, ratio),
+    thirdPartyFee: prorateFreightAmount(snapshot.thirdPartyFee, ratio),
+    mySegmentFreightAmount: prorateFreightAmount(
+      snapshot.mySegmentFreightAmount,
+      ratio
+    ),
+    thFreightAmount: prorateFreightAmount(snapshot.thFreightAmount, ratio),
+  });
+
+  return {
+    assigned: prorateAmounts(assignRatio),
+    remainder: prorateAmounts(remainderRatio),
+  };
+}
+
 async function splitAndAssignLine(
   tx: Prisma.TransactionClient,
   line: SplittableLine,
@@ -504,9 +605,37 @@ async function splitAndAssignLine(
   if (assignQty === line.quantity) return line.id;
 
   const remainder = line.quantity - assignQty;
+  const snapshot = await tx.inboundLine.findUnique({
+    where: { id: line.id },
+    select: freightSnapshotSelect,
+  });
+  const freightSplit = splitFreightSnapshotFields(
+    snapshot ?? {
+      consigneeId: null,
+      paymentParty: null,
+      paymentMode: null,
+      currency: null,
+      billingCompany: null,
+      freightRate: null,
+      freightAmount: null,
+      exchangeRate: null,
+      mcDeliveryMode: null,
+      thirdPartyFee: null,
+      mySegmentFreightRate: null,
+      mySegmentFreightAmount: null,
+      thFreightRate: null,
+      thFreightAmount: null,
+    },
+    assignQty,
+    line.quantity
+  );
+
   await tx.inboundLine.update({
     where: { id: line.id },
-    data: { quantity: assignQty },
+    data: {
+      quantity: assignQty,
+      ...freightSplit.assigned,
+    },
   });
   await tx.inboundLine.create({
     data: {
@@ -516,6 +645,7 @@ async function splitAndAssignLine(
       quantity: remainder,
       isBox: line.isBox,
       dispatchStatus: "unassigned",
+      ...freightSplit.remainder,
     },
   });
   return line.id;
