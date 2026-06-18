@@ -1,0 +1,24 @@
+{
+  "exportedAt": "2026-06-18T16:03:21.259Z",
+  "sessionNo": "IN-20260615-026",
+  "lines": [
+    {
+      "id": "4ca9c0bf-55b0-404d-bad3-345485cde9bf",
+      "sessionId": "75743149-000b-4e26-bb76-b091f91ca889",
+      "sessionNo": "IN-20260615-026",
+      "sessionDate": "2026-06-15",
+      "shipperCode": "3001-0003",
+      "stallCode": "IS14",
+      "marketCode": "MC",
+      "tongTypeCode": "ABB",
+      "quantity": 12,
+      "paymentMode": "3",
+      "currency": "MYR",
+      "billingCompany": "wtl",
+      "freightAmount": 540,
+      "dualPaymentWtlRate": null,
+      "dualPaymentWtlAmount": null,
+      "dualPaymentWtlConsigneeId": null
+    }
+  ]
+}

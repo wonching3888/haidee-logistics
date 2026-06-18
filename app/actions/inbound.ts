@@ -934,6 +934,8 @@ interface SaveInboundInput {
   newStalls?: NewStallInput[];
   asDraft: boolean;
   sessionId?: string;
+  /** Backfill only: use this date for freight rate lookup instead of session date. */
+  freightRateAsOfDate?: string;
 }
 
 export async function saveInboundSession(input: SaveInboundInput) {
@@ -992,11 +994,15 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
   await syncShipperStallDefaults(input.shipperId, allLines);
 
+  const freightRateDate = input.freightRateAsOfDate
+    ? parseDateInput(input.freightRateAsOfDate)
+    : date;
+
   const { ctx: freightCtx, shipperCurrency } = await loadInboundFreightContext(
     input.shipperId,
     allLines.map((line) => line.stallId),
     allLines.map((line) => line.tongTypeId),
-    date,
+    freightRateDate,
     effectivePickup
   );
   const freightSnapshots = computeFreightSnapshots(allLines, freightCtx);
