@@ -23,6 +23,7 @@ import type {
 } from "@/lib/pnl-report-types";
 import {
   type PnlCustomerSort,
+  type PnlCustomerSortDir,
   type PnlCustomerStatus,
 } from "@/lib/pnl-report-types";
 import { cn } from "@/lib/utils";
@@ -170,6 +171,8 @@ export function PnlReportView({
   const [routeFilter, setRouteFilter] = useState<PnlRouteFilter>("ALL");
   const [driverFilter, setDriverFilter] = useState("ALL");
   const [customerSort, setCustomerSort] = useState<PnlCustomerSort>("profit");
+  const [customerSortDir, setCustomerSortDir] =
+    useState<PnlCustomerSortDir>("desc");
 
   const [tripsData, setTripsData] = useState<PnlTripsListData | null>(null);
   const [tripsLoading, setTripsLoading] = useState(false);
@@ -364,6 +367,7 @@ export function PnlReportView({
         year: String(year),
         month: String(month),
         customerSort,
+        customerSortDir,
       });
       const data = await fetchJson<PnlCustomerData>(
         `/api/pnl/customers?${params}`
@@ -642,6 +646,18 @@ export function PnlReportView({
                 { value: "profit", label: "按毛利 Profit" },
                 { value: "quantity", label: "按桶数 Quantity" },
                 { value: "revenue", label: "按收入 Revenue" },
+                { value: "margin", label: "按毛利率% Margin %" },
+              ]}
+            />
+            <FilterSelect
+              label="顺序 Order"
+              value={customerSortDir}
+              onChange={(value) =>
+                setCustomerSortDir(value as PnlCustomerSortDir)
+              }
+              options={[
+                { value: "desc", label: "降序 Desc" },
+                { value: "asc", label: "升序 Asc" },
               ]}
             />
             <SearchButton onClick={loadCustomers} loading={customerLoading} />

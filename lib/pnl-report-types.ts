@@ -10,7 +10,8 @@ export const PNL_ROUTE_FILTERS = [
 
 export type PnlRouteFilter = (typeof PNL_ROUTE_FILTERS)[number];
 export type PnlPeriodMode = "day" | "range" | "month" | "year";
-export type PnlCustomerSort = "profit" | "quantity" | "revenue";
+export type PnlCustomerSort = "profit" | "quantity" | "revenue" | "margin";
+export type PnlCustomerSortDir = "asc" | "desc";
 export type PnlCustomerStatus = "excellent" | "normal" | "caution" | "loss";
 
 export interface PnlShipperRow {

@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { requirePnlApiAccess } from "@/lib/pnl-api-auth";
 import { buildPnlCustomerAnalysis } from "@/lib/pnl-report";
-import type { PnlCustomerSort } from "@/lib/pnl-report-types";
+import type { PnlCustomerSort, PnlCustomerSortDir } from "@/lib/pnl-report-types";
 import {
   parseReportMonth,
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
 
-const CUSTOMER_SORTS: PnlCustomerSort[] = ["profit", "quantity", "revenue"];
+const CUSTOMER_SORTS: PnlCustomerSort[] = [
+  "profit",
+  "quantity",
+  "revenue",
+  "margin",
+];
+const CUSTOMER_SORT_DIRS: PnlCustomerSortDir[] = ["asc", "desc"];
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -26,11 +32,18 @@ export async function GET(request: Request) {
     const customerSort = CUSTOMER_SORTS.includes(sortRaw as PnlCustomerSort)
       ? (sortRaw as PnlCustomerSort)
       : "profit";
+    const sortDirRaw = searchParams.get("customerSortDir") ?? "desc";
+    const customerSortDir = CUSTOMER_SORT_DIRS.includes(
+      sortDirRaw as PnlCustomerSortDir
+    )
+      ? (sortDirRaw as PnlCustomerSortDir)
+      : "desc";
 
     const data = await buildPnlCustomerAnalysis({
       year,
       month,
       customerSort,
+      customerSortDir,
     });
     return NextResponse.json(data);
   } catch (error) {

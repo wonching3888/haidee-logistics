@@ -43,6 +43,7 @@ import type {
   PnlCustomerMarketRow,
   PnlCustomerRow,
   PnlCustomerSort,
+  PnlCustomerSortDir,
   PnlCustomerStatus,
   PnlCustomerSuggestion,
   PnlDailyTrendPoint,
@@ -64,6 +65,7 @@ export type {
   PnlCustomerMarketRow,
   PnlCustomerRow,
   PnlCustomerSort,
+  PnlCustomerSortDir,
   PnlCustomerStatus,
   PnlCustomerSuggestion,
   PnlDailyTrendPoint,
@@ -1621,9 +1623,29 @@ export async function buildPnlTripDetail(input: {
   return trip;
 }
 
+function compareCustomerRows(
+  a: PnlCustomerRow,
+  b: PnlCustomerRow,
+  customerSort: PnlCustomerSort,
+  sortDir: PnlCustomerSortDir
+): number {
+  let cmp = 0;
+  if (customerSort === "quantity") {
+    cmp = a.totalQuantity - b.totalQuantity;
+  } else if (customerSort === "revenue") {
+    cmp = a.revenueMyr - b.revenueMyr;
+  } else if (customerSort === "margin") {
+    cmp = a.marginPct - b.marginPct;
+  } else {
+    cmp = a.grossProfitMyr - b.grossProfitMyr;
+  }
+  return sortDir === "desc" ? -cmp : cmp;
+}
+
 function buildCustomersFromTrips(
   trips: PnlTripRow[],
-  customerSort: PnlCustomerSort
+  customerSort: PnlCustomerSort,
+  sortDir: PnlCustomerSortDir = "desc"
 ): {
   customers: PnlCustomerRow[];
   lossCustomers: PnlCustomerSuggestion[];
@@ -1680,11 +1702,9 @@ function buildCustomersFromTrips(
     };
   });
 
-  customers.sort((a, b) => {
-    if (customerSort === "quantity") return b.totalQuantity - a.totalQuantity;
-    if (customerSort === "revenue") return b.revenueMyr - a.revenueMyr;
-    return b.grossProfitMyr - a.grossProfitMyr;
-  });
+  customers.sort((a, b) =>
+    compareCustomerRows(a, b, customerSort, sortDir)
+  );
 
   const lossCustomers: PnlCustomerSuggestion[] = customers
     .filter((row) => row.status === "loss" || row.status === "caution")
@@ -1779,8 +1799,10 @@ export async function buildPnlCustomerAnalysis(input: {
   year: number;
   month: number;
   customerSort?: PnlCustomerSort;
+  customerSortDir?: PnlCustomerSortDir;
 }): Promise<PnlCustomerData> {
   const customerSort = input.customerSort ?? "profit";
+  const customerSortDir = input.customerSortDir ?? "desc";
   const computed = await computeFilteredPnlTrips({
     year: input.year,
     month: input.month,
@@ -1790,7 +1812,8 @@ export async function buildPnlCustomerAnalysis(input: {
   });
   const { customers, lossCustomers } = buildCustomersFromTrips(
     computed.trips,
-    customerSort
+    customerSort,
+    customerSortDir
   );
   return {
     year: input.year,
@@ -1810,11 +1833,13 @@ export async function buildPnlReport(input: {
   routeFilter?: PnlRouteFilter;
   driverFilter?: string;
   customerSort?: PnlCustomerSort;
+  customerSortDir?: PnlCustomerSortDir;
 }): Promise<PnlReportData> {
   const periodMode = input.periodMode ?? "month";
   const routeFilter = input.routeFilter ?? "ALL";
   const driverFilter = input.driverFilter ?? "ALL";
   const customerSort = input.customerSort ?? "profit";
+  const customerSortDir = input.customerSortDir ?? "desc";
 
   if (
     periodMode === "month" &&
@@ -1832,7 +1857,8 @@ export async function buildPnlReport(input: {
     const ctx = await loadPnlComputationContext(input.year, input.month);
     const { customers, lossCustomers } = buildCustomersFromTrips(
       computed.trips,
-      customerSort
+      customerSort,
+      customerSortDir
     );
     const trendMap = new Map<string, PnlDailyTrendPoint>();
     for (const trip of computed.trips) {
@@ -1958,7 +1984,8 @@ export async function buildPnlReport(input: {
 
   const { customers, lossCustomers } = buildCustomersFromTrips(
     trips,
-    customerSort
+    customerSort,
+    customerSortDir
   );
 
   return {
