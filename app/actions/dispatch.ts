@@ -10,6 +10,14 @@ import { buildConsignorSessionLabel } from "@/lib/consignor-label";
 import { computeDriverAllowanceAmount } from "@/lib/driver-allowance";
 import { decimalToNumber } from "@/lib/freight-rates";
 import {
+  classifyInboundFreightGap,
+  computeInboundLineFreight,
+  normalizeMcDeliveryMode,
+  type InboundLineFreightSnapshot,
+} from "@/lib/inbound-freight";
+import { loadInboundFreightContext } from "@/lib/freight-context";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import {
   compareDispatchPriority,
   DISPATCH_MARKET_ORDER,
   DISPATCH_PRIORITY_ORDER,
@@ -524,6 +532,133 @@ type FreightSnapshotRow = {
   thFreightAmount: Prisma.Decimal | null;
 };
 
+function freightSnapshotUpdateData(snapshot: InboundLineFreightSnapshot) {
+  return {
+    consigneeId: snapshot.consigneeId,
+    paymentParty: snapshot.paymentParty,
+    paymentMode: snapshot.paymentMode,
+    currency: snapshot.currency,
+    billingCompany: snapshot.billingCompany,
+    freightRate: snapshot.freightRate,
+    freightAmount: snapshot.freightAmount,
+    exchangeRate: snapshot.exchangeRate,
+    mcDeliveryMode: snapshot.mcDeliveryMode,
+    thirdPartyFee: snapshot.thirdPartyFee,
+    mySegmentFreightRate: snapshot.mySegmentFreightRate,
+    mySegmentFreightAmount: snapshot.mySegmentFreightAmount,
+    thFreightRate: snapshot.thFreightRate,
+    thFreightAmount: snapshot.thFreightAmount,
+  };
+}
+
+/**
+ * When lines are assigned at dispatch time, backfill freight snapshots if missing.
+ * Uses dispatch order date for rate lookup (not session date) so rates effective
+ * before dispatch day are available — covers delayed entry + late assignment.
+ */
+async function ensureFreightSnapshotsForAssignedLines(
+  tx: Prisma.TransactionClient,
+  lineIds: string[],
+  dispatchDate: Date,
+  dispatchOrderId: string
+) {
+  if (lineIds.length === 0) return;
+
+  const lines = await tx.inboundLine.findMany({
+    where: { id: { in: lineIds }, freightAmount: null },
+    select: {
+      id: true,
+      stallId: true,
+      tongTypeId: true,
+      quantity: true,
+      mcDeliveryMode: true,
+      session: {
+        select: {
+          shipperId: true,
+          pickupLocation: true,
+          shipper: { select: { pickupLocation: true } },
+        },
+      },
+      stall: { select: { market: { select: { code: true } } } },
+    },
+  });
+  if (lines.length === 0) return;
+
+  const ctxCache = new Map<
+    string,
+    Awaited<ReturnType<typeof loadInboundFreightContext>>["ctx"]
+  >();
+
+  for (const line of lines) {
+    const pickup = resolveSessionPickupLocation(
+      line.session.pickupLocation,
+      line.session.shipper.pickupLocation
+    );
+    const cacheKey = `${line.session.shipperId}|${pickup}|${dispatchDate.toISOString().slice(0, 10)}`;
+    let freightCtx = ctxCache.get(cacheKey);
+    if (!freightCtx) {
+      const loaded = await loadInboundFreightContext(
+        line.session.shipperId,
+        [line.stallId],
+        [line.tongTypeId],
+        dispatchDate,
+        pickup
+      );
+      freightCtx = loaded.ctx;
+      ctxCache.set(cacheKey, freightCtx);
+    }
+
+    const marketCode = line.stall.market?.code ?? "";
+    const snapshot = computeInboundLineFreight(
+      {
+        stallId: line.stallId,
+        tongTypeId: line.tongTypeId,
+        quantity: line.quantity,
+        mcDeliveryMode: normalizeMcDeliveryMode(
+          marketCode,
+          line.mcDeliveryMode
+        ),
+      },
+      freightCtx
+    );
+
+    if ((snapshot.freightAmount ?? 0) > 0) {
+      await tx.inboundLine.update({
+        where: { id: line.id },
+        data: freightSnapshotUpdateData(snapshot),
+      });
+      continue;
+    }
+
+    const gap =
+      classifyInboundFreightGap(
+        {
+          stallId: line.stallId,
+          tongTypeId: line.tongTypeId,
+          quantity: line.quantity,
+          mcDeliveryMode: normalizeMcDeliveryMode(
+            marketCode,
+            line.mcDeliveryMode
+          ),
+        },
+        freightCtx,
+        snapshot
+      ) ?? "unknown";
+
+    console.warn(
+      JSON.stringify({
+        event: "dispatch_freight_snapshot_missing",
+        dispatchOrderId,
+        inboundLineId: line.id,
+        shipperId: line.session.shipperId,
+        marketCode,
+        gapReason: gap,
+        rateAsOfDate: dispatchDate.toISOString().slice(0, 10),
+      })
+    );
+  }
+}
+
 function prorateFreightAmount(
   value: Prisma.Decimal | null,
   ratio: number
@@ -710,6 +845,13 @@ async function assignLinesToOrder(
       data: { dispatchStatus: "assigned", truckId },
     });
   }
+
+  await ensureFreightSnapshotsForAssignedLines(
+    tx,
+    assignedLineIds,
+    date,
+    dispatchOrderId
+  );
 }
 
 async function releaseDispatchLines(
