@@ -7,6 +7,11 @@ import {
   getUnloadingRatesByMarket,
 } from "@/lib/driver-expense-service";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
+import {
+  buildCrateRentalMyrRateMap,
+  computeCrateRentalLineCostMyr,
+} from "@/lib/crate-rental-cost";
+import { loadExchangeRate } from "@/lib/exchange-rate";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { DEFAULT_FUEL_PRICES } from "@/lib/constants/truck-cost";
 import {
@@ -220,6 +225,7 @@ export async function aggregateOperationsCosts(
     unloadingFees,
     crateLoadingFees,
     vouchers,
+    exchangeRate,
   ] = await Promise.all([
     prisma.routeMaster.findMany({
       where: { active: true },
@@ -314,6 +320,7 @@ export async function aggregateOperationsCosts(
         fishCheckActual: true,
       },
     }),
+    loadExchangeRate(year, month),
   ]);
 
   const routes: RouteMasterCostRow[] = routeMasters.map((route) => ({
@@ -341,11 +348,7 @@ export async function aggregateOperationsCosts(
     ])
   );
 
-  const rentalRateByType = new Map(
-    crateRentalRates
-      .filter((row) => row.isRental)
-      .map((row) => [row.crateType, row.rateMyr])
-  );
+  const rentalRateByType = buildCrateRentalMyrRateMap(crateRentalRates, exchangeRate);
   const unloadingByTrip = new Map<string, typeof unloadingFees>();
   for (const row of unloadingFees) {
     const group = unloadingByTrip.get(row.tripId) ?? [];
@@ -439,9 +442,9 @@ export async function aggregateOperationsCosts(
       if (quantity <= 0) continue;
 
       const crateType = inboundLine.tongType.code;
-      const rentalRate = rentalRateByType.get(crateType);
-      if (rentalRate != null && Number.isFinite(rentalRate)) {
-        totals.crateRental += quantity * rentalRate;
+      const rentalRate = rentalRateByType.get(crateType) ?? 0;
+      if (rentalRate > 0) {
+        totals.crateRental += computeCrateRentalLineCostMyr(quantity, rentalRate);
       }
     }
   }

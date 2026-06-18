@@ -218,7 +218,8 @@ async function main() {
       create: {
         crateType: item.crateType,
         isRental: item.isRental,
-        rateMyr: item.rateMyr,
+        rate: item.rate,
+        currency: item.currency,
         notes: item.notes,
       },
       update: {},

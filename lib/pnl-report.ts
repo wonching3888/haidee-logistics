@@ -1,5 +1,9 @@
-import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
+import {
+  buildCrateRentalMyrRateMap,
+  computeCrateRentalLineCostMyr,
+} from "@/lib/crate-rental-cost";
+import { loadExchangeRate } from "@/lib/exchange-rate";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import { convertThbToMyr, decimalToNumber } from "@/lib/freight-rates";
@@ -549,13 +553,6 @@ function buildPeriodSummaryFromTrips(input: {
   };
 }
 
-async function loadExchangeRate(year: number, month: number) {
-  const yearMonth = `${year}-${String(month).padStart(2, "0")}`;
-  const row = await prisma.exchangeRate.findUnique({ where: { yearMonth } });
-  const rate = decimalToNumber(row?.rate);
-  return rate && rate > 0 ? rate : DEFAULT_EXCHANGE_RATE;
-}
-
 async function loadThaiSegmentRates() {
   const rows = await listGlobalCostSettings();
   return parseThaiSegmentRates(rows);
@@ -861,11 +858,7 @@ async function loadPnlComputationContext(
     ])
   );
 
-  const rentalRateByType = new Map(
-    crateRentalRates
-      .filter((row) => row.isRental)
-      .map((row) => [row.crateType, row.rateMyr])
-  );
+  const rentalRateByType = buildCrateRentalMyrRateMap(crateRentalRates, exchangeRate);
 
   const unloadingByTripId = new Map<
     string,
@@ -1113,7 +1106,7 @@ async function computeTripPnlRow(
       const revenue = lineRevenueMyr(snapshot, ctx.exchangeRate);
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
-      const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
+      const crateRental = computeCrateRentalLineCostMyr(quantity, rentalRate);
       const lkim =
         quantity *
         (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);
@@ -1513,7 +1506,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       const revenue = lineRevenueMyr(snapshot, ctx.exchangeRate);
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
-      const crateRental = rentalRate > 0 ? quantity * rentalRate : 0;
+      const crateRental = computeCrateRentalLineCostMyr(quantity, rentalRate);
       const lkim =
         quantity *
         (inbound.tongType.isBox ? ctx.lkimRatePerBox : ctx.lkimRatePerCrate);

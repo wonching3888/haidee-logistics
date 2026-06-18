@@ -1,0 +1,2 @@
+ALTER TABLE crate_rental_rates
+ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'MYR';

@@ -88,9 +88,16 @@ export const MAIN_NAV_CRATE: MainNavGroup = {
   ],
 };
 
+export const MAIN_NAV_REPORTS_CRATE_RENTAL: MainNavLink = {
+  href: "/reports/crate-rental",
+  label: "租桶月结",
+  labelEn: "Crate Rental Statement",
+};
+
 export const MAIN_NAV_REPORTS_BASE: MainNavLink[] = [
   { href: "/reports/market", label: "市场报表", labelEn: "Market Report" },
   { href: "/reports/crate", label: "桶型报表", labelEn: "Crate Report" },
+  MAIN_NAV_REPORTS_CRATE_RENTAL,
 ];
 
 export const MAIN_NAV_REPORTS_OPERATIONS: MainNavLink = {

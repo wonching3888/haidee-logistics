@@ -211,7 +211,8 @@ interface SettingsClientProps {
     id: string;
     crateType: string;
     isRental: boolean;
-    rateMyr: number;
+    rate: number;
+    currency: "MYR" | "THB";
     notes: string | null;
   }[];
 }

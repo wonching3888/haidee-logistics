@@ -279,7 +279,8 @@ model CrateRentalRate {
   id        String   @id @default(uuid()) @db.Uuid
   crateType String   @unique @map("crate_type") @db.VarChar(10)
   isRental  Boolean  @default(true) @map("is_rental")
-  rateMyr   Decimal  @default(0) @map("rate_myr") @db.Decimal(10, 2)
+  rate      Decimal  @default(0) @map("rate_myr") @db.Decimal(10, 2)
+  currency  String   @default("MYR") @db.VarChar(3)
   notes     String?  @db.VarChar(200)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 

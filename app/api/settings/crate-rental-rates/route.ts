@@ -4,6 +4,8 @@ import {
   listCrateRentalRates,
   saveCrateRentalRatesBatch,
 } from "@/lib/crate-rental-rates-service";
+import type { CrateRentalCurrency } from "@/lib/crate-rental-cost";
+import { normalizeCrateRentalCurrency } from "@/lib/crate-rental-cost";
 
 async function requireAdminApi() {
   const user = await getCurrentUser();
@@ -41,7 +43,8 @@ export async function PUT(request: Request) {
       rates?: {
         crateType: string;
         isRental: boolean;
-        rateMyr: number;
+        rate: number;
+        currency?: CrateRentalCurrency;
         notes?: string | null;
       }[];
     };
@@ -53,7 +56,12 @@ export async function PUT(request: Request) {
       );
     }
 
-    const rates = await saveCrateRentalRatesBatch(body.rates);
+    const rates = await saveCrateRentalRatesBatch(
+      body.rates.map((row) => ({
+        ...row,
+        currency: normalizeCrateRentalCurrency(row.currency),
+      }))
+    );
     return NextResponse.json({ rates });
   } catch (error) {
     return NextResponse.json(

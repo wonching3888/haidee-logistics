@@ -4,13 +4,18 @@ import {
   DEFAULT_CRATE_RENTAL_RATES,
   sortCrateRentalRates,
 } from "@/lib/constants/crate-rental-rates";
+import {
+  normalizeCrateRentalCurrency,
+  type CrateRentalCurrency,
+} from "@/lib/crate-rental-cost";
 import { isMissingCrateRentalRatesTableError } from "@/lib/create-crate-rental-rates-table";
 
 export interface CrateRentalRateRow {
   id: string;
   crateType: string;
   isRental: boolean;
-  rateMyr: number;
+  rate: number;
+  currency: CrateRentalCurrency;
   notes: string | null;
 }
 
@@ -20,14 +25,16 @@ function serializeCrateRentalRate(row: {
   id: string;
   crateType: string;
   isRental: boolean;
-  rateMyr: unknown;
+  rate: unknown;
+  currency: string;
   notes: string | null;
 }): CrateRentalRateRow {
   return {
     id: row.id,
     crateType: row.crateType,
     isRental: row.isRental,
-    rateMyr: decimalToNumber(row.rateMyr) ?? 0,
+    rate: decimalToNumber(row.rate) ?? 0,
+    currency: normalizeCrateRentalCurrency(row.currency),
     notes: row.notes,
   };
 }
@@ -41,7 +48,8 @@ export async function ensureCrateRentalRatesSeeded() {
           create: {
             crateType: item.crateType,
             isRental: item.isRental,
-            rateMyr: item.rateMyr,
+            rate: item.rate,
+            currency: item.currency,
             notes: item.notes,
           },
           update: {},
@@ -80,7 +88,8 @@ export async function ensureCrateRentalRatesForActiveTongTypes() {
       data: missing.map((tongType) => ({
         crateType: tongType.code,
         isRental: tongType.trackInventory,
-        rateMyr: 0,
+        rate: 0,
+        currency: "MYR",
       })),
       skipDuplicates: true,
     });
@@ -106,7 +115,7 @@ export async function listCrateRentalRates(): Promise<CrateRentalRateRow[]> {
   }
 }
 
-function parseRateMyr(value: number, label: string) {
+function parseRate(value: number, label: string) {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${label} 不能为负数`);
   }
@@ -117,7 +126,8 @@ export async function saveCrateRentalRatesBatch(
   input: {
     crateType: string;
     isRental: boolean;
-    rateMyr: number;
+    rate: number;
+    currency: CrateRentalCurrency;
     notes?: string | null;
   }[]
 ) {
@@ -128,12 +138,14 @@ export async function saveCrateRentalRatesBatch(
   await prisma.$transaction(
     input.map((item) => {
       const current = existingByType.get(item.crateType);
+      const currency = normalizeCrateRentalCurrency(item.currency);
       if (!current) {
         return prisma.crateRentalRate.create({
           data: {
             crateType: item.crateType,
             isRental: item.isRental,
-            rateMyr: parseRateMyr(item.rateMyr, item.crateType),
+            rate: parseRate(item.rate, item.crateType),
+            currency,
             notes: item.notes?.trim() || null,
           },
         });
@@ -143,7 +155,8 @@ export async function saveCrateRentalRatesBatch(
         where: { crateType: item.crateType },
         data: {
           isRental: item.isRental,
-          rateMyr: item.isRental ? parseRateMyr(item.rateMyr, item.crateType) : 0,
+          rate: item.isRental ? parseRate(item.rate, item.crateType) : 0,
+          currency: item.isRental ? currency : "MYR",
           notes: item.notes?.trim() || null,
         },
       });

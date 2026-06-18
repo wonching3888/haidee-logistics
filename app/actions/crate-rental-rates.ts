@@ -7,6 +7,7 @@ import {
   saveCrateRentalRatesBatch,
   type CrateRentalRateRow,
 } from "@/lib/crate-rental-rates-service";
+import type { CrateRentalCurrency } from "@/lib/crate-rental-cost";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -25,12 +26,14 @@ export async function saveCrateRentalRates(input: {
   rates: {
     crateType: string;
     isRental: boolean;
-    rateMyr: number;
+    rate: number;
+    currency: CrateRentalCurrency;
     notes?: string | null;
   }[];
 }): Promise<CrateRentalRateRow[]> {
   await requireAdmin();
   const rates = await saveCrateRentalRatesBatch(input.rates);
   revalidatePath("/settings");
+  revalidatePath("/reports/crate-rental");
   return rates;
 }
