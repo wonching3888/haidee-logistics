@@ -53,3 +53,4 @@ scripts/backup-remaining-12-trips-before-fix-*.json
 scripts/backup-660-rows-pre-1.5b-*.json
 scripts/backup-373-rows-rate-gap-*.json
 scripts/backup-104-unknown-rows-*.json
+scripts/backup-june-4-unloading-fees-*.json
