@@ -193,6 +193,7 @@ model Consignee {
   secondaryPaymentRelations PaymentRelation[] @relation("SecondaryPaymentConsignee")
   stalls           Stall[]
   inboundLines     InboundLine[]
+  dualPaymentWtlInboundLines InboundLine[] @relation("InboundLineDualPaymentWtlConsignee")
 
   @@map("consignees")
 }
@@ -503,10 +504,14 @@ model InboundLine {
   mySegmentFreightAmount Decimal? @map("my_segment_freight_amount") @db.Decimal(10, 2)
   thFreightRate          Decimal? @map("th_freight_rate") @db.Decimal(10, 2)
   thFreightAmount        Decimal? @map("th_freight_amount") @db.Decimal(10, 2)
+  dualPaymentWtlRate     Decimal? @map("dual_payment_wtl_rate") @db.Decimal(10, 2)
+  dualPaymentWtlAmount   Decimal? @map("dual_payment_wtl_amount") @db.Decimal(10, 2)
+  dualPaymentWtlConsigneeId String? @map("dual_payment_wtl_consignee_id") @db.Uuid
 
   session          InboundSession @relation(fields: [sessionId], references: [id])
   stall            Stall          @relation(fields: [stallId], references: [id])
   consignee        Consignee?     @relation(fields: [consigneeId], references: [id])
+  dualPaymentWtlConsignee Consignee? @relation("InboundLineDualPaymentWtlConsignee", fields: [dualPaymentWtlConsigneeId], references: [id])
   tongType         TongType       @relation(fields: [tongTypeId], references: [id])
   truck            Truck?         @relation(fields: [truckId], references: [id])
   originalTongType TongType?      @relation("OriginalTongType", fields: [originalTongTypeId], references: [id])

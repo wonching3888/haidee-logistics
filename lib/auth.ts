@@ -4,6 +4,10 @@ import { isUserRole } from "@/lib/auth-roles";
 import type { AppUser } from "@/types";
 
 export async function getCurrentUser(): Promise<AppUser | null> {
+  const backfillUser = (globalThis as { __BACKFILL_USER__?: AppUser })
+    .__BACKFILL_USER__;
+  if (backfillUser) return backfillUser;
+
   const supabase = await createClient();
   const {
     data: { user },

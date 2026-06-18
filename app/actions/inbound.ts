@@ -204,6 +204,7 @@ async function applyCrateStockAdjustments(
 }
 
 function revalidateInboundRelatedPaths() {
+  if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
   // "page" scope avoids revalidating /inbound/[id]/edit while the form is still mounted.
   revalidatePath("/inbound", "page");
   revalidatePath("/dispatch");
@@ -416,6 +417,9 @@ function freightFields(snapshot: InboundLineFreightSnapshot) {
     mySegmentFreightAmount: snapshot.mySegmentFreightAmount,
     thFreightRate: snapshot.thFreightRate,
     thFreightAmount: snapshot.thFreightAmount,
+    dualPaymentWtlRate: snapshot.dualPaymentWtlRate ?? null,
+    dualPaymentWtlAmount: snapshot.dualPaymentWtlAmount ?? null,
+    dualPaymentWtlConsigneeId: snapshot.dualPaymentWtlConsigneeId ?? null,
   };
 }
 

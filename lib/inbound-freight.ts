@@ -42,6 +42,7 @@ export interface InboundLineFreightSnapshot {
   /** Secondary WTL MYR income when dual_payment relation applies (mode 3). */
   dualPaymentWtlRate?: number | null;
   dualPaymentWtlAmount?: number | null;
+  dualPaymentWtlConsigneeId?: string | null;
 }
 
 interface RateRow {
@@ -520,6 +521,10 @@ export function computeInboundLineFreight(
     thFreightAmount,
     dualPaymentWtlRate: dualWtl.rate,
     dualPaymentWtlAmount: dualWtl.amount,
+    dualPaymentWtlConsigneeId:
+      (dualWtl.amount ?? 0) > 0
+        ? relation?.secondaryConsigneeId ?? null
+        : null,
   };
 }
 

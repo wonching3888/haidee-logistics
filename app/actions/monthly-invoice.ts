@@ -35,56 +35,40 @@ function parseYearMonth(year: number, month: number) {
   }
 }
 
-async function fetchRawInvoiceLines(
-  year: number,
-  month: number,
-  mode: MonthlyInvoiceMode
-): Promise<RawInvoiceLine[]> {
-  const config = getMonthlyInvoiceModeConfig(mode);
-  if (!config) throw new Error("无效账单模式 Invalid invoice mode");
-
-  const { start, end } = getMonthDateRange(year, month);
-
-  const sharedWhere = {
-    freightAmount: { gt: 0 },
-    session: {
-      status: "confirmed" as const,
-      date: { gte: start, lte: end },
+const invoiceLineInclude = {
+  session: {
+    select: {
+      date: true,
+      shipper: { select: { id: true, code: true, name: true } },
     },
+  },
+  stall: {
+    include: { market: { select: { code: true } } },
+  },
+  tongType: { select: { code: true, isBox: true } },
+  consignee: { select: { id: true, code: true, name: true } },
+  dualPaymentWtlConsignee: { select: { id: true, code: true, name: true } },
+} as const;
+
+type InvoiceLineRow = Awaited<
+  ReturnType<typeof prisma.inboundLine.findMany>
+>[number] & {
+  session: {
+    date: Date;
+    shipper: { id: string; code: string; name: string };
   };
+  stall: {
+    code: string;
+    name: string | null;
+    market: { code: string } | null;
+  };
+  tongType: { code: string; isBox: boolean };
+  consignee: { id: string; code: string; name: string } | null;
+  dualPaymentWtlConsignee: { id: string; code: string; name: string } | null;
+};
 
-  const lines = await prisma.inboundLine.findMany({
-    where:
-      mode === "4"
-        ? {
-            billingCompany: "wtl",
-            currency: "MYR",
-            paymentMode: { not: "3" },
-            ...sharedWhere,
-          }
-        : {
-            paymentMode: config.paymentMode,
-            billingCompany: config.billingCompany,
-            currency: config.currency,
-            ...sharedWhere,
-          },
-    include: {
-      session: {
-        select: {
-          date: true,
-          shipper: { select: { id: true, code: true, name: true } },
-        },
-      },
-      stall: {
-        include: { market: { select: { code: true } } },
-      },
-      tongType: { select: { code: true, isBox: true } },
-      consignee: { select: { id: true, code: true, name: true } },
-    },
-    orderBy: [{ session: { date: "asc" } }, { createdAt: "asc" }],
-  });
-
-  return lines.map((line) => ({
+function mapPrimaryInvoiceLine(line: InvoiceLineRow): RawInvoiceLine {
+  return {
     sessionDate: line.session.date,
     stallMarketCode: line.stall.market?.code ?? "",
     stallCode: line.stall.code,
@@ -104,7 +88,102 @@ async function fetchRawInvoiceLines(
     consigneeId: line.consigneeId ?? line.consignee?.id ?? null,
     consigneeCode: line.consignee?.code ?? null,
     consigneeName: line.consignee?.name ?? null,
-  }));
+  };
+}
+
+function mapDualPaymentWtlInvoiceLine(line: InvoiceLineRow): RawInvoiceLine {
+  const consignee = line.dualPaymentWtlConsignee;
+  return {
+    sessionDate: line.session.date,
+    stallMarketCode: line.stall.market?.code ?? "",
+    stallCode: line.stall.code,
+    stallName: line.stall.name,
+    tongTypeCode: line.tongType.code,
+    quantity: line.quantity,
+    freightRate: decimalToNumber(line.dualPaymentWtlRate),
+    freightAmount: decimalToNumber(line.dualPaymentWtlAmount),
+    thFreightRate: null,
+    thFreightAmount: null,
+    mySegmentFreightRate: null,
+    mySegmentFreightAmount: null,
+    isBox: line.isBox,
+    shipperId: line.session.shipper.id,
+    shipperCode: line.session.shipper.code,
+    shipperName: line.session.shipper.name,
+    consigneeId: line.dualPaymentWtlConsigneeId ?? consignee?.id ?? null,
+    consigneeCode: consignee?.code ?? null,
+    consigneeName: consignee?.name ?? null,
+  };
+}
+
+async function fetchRawInvoiceLines(
+  year: number,
+  month: number,
+  mode: MonthlyInvoiceMode
+): Promise<RawInvoiceLine[]> {
+  const config = getMonthlyInvoiceModeConfig(mode);
+  if (!config) throw new Error("无效账单模式 Invalid invoice mode");
+
+  const { start, end } = getMonthDateRange(year, month);
+
+  const sessionWhere = {
+    status: "confirmed" as const,
+    date: { gte: start, lte: end },
+  };
+
+  const sharedWhere = {
+    freightAmount: { gt: 0 },
+    session: sessionWhere,
+  };
+
+  if (mode === "3") {
+    const [primaryLines, dualLines] = await Promise.all([
+      prisma.inboundLine.findMany({
+        where: {
+          paymentMode: config.paymentMode,
+          billingCompany: config.billingCompany,
+          currency: config.currency,
+          ...sharedWhere,
+        },
+        include: invoiceLineInclude,
+        orderBy: [{ session: { date: "asc" } }, { createdAt: "asc" }],
+      }),
+      prisma.inboundLine.findMany({
+        where: {
+          dualPaymentWtlAmount: { gt: 0 },
+          session: sessionWhere,
+        },
+        include: invoiceLineInclude,
+        orderBy: [{ session: { date: "asc" } }, { createdAt: "asc" }],
+      }),
+    ]);
+
+    return [
+      ...primaryLines.map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow)),
+      ...dualLines.map((line) => mapDualPaymentWtlInvoiceLine(line as InvoiceLineRow)),
+    ];
+  }
+
+  const lines = await prisma.inboundLine.findMany({
+    where:
+      mode === "4"
+        ? {
+            billingCompany: "wtl",
+            currency: "MYR",
+            paymentMode: { not: "3" },
+            ...sharedWhere,
+          }
+        : {
+            paymentMode: config.paymentMode,
+            billingCompany: config.billingCompany,
+            currency: config.currency,
+            ...sharedWhere,
+          },
+    include: invoiceLineInclude,
+    orderBy: [{ session: { date: "asc" } }, { createdAt: "asc" }],
+  });
+
+  return lines.map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow));
 }
 
 export async function getMonthlyInvoiceCustomers(input: {
