@@ -50,3 +50,5 @@ scripts/backup-wtl-shipper-snapshots-*.json
 scripts/backup-sl-bp-mp-unloading-fees-*.json
 scripts/backup-pnl-unload-before-sl-bp-mp-fix.json
 scripts/backup-remaining-12-trips-before-fix-*.json
+scripts/backup-660-rows-pre-1.5b-*.json
+scripts/backup-373-rows-rate-gap-*.json
