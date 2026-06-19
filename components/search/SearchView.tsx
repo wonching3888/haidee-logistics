@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -20,6 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { PdfSharePayload } from "@/lib/print-pdf-share";
+
+const PrintPdfSharePrototype = dynamic(
+  () =>
+    import("@/components/documents/PrintPdfSharePrototype").then(
+      (mod) => mod.PrintPdfSharePrototype
+    ),
+  { ssr: false }
+);
 
 interface SearchViewProps {
   fromDate: string;
@@ -85,6 +95,18 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
   const dateRangeLabel =
     fromDate === toDate ? displayFrom : `${displayFrom} — ${displayTo}`;
 
+  const sharePayload = useMemo((): PdfSharePayload | null => {
+    if (!canPrint) return null;
+    const keyword = query.trim();
+    return {
+      fileName: `search-${fromDate}-${toDate}.pdf`,
+      title: "查询结果 Search Results",
+      text: keyword
+        ? `日期 ${dateRangeLabel} · 关键字 ${keyword}`
+        : `日期 ${dateRangeLabel}`,
+    };
+  }, [canPrint, dateRangeLabel, fromDate, query, toDate]);
+
   return (
     <div className="space-y-6">
       <form
@@ -115,7 +137,7 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
             className="min-h-[44px]"
           />
         </div>
-        <div className="flex flex-col gap-2 max-md:w-full md:flex-row md:flex-wrap">
+        <div className="flex flex-col gap-2 max-md:w-full md:flex-row md:flex-wrap md:items-end">
           <Button
             type="submit"
             disabled={isPending}
@@ -134,6 +156,12 @@ export function SearchView({ fromDate, toDate, query, data }: SearchViewProps) {
             <Printer className="h-4 w-4" />
             打印 Print
           </Button>
+          {sharePayload ? (
+            <PrintPdfSharePrototype
+              getContentElement={() => printRef.current}
+              payload={sharePayload}
+            />
+          ) : null}
         </div>
       </form>
 

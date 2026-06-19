@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
@@ -16,6 +17,15 @@ import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
 import { REPORT_YEAR_OPTIONS } from "@/lib/reports/report-query-params";
 import { withReportQueryFlag } from "@/lib/reports/report-query-params";
+import type { PdfSharePayload } from "@/lib/print-pdf-share";
+
+const PrintPdfSharePrototype = dynamic(
+  () =>
+    import("@/components/documents/PrintPdfSharePrototype").then(
+      (mod) => mod.PrintPdfSharePrototype
+    ),
+  { ssr: false }
+);
 
 interface PeriodReportDraft {
   mode: PeriodReportMode;
@@ -107,6 +117,15 @@ export function PeriodReportView({
 
   const periodHeader = draft.mode === "monthly" ? "日期 Date" : "月份 Month";
 
+  const sharePayload = useMemo((): PdfSharePayload | null => {
+    if (!data) return null;
+    return {
+      fileName: `${documentTitlePrefix}-${data.mode}-${data.periodLabel}.pdf`,
+      title: `${reportTitle} ${reportTitleEn}`,
+      text: `${reportTitle} · ${data.periodLabel}`,
+    };
+  }, [data, documentTitlePrefix, reportTitle, reportTitleEn]);
+
   const stickyPeriodHead =
     "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface px-3 py-2 text-left font-semibold";
   const stickyTotalHead =
@@ -120,16 +139,22 @@ export function PeriodReportView({
         loading={navigating}
         onSearch={handleSearch}
         actions={
-          data ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handlePrint()}
-              className="gap-1"
-            >
-              <Printer className="h-4 w-4" />
-              打印 Print
-            </Button>
+          data && sharePayload ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handlePrint()}
+                className="gap-1"
+              >
+                <Printer className="h-4 w-4" />
+                打印 Print
+              </Button>
+              <PrintPdfSharePrototype
+                getContentElement={() => printRef.current}
+                payload={sharePayload}
+              />
+            </div>
           ) : undefined
         }
       >
