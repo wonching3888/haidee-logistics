@@ -18,6 +18,7 @@ import {
   type MonthlyInvoiceMode,
   isMonthlyInvoiceMode,
 } from "@/lib/constants/monthly-invoice";
+import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 
 const DOCUMENT_ACTION_BTN =
@@ -51,18 +52,10 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const syncListUrl = pathname === "/documents/monthly-invoice";
-  const now = new Date();
-  const urlYear = Number(searchParams.get("year"));
-  const urlMonth = Number(searchParams.get("month"));
+  const initial = parseYearMonthFromSearchParams(searchParams);
   const urlMode = searchParams.get("mode");
-  const [year, setYear] = useState(
-    Number.isInteger(urlYear) ? urlYear : now.getFullYear()
-  );
-  const [month, setMonth] = useState(
-    Number.isInteger(urlMonth) && urlMonth >= 1 && urlMonth <= 12
-      ? urlMonth
-      : now.getMonth() + 1
-  );
+  const [year, setYear] = useState(initial.year);
+  const [month, setMonth] = useState(initial.month);
   const [mode, setMode] = useState<MonthlyInvoiceMode>(
     urlMode && isMonthlyInvoiceMode(urlMode) ? urlMode : "1a"
   );
@@ -74,12 +67,11 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
 
   useEffect(() => {
     if (!syncListUrl) return;
-    const currentYear = Number(searchParams.get("year"));
-    const currentMonth = Number(searchParams.get("month"));
     const currentMode = searchParams.get("mode");
-    if (currentYear === year && currentMonth === month && currentMode === mode) {
-      return;
-    }
+    const yearMonthOk =
+      searchParams.get("year") === String(year) &&
+      searchParams.get("month") === String(month);
+    if (yearMonthOk && currentMode === mode) return;
     const params = new URLSearchParams();
     params.set("year", String(year));
     params.set("month", String(month));

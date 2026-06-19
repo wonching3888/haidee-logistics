@@ -6,6 +6,11 @@ import { useEffect, useState, useTransition } from "react";
 import { getPartnerTripInvoiceTrips } from "@/app/actions/partner-trip-invoice";
 import type { PartnerTripSummary } from "@/lib/partner-freight";
 import {
+  currentCalendarYearMonth,
+  parseYearMonthFromSearchParams,
+  yearMonthQueryMatches,
+} from "@/lib/parse-year-month-params";
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,11 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-function currentYearMonth() {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
-}
-
 function formatMyr(value: number) {
   return value.toLocaleString("en-MY", {
     minimumFractionDigits: 2,
@@ -26,20 +26,10 @@ function formatMyr(value: number) {
   });
 }
 
-function parseYearMonth(searchParams: URLSearchParams) {
-  const initial = currentYearMonth();
-  const year = Number(searchParams.get("year"));
-  const month = Number(searchParams.get("month"));
-  return {
-    year: Number.isInteger(year) ? year : initial.year,
-    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : initial.month,
-  };
-}
-
 export function PartnerTripInvoicePicker() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initial = parseYearMonth(searchParams);
+  const initial = parseYearMonthFromSearchParams(searchParams);
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
   const [trips, setTrips] = useState<PartnerTripSummary[]>([]);
@@ -48,9 +38,7 @@ export function PartnerTripInvoicePicker() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    const currentYear = Number(searchParams.get("year"));
-    const currentMonth = Number(searchParams.get("month"));
-    if (currentYear === year && currentMonth === month) return;
+    if (yearMonthQueryMatches(searchParams, year, month)) return;
     const params = new URLSearchParams();
     params.set("year", String(year));
     params.set("month", String(month));
@@ -74,7 +62,7 @@ export function PartnerTripInvoicePicker() {
     });
   }, [year, month]);
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYearMonth().year - 2 + i);
+  const years = Array.from({ length: 5 }, (_, i) => currentCalendarYearMonth().year - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
