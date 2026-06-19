@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { getMonthlyInvoicePrintData } from "@/app/actions/monthly-invoice";
 import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { HaideeMonthlyInvoicePrint } from "@/components/documents/HaideeMonthlyInvoicePrint";
 import { Mode4MonthlyInvoicePrint } from "@/components/documents/Mode4MonthlyInvoicePrint";
 import { MonthlyInvoicePrint } from "@/components/documents/MonthlyInvoicePrint";
 import { PageError } from "@/components/shared/PageError";
 import { isMonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
+import { isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { isWtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +56,8 @@ export default async function MonthlyInvoicePrintPage({
       >
         {isWtlMonthlyInvoiceData(data) ? (
           <Mode4MonthlyInvoicePrint data={data} />
+        ) : isHaideeMonthlyInvoiceData(data) ? (
+          <HaideeMonthlyInvoicePrint data={data} />
         ) : (
           <MonthlyInvoicePrint data={data} />
         )}

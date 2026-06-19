@@ -17,6 +17,7 @@ import {
 } from "@/lib/monthly-invoice";
 import { buildMode4MonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
+import { buildHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { decimalToNumber } from "@/lib/freight-rates";
 
@@ -243,6 +244,17 @@ export async function getMonthlyInvoicePrintData(input: {
 
   if (input.mode === "3") {
     return buildMode3MonthlyInvoiceData({
+      mode: config,
+      year: input.year,
+      month: input.month,
+      periodLabel: formatInvoicePeriodLabel(input.year, input.month),
+      customerId: input.customerId,
+      rawLines,
+    });
+  }
+
+  if (input.mode === "1a" || input.mode === "1b" || input.mode === "2") {
+    return buildHaideeMonthlyInvoiceData({
       mode: config,
       year: input.year,
       month: input.month,

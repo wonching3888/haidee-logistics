@@ -1,0 +1,105 @@
+import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
+import { aggregateHaideeInvoiceLines } from "@/lib/monthly-invoice-haidee-aggregate";
+import type { HaideeAggregatedInvoiceData } from "@/lib/monthly-invoice-haidee-aggregate";
+import { buildInvoiceListing } from "@/lib/monthly-invoice-aggregate";
+import type { InvoiceListingData } from "@/lib/monthly-invoice-aggregate";
+import {
+  buildMonthlyInvoiceData,
+  resolveCustomerKeyForInvoice,
+  type RawInvoiceLine,
+} from "@/lib/monthly-invoice";
+
+export type HaideeMonthlyInvoiceBillToRole = "shipper" | "consignee";
+
+export interface HaideeMonthlyInvoiceData {
+  mode: MonthlyInvoiceModeConfig;
+  year: number;
+  month: number;
+  periodLabel: string;
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  currency: string;
+  grandTotalQty: number;
+  grandTotalAmount: number;
+  billToRole: HaideeMonthlyInvoiceBillToRole;
+  summary: HaideeAggregatedInvoiceData;
+  listing: InvoiceListingData;
+}
+
+export function isHaideeMonthlyInvoiceData(
+  data: unknown
+): data is HaideeMonthlyInvoiceData {
+  if (!data || typeof data !== "object") return false;
+  const candidate = data as HaideeMonthlyInvoiceData;
+  return (
+    (candidate.mode?.value === "1a" ||
+      candidate.mode?.value === "1b" ||
+      candidate.mode?.value === "2") &&
+    "summary" in candidate
+  );
+}
+
+function billToRoleForMode(
+  mode: MonthlyInvoiceModeConfig
+): HaideeMonthlyInvoiceBillToRole {
+  return mode.billTo === "consignee" ? "consignee" : "shipper";
+}
+
+export function buildHaideeMonthlyInvoiceData(input: {
+  mode: MonthlyInvoiceModeConfig;
+  year: number;
+  month: number;
+  periodLabel: string;
+  customerId: string;
+  rawLines: RawInvoiceLine[];
+}): HaideeMonthlyInvoiceData | null {
+  const legacy = buildMonthlyInvoiceData(input);
+  if (!legacy) return null;
+
+  const customerRawLines = input.rawLines.filter((line) => {
+    const customer = resolveCustomerKeyForInvoice(line, input.mode.billTo);
+    return customer?.id === input.customerId;
+  });
+
+  const summary = aggregateHaideeInvoiceLines(customerRawLines);
+  const listing = buildInvoiceListing(customerRawLines);
+
+  if (summary.grandTotalAmount !== legacy.grandTotalAmount) {
+    throw new Error(
+      `Mode ${input.mode.value} aggregate total mismatch: aggregated=${summary.grandTotalAmount}, legacy=${legacy.grandTotalAmount}`
+    );
+  }
+
+  for (const section of summary.sections) {
+    const listingSection = listing.sections.find(
+      (item) => item.kind === section.kind
+    );
+    if (!listingSection) {
+      throw new Error(
+        `Mode ${input.mode.value} missing listing section for ${section.kind}`
+      );
+    }
+    if (listingSection.grandTotal !== section.totalQty) {
+      throw new Error(
+        `Mode ${input.mode.value} ${section.kind} listing qty ${listingSection.grandTotal} != invoice qty ${section.totalQty}`
+      );
+    }
+  }
+
+  return {
+    mode: input.mode,
+    year: input.year,
+    month: input.month,
+    periodLabel: input.periodLabel,
+    customerId: legacy.customerId,
+    customerCode: legacy.customerCode,
+    customerName: legacy.customerName,
+    currency: legacy.currency,
+    grandTotalQty: legacy.grandTotalQty,
+    grandTotalAmount: legacy.grandTotalAmount,
+    billToRole: billToRoleForMode(input.mode),
+    summary,
+    listing,
+  };
+}

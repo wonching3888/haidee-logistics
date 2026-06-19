@@ -8,7 +8,6 @@ import {
 import {
   buildMonthlyInvoiceData,
   resolveCustomerKeyForInvoice,
-  type MonthlyInvoiceData,
   type RawInvoiceLine,
 } from "@/lib/monthly-invoice";
 
@@ -34,19 +33,20 @@ export interface WtlMonthlyInvoiceData {
 export type Mode4MonthlyInvoiceData = WtlMonthlyInvoiceData;
 export type Mode3MonthlyInvoiceData = WtlMonthlyInvoiceData;
 
-export type MonthlyInvoicePrintData = MonthlyInvoiceData | WtlMonthlyInvoiceData;
-
 export function isWtlMonthlyInvoiceData(
-  data: MonthlyInvoicePrintData
+  data: unknown
 ): data is WtlMonthlyInvoiceData {
+  if (!data || typeof data !== "object") return false;
+  const candidate = data as WtlMonthlyInvoiceData;
   return (
-    (data.mode.value === "3" || data.mode.value === "4") && "taxInvoice" in data
+    (candidate.mode?.value === "3" || candidate.mode?.value === "4") &&
+    "taxInvoice" in candidate
   );
 }
 
 /** @deprecated Use isWtlMonthlyInvoiceData */
 export function isMode4MonthlyInvoiceData(
-  data: MonthlyInvoicePrintData
+  data: unknown
 ): data is Mode4MonthlyInvoiceData {
   return isWtlMonthlyInvoiceData(data);
 }
