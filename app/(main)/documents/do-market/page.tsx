@@ -31,6 +31,7 @@ export default async function DOMarketPage({
       <DOPrintPageLayout
         title={`市场 D/O Market D/O — ${marketCodes.join(" / ")}`}
         documentTitle={`MarketDO-${data.marketCode}-${date}`}
+        backHref={`/documents?date=${encodeURIComponent(date)}`}
       >
         <MarketDOPrint data={data} />
       </DOPrintPageLayout>

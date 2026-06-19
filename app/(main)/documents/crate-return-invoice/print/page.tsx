@@ -33,10 +33,13 @@ export default async function CrateReturnInvoicePrintPage({
       crateType,
     });
 
+    const backHref = `/documents/crate-return-invoice?year=${year}&month=${month}`;
+
     return (
       <DOPrintPageLayout
         title={`Crate Return Invoice — ${data.invoiceNo}`}
         documentTitle={data.invoiceNo}
+        backHref={backHref}
       >
         <CrateReturnMonthlyInvoicePrint data={data} />
       </DOPrintPageLayout>

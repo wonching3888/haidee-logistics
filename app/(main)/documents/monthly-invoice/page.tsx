@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { MonthlyInvoicePicker } from "@/components/documents/MonthlyInvoicePicker";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,7 +24,13 @@ export default async function MonthlyInvoicePage() {
 
       <section className="overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
         <div className="p-4">
-          <MonthlyInvoicePicker />
+          <Suspense
+            fallback={
+              <div className="h-32 animate-pulse rounded-lg bg-haidee-border/30" />
+            }
+          >
+            <MonthlyInvoicePicker />
+          </Suspense>
         </div>
       </section>
     </div>

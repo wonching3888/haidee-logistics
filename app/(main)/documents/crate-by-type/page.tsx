@@ -42,6 +42,7 @@ export default async function CrateByTypePage({
     <DOPrintPageLayout
       title={title}
       documentTitle={`Crate-${date}-${selections.length}`}
+      backHref={`/documents?date=${encodeURIComponent(date)}`}
     >
       <CrateByTypePrint data={data} />
     </DOPrintPageLayout>

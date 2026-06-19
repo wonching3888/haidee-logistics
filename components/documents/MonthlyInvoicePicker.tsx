@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FileText } from "lucide-react";
 import { getMonthlyInvoiceCustomers } from "@/app/actions/monthly-invoice";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import {
   MONTHLY_INVOICE_MODES,
   type MonthlyInvoiceMode,
+  isMonthlyInvoiceMode,
 } from "@/lib/constants/monthly-invoice";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 
@@ -40,17 +41,53 @@ function formatAmount(value: number, currency: string) {
   return `${value.toFixed(2)} ${currency}`;
 }
 
-export function MonthlyInvoicePicker() {
+interface MonthlyInvoicePickerProps {
+  /** List page to return to from print view (e.g. embedded in /documents). */
+  listHref?: string;
+}
+
+export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {}) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const syncListUrl = pathname === "/documents/monthly-invoice";
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [mode, setMode] = useState<MonthlyInvoiceMode>("1a");
+  const urlYear = Number(searchParams.get("year"));
+  const urlMonth = Number(searchParams.get("month"));
+  const urlMode = searchParams.get("mode");
+  const [year, setYear] = useState(
+    Number.isInteger(urlYear) ? urlYear : now.getFullYear()
+  );
+  const [month, setMonth] = useState(
+    Number.isInteger(urlMonth) && urlMonth >= 1 && urlMonth <= 12
+      ? urlMonth
+      : now.getMonth() + 1
+  );
+  const [mode, setMode] = useState<MonthlyInvoiceMode>(
+    urlMode && isMonthlyInvoiceMode(urlMode) ? urlMode : "1a"
+  );
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [periodLabel, setPeriodLabel] = useState("");
   const [currency, setCurrency] = useState("THB");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!syncListUrl) return;
+    const currentYear = Number(searchParams.get("year"));
+    const currentMonth = Number(searchParams.get("month"));
+    const currentMode = searchParams.get("mode");
+    if (currentYear === year && currentMonth === month && currentMode === mode) {
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set("year", String(year));
+    params.set("month", String(month));
+    params.set("mode", mode);
+    router.replace(`/documents/monthly-invoice?${params.toString()}`, {
+      scroll: false,
+    });
+  }, [syncListUrl, year, month, mode, router, searchParams]);
 
   useEffect(() => {
     startTransition(async () => {
@@ -74,6 +111,9 @@ export function MonthlyInvoicePicker() {
       mode,
       customerId,
     });
+    if (listHref) {
+      params.set("returnTo", listHref);
+    }
     router.push(`/documents/monthly-invoice/print?${params.toString()}`);
   }
 

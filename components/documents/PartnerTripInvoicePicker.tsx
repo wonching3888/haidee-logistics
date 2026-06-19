@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { getPartnerTripInvoiceTrips } from "@/app/actions/partner-trip-invoice";
 import type { PartnerTripSummary } from "@/lib/partner-freight";
@@ -25,14 +26,38 @@ function formatMyr(value: number) {
   });
 }
 
-export function PartnerTripInvoicePicker() {
+function parseYearMonth(searchParams: URLSearchParams) {
   const initial = currentYearMonth();
+  const year = Number(searchParams.get("year"));
+  const month = Number(searchParams.get("month"));
+  return {
+    year: Number.isInteger(year) ? year : initial.year,
+    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : initial.month,
+  };
+}
+
+export function PartnerTripInvoicePicker() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initial = parseYearMonth(searchParams);
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
   const [trips, setTrips] = useState<PartnerTripSummary[]>([]);
   const [totalAmountMyr, setTotalAmountMyr] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const currentYear = Number(searchParams.get("year"));
+    const currentMonth = Number(searchParams.get("month"));
+    if (currentYear === year && currentMonth === month) return;
+    const params = new URLSearchParams();
+    params.set("year", String(year));
+    params.set("month", String(month));
+    router.replace(`/documents/partner-trip-invoice?${params.toString()}`, {
+      scroll: false,
+    });
+  }, [year, month, router, searchParams]);
 
   useEffect(() => {
     startTransition(async () => {
@@ -49,7 +74,7 @@ export function PartnerTripInvoicePicker() {
     });
   }, [year, month]);
 
-  const years = Array.from({ length: 5 }, (_, i) => initial.year - 2 + i);
+  const years = Array.from({ length: 5 }, (_, i) => currentYearMonth().year - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
@@ -134,8 +159,7 @@ export function PartnerTripInvoicePicker() {
                 <TableCell className="text-right">
                   <Link
                     className="inline-flex h-8 items-center justify-center rounded-md border border-haidee-border px-3 text-sm font-medium hover:bg-haidee-border/20"
-                    href={`/documents/partner-trip-invoice/print?tripDate=${encodeURIComponent(trip.tripDateInput)}&truckId=${trip.truckId}&marketId=${trip.marketId}&crateType=${trip.crateType}`}
-                    target="_blank"
+                    href={`/documents/partner-trip-invoice/print?year=${year}&month=${month}&tripDate=${encodeURIComponent(trip.tripDateInput)}&truckId=${trip.truckId}&marketId=${trip.marketId}&crateType=${trip.crateType}`}
                   >
                     打印 Print
                   </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { getCrateReturnMonthlyInvoices } from "@/app/actions/crate-return-invoice";
 import type { CrateReturnMonthlyInvoiceSummary } from "@/lib/crate-return-billing";
@@ -25,14 +26,38 @@ function formatMyr(value: number) {
   });
 }
 
-export function CrateReturnMonthlyInvoicePicker() {
+function parseYearMonth(searchParams: URLSearchParams) {
   const initial = currentYearMonth();
+  const year = Number(searchParams.get("year"));
+  const month = Number(searchParams.get("month"));
+  return {
+    year: Number.isInteger(year) ? year : initial.year,
+    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : initial.month,
+  };
+}
+
+export function CrateReturnMonthlyInvoicePicker() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initial = parseYearMonth(searchParams);
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
   const [invoices, setInvoices] = useState<CrateReturnMonthlyInvoiceSummary[]>([]);
   const [totalAmountMyr, setTotalAmountMyr] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const currentYear = Number(searchParams.get("year"));
+    const currentMonth = Number(searchParams.get("month"));
+    if (currentYear === year && currentMonth === month) return;
+    const params = new URLSearchParams();
+    params.set("year", String(year));
+    params.set("month", String(month));
+    router.replace(`/documents/crate-return-invoice?${params.toString()}`, {
+      scroll: false,
+    });
+  }, [year, month, router, searchParams]);
 
   useEffect(() => {
     startTransition(async () => {
@@ -49,7 +74,7 @@ export function CrateReturnMonthlyInvoicePicker() {
     });
   }, [year, month]);
 
-  const years = Array.from({ length: 5 }, (_, i) => initial.year - 2 + i);
+  const years = Array.from({ length: 5 }, (_, i) => currentYearMonth().year - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
@@ -138,7 +163,6 @@ export function CrateReturnMonthlyInvoicePicker() {
                   <Link
                     className="inline-flex h-8 items-center justify-center rounded-md border border-haidee-border px-3 text-sm font-medium hover:bg-haidee-border/20"
                     href={`/documents/crate-return-invoice/print?year=${year}&month=${month}&crateType=${encodeURIComponent(invoice.crateType)}`}
-                    target="_blank"
                   >
                     打印 Print
                   </Link>

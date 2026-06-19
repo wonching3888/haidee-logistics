@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 interface DOPrintPageLayoutProps {
   title: string;
   documentTitle: string;
+  /** When set, navigates here instead of browser history back (preserves list filters via query params). */
+  backHref?: string;
   children: React.ReactNode;
   /** Optional slot rendered in the toolbar (e.g. partner-trip PDF share prototype). */
   toolbarExtra?: React.ReactNode;
@@ -19,11 +21,20 @@ interface DOPrintPageLayoutProps {
 export function DOPrintPageLayout({
   title,
   documentTitle,
+  backHref,
   children,
   toolbarExtra,
   onPrintContentMount,
 }: DOPrintPageLayoutProps) {
   const router = useRouter();
+
+  function handleBack() {
+    if (backHref) {
+      router.push(backHref);
+      return;
+    }
+    router.back();
+  }
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   const handlePrint = useReactToPrint({
@@ -47,7 +58,7 @@ export function DOPrintPageLayout({
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="gap-1"
           >
             <ArrowLeft className="h-4 w-4" />

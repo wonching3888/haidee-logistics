@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PartnerTripInvoicePicker } from "@/components/documents/PartnerTripInvoicePicker";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,7 +24,13 @@ export default async function PartnerTripInvoicePage() {
 
       <section className="overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
         <div className="p-4">
-          <PartnerTripInvoicePicker />
+          <Suspense
+            fallback={
+              <div className="h-32 animate-pulse rounded-lg bg-haidee-border/30" />
+            }
+          >
+            <PartnerTripInvoicePicker />
+          </Suspense>
         </div>
       </section>
     </div>

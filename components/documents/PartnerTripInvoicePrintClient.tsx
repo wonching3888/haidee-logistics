@@ -8,10 +8,12 @@ import { PrintPdfSharePrototype } from "@/components/documents/PrintPdfShareProt
 
 interface PartnerTripInvoicePrintClientProps {
   data: PartnerTripInvoicePrintData;
+  backHref?: string;
 }
 
 export function PartnerTripInvoicePrintClient({
   data,
+  backHref,
 }: PartnerTripInvoicePrintClientProps) {
   const [printContentEl, setPrintContentEl] = useState<HTMLDivElement | null>(
     null
@@ -38,6 +40,7 @@ export function PartnerTripInvoicePrintClient({
       <DOPrintPageLayout
         title={`Partner Trip Invoice — ${data.invoiceNo}`}
         documentTitle={data.invoiceNo}
+        backHref={backHref}
         onPrintContentMount={handlePrintContentMount}
         toolbarExtra={
           <PrintPdfSharePrototype

@@ -42,6 +42,7 @@ export default async function CrateTypeRecordPage({
     <DOPrintPageLayout
       title="桶型总计 Crate Type Record"
       documentTitle={`CrateTypeRecord-${date}`}
+      backHref={`/documents?date=${encodeURIComponent(date)}`}
     >
       <CrateTypeRecordPrint data={data} />
     </DOPrintPageLayout>

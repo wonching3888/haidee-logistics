@@ -17,6 +17,7 @@ interface MonthlyInvoicePrintPageProps {
     month?: string;
     mode?: string;
     customerId?: string;
+    returnTo?: string;
   }>;
 }
 
@@ -28,6 +29,7 @@ export default async function MonthlyInvoicePrintPage({
   const month = Number(params.month);
   const mode = params.mode ?? "";
   const customerId = params.customerId ?? "";
+  const returnTo = params.returnTo?.trim() ?? "";
 
   if (
     !Number.isFinite(year) ||
@@ -48,11 +50,15 @@ export default async function MonthlyInvoicePrintPage({
     if (!data) notFound();
 
     const documentTitle = `MonthlyInvoice-${mode}-${data.customerCode}-${year}-${String(month).padStart(2, "0")}`;
+    const backHref =
+      returnTo ||
+      `/documents/monthly-invoice?year=${year}&month=${month}&mode=${encodeURIComponent(mode)}`;
 
     return (
       <DOPrintPageLayout
         title={`月结账单 Monthly Invoice — ${data.customerName}`}
         documentTitle={documentTitle}
+        backHref={backHref}
       >
         {isWtlMonthlyInvoiceData(data) ? (
           <Mode4MonthlyInvoicePrint data={data} />

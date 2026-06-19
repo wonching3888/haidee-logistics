@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 interface PartnerTripInvoicePrintPageProps {
   searchParams: Promise<{
+    year?: string;
+    month?: string;
     tripDate?: string;
     truckId?: string;
     marketId?: string;
@@ -18,6 +20,8 @@ export default async function PartnerTripInvoicePrintPage({
   searchParams,
 }: PartnerTripInvoicePrintPageProps) {
   const params = await searchParams;
+  const year = Number(params.year);
+  const month = Number(params.month);
   const tripDate = params.tripDate ?? "";
   const truckId = params.truckId ?? "";
   const marketId = params.marketId ?? "";
@@ -27,6 +31,11 @@ export default async function PartnerTripInvoicePrintPage({
     notFound();
   }
 
+  const backHref =
+    Number.isInteger(year) && Number.isInteger(month)
+      ? `/documents/partner-trip-invoice?year=${year}&month=${month}`
+      : "/documents/partner-trip-invoice";
+
   try {
     const data = await getPartnerTripInvoicePrintData({
       tripDate,
@@ -35,7 +44,7 @@ export default async function PartnerTripInvoicePrintPage({
       crateType,
     });
 
-    return <PartnerTripInvoicePrintClient data={data} />;
+    return <PartnerTripInvoicePrintClient data={data} backHref={backHref} />;
   } catch (error) {
     return (
       <div className="space-y-4">
