@@ -49,33 +49,17 @@ export function WtlExpressInvoiceLetterhead({ className }: { className?: string 
   const company = INVOICE_COMPANY_HEADERS.wtl;
 
   return (
-    <div
-      className={className}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "12px",
-        marginBottom: "8px",
-      }}
-    >
+    <div className={className ? `wtl-invoice-letterhead ${className}` : "wtl-invoice-letterhead"}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo.png"
-        alt="Logo"
-        style={{
-          height: "56px",
-          width: "auto",
-          flexShrink: 0,
-          mixBlendMode: "multiply",
-        }}
-      />
+      <img src="/logo.png" alt="Logo" className="wtl-invoice-letterhead-logo" />
       <div className="wtl-invoice-letterhead-text">
-        <div className="wtl-invoice-letterhead-name">{company.nameZh}</div>
-        <div>{company.addressLine1}</div>
-        <div>{company.addressLine2}</div>
-        <div>{company.phone}</div>
-        <div>{company.sstRegistrationNo}</div>
+        <div className="wtl-invoice-letterhead-line wtl-invoice-letterhead-name">
+          {company.nameZh}
+        </div>
+        <div className="wtl-invoice-letterhead-line">{company.addressLine1}</div>
+        <div className="wtl-invoice-letterhead-line">{company.addressLine2}</div>
+        <div className="wtl-invoice-letterhead-line">{company.phone}</div>
+        <div className="wtl-invoice-letterhead-line">{company.sstRegistrationNo}</div>
       </div>
     </div>
   );

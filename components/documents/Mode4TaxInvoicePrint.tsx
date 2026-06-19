@@ -1,5 +1,6 @@
 import type { WtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
+import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
 
 interface Mode4TaxInvoicePrintProps {
   data: WtlMonthlyInvoiceData;
@@ -94,35 +95,23 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
         </div>
       ))}
 
-      <table className="monthly-invoice-table mode4-tax-invoice-totals">
-        <tbody>
-          <tr>
-            <td className="text-right" colSpan={4}>
-              Sub Total (Excluding Tax)
-            </td>
-            <td className="text-right">
-              {formatMoney(taxInvoice.totals.subTotalExcludingTax, data.currency)}
-            </td>
-          </tr>
-          <tr>
-            <td className="text-right" colSpan={4}>
-              Service Tax @ 6% on{" "}
-              {taxInvoice.totals.sstBase.toFixed(2)}
-            </td>
-            <td className="text-right">
-              {formatMoney(taxInvoice.totals.sstAmount, data.currency)}
-            </td>
-          </tr>
-          <tr className="monthly-invoice-grand-row">
-            <td className="text-right" colSpan={4}>
-              Total (Inclusive of Tax)
-            </td>
-            <td className="text-right">
-              {formatMoney(taxInvoice.totals.totalInclusive, data.currency)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <WtlTaxInvoiceTotals
+        rows={[
+          {
+            label: "Sub Total (Excluding Tax)",
+            amount: formatMoney(taxInvoice.totals.subTotalExcludingTax, data.currency),
+          },
+          {
+            label: `Service Tax @ 6% on ${taxInvoice.totals.sstBase.toFixed(2)}`,
+            amount: formatMoney(taxInvoice.totals.sstAmount, data.currency),
+          },
+          {
+            label: "Total (Inclusive of Tax)",
+            amount: formatMoney(taxInvoice.totals.totalInclusive, data.currency),
+            grand: true,
+          },
+        ]}
+      />
 
       <div className="mode4-tax-summary">
         <div className="mode4-tax-summary-title">Tax Summary</div>

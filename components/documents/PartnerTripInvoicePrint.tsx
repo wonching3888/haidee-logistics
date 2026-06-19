@@ -1,5 +1,6 @@
 import type { PartnerTripInvoicePrintData } from "@/lib/partner-freight";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
+import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
 
 interface PartnerTripInvoicePrintProps {
   data: PartnerTripInvoicePrintData;
@@ -81,34 +82,23 @@ export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) 
         </table>
       </div>
 
-      <table className="monthly-invoice-table mode4-tax-invoice-totals">
-        <tbody>
-          <tr>
-            <td className="text-right" colSpan={4}>
-              Sub Total (Excluding Tax)
-            </td>
-            <td className="text-right">
-              {formatMoney(data.amountMyr, data.currency)}
-            </td>
-          </tr>
-          <tr>
-            <td className="text-right" colSpan={4}>
-              Service Tax @ {taxPercent}% on {data.amountMyr.toFixed(2)}
-            </td>
-            <td className="text-right">
-              {formatMoney(data.taxAmountMyr, data.currency)}
-            </td>
-          </tr>
-          <tr className="monthly-invoice-grand-row">
-            <td className="text-right" colSpan={4}>
-              Total (Inclusive of Tax)
-            </td>
-            <td className="text-right">
-              {formatMoney(data.totalMyr, data.currency)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <WtlTaxInvoiceTotals
+        rows={[
+          {
+            label: "Sub Total (Excluding Tax)",
+            amount: formatMoney(data.amountMyr, data.currency),
+          },
+          {
+            label: `Service Tax @ ${taxPercent}% on ${data.amountMyr.toFixed(2)}`,
+            amount: formatMoney(data.taxAmountMyr, data.currency),
+          },
+          {
+            label: "Total (Inclusive of Tax)",
+            amount: formatMoney(data.totalMyr, data.currency),
+            grand: true,
+          },
+        ]}
+      />
 
       <div className="mode4-tax-summary">
         <div className="mode4-tax-summary-title">Tax Summary</div>
