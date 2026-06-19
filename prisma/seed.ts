@@ -32,21 +32,22 @@ const MARKETS = [
 ];
 
 const TONG_TYPES = [
-  { code: "ABB", name: "ABIBA", trackInventory: true, isBox: false, displayOrder: 1 },
-  { code: "WTL", name: "WTL", trackInventory: true, isBox: false, displayOrder: 2 },
-  { code: "BHR", name: "BHR", trackInventory: true, isBox: false, displayOrder: 3 },
-  { code: "LL_BHR", name: "LL(BHR)", trackInventory: false, isBox: false, displayOrder: 4 },
-  { code: "VIO", name: "VIOLET", trackInventory: true, isBox: false, displayOrder: 5 },
-  { code: "MAR", name: "MAROON", trackInventory: true, isBox: false, displayOrder: 6 },
-  { code: "SHK", name: "SHK", trackInventory: true, isBox: false, displayOrder: 7 },
-  { code: "GKS", name: "GKS", trackInventory: true, isBox: false, displayOrder: 8 },
-  { code: "BRO", name: "BRO", trackInventory: true, isBox: false, displayOrder: 9 },
-  { code: "GLY", name: "GLORY", trackInventory: true, isBox: false, displayOrder: 10 },
-  { code: "BS", name: "BS", trackInventory: true, isBox: false, displayOrder: 11 },
-  { code: "BH", name: "BH", trackInventory: true, isBox: false, displayOrder: 12 },
-  { code: "SHS", name: "SHS", trackInventory: true, isBox: false, displayOrder: 13 },
-  { code: "OTHER", name: "Other", trackInventory: false, isBox: false, displayOrder: 14 },
-  { code: "BOX", name: "盒装BOX", trackInventory: false, isBox: true, displayOrder: 15 },
+  { code: "ABB", name: "ABIBA", trackInventory: true, isBox: false, displayOrder: 1, showInInbound: true },
+  { code: "WTL", name: "WTL", trackInventory: true, isBox: false, displayOrder: 2, showInInbound: true },
+  { code: "BHR", name: "BHR", trackInventory: true, isBox: false, displayOrder: 3, showInInbound: true },
+  { code: "LL_BHR", name: "LL(BHR)", trackInventory: false, isBox: false, displayOrder: 4, showInInbound: true },
+  { code: "VIO", name: "VIOLET", trackInventory: true, isBox: false, displayOrder: 5, showInInbound: true },
+  { code: "MAR", name: "MAROON", trackInventory: true, isBox: false, displayOrder: 6, showInInbound: true },
+  { code: "SHK", name: "SHK", trackInventory: true, isBox: false, displayOrder: 7, showInInbound: true },
+  { code: "GKS", name: "GKS", trackInventory: true, isBox: false, displayOrder: 8, showInInbound: true },
+  { code: "BRO", name: "BRO", trackInventory: true, isBox: false, displayOrder: 9, showInInbound: true },
+  { code: "GLY", name: "GLORY", trackInventory: true, isBox: false, displayOrder: 10, showInInbound: true },
+  { code: "SKTN", name: "TAWAKAR", trackInventory: true, isBox: false, displayOrder: 11, showInInbound: false },
+  { code: "BS", name: "BS", trackInventory: true, isBox: false, displayOrder: 12, showInInbound: true },
+  { code: "BH", name: "BH", trackInventory: true, isBox: false, displayOrder: 13, showInInbound: true },
+  { code: "SHS", name: "SHS", trackInventory: true, isBox: false, displayOrder: 14, showInInbound: true },
+  { code: "OTHER", name: "Other", trackInventory: false, isBox: false, displayOrder: 15, showInInbound: true },
+  { code: "BOX", name: "盒装BOX", trackInventory: false, isBox: true, displayOrder: 16, showInInbound: true },
 ];
 
 async function main() {
@@ -81,6 +82,7 @@ async function main() {
         trackInventory: tong.trackInventory,
         isBox: tong.isBox,
         displayOrder: tong.displayOrder,
+        showInInbound: tong.showInInbound,
       },
       create: tong,
     });
@@ -226,6 +228,53 @@ async function main() {
     });
   }
   console.log(`  ✓ ${DEFAULT_CRATE_RENTAL_RATES.length} crate rental rates`);
+
+  console.log("Seeding TAWAKAR logistics partner...");
+  const TAWAKAR_LOCATION =
+    "NO 6839, JALAN PERMATANG PAUH,\n13400 BUTTERWORTH,\nPENANG.";
+  const tawakar = await prisma.shipper.upsert({
+    where: { code: "3000-T002" },
+    update: {
+      name: "TAWAKAR ENTERPRISE SDN BHD",
+      company: "wtl",
+      currency: "MYR",
+      shipperKind: "logistics_partner",
+      location: TAWAKAR_LOCATION,
+      pickupLocation: "SADAO",
+      paymentParty: "shipper",
+      active: true,
+    },
+    create: {
+      code: "3000-T002",
+      name: "TAWAKAR ENTERPRISE SDN BHD",
+      company: "wtl",
+      currency: "MYR",
+      shipperKind: "logistics_partner",
+      location: TAWAKAR_LOCATION,
+      pickupLocation: "SADAO",
+      paymentParty: "shipper",
+      active: true,
+    },
+  });
+  await prisma.partnerFreightRate.upsert({
+    where: { crateType: "SKTN" },
+    update: {
+      billToShipperId: tawakar.id,
+      unitRateMyr: 1.5,
+      taxCode: "ESV-6",
+      taxRate: 0,
+      active: true,
+    },
+    create: {
+      crateType: "SKTN",
+      billToShipperId: tawakar.id,
+      unitRateMyr: 1.5,
+      taxCode: "ESV-6",
+      taxRate: 0,
+      active: true,
+    },
+  });
+  console.log("  ✓ TAWAKAR + SKTN partner freight rate");
 
   console.log("Seed complete.");
 }

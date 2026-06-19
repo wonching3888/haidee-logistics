@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { isUserRole } from "@/lib/auth-roles";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
+import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   DEFAULT_PICKUP_LOCATION,
   isPickupLocation,
@@ -71,7 +72,7 @@ export async function getSettingsData() {
         select: { id: true, code: true, name: true },
       }),
       prisma.tongType.findMany({
-        where: { active: true },
+        where: INBOUND_VISIBLE_TONG_TYPE_WHERE,
         orderBy: { displayOrder: "asc" },
         select: { id: true, code: true, name: true },
       }),

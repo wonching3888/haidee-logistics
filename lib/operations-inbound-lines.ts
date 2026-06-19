@@ -17,7 +17,7 @@ export const operationsAssignedInboundLineSelect = {
       shipperId: true,
       pickupLocation: true,
       shipper: {
-        select: { code: true, name: true, pickupLocation: true },
+        select: { code: true, name: true, pickupLocation: true, shipperKind: true },
       },
     },
   },

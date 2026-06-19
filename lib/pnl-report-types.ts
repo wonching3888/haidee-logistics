@@ -72,6 +72,7 @@ export interface PnlTripRow {
 
 export interface PnlTripTotals {
   revenueMyr: number;
+  partnerFreightMyr: number;
   directCostMyr: number;
   allocatedCostMyr: number;
   totalCostMyr: number;

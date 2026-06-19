@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
@@ -67,7 +68,7 @@ export async function getFreightSettingsData() {
     globalCostSettings,
   ] = await Promise.all([
     prisma.shipper.findMany({
-      where: { active: true },
+      where: OPERATIONAL_SHIPPER_WHERE,
       orderBy: { name: "asc" },
       select: { id: true, code: true, name: true, currency: true },
     }),

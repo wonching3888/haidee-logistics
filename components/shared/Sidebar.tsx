@@ -38,6 +38,11 @@ const DOCUMENTS_SIDEBAR_CHILDREN: MainNavLink[] = [
     labelEn: "Monthly Invoice",
   },
   {
+    href: "/documents/partner-trip-invoice",
+    label: "合作伙伴车力单",
+    labelEn: "Partner Trip Invoice",
+  },
+  {
     href: "/documents/driver-expenses",
     label: "司机费用单",
     labelEn: "Driver Expenses",

@@ -5,13 +5,12 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
-import {
-  LOCATION_POOL_SHIPPER_CODES,
-} from "@/lib/constants/location-pool-shippers";
+import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
 } from "@/lib/constants/pickup-locations";
+import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 
 export interface CrateTypeColumn {
   id: string;
@@ -70,7 +69,7 @@ function stockWhere(
 
 async function getTrackedCrateTypes(): Promise<CrateTypeColumn[]> {
   const crateTypes = await prisma.tongType.findMany({
-    where: { active: true, trackInventory: true, isBox: false },
+    where: { ...INBOUND_VISIBLE_TONG_TYPE_WHERE, trackInventory: true, isBox: false },
     select: { id: true, code: true, name: true },
   });
   const order = new Map(
@@ -125,13 +124,7 @@ export async function getCustomerCrateStock(search?: string) {
 
   const shippers = await prisma.shipper.findMany({
     where: {
-      active: true,
-      code: {
-        notIn: [
-          LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
-          LOCATION_POOL_SHIPPER_CODES.PATTANI,
-        ],
-      },
+      ...OPERATIONAL_SHIPPER_WHERE,
       ...(search?.trim()
         ? {
             OR: [

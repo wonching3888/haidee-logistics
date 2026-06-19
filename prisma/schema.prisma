@@ -40,6 +40,7 @@ model Market {
   freightRates FreightRate[]
   consigneeFreightRates ConsigneeFreightRate[]
   tongImports  TongImport[]
+  partnerTripInvoices PartnerTripInvoice[]
 
   tollFee              Decimal? @map("toll_fee") @db.Decimal(10, 2)
   loadUnloadPerCrate   Decimal? @map("load_unload_per_crate") @db.Decimal(10, 2)
@@ -86,6 +87,8 @@ model TongType {
   isBox          Boolean @default(false) @map("is_box")
   displayOrder   Int?    @map("display_order")
   active         Boolean @default(true)
+  /// When false, tong type is only selectable on empty-crate import (e.g. SKTN).
+  showInInbound  Boolean @default(true) @map("show_in_inbound")
 
   shippers              Shipper[]
   shipperStallDefaults  ShipperStallDefault[]
@@ -112,6 +115,8 @@ model Shipper {
   paymentParty     String   @default("shipper") @map("payment_party")
   company          String   @default("haidee")
   currency         String   @default("THB")
+  /// operational | logistics_partner — partners are bill-to only, excluded from inbound.
+  shipperKind      String   @default("operational") @map("shipper_kind")
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
 
@@ -124,6 +129,8 @@ model Shipper {
   tongExports          TongExport[]
   customerCrateStock   CustomerCrateStock[]
   customerCrateLedger  CustomerCrateLedger[]
+  partnerFreightRates  PartnerFreightRate[]  @relation("PartnerFreightBillTo")
+  partnerTripInvoices  PartnerTripInvoice[]  @relation("PartnerTripBillTo")
 
   @@map("shippers")
 }
@@ -423,6 +430,7 @@ model Truck {
   dispatchOrders         DispatchOrder[]
   dispatchOrdersOriginal DispatchOrder[] @relation("OriginalTruck")
   tongImports            TongImport[]
+  partnerTripInvoices    PartnerTripInvoice[]
 
   @@map("trucks")
 }
@@ -624,6 +632,46 @@ model TongExport {
   createdBy User?    @relation(fields: [createdById], references: [id])
 
   @@map("tong_exports")
+}
+
+// ─── Partner freight (logistics partner per-trip invoices, e.g. TAWAKAR SKTN) ─
+
+model PartnerFreightRate {
+  id              String   @id @default(uuid()) @db.Uuid
+  crateType       String   @unique @map("crate_type")
+  billToShipperId String   @map("bill_to_shipper_id") @db.Uuid
+  unitRateMyr     Decimal  @map("unit_rate_myr") @db.Decimal(10, 2)
+  taxCode         String   @default("ESV-6") @map("tax_code")
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 4)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  billToShipper Shipper @relation("PartnerFreightBillTo", fields: [billToShipperId], references: [id])
+
+  @@map("partner_freight_rates")
+}
+
+model PartnerTripInvoice {
+  id              String   @id @default(uuid()) @db.Uuid
+  invoiceNo       String   @unique @map("invoice_no")
+  tripDate        DateTime @map("trip_date") @db.Date
+  truckId         String   @map("truck_id") @db.Uuid
+  marketId        String   @map("market_id") @db.Uuid
+  billToShipperId String   @map("bill_to_shipper_id") @db.Uuid
+  crateType       String   @map("crate_type")
+  quantity        Int
+  unitRateMyr     Decimal  @map("unit_rate_myr") @db.Decimal(10, 2)
+  amountMyr       Decimal  @map("amount_myr") @db.Decimal(10, 2)
+  taxCode         String   @map("tax_code")
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  truck         Truck   @relation(fields: [truckId], references: [id])
+  market        Market  @relation(fields: [marketId], references: [id])
+  billToShipper Shipper @relation("PartnerTripBillTo", fields: [billToShipperId], references: [id])
+
+  @@unique([tripDate, truckId, marketId, crateType])
+  @@map("partner_trip_invoices")
 }
 
 // ─── Customer Crate Stock ────────────────────────────────────────────────────

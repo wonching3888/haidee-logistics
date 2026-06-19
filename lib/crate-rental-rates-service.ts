@@ -4,6 +4,7 @@ import {
   DEFAULT_CRATE_RENTAL_RATES,
   sortCrateRentalRates,
 } from "@/lib/constants/crate-rental-rates";
+import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   normalizeCrateRentalCurrency,
   type CrateRentalCurrency,
@@ -69,7 +70,7 @@ export async function ensureCrateRentalRatesForActiveTongTypes() {
   try {
     const [tongTypes, existing] = await Promise.all([
       prisma.tongType.findMany({
-        where: { active: true },
+        where: INBOUND_VISIBLE_TONG_TYPE_WHERE,
         select: { code: true, trackInventory: true },
       }),
       prisma.crateRentalRate.findMany({ select: { crateType: true } }),

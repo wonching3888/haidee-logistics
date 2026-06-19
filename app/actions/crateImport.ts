@@ -11,6 +11,7 @@ import {
   isDefaultImportColumn,
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
+import { CRATE_IMPORT_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 
 export interface CrateTypeOption {
   id: string;
@@ -22,8 +23,7 @@ export async function getCrateTypesForImport(): Promise<CrateTypeOption[]> {
   const defaultCodes = TONG_IMPORT_DEFAULT_COLUMNS.map((c) => c.tongCode);
   return prisma.tongType.findMany({
     where: {
-      active: true,
-      isBox: false,
+      ...CRATE_IMPORT_TONG_TYPE_WHERE,
       code: { notIn: [...defaultCodes, CRATE_IMPORT_OTHER_COLUMN] },
     },
     orderBy: { displayOrder: "asc" },

@@ -49,6 +49,7 @@ export interface OperationsDashboardData {
     haideeTotalMyr: number;
     wtlShipperMyr: number;
     wtlMode3Myr: number;
+    partnerFreightMyr: number;
     totalMyr: number;
     lines: MetricLine[];
     warning: OperationsRevenueWarning | null;
@@ -152,6 +153,7 @@ export function buildOperationsDashboardMetrics(input: {
     mode2Myr: number;
     wtlMode3Myr: number;
     wtlShipperMyr: number;
+    partnerFreightMyr: number;
     missingRateLineCount: number;
     missingRateQuantity: number;
     gapReasons: Partial<Record<InboundFreightGapReason, number>>;
@@ -206,7 +208,10 @@ export function buildOperationsDashboardMetrics(input: {
     mode1aMyr + input.income.mode1bMyr + input.income.mode2Myr
   );
   const totalRevenueMyr = roundMoney(
-    haideeTotalMyr + input.income.wtlShipperMyr + input.income.wtlMode3Myr
+    haideeTotalMyr +
+      input.income.wtlShipperMyr +
+      input.income.wtlMode3Myr +
+      input.income.partnerFreightMyr
   );
 
   const revenueLines: MetricLine[] = [
@@ -253,6 +258,14 @@ export function buildOperationsDashboardMetrics(input: {
       labelEn: "WTL Revenue - Consignee Paid (MYR incl. SST)",
       amountMyr: input.income.wtlMode3Myr,
       source: "actual",
+    },
+    {
+      key: "partnerFreight",
+      label: "合作伙伴车力收入",
+      labelEn: "Partner Freight Income",
+      amountMyr: input.income.partnerFreightMyr,
+      source: "actual",
+      detail: "物流合作伙伴回桶车力（ESV-6 0%）",
     },
   ];
 
@@ -482,6 +495,7 @@ export function buildOperationsDashboardMetrics(input: {
       haideeTotalMyr,
       wtlShipperMyr: input.income.wtlShipperMyr,
       wtlMode3Myr: input.income.wtlMode3Myr,
+      partnerFreightMyr: input.income.partnerFreightMyr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,
       warning: revenueWarning,

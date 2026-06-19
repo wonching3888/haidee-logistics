@@ -23,6 +23,8 @@ import {
   operationsFreightIncomeMyr,
   shouldExcludeWtlSstFromRevenue,
 } from "@/lib/wtl-revenue";
+import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
+import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -83,6 +85,7 @@ export interface OperationsIncomeResult {
   mode2Myr: number;
   wtlMode3Myr: number;
   wtlShipperMyr: number;
+  partnerFreightMyr: number;
   lineCount: number;
   missingRateLineCount: number;
   missingRateQuantity: number;
@@ -189,6 +192,9 @@ export async function aggregateOperationsIncome(
 
   for (const shipperLines of Array.from(linesByShipper.values())) {
     for (const line of shipperLines) {
+      if (isLogisticsPartnerShipper(line.session.shipper)) {
+        continue;
+      }
       const tripDate = resolveLineDispatchDate(line, end);
       const ctx = getOperationsFreightContext(
         freightCache,
@@ -267,12 +273,15 @@ export async function aggregateOperationsIncome(
   const permitMyr = await aggregateNklPermitIncome(year, month);
   totals.wtlMode3Myr += permitMyr;
 
+  const partnerFreightMyr = await aggregatePartnerFreightIncomeMyr(year, month);
+
   return {
     mode1aThb: roundMoney(totals.mode1aThb),
     mode1bMyr: roundMoney(totals.mode1bMyr),
     mode2Myr: roundMoney(totals.mode2Myr),
     wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
     wtlShipperMyr: roundMoney(totals.wtlShipperMyr),
+    partnerFreightMyr,
     lineCount: lines.length,
     missingRateLineCount,
     missingRateQuantity,

@@ -59,6 +59,12 @@ export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES: MainNavLink = {
   labelEn: "Driver Expenses",
 };
 
+export const MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE: MainNavLink = {
+  href: "/documents/partner-trip-invoice",
+  label: "合作伙伴车力单",
+  labelEn: "Partner Trip Invoice",
+};
+
 export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   id: "documents",
   label: "文件",
@@ -67,6 +73,7 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   children: [
     MAIN_NAV_DOCUMENTS_GENERATE,
     MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
+    MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE,
     MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
   ],
 };
@@ -131,6 +138,7 @@ export function isPathActive(pathname: string, href: string) {
       pathname === "/documents" ||
       (pathname.startsWith("/documents/") &&
         !pathname.startsWith("/documents/monthly-invoice") &&
+        !pathname.startsWith("/documents/partner-trip-invoice") &&
         !pathname.startsWith("/documents/driver-expenses"))
     );
   }

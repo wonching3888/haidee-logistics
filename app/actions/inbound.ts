@@ -11,7 +11,7 @@ import {
   deductCustomerCratesBatch,
 } from "@/app/actions/customerCrateStock";
 import { generateSessionNo, isSessionNoUniqueViolation, SESSION_NO_MAX_RETRIES } from "@/lib/inbound";
-import { MARKET_ORDER } from "@/lib/constants";
+import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   formatPickupLocationLabel,
@@ -19,10 +19,11 @@ import {
   resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
-import { LOCATION_POOL_SHIPPER_CODES } from "@/lib/constants/location-pool-shippers";
+import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   getStallDisplayLabel,
   isOtherMarket,
+  MARKET_ORDER,
 } from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 import {
@@ -580,15 +581,7 @@ export async function removeShipperStallDefault(
 
 export async function getShippers() {
   return prisma.shipper.findMany({
-    where: {
-      active: true,
-      code: {
-        notIn: [
-          LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
-          LOCATION_POOL_SHIPPER_CODES.PATTANI,
-        ],
-      },
-    },
+    where: OPERATIONAL_SHIPPER_WHERE,
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -601,7 +594,7 @@ export async function getShippers() {
 
 export async function getTongTypes() {
   return prisma.tongType.findMany({
-    where: { active: true },
+    where: INBOUND_VISIBLE_TONG_TYPE_WHERE,
     orderBy: { displayOrder: "asc" },
     select: { id: true, code: true, name: true, isBox: true },
   });

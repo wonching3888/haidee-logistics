@@ -41,6 +41,8 @@ import {
 import { computeLineThaiSegmentCostMyr } from "@/lib/thai-segment-freight";
 import { toDateInputValue } from "@/lib/date-utils";
 import { lineRevenueMyr } from "@/lib/wtl-revenue";
+import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
+import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
@@ -232,6 +234,7 @@ function collectFreightRequirementsFromDispatches(
     )) {
       const first = shipperLines[0];
       if (!first) continue;
+      if (isLogisticsPartnerShipper(first.session.shipper)) continue;
 
       const pickup = resolveSessionPickupLocation(
         first.session.pickupLocation,
@@ -308,6 +311,7 @@ function pnlTripRowToListItem(
 function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
   const totals: PnlTripTotals = {
     revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
+    partnerFreightMyr: 0,
     directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
     allocatedCostMyr: roundMoney(
       trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
@@ -323,6 +327,34 @@ function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
       ? roundMoney((totals.grossProfitMyr / totals.revenueMyr) * 100)
       : 0;
   return totals;
+}
+
+async function enrichTripTotalsWithPartnerFreight(
+  totals: PnlTripTotals,
+  year: number,
+  month: number,
+  day?: string | null
+): Promise<PnlTripTotals> {
+  const partnerFreightMyr = await aggregatePartnerFreightIncomeMyr(
+    year,
+    month,
+    day
+  );
+  if (partnerFreightMyr <= 0) {
+    return { ...totals, partnerFreightMyr: 0 };
+  }
+  const revenueMyr = roundMoney(totals.revenueMyr + partnerFreightMyr);
+  const grossProfitMyr = roundMoney(totals.grossProfitMyr + partnerFreightMyr);
+  return {
+    ...totals,
+    partnerFreightMyr,
+    revenueMyr,
+    grossProfitMyr,
+    marginPct:
+      revenueMyr > 0
+        ? roundMoney((grossProfitMyr / revenueMyr) * 100)
+        : 0,
+  };
 }
 
 async function computeFilteredPnlTrips(input: {
@@ -405,7 +437,12 @@ async function computeFilteredPnlTrips(input: {
       expiresAt: 0,
       drivers,
       trips,
-      tripTotals: buildTripTotalsFromRows(trips),
+      tripTotals: await enrichTripTotalsWithPartnerFreight(
+        buildTripTotalsFromRows(trips),
+        input.year,
+        input.month,
+        input.day
+      ),
     };
     setCachedPnlMonthTrips(cacheKey, entry);
     return getCachedPnlMonthTrips(cacheKey)!;
@@ -605,6 +642,7 @@ const dispatchPnlSelect = {
                   code: true,
                   name: true,
                   pickupLocation: true,
+                  shipperKind: true,
                 },
               },
             },
@@ -648,6 +686,7 @@ type DispatchPnlRow = {
           code: string;
           name: string;
           pickupLocation: string | null;
+          shipperKind: string;
         };
       };
     } | null;
@@ -984,6 +1023,7 @@ async function computeTripPnlRow(
   for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
     const first = shipperLines[0];
     if (!first) continue;
+    if (isLogisticsPartnerShipper(first.session.shipper)) continue;
 
     const assignedLines = shipperLines.filter(
       (line) => line.dispatchStatus === "assigned"
@@ -1029,6 +1069,7 @@ async function computeTripPnlRow(
   for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
     const first = shipperLines[0];
     if (!first) continue;
+    if (isLogisticsPartnerShipper(first.session.shipper)) continue;
 
     const assignedLines = shipperLines.filter(
       (line) => line.dispatchStatus === "assigned"
@@ -1696,7 +1737,19 @@ function buildCustomersFromTrips(
           : "毛利率偏低，建议关注桶型结构、租桶费与路线分摊成本。",
     }));
 
-  return { customers, lossCustomers };
+  return { customers, lossCustomers   };
+}
+
+function mergePeriodSummaryWithTripTotals(
+  summary: PnlPeriodSummary,
+  tripTotals: PnlTripTotals
+): PnlPeriodSummary {
+  return {
+    ...summary,
+    revenueMyr: tripTotals.revenueMyr,
+    grossProfitMyr: tripTotals.grossProfitMyr,
+    marginPct: tripTotals.marginPct,
+  };
 }
 
 export async function buildPnlPeriodSummary(input: {
@@ -1724,12 +1777,15 @@ export async function buildPnlPeriodSummary(input: {
     return {
       year: input.year,
       month: input.month,
-      periodSummary: buildPeriodSummaryFromTrips({
-        year: input.year,
-        month: input.month,
-        mode: "month",
-        trips,
-      }),
+      periodSummary: mergePeriodSummaryWithTripTotals(
+        buildPeriodSummaryFromTrips({
+          year: input.year,
+          month: input.month,
+          mode: "month",
+          trips,
+        }),
+        computed.tripTotals
+      ),
     };
   }
   if ((input.periodMode ?? "month") === "day") {
@@ -1749,13 +1805,16 @@ export async function buildPnlPeriodSummary(input: {
     return {
       year: input.year,
       month: input.month,
-      periodSummary: buildPeriodSummaryFromTrips({
-        year: input.year,
-        month: input.month,
-        mode: "day",
-        day: input.day,
-        trips,
-      }),
+      periodSummary: mergePeriodSummaryWithTripTotals(
+        buildPeriodSummaryFromTrips({
+          year: input.year,
+          month: input.month,
+          mode: "day",
+          day: input.day,
+          trips,
+        }),
+        computed.tripTotals
+      ),
     };
   }
   const report = await buildPnlReport({
@@ -1921,7 +1980,12 @@ export async function buildPnlReport(input: {
     matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
   )).filter((trip): trip is PnlTripRow => trip != null);
 
-  const tripTotals = buildTripTotalsFromRows(trips);
+  const tripTotals = await enrichTripTotalsWithPartnerFreight(
+    buildTripTotalsFromRows(trips),
+    input.year,
+    input.month,
+    input.day
+  );
 
   const trendMap = new Map<string, PnlDailyTrendPoint>();
   for (const trip of trips) {

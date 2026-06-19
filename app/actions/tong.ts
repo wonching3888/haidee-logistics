@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
+import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   confirmCrateImportArrived,
   getCrateTypesForImport,
@@ -20,9 +21,9 @@ import {
 } from "@/lib/constants/import-markets";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
-  LOCATION_POOL_SHIPPER_CODES,
   LOCATION_POOL_SHIPPER_LIST,
 } from "@/lib/constants/location-pool-shippers";
+import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import {
   saveCrateExport,
@@ -85,7 +86,7 @@ export {
 
 export async function getTongTypesForExport() {
   return prisma.tongType.findMany({
-    where: { active: true, trackInventory: true },
+    where: { ...INBOUND_VISIBLE_TONG_TYPE_WHERE, trackInventory: true },
     orderBy: { displayOrder: "asc" },
     select: { id: true, code: true, name: true },
   });
@@ -118,15 +119,7 @@ export async function getShippersForExport() {
   const [poolShippers, shippers] = await Promise.all([
     ensureLocationPoolShippers(),
     prisma.shipper.findMany({
-      where: {
-        active: true,
-        code: {
-          notIn: [
-            LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
-            LOCATION_POOL_SHIPPER_CODES.PATTANI,
-          ],
-        },
-      },
+      where: OPERATIONAL_SHIPPER_WHERE,
       orderBy: { name: "asc" },
       select: { id: true, code: true, name: true },
     }),

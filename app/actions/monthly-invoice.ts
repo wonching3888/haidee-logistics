@@ -20,6 +20,7 @@ import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
 import { buildHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { decimalToNumber } from "@/lib/freight-rates";
+import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 
 async function requireFreightViewer() {
   const user = await getCurrentUser();
@@ -42,7 +43,7 @@ const invoiceLineInclude = {
   session: {
     select: {
       date: true,
-      shipper: { select: { id: true, code: true, name: true } },
+      shipper: { select: { id: true, code: true, name: true, shipperKind: true } },
     },
   },
   stall: {
@@ -58,7 +59,7 @@ type InvoiceLineRow = Awaited<
 >[number] & {
   session: {
     date: Date;
-    shipper: { id: string; code: string; name: string };
+    shipper: { id: string; code: string; name: string; shipperKind: string };
   };
   stall: {
     code: string;
@@ -162,8 +163,12 @@ async function fetchRawInvoiceLines(
     ]);
 
     return [
-      ...primaryLines.map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow)),
-      ...dualLines.map((line) => mapDualPaymentWtlInvoiceLine(line as InvoiceLineRow)),
+      ...primaryLines
+        .filter((line) => !isLogisticsPartnerShipper(line.session.shipper))
+        .map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow)),
+      ...dualLines
+        .filter((line) => !isLogisticsPartnerShipper(line.session.shipper))
+        .map((line) => mapDualPaymentWtlInvoiceLine(line as InvoiceLineRow)),
     ];
   }
 
@@ -186,7 +191,9 @@ async function fetchRawInvoiceLines(
     orderBy: [{ session: { date: "asc" } }, { createdAt: "asc" }],
   });
 
-  return lines.map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow));
+  return lines
+    .filter((line) => !isLogisticsPartnerShipper(line.session.shipper))
+    .map((line) => mapPrimaryInvoiceLine(line as InvoiceLineRow));
 }
 
 export async function getMonthlyInvoiceCustomers(input: {

@@ -17,6 +17,7 @@ export const TONG_IMPORT_ALL_COLUMNS = [
   { key: "GKS", label: "GKS", tongCode: "GKS" },
   { key: "BRO", label: "BRO", tongCode: "BRO" },
   { key: "GLY", label: "GLY", tongCode: "GLY" },
+  { key: "SKTN", label: "SKTN", tongCode: "SKTN" },
   { key: "BS", label: "BS", tongCode: "BS" },
   { key: "BH", label: "BH", tongCode: "BH" },
   { key: "SHS", label: "SHS", tongCode: "SHS" },
