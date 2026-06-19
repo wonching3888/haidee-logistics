@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getMultiCrateByTypeData } from "@/app/actions/documents";
 import { CrateByTypePrint } from "@/components/documents/CrateByTypePrint";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { resolveDateParam } from "@/lib/date-utils";
 
 interface CrateByTypePageProps {
@@ -38,13 +38,20 @@ export default async function CrateByTypePage({
       ? `桶型统计 Crate — ${selections[0].marketCode} / ${data.sections[0]?.tongHeader}`
       : `桶型统计 Crate — ${selections.length} 组`;
 
+  const documentTitle = `Crate-${date}-${selections.length}`;
+
   return (
-    <DOPrintPageLayout
+    <DOPrintPageWithShare
       title={title}
-      documentTitle={`Crate-${date}-${selections.length}`}
+      documentTitle={documentTitle}
       backHref={`/documents?date=${encodeURIComponent(date)}`}
+      sharePayload={{
+        fileName: `${documentTitle}.pdf`,
+        title: documentTitle,
+        text: `${title} · ${date}`,
+      }}
     >
       <CrateByTypePrint data={data} />
-    </DOPrintPageLayout>
+    </DOPrintPageWithShare>
   );
 }

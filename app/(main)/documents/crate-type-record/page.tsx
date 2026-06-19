@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCrateTypeRecordData } from "@/app/actions/documents";
 import { CrateTypeRecordPrint } from "@/components/documents/CrateTypeRecordPrint";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { resolveDateParam } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
@@ -38,13 +38,20 @@ export default async function CrateTypeRecordPage({
   const data = await getCrateTypeRecordData(date, { marketCodes, tongCodes });
   if (!data) notFound();
 
+  const documentTitle = `CrateTypeRecord-${date}`;
+
   return (
-    <DOPrintPageLayout
+    <DOPrintPageWithShare
       title="桶型总计 Crate Type Record"
-      documentTitle={`CrateTypeRecord-${date}`}
+      documentTitle={documentTitle}
       backHref={`/documents?date=${encodeURIComponent(date)}`}
+      sharePayload={{
+        fileName: `${documentTitle}.pdf`,
+        title: documentTitle,
+        text: `Crate Type Record · ${date} · ${marketCodes.length} markets`,
+      }}
     >
       <CrateTypeRecordPrint data={data} />
-    </DOPrintPageLayout>
+    </DOPrintPageWithShare>
   );
 }

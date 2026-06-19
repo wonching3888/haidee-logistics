@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getDeliveryOrderData } from "@/app/actions/documents";
 import { DeliveryOrderPrint } from "@/components/documents/DeliveryOrderPrint";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +21,19 @@ export default async function DOInternalPage({
   });
   if (!data) notFound();
 
+  const documentTitle = `${data.doNumber}-${data.lorryNo}`;
+
   return (
-    <DOPrintPageLayout
+    <DOPrintPageWithShare
       title="内部 D/O Internal D/O"
-      documentTitle={`${data.doNumber}-${data.lorryNo}`}
+      documentTitle={documentTitle}
+      sharePayload={{
+        fileName: `${documentTitle}.pdf`,
+        title: documentTitle,
+        text: `Internal D/O ${data.doNumber} · ${data.lorryNo} · ${data.date}`,
+      }}
     >
       <DeliveryOrderPrint data={data} showConsignor />
-    </DOPrintPageLayout>
+    </DOPrintPageWithShare>
   );
 }

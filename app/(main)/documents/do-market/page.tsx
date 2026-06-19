@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getMultiMarketDOData } from "@/app/actions/documents";
 import { MarketDOPrint } from "@/components/documents/MarketDOPrint";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { PageError } from "@/components/shared/PageError";
 import { resolveDateParam } from "@/lib/date-utils";
 
@@ -27,14 +27,21 @@ export default async function DOMarketPage({
     const data = await getMultiMarketDOData(date, marketCodes);
     if (!data) notFound();
 
+    const documentTitle = `MarketDO-${data.marketCode}-${date}`;
+
     return (
-      <DOPrintPageLayout
+      <DOPrintPageWithShare
         title={`市场 D/O Market D/O — ${marketCodes.join(" / ")}`}
-        documentTitle={`MarketDO-${data.marketCode}-${date}`}
+        documentTitle={documentTitle}
         backHref={`/documents?date=${encodeURIComponent(date)}`}
+        sharePayload={{
+          fileName: `${documentTitle}.pdf`,
+          title: documentTitle,
+          text: `Market D/O ${marketCodes.join(", ")} · ${date}`,
+        }}
       >
         <MarketDOPrint data={data} />
-      </DOPrintPageLayout>
+      </DOPrintPageWithShare>
     );
   } catch (error) {
     return (

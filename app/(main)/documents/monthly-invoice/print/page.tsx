@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getMonthlyInvoicePrintData } from "@/app/actions/monthly-invoice";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { HaideeMonthlyInvoicePrint } from "@/components/documents/HaideeMonthlyInvoicePrint";
 import { Mode4MonthlyInvoicePrint } from "@/components/documents/Mode4MonthlyInvoicePrint";
 import { MonthlyInvoicePrint } from "@/components/documents/MonthlyInvoicePrint";
@@ -8,6 +8,10 @@ import { PageError } from "@/components/shared/PageError";
 import { isMonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
 import { isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { isWtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
+import {
+  isValidListMonth,
+  isValidListYear,
+} from "@/lib/parse-year-month-params";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +36,8 @@ export default async function MonthlyInvoicePrintPage({
   const returnTo = params.returnTo?.trim() ?? "";
 
   if (
-    !Number.isFinite(year) ||
-    !Number.isFinite(month) ||
+    !isValidListYear(year) ||
+    !isValidListMonth(month) ||
     !isMonthlyInvoiceMode(mode) ||
     !customerId
   ) {
@@ -55,10 +59,15 @@ export default async function MonthlyInvoicePrintPage({
       `/documents/monthly-invoice?year=${year}&month=${month}&mode=${encodeURIComponent(mode)}`;
 
     return (
-      <DOPrintPageLayout
+      <DOPrintPageWithShare
         title={`月结账单 Monthly Invoice — ${data.customerName}`}
         documentTitle={documentTitle}
         backHref={backHref}
+        sharePayload={{
+          fileName: `${documentTitle}.pdf`,
+          title: documentTitle,
+          text: `Monthly Invoice ${data.customerName} (${data.customerCode}) · ${mode} · ${year}-${String(month).padStart(2, "0")}`,
+        }}
       >
         {isWtlMonthlyInvoiceData(data) ? (
           <Mode4MonthlyInvoicePrint data={data} />
@@ -67,7 +76,7 @@ export default async function MonthlyInvoicePrintPage({
         ) : (
           <MonthlyInvoicePrint data={data} />
         )}
-      </DOPrintPageLayout>
+      </DOPrintPageWithShare>
     );
   } catch (error) {
     return (

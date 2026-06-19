@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 import { fetchCrateReturnMonthlyInvoicePrintData } from "@/app/actions/crate-return-invoice";
 import { CrateReturnMonthlyInvoicePrint } from "@/components/documents/CrateReturnMonthlyInvoicePrint";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { PageError } from "@/components/shared/PageError";
+import {
+  isValidListMonth,
+  isValidListYear,
+} from "@/lib/parse-year-month-params";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +26,7 @@ export default async function CrateReturnInvoicePrintPage({
   const month = Number(params.month);
   const crateType = params.crateType?.trim() ?? "";
 
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !crateType) {
+  if (!isValidListYear(year) || !isValidListMonth(month) || !crateType) {
     notFound();
   }
 
@@ -36,13 +40,18 @@ export default async function CrateReturnInvoicePrintPage({
     const backHref = `/documents/crate-return-invoice?year=${year}&month=${month}`;
 
     return (
-      <DOPrintPageLayout
+      <DOPrintPageWithShare
         title={`Crate Return Invoice — ${data.invoiceNo}`}
         documentTitle={data.invoiceNo}
         backHref={backHref}
+        sharePayload={{
+          fileName: `${data.invoiceNo}.pdf`,
+          title: data.invoiceNo,
+          text: `${data.billToName} · ${data.crateType} · ${year}-${String(month).padStart(2, "0")} · ${data.totalAmountMyr.toFixed(2)} MYR`,
+        }}
       >
         <CrateReturnMonthlyInvoicePrint data={data} />
-      </DOPrintPageLayout>
+      </DOPrintPageWithShare>
     );
   } catch (error) {
     return (

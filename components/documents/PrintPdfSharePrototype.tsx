@@ -63,7 +63,7 @@ export function PrintPdfSharePrototype({
         ) : (
           <Share2 className="h-4 w-4" />
         )}
-        {busy ? "生成 PDF…" : "分享 PDF（验证）"}
+        {busy ? "生成 PDF…" : "分享 PDF"}
       </Button>
 
       {probe ? (
