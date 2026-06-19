@@ -6,13 +6,11 @@ import {
 import { loadExchangeRate } from "@/lib/exchange-rate";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { loadInboundFreightContext } from "@/lib/freight-context";
-import { convertThbToMyr, decimalToNumber } from "@/lib/freight-rates";
+import { decimalToNumber } from "@/lib/freight-rates";
 import { isOtherMarket } from "@/lib/markets";
 import {
   computeInboundLineFreight,
-  freightAmountMyrEquivalent,
   normalizeMcDeliveryMode,
-  type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
 import {
   buildRouteKey,
@@ -42,6 +40,7 @@ import {
 } from "@/lib/pnl-month-cache";
 import { computeLineThaiSegmentCostMyr } from "@/lib/thai-segment-freight";
 import { toDateInputValue } from "@/lib/date-utils";
+import { lineRevenueMyr } from "@/lib/wtl-revenue";
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
@@ -161,30 +160,6 @@ function tripLoadUnloadActualTotal(
   }
   for (const row of loadingRows) {
     total += row.loadingFeeOverride ?? row.loadingFee;
-  }
-  return roundMoney(total);
-}
-
-function lineRevenueMyr(
-  snapshot: InboundLineFreightSnapshot,
-  exchangeRate: number
-): number {
-  if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
-    return 0;
-  }
-
-  let total = 0;
-  if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
-    total += convertThbToMyr(snapshot.freightAmount, exchangeRate);
-  } else if (snapshot.currency === "MYR") {
-    total += snapshot.freightAmount;
-  } else {
-    const eq = freightAmountMyrEquivalent(snapshot);
-    if (eq != null) total += eq;
-  }
-
-  if ((snapshot.dualPaymentWtlAmount ?? 0) > 0) {
-    total += snapshot.dualPaymentWtlAmount!;
   }
   return roundMoney(total);
 }
@@ -1103,7 +1078,11 @@ async function computeTripPnlRow(
         freightCtx
       );
 
-      const revenue = lineRevenueMyr(snapshot, ctx.exchangeRate);
+      const revenue = lineRevenueMyr(
+        snapshot,
+        ctx.exchangeRate,
+        dispatch.date
+      );
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = computeCrateRentalLineCostMyr(quantity, rentalRate);
@@ -1503,7 +1482,11 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         freightCtx
       );
 
-      const revenue = lineRevenueMyr(snapshot, ctx.exchangeRate);
+      const revenue = lineRevenueMyr(
+        snapshot,
+        ctx.exchangeRate,
+        dispatch.date
+      );
       const crateType = inbound.tongType.code;
       const rentalRate = ctx.rentalRateByType.get(crateType) ?? 0;
       const crateRental = computeCrateRentalLineCostMyr(quantity, rentalRate);

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 
 export const operationsAssignedInboundLineSelect = {
@@ -20,11 +21,24 @@ export const operationsAssignedInboundLineSelect = {
       },
     },
   },
-} as const;
+  dispatchLines: {
+    where: {
+      dispatchOrder: {
+        status: { notIn: ["draft", "cancelled"] },
+      },
+    },
+    orderBy: { dispatchOrder: { date: "desc" } },
+    take: 1,
+    select: {
+      dispatchOrder: { select: { date: true } },
+    },
+  },
+} as const satisfies Prisma.InboundLineSelect;
 
-export type OperationsAssignedInboundLine = Awaited<
-  ReturnType<typeof fetchOperationsAssignedInboundLines>
->[number];
+export type OperationsAssignedInboundLine =
+  Prisma.InboundLineGetPayload<{
+    select: typeof operationsAssignedInboundLineSelect;
+  }>;
 
 export async function fetchOperationsAssignedInboundLines(
   year: number,

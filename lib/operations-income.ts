@@ -17,6 +17,12 @@ import {
   getOperationsFreightContext,
   preloadOperationsFreightContexts,
 } from "@/lib/operations-freight-preload";
+import {
+  dualPaymentWtlRevenueMyr,
+  nklPermitRevenueMyr,
+  operationsFreightIncomeMyr,
+  shouldExcludeWtlSstFromRevenue,
+} from "@/lib/wtl-revenue";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -87,6 +93,13 @@ export interface OperationsIncomeResult {
 const WARNING_SAMPLE_LIMIT = 8;
 const NKL_CONSIGNEE_CODE = "3000-N001";
 
+function resolveLineDispatchDate(
+  line: OperationsAssignedInboundLine,
+  monthEnd: Date
+): Date {
+  return line.dispatchLines[0]?.dispatchOrder.date ?? monthEnd;
+}
+
 async function aggregateNklPermitIncome(year: number, month: number) {
   const { start, end } = getMonthDateRange(year, month);
   const consignee = await prisma.consignee.findUnique({
@@ -132,10 +145,14 @@ async function aggregateNklPermitIncome(year: number, month: number) {
         },
       },
     },
-    select: { id: true },
+    select: { date: true },
   });
 
-  return roundMoney(trips.length * permitPerTrip);
+  let total = 0;
+  for (const trip of trips) {
+    total += nklPermitRevenueMyr(permitPerTrip, trip.date);
+  }
+  return roundMoney(total);
 }
 
 export async function aggregateOperationsIncome(
@@ -172,6 +189,7 @@ export async function aggregateOperationsIncome(
 
   for (const shipperLines of Array.from(linesByShipper.values())) {
     for (const line of shipperLines) {
+      const tripDate = resolveLineDispatchDate(line, end);
       const ctx = getOperationsFreightContext(
         freightCache,
         line,
@@ -227,16 +245,21 @@ export async function aggregateOperationsIncome(
         continue;
       }
 
+      const freightIncome = operationsFreightIncomeMyr(snapshot, tripDate);
       addIncomeAmount(
         totals,
         snapshot.paymentMode,
-        snapshot.freightAmount,
+        freightIncome,
         snapshot.currency,
         snapshot.billingCompany
       );
 
-      if ((snapshot.dualPaymentWtlAmount ?? 0) > 0) {
-        addIncomeAmount(totals, "3", snapshot.dualPaymentWtlAmount!, "MYR");
+      const dualIncome = dualPaymentWtlRevenueMyr(
+        snapshot,
+        shouldExcludeWtlSstFromRevenue(tripDate)
+      );
+      if (dualIncome > 0) {
+        addIncomeAmount(totals, "3", dualIncome, "MYR");
       }
     }
   }
