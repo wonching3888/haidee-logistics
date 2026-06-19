@@ -103,7 +103,7 @@ export default function TripPnlFilter({
         <button
           type="button"
           onClick={() => onChange({ date: "" })}
-          className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm hover:bg-haidee-surface/60"
+          className="min-h-[44px] rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue hover:bg-haidee-blue/10"
         >
           清空日期
         </button>

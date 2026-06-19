@@ -142,7 +142,7 @@ export function PeriodReportView({
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 draft.mode === "monthly"
-                  ? "bg-haidee-navy text-white"
+                  ? "bg-haidee-blue text-white"
                   : "text-haidee-muted hover:bg-haidee-surface"
               )}
             >
@@ -154,7 +154,7 @@ export function PeriodReportView({
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 draft.mode === "yearly"
-                  ? "bg-haidee-navy text-white"
+                  ? "bg-haidee-blue text-white"
                   : "text-haidee-muted hover:bg-haidee-surface"
               )}
             >

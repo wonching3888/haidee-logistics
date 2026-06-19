@@ -129,7 +129,7 @@ function PnlTrendChart({
           成本 Cost
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="h-2 w-6 rounded bg-blue-600" />
+          <span className="h-2 w-6 rounded bg-haidee-blue" />
           毛利 Profit
         </span>
       </div>
@@ -437,7 +437,7 @@ export function PnlReportView({
             className={cn(
               "border-b-2 px-4 py-3 text-sm font-medium transition-colors",
               activeTab === tab.id
-                ? "border-haidee-teal text-haidee-teal"
+                ? "border-haidee-blue text-haidee-blue"
                 : "border-transparent text-haidee-muted hover:text-haidee-text"
             )}
           >
@@ -798,7 +798,7 @@ function TripListRow({
           <button
             type="button"
             onClick={onToggle}
-            className="text-haidee-teal"
+            className="text-haidee-blue"
             aria-label={expanded ? "收起寄货人明细" : "展开寄货人明细"}
           >
             {loading ? (
@@ -983,7 +983,7 @@ function CustomerListRow({
           <button
             type="button"
             onClick={onToggle}
-            className="text-haidee-teal"
+            className="text-haidee-blue"
             aria-label={expanded ? "收起市场明细" : "展开市场明细"}
           >
             {loading ? (
@@ -1130,7 +1130,7 @@ function SearchButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="min-h-[44px] rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+      className="min-h-[44px] rounded-lg bg-haidee-blue px-4 text-sm font-medium text-white hover:bg-haidee-blue/90 disabled:opacity-60"
     >
       {loading ? "查询中…" : "🔍 查询 Search"}
     </button>

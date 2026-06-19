@@ -171,7 +171,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 <div className="flex items-center justify-end gap-1">
                   <Link
                     href={`/inbound/${s.id}/edit`}
-                    className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-border px-3 text-sm text-haidee-text transition-colors hover:bg-haidee-surface"
+                    className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
                   >
                     编辑 Edit
                   </Link>

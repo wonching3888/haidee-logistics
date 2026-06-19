@@ -162,7 +162,7 @@ export function PartnerTripInvoicePicker() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Link
-                        className="inline-flex h-8 items-center justify-center rounded-md border border-haidee-border px-3 text-sm font-medium hover:bg-haidee-border/20"
+                        className="inline-flex h-8 items-center justify-center rounded-md border border-haidee-blue px-3 text-sm font-medium text-haidee-blue hover:bg-haidee-blue/10"
                         href={`/documents/partner-trip-invoice/print?year=${queryParams.year}&month=${queryParams.month}&tripDate=${encodeURIComponent(trip.tripDateInput)}&truckId=${trip.truckId}&marketId=${trip.marketId}&crateType=${trip.crateType}`}
                       >
                         打印 Print
