@@ -6,6 +6,7 @@ import {
   parseReportMonth,
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
+import { isReportQueryRequested } from "@/lib/reports/report-query-params";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ interface MarketReportPageProps {
     mode?: string;
     year?: string;
     month?: string;
+    q?: string;
   }>;
 }
 
@@ -24,13 +26,16 @@ export default async function MarketReportPage({
   const mode = parseReportMode(params.mode);
   const year = parseReportYear(params.year);
   const month = parseReportMonth(params.month);
+  const queried = isReportQueryRequested(params);
 
   try {
-    const data = await getMarketReport({
-      mode,
-      year,
-      month: mode === "monthly" ? month : undefined,
-    });
+    const data = queried
+      ? await getMarketReport({
+          mode,
+          year,
+          month: mode === "monthly" ? month : undefined,
+        })
+      : null;
 
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
@@ -48,11 +53,19 @@ export default async function MarketReportPage({
             reportTitle="市场报表"
             reportTitleEn="Market Report"
             emptyMessage="所选期间暂无派车货量 No dispatch quantities for this period"
+            awaitingQueryMessage={
+              <>
+                请选择报表类型（月度/年度）与期间，点击「查询」加载市场报表。
+                <br />
+                Choose report type and period, then click Search.
+              </>
+            }
             documentTitlePrefix="MarketReport"
             mode={mode}
             year={year}
             month={month}
             data={data}
+            queried={queried}
           />
         </div>
       </div>

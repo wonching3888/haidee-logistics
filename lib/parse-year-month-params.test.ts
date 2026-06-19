@@ -3,6 +3,31 @@ import {
   parseYearMonthFromSearchParams,
   yearMonthQueryMatches,
 } from "./parse-year-month-params";
+import {
+  isReportQueryRequested,
+  REPORT_QUERY_PARAM,
+  withReportQueryFlag,
+} from "./reports/report-query-params";
+
+describe("report-query-params", () => {
+  it("isReportQueryRequested returns true only for q=1", () => {
+    expect(isReportQueryRequested({ q: "1" })).toBe(true);
+    expect(isReportQueryRequested({ q: undefined })).toBe(false);
+    expect(isReportQueryRequested(new URLSearchParams({}))).toBe(false);
+    expect(
+      isReportQueryRequested(new URLSearchParams({ [REPORT_QUERY_PARAM]: "1" }))
+    ).toBe(true);
+  });
+
+  it("withReportQueryFlag sets q=1", () => {
+    const params = withReportQueryFlag(
+      new URLSearchParams({ year: "2026", month: "6" })
+    );
+    expect(params.get("q")).toBe("1");
+    expect(params.get("year")).toBe("2026");
+  });
+});
+
 
 function params(input: Record<string, string>) {
   return new URLSearchParams(input);

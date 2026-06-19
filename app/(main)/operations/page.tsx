@@ -1,7 +1,6 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getOperationsDashboard } from "@/app/actions/operations-dashboard";
 import { OperationsDashboardView } from "@/components/operations/OperationsDashboardView";
-import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewOperationsDashboard } from "@/lib/auth-roles";
 import {
@@ -13,7 +12,7 @@ import type { UserRole } from "@/types";
 export const dynamic = "force-dynamic";
 
 interface OperationsPageProps {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; q?: string }>;
 }
 
 export default async function OperationsPage({
@@ -28,37 +27,24 @@ export default async function OperationsPage({
   const year = parseReportYear(params.year);
   const month = parseReportMonth(params.month);
 
-  try {
-    const data = await getOperationsDashboard({ year, month });
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            运营报表 Operations
-          </h2>
-          <p className="text-sm text-haidee-muted">
-            月度收入与成本概览（统一换算 MYR）· Admin / Accounting / Owner
-          </p>
-        </div>
-
-        <OperationsDashboardView
-          initialYear={year}
-          initialMonth={month}
-          initialData={data}
-        />
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-haidee-text">
+          运营报表 Operations
+        </h2>
+        <p className="text-sm text-haidee-muted">
+          月度收入与成本概览（统一换算 MYR）· Admin / Accounting / Owner
+        </p>
       </div>
-    );
-  } catch (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            运营报表 Operations
-          </h2>
-        </div>
-        <PageError error={error} />
-      </div>
-    );
-  }
+
+      <Suspense
+        fallback={
+          <div className="h-32 animate-pulse rounded-lg bg-haidee-border/30" />
+        }
+      >
+        <OperationsDashboardView initialYear={year} initialMonth={month} />
+      </Suspense>
+    </div>
+  );
 }

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PnlReportView } from "@/components/reports/PnlReportView";
 import { getCurrentUser } from "@/lib/auth";
@@ -40,11 +41,17 @@ export default async function PnlReportPage({ searchParams }: PnlReportPageProps
         </p>
       </div>
 
-      <PnlReportView
-        initialYear={year}
-        initialMonth={month}
-        initialDay={todayDateInput()}
-      />
+      <Suspense
+        fallback={
+          <div className="h-32 animate-pulse rounded-lg bg-haidee-border/30" />
+        }
+      >
+        <PnlReportView
+          initialYear={year}
+          initialMonth={month}
+          initialDay={todayDateInput()}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import {
@@ -27,11 +28,17 @@ import {
   type PnlCustomerStatus,
 } from "@/lib/pnl-report-types";
 import { cn } from "@/lib/utils";
-import TripPnlFilter from "./TripPnlFilter";
+import TripPnlFilter, {
+  type TripPnlFilterValues,
+} from "./TripPnlFilter";
 import {
   buildPnlTripsApiSearchParams,
-  resolveTripSearchDay,
 } from "@/lib/pnl-trip-search-params";
+import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
+import {
+  isReportQueryRequested,
+  withReportQueryFlag,
+} from "@/lib/reports/report-query-params";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 type PnlTab = "trip" | "period" | "customer";
@@ -160,16 +167,26 @@ export function PnlReportView({
   initialMonth,
   initialDay,
 }: PnlReportViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<PnlTab>("trip");
+  const [tripDraft, setTripDraft] = useState<TripPnlFilterValues>({
+    year: initialYear,
+    month: initialMonth,
+    route: "ALL",
+    driver: "ALL",
+    date: "",
+  });
+  const [tripApplied, setTripApplied] = useState<TripPnlFilterValues | null>(
+    null
+  );
+  const tripAutoRan = useRef(false);
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
-  const [tripDay, setTripDay] = useState("");
   const [periodMode, setPeriodMode] = useState<PnlPeriodMode>("month");
   const [periodDay, setPeriodDay] = useState(initialDay);
   const [rangeStart, setRangeStart] = useState(initialDay);
   const [rangeEnd, setRangeEnd] = useState(initialDay);
-  const [routeFilter, setRouteFilter] = useState<PnlRouteFilter>("ALL");
-  const [driverFilter, setDriverFilter] = useState("ALL");
   const [customerSort, setCustomerSort] = useState<PnlCustomerSort>("profit");
   const [customerSortDir, setCustomerSortDir] =
     useState<PnlCustomerSortDir>("desc");
@@ -198,25 +215,17 @@ export function PnlReportView({
   const [error, setError] = useState<string | null>(null);
 
   const loadTrips = useCallback(
-    async (override?: {
-      year?: number;
-      month?: number;
-      routeFilter?: PnlRouteFilter;
-      driverFilter?: string;
-      tripDay?: string;
-    }) => {
-      const searchYear = override?.year ?? year;
-      const searchMonth = override?.month ?? month;
-      const searchRoute = override?.routeFilter ?? routeFilter;
-      const searchDriver = override?.driverFilter ?? driverFilter;
-      const searchDay = resolveTripSearchDay(tripDay, override);
+    async (filters: TripPnlFilterValues) => {
+      const searchRoute = (filters.route || "ALL") as PnlRouteFilter;
+      const searchDriver = filters.driver || "ALL";
+      const searchDay = filters.date || "";
 
       setTripsLoading(true);
       setError(null);
       try {
         const params = buildPnlTripsApiSearchParams({
-          year: searchYear,
-          month: searchMonth,
+          year: filters.year,
+          month: filters.month,
           routeFilter: searchRoute,
           driverFilter: searchDriver,
           tripDay: searchDay,
@@ -227,24 +236,36 @@ export function PnlReportView({
         setTripsData(data);
         setExpandedTripIds(new Set());
         setTripDetails({});
+        setTripApplied(filters);
+
+        const urlParams = withReportQueryFlag(
+          new URLSearchParams({
+            year: String(filters.year),
+            month: String(filters.month),
+          })
+        );
+        router.replace(`/reports/pnl?${urlParams.toString()}`, {
+          scroll: false,
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "加载失败");
       } finally {
         setTripsLoading(false);
       }
     },
-    [year, month, tripDay, routeFilter, driverFilter]
+    [router]
   );
 
+  const runTripSearch = useCallback(() => {
+    void loadTrips(tripDraft);
+  }, [loadTrips, tripDraft]);
+
   useEffect(() => {
-    void loadTrips({
-      year: initialYear,
-      month: initialMonth,
-      routeFilter: "ALL",
-      driverFilter: "ALL",
-      tripDay: "",
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only default: full month
+    if (tripAutoRan.current) return;
+    if (!isReportQueryRequested(searchParams)) return;
+    tripAutoRan.current = true;
+    void loadTrips(tripDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- S2: auto-query once when q=1
   }, []);
 
   async function loadTripDetail(tripId: string) {
@@ -253,9 +274,10 @@ export function PnlReportView({
     setLoadingTripIds((prev) => new Set(prev).add(tripId));
     setError(null);
     try {
+      const applied = tripApplied ?? tripDraft;
       const params = new URLSearchParams({
-        year: String(year),
-        month: String(month),
+        year: String(applied.year),
+        month: String(applied.month),
       });
       const detail = await fetchJson<PnlTripRow>(
         `/api/pnl/trip/${tripId}?${params}`
@@ -384,12 +406,21 @@ export function PnlReportView({
 
   const trips = tripsData?.trips ?? [];
   const totals = tripsData?.totals;
-  const isTodayView = tripDay === getTodayDateInput();
+  const appliedTripDay = tripApplied?.date ?? "";
+  const isTodayView = appliedTripDay === getTodayDateInput();
   const emptyTripMessage = isTodayView
     ? "今日暂无趟次记录"
-    : tripDay
+    : appliedTripDay
       ? "该日暂无趟次记录"
       : "暂无趟次数据";
+
+  const tripFiltersDirty =
+    tripApplied !== null &&
+    (tripDraft.year !== tripApplied.year ||
+      tripDraft.month !== tripApplied.month ||
+      tripDraft.route !== tripApplied.route ||
+      tripDraft.driver !== tripApplied.driver ||
+      tripDraft.date !== tripApplied.date);
 
   return (
     <div className="space-y-6">
@@ -427,25 +458,16 @@ export function PnlReportView({
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
           <TripPnlFilter
+            values={tripDraft}
             drivers={tripsData?.drivers ?? []}
-            onSearch={({ year: searchYear, month: searchMonth, route, driver, date }) => {
-              const nextRoute = (route || "ALL") as PnlRouteFilter;
-              const nextDriver = driver || "ALL";
-              const nextDate = date || "";
-              setYear(searchYear);
-              setMonth(searchMonth);
-              setRouteFilter(nextRoute);
-              setDriverFilter(nextDriver);
-              setTripDay(nextDate);
-              void loadTrips({
-                year: searchYear,
-                month: searchMonth,
-                routeFilter: nextRoute,
-                driverFilter: nextDriver,
-                tripDay: nextDate,
-              });
-            }}
+            loading={tripsLoading}
+            onChange={(patch) =>
+              setTripDraft((prev) => ({ ...prev, ...patch }))
+            }
+            onSearch={runTripSearch}
           />
+
+          <ReportFiltersChangedHint show={tripFiltersDirty} />
 
           {tripsLoading && !tripsData ? (
             <LoadingState />
@@ -497,7 +519,7 @@ export function PnlReportView({
                     <TableRow className="bg-slate-100 font-semibold">
                       <TableCell />
                       <TableCell colSpan={4}>
-                        {tripDay ? "当日合计 Day Total" : "当月合计 Month Total"}
+                        {appliedTripDay ? "当日合计 Day Total" : "当月合计 Month Total"}
                       </TableCell>
                       <TableCell className="text-right">
                         {totals.totalQuantity}

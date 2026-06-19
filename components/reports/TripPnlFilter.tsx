@@ -1,85 +1,71 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
 import { PNL_ROUTE_FILTERS } from "@/lib/pnl-report-types";
+import { REPORT_YEAR_OPTIONS } from "@/lib/reports/report-query-params";
+import { ReportQueryButton } from "@/components/shared/ReportQueryButton";
 
-interface Props {
-  drivers?: string[];
-  onSearch: (params: {
-    year: number;
-    month: number;
-    route: string;
-    driver: string;
-    date: string;
-  }) => void;
+export interface TripPnlFilterValues {
+  year: number;
+  month: number;
+  route: string;
+  driver: string;
+  date: string;
 }
 
-const rowStyle: CSSProperties = {
-  display: "flex",
-  gap: "12px",
-  flexWrap: "wrap",
-  alignItems: "center",
-  marginBottom: "12px",
-};
+interface TripPnlFilterProps {
+  values: TripPnlFilterValues;
+  drivers?: string[];
+  loading?: boolean;
+  onChange: (patch: Partial<TripPnlFilterValues>) => void;
+  onSearch: () => void;
+}
 
-const labelStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "4px",
-  fontSize: "14px",
-};
-
-const selectStyle: CSSProperties = {
-  border: "1px solid #6b7280",
-  borderRadius: "6px",
-  padding: "6px 8px",
-  marginLeft: "4px",
-};
-
-export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [route, setRoute] = useState("ALL");
-  const [driver, setDriver] = useState("ALL");
-  const [date, setDate] = useState("");
+export default function TripPnlFilter({
+  values,
+  drivers = [],
+  loading = false,
+  onChange,
+  onSearch,
+}: TripPnlFilterProps) {
+  const { year, month, route, driver, date } = values;
 
   return (
-    <div style={{ marginBottom: "16px" }}>
-      <div style={rowStyle}>
-        <label style={labelStyle}>
-          年份 Year
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-haidee-text">年份 Year</span>
           <select
             value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            style={selectStyle}
+            onChange={(e) => onChange({ year: Number(e.target.value) })}
+            className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm"
           >
-            {[2024, 2025, 2026].map((y) => (
+            {REPORT_YEAR_OPTIONS.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
             ))}
           </select>
         </label>
-        <label style={labelStyle}>
-          月份 Month
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-haidee-text">月份 Month</span>
           <select
             value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            style={selectStyle}
+            onChange={(e) => onChange({ month: Number(e.target.value) })}
+            className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm"
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
-                {m}
+                {m} 月
               </option>
             ))}
           </select>
         </label>
-        <label style={labelStyle}>
-          路线 Route
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-haidee-text">路线 Route</span>
           <select
             value={route}
-            onChange={(e) => setRoute(e.target.value)}
-            style={selectStyle}
+            onChange={(e) => onChange({ route: e.target.value })}
+            className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm"
           >
             {PNL_ROUTE_FILTERS.map((r) => (
               <option key={r} value={r}>
@@ -88,12 +74,12 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
             ))}
           </select>
         </label>
-        <label style={labelStyle}>
-          司机 Driver
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-haidee-text">司机 Driver</span>
           <select
             value={driver}
-            onChange={(e) => setDriver(e.target.value)}
-            style={selectStyle}
+            onChange={(e) => onChange({ driver: e.target.value })}
+            className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm"
           >
             <option value="ALL">全部 All</option>
             {drivers.map((d) => (
@@ -104,38 +90,25 @@ export default function TripPnlFilter({ drivers = [], onSearch }: Props) {
           </select>
         </label>
       </div>
-      <div style={rowStyle}>
-        <label style={labelStyle}>
-          日期 Date（可选）
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-haidee-text">日期 Date（可选）</span>
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={selectStyle}
+            onChange={(e) => onChange({ date: e.target.value })}
+            className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm"
           />
         </label>
-        <button type="button" onClick={() => setDate("")}>
+        <button
+          type="button"
+          onClick={() => onChange({ date: "" })}
+          className="min-h-[44px] rounded-lg border border-haidee-border px-3 text-sm hover:bg-haidee-surface/60"
+        >
           清空日期
         </button>
+        <ReportQueryButton loading={loading} onClick={onSearch} />
       </div>
-      <button
-        type="button"
-        onClick={() => onSearch({ year, month, route, driver, date })}
-        style={{
-          backgroundColor: "#2563eb",
-          color: "white",
-          padding: "10px 32px",
-          borderRadius: "8px",
-          border: "none",
-          cursor: "pointer",
-          fontSize: "15px",
-          fontWeight: "600",
-          display: "block",
-          marginTop: "16px",
-        }}
-      >
-        查询 Search
-      </button>
     </div>
   );
 }
