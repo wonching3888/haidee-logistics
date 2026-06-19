@@ -82,8 +82,12 @@ export const INVOICE_COMPANY_HEADERS = {
     nameEn: "HAI DEE LOGISTICS CO., LTD",
   },
   wtl: {
-    nameZh: "WTL EXPRESS SDN BHD",
+    nameZh: "WTL EXPRESS SDN BHD (202201017123(1462820-W))",
     nameEn: "WTL EXPRESS SDN BHD",
+    addressLine1: "LOT 1918, KAMPUNG BARU, PEKAN BARU,",
+    addressLine2: "06010 CHANGLOON, KEDAH, MALAYSIA.",
+    phone: "Tel: 011-11503888 & 011-60603888",
+    sstRegistrationNo: "SST No.: K10-2403-32000055",
   },
 } as const;
 

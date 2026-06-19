@@ -1,7 +1,10 @@
 import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import type { InvoiceListingData } from "@/lib/monthly-invoice-aggregate";
-import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import {
+  PrintLetterhead,
+  WtlExpressInvoiceLetterhead,
+} from "@/components/shared/PrintLogo";
 
 export interface InvoiceListingPrintProps {
   issuerKey: MonthlyInvoiceModeConfig["issuerKey"];
@@ -20,7 +23,11 @@ export function InvoiceListingPrint({
 
   return (
     <div className="document-print mode4-listing-print">
-      <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
+      {issuerKey === "wtl" ? (
+        <WtlExpressInvoiceLetterhead />
+      ) : (
+        <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
+      )}
 
       <div className="mode4-listing-title">Listing</div>
       <div className="header-sub">

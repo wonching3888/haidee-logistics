@@ -1,6 +1,5 @@
 import type { WtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
-import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
-import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 
 interface Mode4TaxInvoicePrintProps {
   data: WtlMonthlyInvoiceData;
@@ -15,12 +14,11 @@ function billToLabel(role: WtlMonthlyInvoiceData["billToRole"]) {
 }
 
 export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
-  const company = INVOICE_COMPANY_HEADERS[data.mode.issuerKey];
   const { taxInvoice } = data;
 
   return (
-    <div className="document-print mode4-tax-invoice-print">
-      <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
+    <div className="document-print mode4-tax-invoice-print wtl-tax-invoice-document">
+      <WtlExpressInvoiceLetterhead />
 
       <div className="mode4-tax-invoice-title">TAX INVOICE</div>
       <div className="header-sub">
@@ -28,7 +26,7 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
       </div>
 
       <div className="monthly-invoice-meta">
-        <div>
+        <div className="monthly-invoice-meta-info">
           <div>
             <strong>账单月份 Period:</strong> {data.periodLabel}
           </div>

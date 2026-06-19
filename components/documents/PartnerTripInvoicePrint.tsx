@@ -1,6 +1,5 @@
 import type { PartnerTripInvoicePrintData } from "@/lib/partner-freight";
-import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
-import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 
 interface PartnerTripInvoicePrintProps {
   data: PartnerTripInvoicePrintData;
@@ -11,12 +10,11 @@ function formatMoney(value: number, currency: string) {
 }
 
 export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) {
-  const company = INVOICE_COMPANY_HEADERS.wtl;
   const taxPercent = roundPercent(data.taxRate);
 
   return (
-    <div className="document-print mode4-tax-invoice-print partner-trip-invoice-print">
-      <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
+    <div className="document-print mode4-tax-invoice-print partner-trip-invoice-print wtl-tax-invoice-document">
+      <WtlExpressInvoiceLetterhead />
 
       <div className="mode4-tax-invoice-title">TAX INVOICE</div>
       <div className="header-sub">
@@ -24,7 +22,7 @@ export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) 
       </div>
 
       <div className="monthly-invoice-meta">
-        <div>
+        <div className="monthly-invoice-meta-info">
           <div>
             <strong>Invoice No:</strong> {data.invoiceNo}
           </div>

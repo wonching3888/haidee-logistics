@@ -506,3 +506,57 @@
   table-layout: auto;
   font-size: 9pt;
 }
+
+.wtl-invoice-letterhead-text {
+  font-size: 10pt;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.wtl-invoice-letterhead-name {
+  font-size: 11pt;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.wtl-tax-invoice-document {
+  border: 1px solid #000000;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 16px;
+  margin: 12px 0;
+  font-size: 10pt;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-meta-info {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid #000000;
+  padding: 8px 10px;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-bill-to {
+  min-width: 220px;
+  border: 1px solid #000000;
+  padding: 8px 10px;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-bill-to-label {
+  font-size: 9pt;
+  margin-bottom: 4px;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-bill-to-name {
+  font-size: 11pt;
+}
+
+.wtl-tax-invoice-document .monthly-invoice-bill-to-code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10pt;
+}
