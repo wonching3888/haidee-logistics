@@ -423,3 +423,86 @@
 .monthly-invoice-print table.monthly-invoice-grand-total {
   margin-top: 12px;
 }
+
+.invoice-print-page {
+  page-break-after: always;
+  break-after: page;
+}
+
+.invoice-print-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+@media print {
+  .invoice-print-page {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .invoice-print-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+.mode4-tax-invoice-print .mode4-tax-invoice-title,
+.mode4-listing-print .mode4-listing-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13pt;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+
+.mode4-tax-invoice-print .mode4-route-col {
+  width: auto;
+}
+
+.mode4-tax-invoice-print .mode4-tax-code-col {
+  width: 72px;
+}
+
+.mode4-tax-invoice-print .mode4-qty-col,
+.mode4-tax-invoice-print .mode4-rate-col,
+.mode4-tax-invoice-print .mode4-amount-col {
+  width: 80px;
+}
+
+.mode4-tax-invoice-print .mode4-tax-invoice-totals {
+  margin-top: 14px;
+  width: 100%;
+}
+
+.mode4-tax-invoice-print .mode4-tax-summary {
+  margin-top: 16px;
+}
+
+.mode4-tax-invoice-print .mode4-tax-summary-title {
+  font-weight: 700;
+  font-size: 11pt;
+  margin-bottom: 4px;
+}
+
+.mode4-tax-invoice-print .mode4-tax-base-col,
+.mode4-tax-invoice-print .mode4-tax-amount-col {
+  width: 100px;
+}
+
+.mode4-listing-print .mode4-listing-date-col {
+  width: 72px;
+}
+
+.mode4-listing-print .mode4-listing-market-col {
+  width: 40px;
+}
+
+.mode4-listing-print .mode4-listing-total-col {
+  width: 56px;
+}
+
+.mode4-listing-print .mode4-listing-table {
+  table-layout: auto;
+  font-size: 9pt;
+}

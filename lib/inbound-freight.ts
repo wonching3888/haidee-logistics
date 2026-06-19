@@ -227,13 +227,6 @@ function applySst(unitRate: number, sstApplicable: boolean) {
   return roundMoney(unitRate * WTL_SST_MULTIPLIER);
 }
 
-function hasWtlThaiSegment(rate: {
-  rateTongThai: number | null;
-  rateBoxThai: number | null;
-}) {
-  return rate.rateTongThai != null || rate.rateBoxThai != null;
-}
-
 function computeWtlDualSegment(
   isBox: boolean,
   quantity: number,
@@ -435,7 +428,11 @@ export function computeInboundLineFreight(
   const isWtlShipperRate =
     !isDualPayment && !consigneePays && shipperRate?.isWtl === true;
   const isWtlConsigneeDual =
-    consigneePays && consigneeRate != null && hasWtlThaiSegment(consigneeRate);
+    consigneePays &&
+    paymentMode === "3" &&
+    billingCompany === "wtl" &&
+    consigneeRate != null &&
+    consigneeRate.sstApplicable === true;
 
   if (isWtlShipperRate && shipperRate && line.quantity > 0) {
     const segments = computeWtlDualSegment(

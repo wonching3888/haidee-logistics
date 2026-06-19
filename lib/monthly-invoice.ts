@@ -87,7 +87,7 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function resolveCustomerKey(
+export function resolveCustomerKeyForInvoice(
   line: RawInvoiceLine,
   billTo: MonthlyInvoiceBillTo
 ): { id: string; code: string; name: string } | null {
@@ -184,7 +184,7 @@ export function buildMonthlyInvoiceCustomerSummaries(
   const map = new Map<string, MonthlyInvoiceCustomerSummary>();
 
   for (const raw of rawLines) {
-    const customer = resolveCustomerKey(raw, mode.billTo);
+    const customer = resolveCustomerKeyForInvoice(raw, mode.billTo);
     const item = toLineItem(raw, mode.dualSegmentDisplay === true);
     if (!customer || !item) continue;
 
@@ -231,7 +231,7 @@ export function buildMonthlyInvoiceData(input: {
   const dualSegment = input.mode.dualSegmentDisplay === true;
   const customerLines = input.rawLines
     .map((raw) => {
-      const customer = resolveCustomerKey(raw, input.mode.billTo);
+      const customer = resolveCustomerKeyForInvoice(raw, input.mode.billTo);
       if (!customer || customer.id !== input.customerId) return null;
       return toLineItem(raw, dualSegment);
     })
@@ -245,12 +245,12 @@ export function buildMonthlyInvoiceData(input: {
   if (customerLines.length === 0) return null;
 
   const matchingRaw = input.rawLines.find((raw) => {
-    const resolved = resolveCustomerKey(raw, input.mode.billTo);
+    const resolved = resolveCustomerKeyForInvoice(raw, input.mode.billTo);
     return resolved?.id === input.customerId;
   });
   if (!matchingRaw) return null;
 
-  const customer = resolveCustomerKey(matchingRaw, input.mode.billTo);
+  const customer = resolveCustomerKeyForInvoice(matchingRaw, input.mode.billTo);
   if (!customer) return null;
 
   const sections = [

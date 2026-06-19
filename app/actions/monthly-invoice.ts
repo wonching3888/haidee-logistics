@@ -15,6 +15,8 @@ import {
   buildMonthlyInvoiceData,
   type RawInvoiceLine,
 } from "@/lib/monthly-invoice";
+import { buildMode4MonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
+import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { decimalToNumber } from "@/lib/freight-rates";
 
@@ -227,6 +229,28 @@ export async function getMonthlyInvoicePrintData(input: {
 
   const config = getMonthlyInvoiceModeConfig(input.mode)!;
   const rawLines = await fetchRawInvoiceLines(input.year, input.month, input.mode);
+
+  if (input.mode === "4") {
+    return buildMode4MonthlyInvoiceData({
+      mode: config,
+      year: input.year,
+      month: input.month,
+      periodLabel: formatInvoicePeriodLabel(input.year, input.month),
+      customerId: input.customerId,
+      rawLines,
+    });
+  }
+
+  if (input.mode === "3") {
+    return buildMode3MonthlyInvoiceData({
+      mode: config,
+      year: input.year,
+      month: input.month,
+      periodLabel: formatInvoicePeriodLabel(input.year, input.month),
+      customerId: input.customerId,
+      rawLines,
+    });
+  }
 
   return buildMonthlyInvoiceData({
     mode: config,

@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { getMonthlyInvoicePrintData } from "@/app/actions/monthly-invoice";
 import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
+import { Mode4MonthlyInvoicePrint } from "@/components/documents/Mode4MonthlyInvoicePrint";
 import { MonthlyInvoicePrint } from "@/components/documents/MonthlyInvoicePrint";
 import { PageError } from "@/components/shared/PageError";
 import { isMonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
+import { isWtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,11 @@ export default async function MonthlyInvoicePrintPage({
         title={`月结账单 Monthly Invoice — ${data.customerName}`}
         documentTitle={documentTitle}
       >
-        <MonthlyInvoicePrint data={data} />
+        {isWtlMonthlyInvoiceData(data) ? (
+          <Mode4MonthlyInvoicePrint data={data} />
+        ) : (
+          <MonthlyInvoicePrint data={data} />
+        )}
       </DOPrintPageLayout>
     );
   } catch (error) {
