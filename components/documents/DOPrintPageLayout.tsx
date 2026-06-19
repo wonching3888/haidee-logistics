@@ -5,17 +5,24 @@ import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { ArrowLeft, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  PrintPdfSharePrototype,
+} from "@/components/documents/PrintPdfSharePrototype";
+import type { PdfSharePayload } from "@/lib/print-pdf-share";
 
 interface DOPrintPageLayoutProps {
   title: string;
   documentTitle: string;
   children: React.ReactNode;
+  /** Prototype only — partner trip invoice print page */
+  pdfSharePrototype?: PdfSharePayload;
 }
 
 export function DOPrintPageLayout({
   title,
   documentTitle,
   children,
+  pdfSharePrototype,
 }: DOPrintPageLayoutProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -54,8 +61,21 @@ export function DOPrintPageLayout({
             <Download className="h-4 w-4" />
             下载 PDF
           </Button>
+          {pdfSharePrototype ? (
+            <PrintPdfSharePrototype
+              getContentElement={() => contentRef.current}
+              payload={pdfSharePrototype}
+            />
+          ) : null}
         </div>
       </div>
+
+      {pdfSharePrototype ? (
+        <p className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          PDF 分享验证原型（仅本页）：点击「分享 PDF」会在前端把下方单据转成真实 PDF
+          文件，并尝试调起系统分享面板（iOS/Android 可选 WhatsApp）。桌面浏览器通常会降级为下载。
+        </p>
+      ) : null}
 
       <div className="do-print-surface rounded-xl border border-haidee-border bg-gray-100 p-4 sm:p-6">
         <div

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPartnerTripInvoicePrintData } from "@/app/actions/partner-trip-invoice";
-import { DOPrintPageLayout } from "@/components/documents/DOPrintPageLayout";
-import { PartnerTripInvoicePrint } from "@/components/documents/PartnerTripInvoicePrint";
+import { PartnerTripInvoicePrintClient } from "@/components/documents/PartnerTripInvoicePrintClient";
 import { PageError } from "@/components/shared/PageError";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +35,7 @@ export default async function PartnerTripInvoicePrintPage({
       crateType,
     });
 
-    return (
-      <DOPrintPageLayout
-        title={`Partner Trip Invoice — ${data.invoiceNo}`}
-        documentTitle={data.invoiceNo}
-      >
-        <PartnerTripInvoicePrint data={data} />
-      </DOPrintPageLayout>
-    );
+    return <PartnerTripInvoicePrintClient data={data} />;
   } catch (error) {
     return (
       <div className="space-y-4">
