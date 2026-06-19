@@ -3,6 +3,8 @@
  * Uses html2canvas + jsPDF — rasterized pages, not selectable text.
  */
 
+import { prepareHtml2CanvasClone, runWithHtml2CanvasCompat } from "@/lib/html2canvas-color-compat";
+
 export interface PdfFromElementOptions {
   fileName?: string;
   /** html2canvas scale; 2 is a reasonable mobile/desktop balance */
@@ -82,14 +84,23 @@ export async function renderElementToPdfBlob(
   ]);
 
   const scale = options?.scale ?? 2;
-  const canvas = await html2canvas(element, {
-    scale,
-    useCORS: true,
-    logging: false,
-    backgroundColor: "#ffffff",
-    windowWidth: element.scrollWidth,
-    windowHeight: element.scrollHeight,
-  });
+  const canvas = await runWithHtml2CanvasCompat(() =>
+    html2canvas(element, {
+      scale,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+      onclone: (clonedDoc, clonedElement) => {
+        if (clonedElement instanceof HTMLElement) {
+          prepareHtml2CanvasClone(clonedDoc, element, clonedElement);
+        } else {
+          prepareHtml2CanvasClone(clonedDoc, element, element);
+        }
+      },
+    })
+  );
 
   const imgData = canvas.toDataURL("image/jpeg", 0.92);
   const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
