@@ -21,6 +21,7 @@ export type PdfShareResult =
   | { method: "web-share-file"; message: string }
   | { method: "web-share-text"; message: string }
   | { method: "download"; message: string }
+  | { method: "unsupported"; message: string }
   | { method: "cancelled"; message: string };
 
 export interface ShareCapabilityProbe {
@@ -129,16 +130,26 @@ export async function renderElementToPdfBlob(
   return { blob, fileName };
 }
 
-function triggerBlobDownload(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.rel = "noopener";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+function triggerBlobDownload(blob: Blob, fileName: string): boolean {
+  try {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.style.display = "none";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isMobileShareEnvironment() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 export async function sharePdfBlob(
@@ -189,11 +200,27 @@ export async function sharePdfBlob(
     }
   }
 
-  triggerBlobDownload(blob, fileName);
+  if (isMobileShareEnvironment()) {
+    return {
+      method: "unsupported",
+      message:
+        "当前浏览器无法直接分享 PDF 文件。请换用 iPhone/iPad Safari 或 Android Chrome，或使用下方「打印」后选择「存储到文件」。",
+    };
+  }
+
+  const downloaded = triggerBlobDownload(blob, fileName);
+  if (!downloaded) {
+    return {
+      method: "unsupported",
+      message:
+        "无法触发 PDF 下载。请使用「打印」按钮，在打印对话框中选择「另存为 PDF」。",
+    };
+  }
+
   return {
     method: "download",
     message:
-      "此浏览器不支持直接分享 PDF 文件，已触发下载。请在下载通知/文件 App 中点分享，或换用手机 Safari/Chrome 重试。",
+      "此浏览器不支持直接分享 PDF 文件，已触发下载。请在下载完成后从文件管理器分享。",
   };
 }
 

@@ -80,7 +80,9 @@ export function PrintPdfSharePrototype({
           className={`max-w-xl rounded-md px-3 py-2 text-sm ${
             lastResult.method === "cancelled"
               ? "bg-amber-50 text-amber-900"
-              : "bg-emerald-50 text-emerald-900"
+              : lastResult.method === "unsupported"
+                ? "bg-amber-50 text-amber-900"
+                : "bg-emerald-50 text-emerald-900"
           }`}
         >
           {lastResult.message}
