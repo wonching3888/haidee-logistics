@@ -54,6 +54,7 @@ async function aggregateIncome(
     wtlMode3Myr: income.wtlMode3Myr,
     wtlShipperMyr: income.wtlShipperMyr,
     partnerFreightMyr: income.partnerFreightMyr,
+    crateReturnIncomeMyr: income.crateReturnIncomeMyr,
     missingRateLineCount: income.missingRateLineCount,
     missingRateQuantity: income.missingRateQuantity,
     gapReasons: income.gapReasons,

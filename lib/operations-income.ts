@@ -25,6 +25,7 @@ import {
 } from "@/lib/wtl-revenue";
 import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
+import { aggregateCrateReturnIncomeMyr } from "@/lib/crate-return-billing";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -86,6 +87,7 @@ export interface OperationsIncomeResult {
   wtlMode3Myr: number;
   wtlShipperMyr: number;
   partnerFreightMyr: number;
+  crateReturnIncomeMyr: number;
   lineCount: number;
   missingRateLineCount: number;
   missingRateQuantity: number;
@@ -274,6 +276,7 @@ export async function aggregateOperationsIncome(
   totals.wtlMode3Myr += permitMyr;
 
   const partnerFreightMyr = await aggregatePartnerFreightIncomeMyr(year, month);
+  const crateReturnIncomeMyr = await aggregateCrateReturnIncomeMyr(year, month);
 
   return {
     mode1aThb: roundMoney(totals.mode1aThb),
@@ -282,6 +285,7 @@ export async function aggregateOperationsIncome(
     wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
     wtlShipperMyr: roundMoney(totals.wtlShipperMyr),
     partnerFreightMyr,
+    crateReturnIncomeMyr,
     lineCount: lines.length,
     missingRateLineCount,
     missingRateQuantity,

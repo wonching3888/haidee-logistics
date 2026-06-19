@@ -43,6 +43,11 @@ const DOCUMENTS_SIDEBAR_CHILDREN: MainNavLink[] = [
     labelEn: "Partner Trip Invoice",
   },
   {
+    href: "/documents/crate-return-invoice",
+    label: "回收桶月结单",
+    labelEn: "Crate Return Invoice",
+  },
+  {
     href: "/documents/driver-expenses",
     label: "司机费用单",
     labelEn: "Driver Expenses",

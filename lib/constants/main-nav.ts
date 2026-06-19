@@ -65,6 +65,12 @@ export const MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE: MainNavLink = {
   labelEn: "Partner Trip Invoice",
 };
 
+export const MAIN_NAV_DOCUMENTS_CRATE_RETURN_INVOICE: MainNavLink = {
+  href: "/documents/crate-return-invoice",
+  label: "回收桶月结单",
+  labelEn: "Crate Return Invoice",
+};
+
 export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   id: "documents",
   label: "文件",
@@ -74,6 +80,7 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
     MAIN_NAV_DOCUMENTS_GENERATE,
     MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
     MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE,
+    MAIN_NAV_DOCUMENTS_CRATE_RETURN_INVOICE,
     MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
   ],
 };
@@ -139,6 +146,7 @@ export function isPathActive(pathname: string, href: string) {
       (pathname.startsWith("/documents/") &&
         !pathname.startsWith("/documents/monthly-invoice") &&
         !pathname.startsWith("/documents/partner-trip-invoice") &&
+        !pathname.startsWith("/documents/crate-return-invoice") &&
         !pathname.startsWith("/documents/driver-expenses"))
     );
   }

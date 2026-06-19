@@ -12,6 +12,7 @@ import {
   TONG_IMPORT_DEFAULT_COLUMNS,
 } from "@/lib/constants/tong-import-columns";
 import { CRATE_IMPORT_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
+import { ensureCrateReturnMonthlyInvoicesForCrateTypes } from "@/lib/crate-return-billing";
 
 export interface CrateTypeOption {
   id: string;
@@ -372,10 +373,35 @@ export async function saveCrateImport(
     }
   });
 
+  const activeRateTypes = new Set(
+    (
+      await prisma.crateReturnFreightRate.findMany({
+        where: { active: true },
+        select: { crateType: true },
+      })
+    ).map((row) => row.crateType)
+  );
+  const idToCode = Object.fromEntries(tongTypes.map((t) => [t.id, t.code]));
+  const billedCrateTypes = new Set<string>();
+  for (const record of records) {
+    if (record.quantity <= 0) continue;
+    const code = idToCode[record.tongTypeId];
+    if (code && activeRateTypes.has(code)) {
+      billedCrateTypes.add(code);
+    }
+  }
+  if (billedCrateTypes.size > 0) {
+    await ensureCrateReturnMonthlyInvoicesForCrateTypes(
+      date,
+      Array.from(billedCrateTypes)
+    );
+  }
+
   revalidatePath("/tong/import");
   revalidatePath("/crate/import");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
+  revalidatePath("/documents/crate-return-invoice");
 }
 
 /** Mark in-transit imports as arrived — SADAO stock +quantity per crate type. */

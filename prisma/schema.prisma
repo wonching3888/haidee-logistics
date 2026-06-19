@@ -41,6 +41,7 @@ model Market {
   consigneeFreightRates ConsigneeFreightRate[]
   tongImports  TongImport[]
   partnerTripInvoices PartnerTripInvoice[]
+  crateReturnMonthlyInvoiceLines CrateReturnMonthlyInvoiceLine[]
 
   tollFee              Decimal? @map("toll_fee") @db.Decimal(10, 2)
   loadUnloadPerCrate   Decimal? @map("load_unload_per_crate") @db.Decimal(10, 2)
@@ -131,6 +132,8 @@ model Shipper {
   customerCrateLedger  CustomerCrateLedger[]
   partnerFreightRates  PartnerFreightRate[]  @relation("PartnerFreightBillTo")
   partnerTripInvoices  PartnerTripInvoice[]  @relation("PartnerTripBillTo")
+  crateReturnFreightRates   CrateReturnFreightRate[]   @relation("CrateReturnFreightBillTo")
+  crateReturnMonthlyInvoices CrateReturnMonthlyInvoice[] @relation("CrateReturnMonthlyBillTo")
 
   @@map("shippers")
 }
@@ -672,6 +675,59 @@ model PartnerTripInvoice {
 
   @@unique([tripDate, truckId, marketId, crateType])
   @@map("partner_trip_invoices")
+}
+
+// ─── Crate return monthly billing (customer-owned empty crates, HAIDEE) ─────
+
+model CrateReturnFreightRate {
+  id                String   @id @default(uuid()) @db.Uuid
+  crateType         String   @unique @map("crate_type")
+  billToShipperId   String   @map("bill_to_shipper_id") @db.Uuid
+  freightRateMyr    Decimal  @map("freight_rate_myr") @db.Decimal(10, 2)
+  collectionRateMyr Decimal  @map("collection_rate_myr") @db.Decimal(10, 2)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  billToShipper Shipper @relation("CrateReturnFreightBillTo", fields: [billToShipperId], references: [id])
+
+  @@map("crate_return_freight_rates")
+}
+
+model CrateReturnMonthlyInvoice {
+  id                  String   @id @default(uuid()) @db.Uuid
+  invoiceNo           String   @unique @map("invoice_no")
+  yearMonth           String   @map("year_month")
+  billToShipperId     String   @map("bill_to_shipper_id") @db.Uuid
+  crateType           String   @map("crate_type")
+  quantity            Int
+  freightRateMyr      Decimal  @map("freight_rate_myr") @db.Decimal(10, 2)
+  collectionRateMyr   Decimal  @map("collection_rate_myr") @db.Decimal(10, 2)
+  freightAmountMyr    Decimal  @map("freight_amount_myr") @db.Decimal(10, 2)
+  collectionAmountMyr Decimal  @map("collection_amount_myr") @db.Decimal(10, 2)
+  totalAmountMyr      Decimal  @map("total_amount_myr") @db.Decimal(10, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  billToShipper Shipper                         @relation("CrateReturnMonthlyBillTo", fields: [billToShipperId], references: [id])
+  lines         CrateReturnMonthlyInvoiceLine[]
+
+  @@unique([yearMonth, billToShipperId, crateType])
+  @@map("crate_return_monthly_invoices")
+}
+
+model CrateReturnMonthlyInvoiceLine {
+  id                  String @id @default(uuid()) @db.Uuid
+  invoiceId           String @map("invoice_id") @db.Uuid
+  marketId            String @map("market_id") @db.Uuid
+  quantity            Int
+  freightAmountMyr    Decimal @map("freight_amount_myr") @db.Decimal(10, 2)
+  collectionAmountMyr Decimal @map("collection_amount_myr") @db.Decimal(10, 2)
+
+  invoice CrateReturnMonthlyInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  market  Market                    @relation(fields: [marketId], references: [id])
+
+  @@unique([invoiceId, marketId])
+  @@map("crate_return_monthly_invoice_lines")
 }
 
 // ─── Customer Crate Stock ────────────────────────────────────────────────────

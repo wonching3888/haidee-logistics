@@ -276,6 +276,79 @@ async function main() {
   });
   console.log("  ✓ TAWAKAR + SKTN partner freight rate");
 
+  console.log("Seeding crate return freight rates (GKS + GLY)...");
+  const sakda = await prisma.shipper.findUnique({
+    where: { code: "3002-S006" },
+    select: { id: true },
+  });
+  if (sakda) {
+    await prisma.crateReturnFreightRate.upsert({
+      where: { crateType: "GKS" },
+      update: {
+        billToShipperId: sakda.id,
+        freightRateMyr: 3.0,
+        collectionRateMyr: 1.5,
+        active: true,
+      },
+      create: {
+        crateType: "GKS",
+        billToShipperId: sakda.id,
+        freightRateMyr: 3.0,
+        collectionRateMyr: 1.5,
+        active: true,
+      },
+    });
+    console.log("  ✓ GKS crate return freight rate → Sakda");
+  } else {
+    console.log("  ⚠ Sakda 3002-S006 not found — skip GKS crate return rate");
+  }
+
+  const EPIC_GLORY_LOCATION =
+    "3A, 1ST FLOOR, JALAN TUANKU HAMINAH 1,\nTAMAN TUANKU HAMINAH,\n08000 SUNGAI PETANI, KEDAH.";
+  const epicGlory = await prisma.shipper.upsert({
+    where: { code: "3002-E001" },
+    update: {
+      name: "EPIC GLORY SDN BHD",
+      company: "haidee",
+      currency: "MYR",
+      shipperKind: "operational",
+      location: EPIC_GLORY_LOCATION,
+      pickupLocation: "SADAO",
+      paymentParty: "shipper",
+      defaultTongTypeId: null,
+      active: true,
+    },
+    create: {
+      code: "3002-E001",
+      name: "EPIC GLORY SDN BHD",
+      company: "haidee",
+      currency: "MYR",
+      shipperKind: "operational",
+      location: EPIC_GLORY_LOCATION,
+      pickupLocation: "SADAO",
+      paymentParty: "shipper",
+      defaultTongTypeId: null,
+      active: true,
+    },
+  });
+  await prisma.crateReturnFreightRate.upsert({
+    where: { crateType: "GLY" },
+    update: {
+      billToShipperId: epicGlory.id,
+      freightRateMyr: 1.5,
+      collectionRateMyr: 0,
+      active: true,
+    },
+    create: {
+      crateType: "GLY",
+      billToShipperId: epicGlory.id,
+      freightRateMyr: 1.5,
+      collectionRateMyr: 0,
+      active: true,
+    },
+  });
+  console.log("  ✓ Epic Glory + GLY crate return freight rate");
+
   console.log("Seed complete.");
 }
 

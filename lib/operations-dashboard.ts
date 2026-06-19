@@ -50,6 +50,7 @@ export interface OperationsDashboardData {
     wtlShipperMyr: number;
     wtlMode3Myr: number;
     partnerFreightMyr: number;
+    crateReturnIncomeMyr: number;
     totalMyr: number;
     lines: MetricLine[];
     warning: OperationsRevenueWarning | null;
@@ -154,6 +155,7 @@ export function buildOperationsDashboardMetrics(input: {
     wtlMode3Myr: number;
     wtlShipperMyr: number;
     partnerFreightMyr: number;
+    crateReturnIncomeMyr: number;
     missingRateLineCount: number;
     missingRateQuantity: number;
     gapReasons: Partial<Record<InboundFreightGapReason, number>>;
@@ -211,7 +213,8 @@ export function buildOperationsDashboardMetrics(input: {
     haideeTotalMyr +
       input.income.wtlShipperMyr +
       input.income.wtlMode3Myr +
-      input.income.partnerFreightMyr
+      input.income.partnerFreightMyr +
+      input.income.crateReturnIncomeMyr
   );
 
   const revenueLines: MetricLine[] = [
@@ -266,6 +269,14 @@ export function buildOperationsDashboardMetrics(input: {
       amountMyr: input.income.partnerFreightMyr,
       source: "actual",
       detail: "物流合作伙伴回桶车力（ESV-6 0%）",
+    },
+    {
+      key: "crateReturnIncome",
+      label: "回收桶月结收入",
+      labelEn: "Crate Return Monthly Income",
+      amountMyr: input.income.crateReturnIncomeMyr,
+      source: "actual",
+      detail: "顾客自有桶回收（GLY/GKS）车力费 + 收桶费",
     },
   ];
 
@@ -496,6 +507,7 @@ export function buildOperationsDashboardMetrics(input: {
       wtlShipperMyr: input.income.wtlShipperMyr,
       wtlMode3Myr: input.income.wtlMode3Myr,
       partnerFreightMyr: input.income.partnerFreightMyr,
+      crateReturnIncomeMyr: input.income.crateReturnIncomeMyr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,
       warning: revenueWarning,

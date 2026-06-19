@@ -43,6 +43,7 @@ import { toDateInputValue } from "@/lib/date-utils";
 import { lineRevenueMyr } from "@/lib/wtl-revenue";
 import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
+import { aggregateCrateReturnIncomeMyr } from "@/lib/crate-return-billing";
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
@@ -312,6 +313,7 @@ function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
   const totals: PnlTripTotals = {
     revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
     partnerFreightMyr: 0,
+    crateReturnIncomeMyr: 0,
     directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
     allocatedCostMyr: roundMoney(
       trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
@@ -341,7 +343,7 @@ async function enrichTripTotalsWithPartnerFreight(
     day
   );
   if (partnerFreightMyr <= 0) {
-    return { ...totals, partnerFreightMyr: 0 };
+    return { ...totals, partnerFreightMyr: 0, crateReturnIncomeMyr: totals.crateReturnIncomeMyr ?? 0 };
   }
   const revenueMyr = roundMoney(totals.revenueMyr + partnerFreightMyr);
   const grossProfitMyr = roundMoney(totals.grossProfitMyr + partnerFreightMyr);
@@ -355,6 +357,54 @@ async function enrichTripTotalsWithPartnerFreight(
         ? roundMoney((grossProfitMyr / revenueMyr) * 100)
         : 0,
   };
+}
+
+async function enrichTripTotalsWithCrateReturnIncome(
+  totals: PnlTripTotals,
+  year: number,
+  month: number,
+  day?: string | null
+): Promise<PnlTripTotals> {
+  const crateReturnIncomeMyr = await aggregateCrateReturnIncomeMyr(
+    year,
+    month,
+    day
+  );
+  if (crateReturnIncomeMyr <= 0) {
+    return { ...totals, crateReturnIncomeMyr: 0 };
+  }
+  const revenueMyr = roundMoney(totals.revenueMyr + crateReturnIncomeMyr);
+  const grossProfitMyr = roundMoney(totals.grossProfitMyr + crateReturnIncomeMyr);
+  return {
+    ...totals,
+    crateReturnIncomeMyr,
+    revenueMyr,
+    grossProfitMyr,
+    marginPct:
+      revenueMyr > 0
+        ? roundMoney((grossProfitMyr / revenueMyr) * 100)
+        : 0,
+  };
+}
+
+async function enrichTripTotalsWithSupplementalIncome(
+  totals: PnlTripTotals,
+  year: number,
+  month: number,
+  day?: string | null
+): Promise<PnlTripTotals> {
+  const withPartner = await enrichTripTotalsWithPartnerFreight(
+    totals,
+    year,
+    month,
+    day
+  );
+  return enrichTripTotalsWithCrateReturnIncome(
+    withPartner,
+    year,
+    month,
+    day
+  );
 }
 
 async function computeFilteredPnlTrips(input: {
@@ -437,7 +487,7 @@ async function computeFilteredPnlTrips(input: {
       expiresAt: 0,
       drivers,
       trips,
-      tripTotals: await enrichTripTotalsWithPartnerFreight(
+      tripTotals: await enrichTripTotalsWithSupplementalIncome(
         buildTripTotalsFromRows(trips),
         input.year,
         input.month,
@@ -1980,7 +2030,7 @@ export async function buildPnlReport(input: {
     matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
   )).filter((trip): trip is PnlTripRow => trip != null);
 
-  const tripTotals = await enrichTripTotalsWithPartnerFreight(
+  const tripTotals = await enrichTripTotalsWithSupplementalIncome(
     buildTripTotalsFromRows(trips),
     input.year,
     input.month,
