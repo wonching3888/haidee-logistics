@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, PlusCircle } from "lucide-react";
 import { getMonthlyInvoiceCustomers } from "@/app/actions/monthly-invoice";
+import { MonthlyInvoiceExtraChargesDialog } from "@/components/documents/MonthlyInvoiceExtraChargesDialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -148,6 +149,12 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
   const activeMode = MONTHLY_INVOICE_MODES.find((item) => item.value === draft.mode)!;
   const displayParams = applied ?? draft;
 
+  const [extraChargesTarget, setExtraChargesTarget] = useState<{
+    customerId: string;
+    customerName: string;
+    customerCode: string;
+  } | null>(null);
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-haidee-muted">
@@ -257,14 +264,31 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
                         {formatAmount(customer.grandTotal, data.currency)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          className={DOCUMENT_ACTION_BTN}
-                          onClick={() => openInvoice(customer.customerId)}
-                        >
-                          <FileText className="h-4 w-4" />
-                          生成 PDF
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-[44px] gap-2"
+                            onClick={() =>
+                              setExtraChargesTarget({
+                                customerId: customer.customerId,
+                                customerName: customer.customerName,
+                                customerCode: customer.customerCode,
+                              })
+                            }
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            额外收费
+                          </Button>
+                          <Button
+                            type="button"
+                            className={DOCUMENT_ACTION_BTN}
+                            onClick={() => openInvoice(customer.customerId)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            生成 PDF
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -273,6 +297,22 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
             </ScrollMatrixTable>
           )}
         </>
+      )}
+
+      {extraChargesTarget && applied && data && (
+        <MonthlyInvoiceExtraChargesDialog
+          open={Boolean(extraChargesTarget)}
+          onOpenChange={(open) => {
+            if (!open) setExtraChargesTarget(null);
+          }}
+          year={applied.year}
+          month={applied.month}
+          mode={applied.mode}
+          customerId={extraChargesTarget.customerId}
+          customerName={extraChargesTarget.customerName}
+          customerCode={extraChargesTarget.customerCode}
+          currency={data.currency}
+        />
       )}
     </div>
   );

@@ -797,6 +797,22 @@ model CrateReturnMonthlyInvoiceLine {
   @@map("crate_return_monthly_invoice_lines")
 }
 
+model MonthlyInvoiceExtraCharge {
+  id          String   @id @default(uuid()) @db.Uuid
+  year        Int
+  month       Int
+  mode        String
+  customerId  String   @map("customer_id") @db.Uuid
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([year, month, mode, customerId])
+  @@map("monthly_invoice_extra_charges")
+}
+
 // ─── Customer Crate Stock ────────────────────────────────────────────────────
 // Shipper.customerCrateStock / customerCrateLedger
 // TongType.customerCrateStock / customerCrateLedger

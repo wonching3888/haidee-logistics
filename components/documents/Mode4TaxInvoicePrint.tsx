@@ -16,6 +16,7 @@ function billToLabel(role: WtlMonthlyInvoiceData["billToRole"]) {
 
 export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
   const { taxInvoice } = data;
+  const extraCharges = data.extraCharges ?? [];
 
   return (
     <div className="document-print mode4-tax-invoice-print wtl-tax-invoice-document">
@@ -94,6 +95,36 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
           </table>
         </div>
       ))}
+
+      {extraCharges.length > 0 && (
+        <div className="monthly-invoice-section">
+          <div className="monthly-invoice-section-title">
+            额外收费 Extra Charges
+          </div>
+          <table className="monthly-invoice-table mode4-tax-invoice-table">
+            <thead>
+              <tr>
+                <th className="mode4-route-col">说明 Description</th>
+                <th className="mode4-tax-code-col">Tax Code</th>
+                <th className="mode4-qty-col">数量 Qty</th>
+                <th className="mode4-rate-col">单价 Rate</th>
+                <th className="mode4-amount-col">金额 Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {extraCharges.map((row) => (
+                <tr key={row.id}>
+                  <td className="text-left">{row.description}</td>
+                  <td className="text-center">ESV-6</td>
+                  <td className="text-right">1</td>
+                  <td className="text-right">{row.amount.toFixed(2)}</td>
+                  <td className="text-right">{row.amount.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <WtlTaxInvoiceTotals
         rows={[

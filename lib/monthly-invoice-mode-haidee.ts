@@ -25,6 +25,12 @@ export interface HaideeMonthlyInvoiceData {
   billToRole: HaideeMonthlyInvoiceBillToRole;
   summary: HaideeAggregatedInvoiceData;
   listing: InvoiceListingData;
+  extraCharges?: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    sortOrder: number;
+  }>;
 }
 
 export function isHaideeMonthlyInvoiceData(

@@ -2,6 +2,7 @@ import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import {
   formatHaideeInvoiceMoney,
+  HaideeInvoiceDescriptionAmountTable,
   HaideeInvoiceGrandTotal,
   HaideeInvoiceMetaBlocks,
   HaideeInvoicePrintDocument,
@@ -78,6 +79,16 @@ export function HaideeMarketInvoicePrint({ data }: HaideeMarketInvoicePrintProps
           </table>
         </div>
       ))}
+
+      {(data.extraCharges?.length ?? 0) > 0 && (
+        <HaideeInvoiceDescriptionAmountTable
+          lines={(data.extraCharges ?? []).map((row) => ({
+            description: row.description,
+            amountMyr: row.amount,
+          }))}
+          amountHeader={`Amount (${data.currency})`}
+        />
+      )}
 
       <HaideeInvoiceGrandTotal
         amountMyr={summary.grandTotalAmount}

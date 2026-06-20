@@ -28,6 +28,12 @@ export interface WtlMonthlyInvoiceData {
   billToRole: WtlMonthlyInvoiceBillToRole;
   taxInvoice: AggregatedInvoiceData;
   listing: InvoiceListingData;
+  extraCharges?: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    sortOrder: number;
+  }>;
 }
 
 export type Mode4MonthlyInvoiceData = WtlMonthlyInvoiceData;
