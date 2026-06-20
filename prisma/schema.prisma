@@ -573,10 +573,33 @@ model DispatchOrder {
   createdBy     User?          @relation(fields: [createdById], references: [id])
   lines         DispatchLine[]
   payrollTrip   DriverPayrollTrip?
+  charterFinance CharterTripFinance?
 
   @@index([date])
   @@index([date, status])
   @@map("dispatch_orders")
+}
+
+model CharterTripFinance {
+  id                      String   @id @default(uuid()) @db.Uuid
+  dispatchOrderId         String   @unique @map("dispatch_order_id") @db.Uuid
+  charterClass            String   @map("charter_class")
+  charterMileageKm        Decimal  @map("charter_mileage_km") @db.Decimal(10, 2)
+  charterRevenueMyr       Decimal  @map("charter_revenue_myr") @db.Decimal(12, 2)
+  charterUnloadFeeMyr     Decimal? @map("charter_unload_fee_myr") @db.Decimal(10, 2)
+  charterDriverSalaryMyr  Decimal? @map("charter_driver_salary_myr") @db.Decimal(10, 2)
+  charterOtherCostMyr     Decimal? @map("charter_other_cost_myr") @db.Decimal(10, 2)
+  charterOtherCostNote    String?  @map("charter_other_cost_note")
+  charterExtraRevenueMyr  Decimal? @map("charter_extra_revenue_myr") @db.Decimal(10, 2)
+  charterExtraRevenueNote String?  @map("charter_extra_revenue_note")
+  charterExtraCostMyr     Decimal? @map("charter_extra_cost_myr") @db.Decimal(10, 2)
+  charterExtraCostNote    String?  @map("charter_extra_cost_note")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  dispatchOrder DispatchOrder @relation(fields: [dispatchOrderId], references: [id], onDelete: Cascade)
+
+  @@map("charter_trip_finances")
 }
 
 model DispatchLine {

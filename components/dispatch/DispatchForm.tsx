@@ -10,6 +10,9 @@ import {
   type AssignableItem,
   type DispatchSelection,
 } from "@/app/actions/dispatch";
+import { CharterFinanceSection } from "@/components/dispatch/CharterFinanceSection";
+import { OTHER_MARKET_CODE } from "@/lib/markets";
+import type { CharterFinanceRecord } from "@/lib/charter-finance";
 
 interface TruckOption {
   id: string;
@@ -41,6 +44,7 @@ interface DispatchFormProps {
   marketOptions: string[];
   date: string;
   initialOrder?: InitialOrder;
+  initialCharterFinance?: CharterFinanceRecord | null;
 }
 
 export function DispatchForm({
@@ -49,6 +53,7 @@ export function DispatchForm({
   marketOptions,
   date,
   initialOrder,
+  initialCharterFinance = null,
 }: DispatchFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -104,6 +109,11 @@ export function DispatchForm({
 
   const loadColor =
     loadPct > 100 ? "#E63946" : loadPct >= 90 ? "#FF9800" : "#2E7D32";
+
+  const showCharterFinance =
+    !!initialOrder?.id &&
+    (markets.includes(OTHER_MARKET_CODE) ||
+      initialOrder.markets.includes(OTHER_MARKET_CODE));
 
   const visibleMarketOptions = useMemo(
     () =>
@@ -478,6 +488,13 @@ export function DispatchForm({
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
           {error}
         </p>
+      )}
+
+      {showCharterFinance && (
+        <CharterFinanceSection
+          dispatchOrderId={initialOrder!.id}
+          initial={initialCharterFinance}
+        />
       )}
 
       <div className="flex flex-wrap gap-3 border-t border-haidee-border pt-4">
