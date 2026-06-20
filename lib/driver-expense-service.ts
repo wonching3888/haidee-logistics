@@ -22,6 +22,8 @@ import {
   type UnloadingRateConfigInput,
 } from "@/lib/unloading-calculator";
 import { decimalToNumber } from "@/lib/freight-rates";
+import { MC_MARKET_CODE } from "@/lib/inbound-freight";
+import { tripMcAllThirdParty } from "@/lib/mc-dispatch-delivery";
 import {
   computeTripRouteCosts,
   findApplicableRoutes,
@@ -235,6 +237,18 @@ async function loadCrateLoadingRatesMap() {
 function aggregateDispatchUnloadingLines(
   dispatch: Awaited<ReturnType<typeof loadDispatchForExpense>>
 ) {
+  const assignedMcLines = dispatch.lines
+    .filter(
+      (dl) =>
+        dl.inboundLine?.dispatchStatus === "assigned" &&
+        dl.inboundLine.stall.market?.code === MC_MARKET_CODE
+    )
+    .map((dl) => ({
+      marketCode: MC_MARKET_CODE,
+      mcDeliveryMode: dl.inboundLine!.mcDeliveryMode,
+    }));
+  const skipMcUnloading = tripMcAllThirdParty(assignedMcLines);
+
   const byMarket = new Map<
     string,
     UnloadingMarketLineInput & { storeCode: string | null }
@@ -245,6 +259,7 @@ function aggregateDispatchUnloadingLines(
     if (!line || line.dispatchStatus !== "assigned") continue;
     const market = line.stall.market?.code?.trim().toUpperCase();
     if (!market) continue;
+    if (skipMcUnloading && market === MC_MARKET_CODE) continue;
 
     const qty = decimalToNumber(line.quantity) ?? 0;
     if (qty <= 0) continue;
@@ -279,6 +294,7 @@ export type UnloadingDispatchEstimateInput = {
     inboundLine: {
       dispatchStatus: string;
       quantity: unknown;
+      mcDeliveryMode?: string | null;
       stall: {
         code: string | null;
         market: { code: string } | null;

@@ -3,6 +3,7 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
 import { getRouteLabel } from "@/lib/payroll-route-label";
+import { marketsForTripAllowance } from "@/lib/mc-dispatch-delivery";
 import {
   buildCrateReturnImportLookup,
   calculateTripAllowance,
@@ -14,6 +15,16 @@ import type { MaritalStatus } from "@/lib/constants/payroll";
 
 const dispatchIncludeForPayroll = {
   truck: { select: { type: true, plate: true } },
+  lines: {
+    include: {
+      inboundLine: {
+        select: {
+          mcDeliveryMode: true,
+          stall: { select: { market: { select: { code: true } } } },
+        },
+      },
+    },
+  },
 } as const;
 
 type DispatchForPayroll = Awaited<
@@ -125,15 +136,23 @@ function computePayrollTripFields(
   allowanceContext: AllowanceContext,
   hasCrateReturn: boolean
 ) {
+  const assignedLines = (order.lines ?? []).map((row) => ({
+    marketCode: row.inboundLine.stall.market?.code ?? null,
+    mcDeliveryMode: row.inboundLine.mcDeliveryMode,
+  }));
+  const allowanceMarkets = marketsForTripAllowance(
+    order.markets,
+    assignedLines
+  );
   const allowanceResult = calculateTripAllowance({
-    markets: order.markets,
+    markets: allowanceMarkets,
     routes: allowanceContext.routes,
     extraMarketAllowance: allowanceContext.extraMarketAllowance,
   });
   return {
     autoTripAllowance: allowanceResult.tripAllowance,
     marketCount: countPayrollMarketGroups(
-      order.markets,
+      allowanceMarkets,
       allowanceContext.routes
     ),
     crateReturnCommission: crateReturnCommissionForDispatch({
@@ -144,7 +163,7 @@ function computePayrollTripFields(
         smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
       },
     }),
-    routeLabel: getRouteLabel(order.markets),
+    routeLabel: getRouteLabel(allowanceMarkets),
   };
 }
 

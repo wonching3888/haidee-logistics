@@ -10,6 +10,7 @@ import {
   type AssignableItem,
   type DispatchSelection,
 } from "@/app/actions/dispatch";
+import { MC_MARKET_CODE } from "@/lib/inbound-freight";
 
 interface TruckOption {
   id: string;
@@ -43,6 +44,12 @@ interface DispatchFormProps {
   initialOrder?: InitialOrder;
 }
 
+function selectionKey(selection: DispatchSelection): string {
+  return selection.sessionId
+    ? `${selection.sessionId}:${selection.marketCode}`
+    : `${selection.shipperId}:${selection.marketCode}`;
+}
+
 export function DispatchForm({
   trucks,
   drivers,
@@ -66,12 +73,13 @@ export function DispatchForm({
   const [markets, setMarkets] = useState<string[]>(initialOrder?.markets ?? []);
   const [items, setItems] = useState<AssignableItem[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
+    new Set(initialOrder?.selections.map((s) => selectionKey(s)) ?? [])
+  );
+  const [thirdPartyKeys, setThirdPartyKeys] = useState<Set<string>>(
     new Set(
-      initialOrder?.selections.map((s) =>
-        s.sessionId
-          ? `${s.sessionId}:${s.marketCode}`
-          : `${s.shipperId}:${s.marketCode}`
-      ) ?? []
+      initialOrder?.selections
+        .filter((s) => s.thirdParty && s.marketCode === MC_MARKET_CODE)
+        .map((s) => selectionKey(s)) ?? []
     )
   );
   const [splitKeys, setSplitKeys] = useState<Set<string>>(new Set());
@@ -127,12 +135,14 @@ export function DispatchForm({
     if (markets.length === 0) {
       setItems([]);
       setSelectedKeys(new Set());
+      setThirdPartyKeys(new Set());
       setSplitKeys(new Set());
       setSplitQty({});
       return;
     }
     setLoadingItems(true);
     setSelectedKeys(new Set());
+    setThirdPartyKeys(new Set());
     setSplitKeys(new Set());
     setSplitQty({});
     getAssignableItems(date, markets, initialOrder?.id)
@@ -140,12 +150,15 @@ export function DispatchForm({
         setItems(data);
         if (initialOrder?.selections.length) {
           setSelectedKeys(
+            new Set(initialOrder.selections.map((s) => selectionKey(s)))
+          );
+          setThirdPartyKeys(
             new Set(
-              initialOrder.selections.map((s) =>
-                s.sessionId
-                  ? `${s.sessionId}:${s.marketCode}`
-                  : `${s.shipperId}:${s.marketCode}`
-              )
+              initialOrder.selections
+                .filter(
+                  (s) => s.thirdParty && s.marketCode === MC_MARKET_CODE
+                )
+                .map((s) => selectionKey(s))
             )
           );
         }
@@ -163,8 +176,74 @@ export function DispatchForm({
   function toggleItem(key: string) {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+        setThirdPartyKeys((tp) => {
+          if (!tp.has(key)) return tp;
+          const nextTp = new Set(tp);
+          nextTp.delete(key);
+          return nextTp;
+        });
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function toggleThirdParty(key: string) {
+    setThirdPartyKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        setSelectedKeys((sel) => {
+          if (sel.has(key)) return sel;
+          const nextSel = new Set(sel);
+          nextSel.add(key);
+          return nextSel;
+        });
+      }
+      return next;
+    });
+  }
+
+  function selectAllCargo() {
+    setSelectedKeys(
+      new Set(items.filter((item) => !splitKeys.has(item.key)).map((i) => i.key))
+    );
+  }
+
+  function deselectAllCargo() {
+    setSelectedKeys(new Set());
+    setThirdPartyKeys(new Set());
+  }
+
+  function markSelectedMcThirdParty() {
+    setThirdPartyKeys((prev) => {
+      const next = new Set(prev);
+      for (const item of items) {
+        if (
+          item.marketCode === MC_MARKET_CODE &&
+          selectedKeys.has(item.key) &&
+          !splitKeys.has(item.key)
+        ) {
+          next.add(item.key);
+        }
+      }
+      return next;
+    });
+  }
+
+  function markSelectedMcSelf() {
+    setThirdPartyKeys((prev) => {
+      const next = new Set(prev);
+      for (const item of items) {
+        if (item.marketCode === MC_MARKET_CODE && selectedKeys.has(item.key)) {
+          next.delete(item.key);
+        }
+      }
       return next;
     });
   }
@@ -220,6 +299,7 @@ export function DispatchForm({
             marketCode: item.marketCode,
             sessionId: item.sessionId,
             stallAssignments,
+            thirdParty: thirdPartyKeys.has(item.key),
           });
         }
       } else if (isSelected) {
@@ -227,6 +307,7 @@ export function DispatchForm({
           shipperId: item.shipperId,
           marketCode: item.marketCode,
           sessionId: item.sessionId,
+          thirdParty: thirdPartyKeys.has(item.key),
         });
       }
     }
@@ -342,6 +423,42 @@ export function DispatchForm({
           <p className="mb-3 text-xs text-haidee-muted">
             仅显示今日未分配货物 Unassigned cargo for this date only
           </p>
+          {!loadingItems && items.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={selectAllCargo}
+              >
+                全选 Select All
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={deselectAllCargo}
+              >
+                全不选 Deselect All
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={markSelectedMcThirdParty}
+              >
+                勾选的 MC 全转第三方
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={markSelectedMcSelf}
+              >
+                全部改回自送
+              </Button>
+            </div>
+          )}
           {loadingItems ? (
             <p className="text-haidee-muted">加载中… Loading…</p>
           ) : items.length === 0 ? (
@@ -382,6 +499,42 @@ export function DispatchForm({
                     >
                       {splitKeys.has(item.key) ? "取消拆分" : "拆分 Split"}
                     </Button>
+                    {item.marketCode === MC_MARKET_CODE &&
+                      !splitKeys.has(item.key) &&
+                      selectedKeys.has(item.key) && (
+                        <div className="flex shrink-0 rounded-lg border border-haidee-border p-0.5 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (thirdPartyKeys.has(item.key)) {
+                                toggleThirdParty(item.key);
+                              }
+                            }}
+                            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                              !thirdPartyKeys.has(item.key)
+                                ? "bg-haidee-blue text-white"
+                                : "text-haidee-muted hover:text-haidee-text"
+                            }`}
+                          >
+                            自送
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!thirdPartyKeys.has(item.key)) {
+                                toggleThirdParty(item.key);
+                              }
+                            }}
+                            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                              thirdPartyKeys.has(item.key)
+                                ? "bg-haidee-orange text-white"
+                                : "text-haidee-muted hover:text-haidee-text"
+                            }`}
+                          >
+                            转第三方
+                          </button>
+                        </div>
+                      )}
                   </div>
 
                   {splitKeys.has(item.key) && (

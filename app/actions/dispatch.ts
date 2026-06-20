@@ -12,7 +12,10 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import {
   classifyInboundFreightGap,
   computeInboundLineFreight,
+  computeMcThirdPartyFeeForLine,
+  MC_MARKET_CODE,
   normalizeMcDeliveryMode,
+  serializeOperationalSettings,
   type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
 import { loadInboundFreightContext } from "@/lib/freight-context";
@@ -80,6 +83,7 @@ export interface AssignableItem {
 export interface StallAssignment {
   inboundLineId: string;
   quantity: number;
+  thirdParty?: boolean;
 }
 
 export interface DispatchSelection {
@@ -87,6 +91,7 @@ export interface DispatchSelection {
   marketCode: string;
   sessionId?: string;
   stallAssignments?: StallAssignment[];
+  thirdParty?: boolean;
 }
 
 function sumDispatchLoad(
@@ -422,12 +427,18 @@ export async function getDispatchOrder(id: string) {
     const line = dl.inboundLine;
     const marketCode = line.stall.market?.code ?? "";
     const key = `${line.sessionId}:${marketCode}`;
+    const isMcThirdParty =
+      marketCode === MC_MARKET_CODE && line.mcDeliveryMode === "third_party";
     if (!selMap.has(key)) {
       selMap.set(key, {
         shipperId: line.session.shipperId,
         marketCode,
         sessionId: line.sessionId,
+        thirdParty: isMcThirdParty,
       });
+    } else if (isMcThirdParty) {
+      const existing = selMap.get(key)!;
+      selMap.set(key, { ...existing, thirdParty: true });
     }
   }
   selections.push(...Array.from(selMap.values()));
@@ -475,9 +486,18 @@ async function resolveAssignments(
   const assignments: StallAssignment[] = [];
 
   for (const sel of selections) {
+    const thirdParty =
+      sel.thirdParty === true && sel.marketCode === MC_MARKET_CODE;
+
     if (sel.stallAssignments && sel.stallAssignments.length > 0) {
       for (const sa of sel.stallAssignments) {
-        if (sa.quantity > 0) assignments.push(sa);
+        if (sa.quantity > 0) {
+          assignments.push({
+            inboundLineId: sa.inboundLineId,
+            quantity: sa.quantity,
+            thirdParty: sa.thirdParty ?? thirdParty,
+          });
+        }
       }
       continue;
     }
@@ -490,7 +510,11 @@ async function resolveAssignments(
         (l.dispatchStatus === "unassigned" || assignedHereIds.has(l.id))
     );
     for (const line of matching) {
-      assignments.push({ inboundLineId: line.id, quantity: line.quantity });
+      assignments.push({
+        inboundLineId: line.id,
+        quantity: line.quantity,
+        thirdParty,
+      });
     }
   }
 
@@ -536,7 +560,7 @@ type FreightSnapshotRow = {
   thFreightAmount: Prisma.Decimal | null;
 };
 
-function freightSnapshotUpdateData(snapshot: InboundLineFreightSnapshot) {
+function freightRevenueSnapshotUpdateData(snapshot: InboundLineFreightSnapshot) {
   return {
     consigneeId: snapshot.consigneeId,
     paymentParty: snapshot.paymentParty,
@@ -546,8 +570,6 @@ function freightSnapshotUpdateData(snapshot: InboundLineFreightSnapshot) {
     freightRate: snapshot.freightRate,
     freightAmount: snapshot.freightAmount,
     exchangeRate: snapshot.exchangeRate,
-    mcDeliveryMode: snapshot.mcDeliveryMode,
-    thirdPartyFee: snapshot.thirdPartyFee,
     mySegmentFreightRate: snapshot.mySegmentFreightRate,
     mySegmentFreightAmount: snapshot.mySegmentFreightAmount,
     thFreightRate: snapshot.thFreightRate,
@@ -618,10 +640,10 @@ async function ensureFreightSnapshotsForAssignedLines(
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
-        mcDeliveryMode: normalizeMcDeliveryMode(
-          marketCode,
-          line.mcDeliveryMode
-        ),
+        mcDeliveryMode:
+          marketCode === MC_MARKET_CODE
+            ? "self"
+            : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode),
       },
       freightCtx
     );
@@ -629,7 +651,7 @@ async function ensureFreightSnapshotsForAssignedLines(
     if ((snapshot.freightAmount ?? 0) > 0) {
       await tx.inboundLine.update({
         where: { id: line.id },
-        data: freightSnapshotUpdateData(snapshot),
+        data: freightRevenueSnapshotUpdateData(snapshot),
       });
       continue;
     }
@@ -640,10 +662,10 @@ async function ensureFreightSnapshotsForAssignedLines(
           stallId: line.stallId,
           tongTypeId: line.tongTypeId,
           quantity: line.quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            line.mcDeliveryMode
-          ),
+          mcDeliveryMode:
+            marketCode === MC_MARKET_CODE
+              ? "self"
+              : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode),
         },
         freightCtx,
         snapshot
@@ -856,6 +878,88 @@ async function assignLinesToOrder(
     date,
     dispatchOrderId
   );
+
+  await applyMcDeliveryToAssignedLines(tx, assignments);
+}
+
+async function applyMcDeliveryToAssignedLines(
+  tx: Prisma.TransactionClient,
+  assignments: StallAssignment[]
+): Promise<void> {
+  if (assignments.length === 0) return;
+
+  const settingsRow = await tx.freightOperationalSettings.findUnique({
+    where: { id: "default" },
+  });
+  const operationalSettings = serializeOperationalSettings(settingsRow);
+
+  const lineIds = Array.from(new Set(assignments.map((a) => a.inboundLineId)));
+  const lines = await tx.inboundLine.findMany({
+    where: { id: { in: lineIds } },
+    select: {
+      id: true,
+      quantity: true,
+      isBox: true,
+      stall: { select: { market: { select: { code: true } } } },
+    },
+  });
+  const lineMap = new Map(lines.map((line) => [line.id, line]));
+  const thirdPartyByLineId = new Map(
+    assignments.map((a) => [a.inboundLineId, a.thirdParty === true])
+  );
+
+  for (const lineId of lineIds) {
+    const line = lineMap.get(lineId);
+    if (!line || line.stall.market?.code !== MC_MARKET_CODE) continue;
+
+    if (thirdPartyByLineId.get(lineId)) {
+      const fee = computeMcThirdPartyFeeForLine(
+        line.isBox,
+        line.quantity,
+        operationalSettings
+      );
+      await tx.inboundLine.update({
+        where: { id: lineId },
+        data: {
+          mcDeliveryMode: "third_party",
+          thirdPartyFee: fee ?? 0,
+        },
+      });
+    } else {
+      await tx.inboundLine.update({
+        where: { id: lineId },
+        data: {
+          mcDeliveryMode: "self",
+          thirdPartyFee: 0,
+        },
+      });
+    }
+  }
+}
+
+async function resetMcDeliveryOnReleasedLines(
+  tx: Prisma.TransactionClient,
+  inboundLineIds: string[]
+): Promise<void> {
+  if (inboundLineIds.length === 0) return;
+
+  const mcLines = await tx.inboundLine.findMany({
+    where: {
+      id: { in: inboundLineIds },
+      stall: { market: { code: MC_MARKET_CODE } },
+    },
+    select: { id: true },
+  });
+  if (mcLines.length === 0) return;
+
+  const mcLineIds = mcLines.map((line) => line.id);
+  for (let i = 0; i < mcLineIds.length; i += DISPATCH_BATCH_SIZE) {
+    const batch = mcLineIds.slice(i, i + DISPATCH_BATCH_SIZE);
+    await tx.inboundLine.updateMany({
+      where: { id: { in: batch } },
+      data: { mcDeliveryMode: "self", thirdPartyFee: 0 },
+    });
+  }
 }
 
 async function releaseDispatchLines(
@@ -865,6 +969,8 @@ async function releaseDispatchLines(
 ): Promise<void> {
   await tx.dispatchLine.deleteMany({ where: { dispatchOrderId } });
   if (inboundLineIds.length === 0) return;
+
+  await resetMcDeliveryOnReleasedLines(tx, inboundLineIds);
 
   for (let i = 0; i < inboundLineIds.length; i += DISPATCH_BATCH_SIZE) {
     const batch = inboundLineIds.slice(i, i + DISPATCH_BATCH_SIZE);
@@ -1084,6 +1190,7 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
     await tx.dispatchLine.deleteMany({ where: { dispatchOrderId } });
 
     if (inboundLineIds.length > 0) {
+      await resetMcDeliveryOnReleasedLines(tx, inboundLineIds);
       await tx.inboundLine.updateMany({
         where: { id: { in: inboundLineIds } },
         data: { dispatchStatus: "unassigned", truckId: null },

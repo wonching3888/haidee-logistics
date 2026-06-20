@@ -300,6 +300,18 @@ function mcThirdPartyUnitRate(
   });
 }
 
+/** MC third-party fee for one assigned line (dispatch save). */
+export function computeMcThirdPartyFeeForLine(
+  isBox: boolean,
+  quantity: number,
+  settings: OperationalFreightSettings
+): number | null {
+  if (quantity <= 0) return null;
+  const unitRate = mcThirdPartyUnitRate(isBox, settings);
+  if (unitRate == null) return null;
+  return roundMoney(quantity * unitRate);
+}
+
 export function buildInboundFreightMaps(input: {
   shipperRates: RateRow[];
   consigneeRates: ConsigneeRateRow[];

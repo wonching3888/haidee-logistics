@@ -34,6 +34,7 @@ import {
 } from "@/lib/inbound-edit-sync";
 import {
   computeInboundLineFreight,
+  MC_MARKET_CODE,
   normalizeMcDeliveryMode,
   type InboundFreightContext,
   type InboundLineFreightSnapshot,
@@ -430,15 +431,16 @@ function computeFreightSnapshots(
 ) {
   return lines.map((line) => {
     const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
+    const mcDeliveryMode =
+      marketCode === MC_MARKET_CODE
+        ? "self"
+        : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode);
     return computeInboundLineFreight(
       {
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
-        mcDeliveryMode: normalizeMcDeliveryMode(
-          marketCode,
-          line.mcDeliveryMode
-        ),
+        mcDeliveryMode,
       },
       ctx
     );
@@ -733,7 +735,6 @@ interface PreviewFreightLineInput {
   tongTypeId: string;
   quantity: number;
   lineId?: string;
-  mcDeliveryMode?: "self" | "third_party" | null;
   stallCode?: string;
   marketCode?: string;
 }
@@ -760,7 +761,6 @@ export async function previewInboundFreightLines(input: PreviewInboundFreightInp
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
         lineId: line.lineId,
-        mcDeliveryMode: line.mcDeliveryMode ?? undefined,
       }));
 
     if (activeLines.length === 0) return [];

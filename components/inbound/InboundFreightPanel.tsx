@@ -12,7 +12,6 @@ import {
   getBillingCompanyLabel,
   getPaymentModeLabel,
 } from "@/lib/constants/freight-settings";
-import { MC_MARKET_CODE } from "@/lib/inbound-freight";
 import { decimalToNumber } from "@/lib/freight-rates";
 
 export interface InboundFreightLine {
@@ -52,12 +51,6 @@ function paymentPartyLabel(party: string | null | undefined) {
   return "—";
 }
 
-function mcModeLabel(mode: string | null | undefined) {
-  if (mode === "third_party") return "转第三方";
-  if (mode === "self") return "自送";
-  return "—";
-}
-
 export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
   const hasThSplit = lines.some(
     (line) =>
@@ -88,12 +81,6 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
               <TableHead>车力金额 Amount</TableHead>
               <TableHead>币种 Curr.</TableHead>
               <TableHead>开单公司 Billing</TableHead>
-              {lines.some((l) => l.marketCode === MC_MARKET_CODE) && (
-                <>
-                  <TableHead>MC 模式</TableHead>
-                  <TableHead>第三方费用</TableHead>
-                </>
-              )}
               {hasThSplit && (
                 <>
                   <TableHead>MY段费率</TableHead>
@@ -131,20 +118,6 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
                     ? getBillingCompanyLabel(line.billingCompany)
                     : "—"}
                 </TableCell>
-                {lines.some((l) => l.marketCode === MC_MARKET_CODE) && (
-                  <>
-                    <TableCell>
-                      {line.marketCode === MC_MARKET_CODE
-                        ? mcModeLabel(line.mcDeliveryMode)
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="font-mono">
-                      {line.marketCode === MC_MARKET_CODE
-                        ? formatMoney(line.thirdPartyFee, line.currency)
-                        : "—"}
-                    </TableCell>
-                  </>
-                )}
                 {hasThSplit && (
                   <>
                     <TableCell className="font-mono">
