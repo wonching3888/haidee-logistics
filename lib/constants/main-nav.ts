@@ -36,6 +36,7 @@ export const MAIN_NAV_OPERATIONS: MainNavGroup = {
   children: [
     { href: "/inbound", label: "进货录入", labelEn: "Inbound" },
     { href: "/dispatch", label: "派车调度", labelEn: "Dispatch" },
+    { href: "/charter", label: "包车", labelEn: "Charter" },
     { href: "/summary", label: "每日总单", labelEn: "Daily Summary" },
     { href: "/search", label: "查询", labelEn: "Search" },
   ],

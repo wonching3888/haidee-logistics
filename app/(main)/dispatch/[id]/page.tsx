@@ -7,7 +7,6 @@ import {
 } from "@/app/actions/dispatch";
 import { DispatchForm } from "@/components/dispatch/DispatchForm";
 import { toDateInputValue } from "@/lib/date-utils";
-import { getCharterFinance } from "@/app/actions/charter-finance";
 
 interface EditDispatchPageProps {
   params: Promise<{ id: string }>;
@@ -19,11 +18,10 @@ export default async function EditDispatchPage({ params }: EditDispatchPageProps
   const order = await getDispatchOrder(id);
   if (!order) notFound();
 
-  const [trucks, drivers, marketOptions, charterFinance] = await Promise.all([
+  const [trucks, drivers, marketOptions] = await Promise.all([
     getTrucks(),
     getDrivers(),
     getDispatchMarkets(),
-    getCharterFinance(id),
   ]);
 
   return (
@@ -53,7 +51,6 @@ export default async function EditDispatchPage({ params }: EditDispatchPageProps
           markets: order.markets,
           selections: order.selections,
         }}
-        initialCharterFinance={charterFinance}
       />
     </div>
   );
