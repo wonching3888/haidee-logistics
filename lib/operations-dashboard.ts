@@ -6,6 +6,11 @@ import {
   calcTotalCostPerKm,
 } from "@/lib/truck-cost";
 
+import {
+  charterOperationsCostGrandTotal,
+  type CharterOperationsCostTotals,
+  type CharterOperationsIncomeTotals,
+} from "@/lib/charter-operations";
 import type { InboundFreightGapReason } from "@/lib/inbound-freight";
 import type { OperationsIncomeWarningSample } from "@/lib/operations-income";
 
@@ -51,6 +56,7 @@ export interface OperationsDashboardData {
     wtlMode3Myr: number;
     partnerFreightMyr: number;
     crateReturnIncomeMyr: number;
+    charterRevenueMyr: number;
     totalMyr: number;
     lines: MetricLine[];
     warning: OperationsRevenueWarning | null;
@@ -58,6 +64,12 @@ export interface OperationsDashboardData {
   costs: {
     lines: MetricLine[];
     subtotalMyr: number;
+    charterTotalMyr: number;
+  };
+  charter: {
+    income: CharterOperationsIncomeTotals;
+    costs: CharterOperationsCostTotals;
+    costTotalMyr: number;
   };
   grossProfitMyr: number;
   tripCosts: {
@@ -156,6 +168,7 @@ export function buildOperationsDashboardMetrics(input: {
     wtlShipperMyr: number;
     partnerFreightMyr: number;
     crateReturnIncomeMyr: number;
+    charterRevenueMyr: number;
     missingRateLineCount: number;
     missingRateQuantity: number;
     gapReasons: Partial<Record<InboundFreightGapReason, number>>;
@@ -196,6 +209,10 @@ export function buildOperationsDashboardMetrics(input: {
     assignedLineCount: number;
     exchangeRate: number;
   };
+  charter: {
+    income: CharterOperationsIncomeTotals;
+    costs: CharterOperationsCostTotals;
+  };
   globalCostRates: {
     epermit: number;
     dagangNet: number;
@@ -214,8 +231,11 @@ export function buildOperationsDashboardMetrics(input: {
       input.income.wtlShipperMyr +
       input.income.wtlMode3Myr +
       input.income.partnerFreightMyr +
-      input.income.crateReturnIncomeMyr
+      input.income.crateReturnIncomeMyr +
+      input.income.charterRevenueMyr
   );
+
+  const charterCostTotalMyr = charterOperationsCostGrandTotal(input.charter.costs);
 
   const revenueLines: MetricLine[] = [
     {
@@ -277,6 +297,17 @@ export function buildOperationsDashboardMetrics(input: {
       amountMyr: input.income.crateReturnIncomeMyr,
       source: "actual",
       detail: "顾客自有桶回收（GLY/GKS）车力费 + 收桶费",
+    },
+    {
+      key: "charterRevenue",
+      label: "包车收入",
+      labelEn: "Charter Revenue",
+      amountMyr: input.income.charterRevenueMyr,
+      source: "actual",
+      detail:
+        input.charter.income.charterTripCount > 0
+          ? `${input.charter.income.charterTripCount} 趟 · 基础 ${input.charter.income.charterBaseRevenueMyr.toFixed(2)} + 额外 ${input.charter.income.charterExtraRevenueMyr.toFixed(2)} MYR`
+          : "当月无包车记录",
     },
   ];
 
@@ -408,8 +439,81 @@ export function buildOperationsDashboardMetrics(input: {
     },
   ];
 
+  const charterCostLines: MetricLine[] =
+    input.charter.costs.charterTripCount > 0
+      ? [
+          {
+            key: "charterVehicle",
+            label: "包车 — 车辆油费+维修",
+            labelEn: "Charter — Vehicle Fuel & Maintenance",
+            amountMyr: input.charter.costs.charterVehicleCostMyr,
+            source: "estimate",
+            detail: `${input.charter.costs.charterTripCount} 趟 · ${input.charter.costs.charterMileageKm.toFixed(0)} km`,
+          },
+          {
+            key: "charterLkim",
+            label: "包车 — LKIM",
+            labelEn: "Charter — LKIM",
+            amountMyr: input.charter.costs.charterLkimMyr,
+            source: "actual",
+          },
+          {
+            key: "charterCrateRental",
+            label: "包车 — 租桶费",
+            labelEn: "Charter — Crate Rental",
+            amountMyr: input.charter.costs.charterCrateRentalMyr,
+            source: "actual",
+          },
+          {
+            key: "charterUnload",
+            label: "包车 — 下货费",
+            labelEn: "Charter — Unload Fee",
+            amountMyr: input.charter.costs.charterUnloadFeeMyr,
+            source: "actual",
+          },
+          {
+            key: "charterDriverSalary",
+            label: "包车 — 司机薪资",
+            labelEn: "Charter — Driver Salary",
+            amountMyr: input.charter.costs.charterDriverSalaryMyr,
+            source: "actual",
+          },
+          {
+            key: "charterToll",
+            label: "包车 — 过路费",
+            labelEn: "Charter — Toll",
+            amountMyr: input.charter.costs.charterTollMyr,
+            source: "actual",
+          },
+          {
+            key: "charterBorder",
+            label: "包车 — 边境费",
+            labelEn: "Charter — Border Fees",
+            amountMyr: input.charter.costs.charterBorderFeesMyr,
+            source: "estimate",
+            detail: "includeBorderFees=true 的包车记录",
+          },
+          {
+            key: "charterExtraCost",
+            label: "包车 — 额外开销",
+            labelEn: "Charter — Extra Costs",
+            amountMyr: input.charter.costs.charterExtraCostMyr,
+            source: "actual",
+          },
+          {
+            key: "charterOtherCost",
+            label: "包车 — 其他开销",
+            labelEn: "Charter — Other Costs",
+            amountMyr: input.charter.costs.charterOtherCostMyr,
+            source: "actual",
+          },
+        ]
+      : [];
+
+  const allCostLines = [...costLines, ...charterCostLines];
+
   const subtotalMyr = roundMoney(
-    costLines.reduce((sum, line) => sum + line.amountMyr, 0)
+    allCostLines.reduce((sum, line) => sum + line.amountMyr, 0)
   );
 
   const costWarnings: OperationsCostWarning[] = [];
@@ -508,13 +612,20 @@ export function buildOperationsDashboardMetrics(input: {
       wtlMode3Myr: input.income.wtlMode3Myr,
       partnerFreightMyr: input.income.partnerFreightMyr,
       crateReturnIncomeMyr: input.income.crateReturnIncomeMyr,
+      charterRevenueMyr: input.income.charterRevenueMyr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,
       warning: revenueWarning,
     },
     costs: {
-      lines: costLines,
+      lines: allCostLines,
       subtotalMyr,
+      charterTotalMyr: charterCostTotalMyr,
+    },
+    charter: {
+      income: input.charter.income,
+      costs: input.charter.costs,
+      costTotalMyr: charterCostTotalMyr,
     },
     grossProfitMyr: roundMoney(totalRevenueMyr - subtotalMyr),
     tripCosts: input.tripCosts,

@@ -15,6 +15,10 @@ import { aggregateThaiSegmentFreightCost } from "@/lib/operations-thai-segment";
 import { fetchOperationsAssignedInboundLines } from "@/lib/operations-inbound-lines";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import {
+  aggregateCharterOperationsCosts,
+  aggregateCharterOperationsIncome,
+} from "@/lib/charter-operations";
+import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
 } from "@/lib/operations-dashboard";
@@ -46,7 +50,10 @@ async function aggregateIncome(
   month: number,
   inboundLines?: Awaited<ReturnType<typeof fetchOperationsAssignedInboundLines>>
 ) {
-  const income = await aggregateOperationsIncome(year, month, inboundLines);
+  const [income, charterIncome] = await Promise.all([
+    aggregateOperationsIncome(year, month, inboundLines),
+    aggregateCharterOperationsIncome(year, month),
+  ]);
   return {
     mode1aThb: income.mode1aThb,
     mode1bMyr: income.mode1bMyr,
@@ -55,10 +62,12 @@ async function aggregateIncome(
     wtlShipperMyr: income.wtlShipperMyr,
     partnerFreightMyr: income.partnerFreightMyr,
     crateReturnIncomeMyr: income.crateReturnIncomeMyr,
+    charterRevenueMyr: charterIncome.charterRevenueMyr,
     missingRateLineCount: income.missingRateLineCount,
     missingRateQuantity: income.missingRateQuantity,
     gapReasons: income.gapReasons,
     warningSamples: income.warningSamples,
+    charterIncome,
   };
 }
 
@@ -125,6 +134,7 @@ export async function getOperationsDashboard(input: {
     thaiSegmentFreight,
     exchangeRateRow,
     globalCostRates,
+    charterCosts,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month, inboundLines),
     aggregateMcThirdParty(input.year, input.month),
@@ -134,6 +144,7 @@ export async function getOperationsDashboard(input: {
     aggregateThaiSegmentFreightCost(input.year, input.month, inboundLines),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
     loadGlobalCostRates(),
+    aggregateCharterOperationsCosts(input.year, input.month),
   ]);
 
   const exchangeRate =
@@ -152,5 +163,9 @@ export async function getOperationsDashboard(input: {
     lkimMaqis,
     thaiSegmentFreight,
     globalCostRates,
+    charter: {
+      income: income.charterIncome,
+      costs: charterCosts,
+    },
   });
 }

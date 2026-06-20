@@ -27,6 +27,7 @@ import {
   parseCharterExtraItems,
   parseCharterMoneyInput,
   parseRequiredCharterMoney,
+  parseRequiredCharterQuantity,
   serializeCharterTrip,
   serializeCharterTripListItem,
   type CharterTripInput,
@@ -284,6 +285,11 @@ function buildCharterTripData(input: CharterTripInput) {
     includeBorderFees: input.includeBorderFees,
     charterMileageKm,
     charterRevenueMyr,
+    totalQuantity: parseRequiredCharterQuantity(
+      input.totalQuantity,
+      "实际总桶数 total quantity"
+    ),
+    charterTollMyr: parseCharterMoneyInput(input.charterTollMyr),
     charterUnloadFeeMyr: parseCharterMoneyInput(input.charterUnloadFeeMyr),
     charterDriverSalaryMyr: parseCharterMoneyInput(input.charterDriverSalaryMyr),
     charterOtherCostMyr:

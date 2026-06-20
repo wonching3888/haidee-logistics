@@ -263,6 +263,42 @@ export function OperationsDashboardView({
             </dl>
           </section>
 
+          {data.charter.income.charterTripCount > 0 && (
+            <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 p-5">
+              <h3 className="mb-4 text-lg font-semibold text-indigo-950">
+                包车 Charter
+              </h3>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-indigo-200 bg-white p-4">
+                  <dt className="text-sm font-medium text-haidee-text">
+                    包车收入 Charter Revenue
+                  </dt>
+                  <dd className="mt-2 font-mono text-xl font-semibold text-indigo-950">
+                    {formatMyr(data.charter.income.charterRevenueMyr)}
+                  </dd>
+                  <p className="mt-1 text-xs text-haidee-muted">
+                    {data.charter.income.charterTripCount} 趟 · 基础{" "}
+                    {formatMyr(data.charter.income.charterBaseRevenueMyr)} + 额外{" "}
+                    {formatMyr(data.charter.income.charterExtraRevenueMyr)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-indigo-200 bg-white p-4">
+                  <dt className="text-sm font-medium text-haidee-text">
+                    包车成本 Charter Costs
+                  </dt>
+                  <dd className="mt-2 font-mono text-xl font-semibold text-indigo-950">
+                    {formatMyr(data.charter.costTotalMyr)}
+                  </dd>
+                  <p className="mt-1 text-xs text-haidee-muted">
+                    {data.charter.costs.charterTripCount} 趟 ·{" "}
+                    {data.charter.costs.charterTotalQuantity.toLocaleString("en-MY")}{" "}
+                    桶（实际总桶数）
+                  </p>
+                </div>
+              </dl>
+            </section>
+          )}
+
           <section className="rounded-xl border border-haidee-border bg-white p-5">
             <h3 className="mb-2 text-lg font-semibold text-haidee-text">
               成本 Costs

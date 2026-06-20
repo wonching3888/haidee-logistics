@@ -159,6 +159,10 @@ export function CharterTripForm({
   const [driverSalaryMyr, setDriverSalaryMyr] = useState(
     moneyField(initial?.charterDriverSalaryMyr)
   );
+  const [tollMyr, setTollMyr] = useState(moneyField(initial?.charterTollMyr));
+  const [totalQuantity, setTotalQuantity] = useState(
+    initial?.totalQuantity != null ? String(initial.totalQuantity) : ""
+  );
   const [otherCostMyr, setOtherCostMyr] = useState(
     moneyField(initial?.charterOtherCostMyr)
   );
@@ -287,6 +291,8 @@ export function CharterTripForm({
           includeBorderFees,
           charterMileageKm: mileageKm,
           charterRevenueMyr: revenueMyr,
+          totalQuantity,
+          charterTollMyr: tollMyr,
           charterUnloadFeeMyr: unloadFeeMyr,
           charterDriverSalaryMyr: driverSalaryMyr,
           charterOtherCostMyr: otherCostMyr,
@@ -723,6 +729,37 @@ export function CharterTripForm({
               onChange={(e) => setUnloadFeeMyr(e.target.value)}
               className="min-h-[44px] font-mono"
             />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-haidee-text">
+              过路费 Toll (MYR)
+            </label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={tollMyr}
+              onChange={(e) => setTollMyr(e.target.value)}
+              className="min-h-[44px] font-mono"
+              placeholder="手动录入实际过路费"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-sm font-medium text-haidee-text">
+              实际总桶数 Total quantity (barrels)
+            </label>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={totalQuantity}
+              onChange={(e) => setTotalQuantity(e.target.value)}
+              className="min-h-[44px] w-full max-w-xs font-mono"
+              placeholder="含非租桶/自有桶型在内的总桶数"
+            />
+            <p className="text-xs text-haidee-muted">
+              与下方桶型明细分开录入；P&amp;L/运营报表统计用此数字（如 FISHCO 190 桶）。
+            </p>
           </div>
         </div>
 

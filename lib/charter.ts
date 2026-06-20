@@ -71,6 +71,8 @@ export interface CharterTripRecord {
   charterDriverSalaryMyr: number | null;
   charterOtherCostMyr: number | null;
   charterOtherCostNote: string | null;
+  charterTollMyr: number | null;
+  totalQuantity: number | null;
   computedLkimMyr: number | null;
   computedCrateRentalMyr: number | null;
   extraRevenueItems: CharterExtraItemRecord[];
@@ -106,6 +108,8 @@ export interface CharterTripInput {
   charterDriverSalaryMyr?: string | number | null;
   charterOtherCostMyr?: string | number | null;
   charterOtherCostNote?: string | null;
+  charterTollMyr?: string | number | null;
+  totalQuantity?: string | number | null;
   extraItems?: CharterExtraItemInput[];
   lines?: CharterTripLineInput[];
 }
@@ -148,6 +152,35 @@ export function parseRequiredCharterMoney(
     throw new Error(`请填写${label} Please enter ${label}`);
   }
   return parsed;
+}
+
+export function parseRequiredCharterQuantity(
+  value: string | number | null | undefined,
+  label: string
+): number {
+  if (value == null) {
+    throw new Error(`请填写${label} Please enter ${label}`);
+  }
+  const raw =
+    typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw <= 0) {
+    throw new Error(
+      `${label}须为正整数 ${label} must be a positive whole number`
+    );
+  }
+  return raw;
+}
+
+export function parseCharterQuantityInput(
+  value: string | number | null | undefined
+): number | null {
+  if (value == null) return null;
+  const raw =
+    typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw <= 0) {
+    return null;
+  }
+  return raw;
 }
 
 export function normalizeCharterNote(value: string | null | undefined) {
@@ -194,6 +227,8 @@ export function serializeCharterTrip(row: {
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
   charterOtherCostNote: string | null;
+  charterTollMyr?: unknown;
+  totalQuantity?: number | null;
   computedLkimMyr: unknown;
   computedCrateRentalMyr: unknown;
   extraItems?: Array<{
@@ -242,6 +277,8 @@ export function serializeCharterTrip(row: {
     charterDriverSalaryMyr: decimalToNumber(row.charterDriverSalaryMyr),
     charterOtherCostMyr: decimalToNumber(row.charterOtherCostMyr),
     charterOtherCostNote: row.charterOtherCostNote,
+    charterTollMyr: decimalToNumber(row.charterTollMyr),
+    totalQuantity: row.totalQuantity ?? null,
     computedLkimMyr: decimalToNumber(row.computedLkimMyr),
     computedCrateRentalMyr: decimalToNumber(row.computedCrateRentalMyr),
     extraRevenueItems: extraItems.filter((item) => item.itemType === "revenue"),

@@ -599,6 +599,8 @@ model CharterTrip {
   charterDriverSalaryMyr Decimal? @map("charter_driver_salary_myr") @db.Decimal(10, 2)
   charterOtherCostMyr    Decimal? @map("charter_other_cost_myr") @db.Decimal(10, 2)
   charterOtherCostNote   String?  @map("charter_other_cost_note")
+  charterTollMyr         Decimal? @map("charter_toll_myr") @db.Decimal(10, 2)
+  totalQuantity          Int?     @map("total_quantity")
   billingCompany         String   @default("haidee") @map("billing_company")
   billToCustomerName     String?  @map("bill_to_customer_name")
   computedLkimMyr        Decimal? @map("computed_lkim_myr") @db.Decimal(10, 2)

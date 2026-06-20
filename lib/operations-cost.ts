@@ -25,6 +25,12 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+/** Dispatch whose only market is OTHER (typically charter-linked cargo). */
+function isOtherOnlyDispatch(markets: string[] | string): boolean {
+  const normalized = normalizeTripMarkets(markets);
+  return normalized.length === 1 && isOtherMarket(normalized[0]);
+}
+
 export function buildRouteKey(markets: string[]) {
   return sortMarkets(
     markets.filter((code) => code && !isOtherMarket(code))
@@ -370,6 +376,7 @@ export async function aggregateOperationsCosts(
   ).size;
 
   for (const dispatch of dispatches) {
+    const otherOnly = isOtherOnlyDispatch(dispatch.markets);
     const truck = truckById.get(dispatch.truckId);
     const applicableRoutes = findApplicableRoutes(dispatch.markets, routes);
     const routeCosts = computeTripRouteCosts(
@@ -394,10 +401,12 @@ export async function aggregateOperationsCosts(
       routeCosts.borderPass;
     totals.fishCheckingFee += tripFish;
     totals.parkingFee += tripParking;
-    totals.borderPass += tripBorder;
-    totals.epermit += routeCosts.epermit;
-    totals.dagangNet += routeCosts.dagangNet;
-    totals.forwarding += routeCosts.forwarding;
+    if (!otherOnly) {
+      totals.borderPass += tripBorder;
+      totals.epermit += routeCosts.epermit;
+      totals.dagangNet += routeCosts.dagangNet;
+      totals.forwarding += routeCosts.forwarding;
+    }
     totals.totalMileageKm += routeCosts.tripMileageKm;
 
     if (truck) {
@@ -423,7 +432,7 @@ export async function aggregateOperationsCosts(
       for (const row of tripLoadingRows) {
         tripLoadUnloadFee += row.loadingFeeOverride ?? row.loadingFee;
       }
-    } else {
+    } else if (!otherOnly) {
       tripLoadUnloadFee += estimateTripUnloadingFeesTotal(
         dispatch,
         unloadingRatesByMarket
