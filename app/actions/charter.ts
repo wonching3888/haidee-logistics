@@ -21,8 +21,10 @@ import {
   type CharterCostPreview,
 } from "@/lib/charter-costs";
 import {
+  isCharterBillingCompany,
   isCharterCargoType,
   normalizeCharterNote,
+  parseCharterExtraItems,
   parseCharterMoneyInput,
   parseRequiredCharterMoney,
   serializeCharterTrip,
@@ -32,6 +34,10 @@ import {
   type CharterTripListItem,
   type CharterTripRecord,
 } from "@/lib/charter";
+import {
+  buildCharterInvoiceFromTrip,
+  type CharterInvoiceData,
+} from "@/lib/charter-invoice";
 
 export async function getCharterTrips(dateStr: string): Promise<CharterTripListItem[]> {
   const date = parseDateInput(dateStr);
@@ -60,7 +66,8 @@ export async function getCharterTrip(id: string): Promise<CharterTripRecord | nu
     where: { id },
     include: {
       truck: { select: { plate: true } },
-      shipper: { select: { code: true, name: true } },
+      shipper: { select: { code: true, name: true, location: true } },
+      extraItems: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       lines: {
         orderBy: { id: "asc" },
         include: {
@@ -71,6 +78,33 @@ export async function getCharterTrip(id: string): Promise<CharterTripRecord | nu
   });
   if (!row) return null;
   return serializeCharterTrip(row);
+}
+
+export async function getCharterInvoiceData(
+  id: string
+): Promise<CharterInvoiceData> {
+  const row = await prisma.charterTrip.findUnique({
+    where: { id },
+    include: {
+      truck: { select: { plate: true } },
+      shipper: { select: { code: true, name: true, location: true } },
+      extraItems: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+    },
+  });
+  if (!row) throw new Error("包车记录不存在 Charter trip not found");
+  return buildCharterInvoiceFromTrip(row);
+}
+
+function buildAllExtraItems(input: CharterTripInput) {
+  const revenue = parseCharterExtraItems(input.extraItems, "revenue");
+  const cost = parseCharterExtraItems(input.extraItems, "cost");
+  return [
+    ...revenue.map((item, index) => ({ ...item, sortOrder: index })),
+    ...cost.map((item, index) => ({
+      ...item,
+      sortOrder: revenue.length + index,
+    })),
+  ];
 }
 
 export async function getCharterFormOptions() {
@@ -226,12 +260,14 @@ function buildCharterTripData(input: CharterTripInput) {
     throw new Error("请选择车牌 Select truck plate");
   }
 
-  const shipperId =
-    input.cargoType === "seafood"
-      ? input.shipperId?.trim() || null
-      : null;
+  const shipperId = input.shipperId?.trim() || null;
   if (input.cargoType === "seafood" && !shipperId) {
     throw new Error("海产包车请选择寄货人 Seafood charter requires a shipper");
+  }
+
+  const billingCompany = input.billingCompany ?? "haidee";
+  if (!isCharterBillingCompany(billingCompany)) {
+    throw new Error("请选择开票主体 Select billing company");
   }
 
   const stockAreaNote =
@@ -243,6 +279,8 @@ function buildCharterTripData(input: CharterTripInput) {
     cargoType: input.cargoType,
     shipperId,
     stockAreaNote,
+    billToCustomerName: normalizeCharterNote(input.billToCustomerName),
+    billingCompany,
     includeBorderFees: input.includeBorderFees,
     charterMileageKm,
     charterRevenueMyr,
@@ -256,10 +294,6 @@ function buildCharterTripData(input: CharterTripInput) {
       input.cargoType === "general"
         ? normalizeCharterNote(input.charterOtherCostNote)
         : null,
-    charterExtraRevenueMyr: parseCharterMoneyInput(input.charterExtraRevenueMyr),
-    charterExtraRevenueNote: normalizeCharterNote(input.charterExtraRevenueNote),
-    charterExtraCostMyr: parseCharterMoneyInput(input.charterExtraCostMyr),
-    charterExtraCostNote: normalizeCharterNote(input.charterExtraCostNote),
   };
 }
 
@@ -313,9 +347,16 @@ async function syncCharterCrateStock(input: {
 }
 
 function revalidateCharterPaths(id?: string) {
-  revalidatePath("/charter");
-  revalidatePath("/crate/customer-stock");
-  if (id) revalidatePath(`/charter/${id}`);
+  try {
+    revalidatePath("/charter");
+    revalidatePath("/crate/customer-stock");
+    if (id) {
+      revalidatePath(`/charter/${id}`);
+      revalidatePath(`/charter/${id}/invoice`);
+    }
+  } catch {
+    // Outside Next.js request context (e.g. verification scripts)
+  }
 }
 
 export async function saveCharterTrip(
@@ -352,6 +393,7 @@ export async function saveCharterTrip(
     tongTypeId: line.tongTypeId,
     quantity: line.quantity,
   }));
+  const extraItems = buildAllExtraItems(input);
 
   if (input.id) {
     const existing = await prisma.charterTrip.findUnique({
@@ -401,6 +443,21 @@ export async function saveCharterTrip(
           })),
         });
       }
+
+      await tx.charterTripExtraItem.deleteMany({
+        where: { charterTripId: input.id },
+      });
+      if (extraItems.length > 0) {
+        await tx.charterTripExtraItem.createMany({
+          data: extraItems.map((item) => ({
+            charterTripId: input.id!,
+            itemType: item.itemType,
+            amountMyr: item.amountMyr,
+            note: item.note,
+            sortOrder: item.sortOrder,
+          })),
+        });
+      }
     });
 
     await syncCharterCrateStock({
@@ -440,6 +497,18 @@ export async function saveCharterTrip(
           charterTripId: trip.id,
           tongTypeId: line.tongTypeId,
           quantity: line.quantity,
+        })),
+      });
+    }
+
+    if (extraItems.length > 0) {
+      await tx.charterTripExtraItem.createMany({
+        data: extraItems.map((item) => ({
+          charterTripId: trip.id,
+          itemType: item.itemType,
+          amountMyr: item.amountMyr,
+          note: item.note,
+          sortOrder: item.sortOrder,
         })),
       });
     }

@@ -599,10 +599,8 @@ model CharterTrip {
   charterDriverSalaryMyr Decimal? @map("charter_driver_salary_myr") @db.Decimal(10, 2)
   charterOtherCostMyr    Decimal? @map("charter_other_cost_myr") @db.Decimal(10, 2)
   charterOtherCostNote   String?  @map("charter_other_cost_note")
-  charterExtraRevenueMyr Decimal? @map("charter_extra_revenue_myr") @db.Decimal(10, 2)
-  charterExtraRevenueNote String? @map("charter_extra_revenue_note")
-  charterExtraCostMyr    Decimal? @map("charter_extra_cost_myr") @db.Decimal(10, 2)
-  charterExtraCostNote   String?  @map("charter_extra_cost_note")
+  billingCompany         String   @default("haidee") @map("billing_company")
+  billToCustomerName     String?  @map("bill_to_customer_name")
   computedLkimMyr        Decimal? @map("computed_lkim_myr") @db.Decimal(10, 2)
   computedCrateRentalMyr Decimal? @map("computed_crate_rental_myr") @db.Decimal(10, 2)
   createdById            String?  @map("created_by") @db.Uuid
@@ -612,10 +610,25 @@ model CharterTrip {
   truck     Truck             @relation(fields: [truckId], references: [id])
   shipper   Shipper?          @relation(fields: [shipperId], references: [id])
   createdBy User?             @relation(fields: [createdById], references: [id])
-  lines     CharterTripLine[]
+  lines      CharterTripLine[]
+  extraItems CharterTripExtraItem[]
 
   @@index([date])
   @@map("charter_trips")
+}
+
+model CharterTripExtraItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  charterTripId String  @map("charter_trip_id") @db.Uuid
+  itemType      String  @map("item_type")
+  amountMyr     Decimal @map("amount_myr") @db.Decimal(10, 2)
+  note          String?
+  sortOrder     Int     @default(0) @map("sort_order")
+
+  charterTrip CharterTrip @relation(fields: [charterTripId], references: [id], onDelete: Cascade)
+
+  @@index([charterTripId])
+  @@map("charter_trip_extra_items")
 }
 
 model CharterTripLine {

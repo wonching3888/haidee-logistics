@@ -3,12 +3,34 @@ import { decimalToNumber } from "@/lib/freight-rates";
 export const CHARTER_CARGO_TYPES = ["seafood", "general"] as const;
 export type CharterCargoType = (typeof CHARTER_CARGO_TYPES)[number];
 
+export const CHARTER_EXTRA_ITEM_TYPES = ["revenue", "cost"] as const;
+export type CharterExtraItemType = (typeof CHARTER_EXTRA_ITEM_TYPES)[number];
+
+export const CHARTER_BILLING_COMPANIES = ["haidee", "wtl"] as const;
+export type CharterBillingCompany = (typeof CHARTER_BILLING_COMPANIES)[number];
+
 export function isCharterCargoType(value: string): value is CharterCargoType {
   return value === "seafood" || value === "general";
 }
 
+export function isCharterExtraItemType(
+  value: string
+): value is CharterExtraItemType {
+  return value === "revenue" || value === "cost";
+}
+
+export function isCharterBillingCompany(
+  value: string
+): value is CharterBillingCompany {
+  return value === "haidee" || value === "wtl";
+}
+
 export function charterCargoTypeLabel(type: CharterCargoType): string {
   return type === "seafood" ? "海产 Seafood" : "普货 General Cargo";
+}
+
+export function charterBillingCompanyLabel(company: CharterBillingCompany) {
+  return company === "wtl" ? "WTL EXPRESS" : "HAIDEE";
 }
 
 export interface CharterTripLineRecord {
@@ -18,6 +40,14 @@ export interface CharterTripLineRecord {
   tongTypeName: string;
   isBox: boolean;
   quantity: number;
+}
+
+export interface CharterExtraItemRecord {
+  id: string;
+  itemType: CharterExtraItemType;
+  amountMyr: number;
+  note: string | null;
+  sortOrder: number;
 }
 
 export interface CharterTripRecord {
@@ -30,6 +60,8 @@ export interface CharterTripRecord {
   shipperCode: string | null;
   shipperName: string | null;
   stockAreaNote: string | null;
+  billToCustomerName: string | null;
+  billingCompany: CharterBillingCompany;
   driverName: string | null;
   cargoType: CharterCargoType;
   includeBorderFees: boolean;
@@ -39,12 +71,10 @@ export interface CharterTripRecord {
   charterDriverSalaryMyr: number | null;
   charterOtherCostMyr: number | null;
   charterOtherCostNote: string | null;
-  charterExtraRevenueMyr: number | null;
-  charterExtraRevenueNote: string | null;
-  charterExtraCostMyr: number | null;
-  charterExtraCostNote: string | null;
   computedLkimMyr: number | null;
   computedCrateRentalMyr: number | null;
+  extraRevenueItems: CharterExtraItemRecord[];
+  extraCostItems: CharterExtraItemRecord[];
   lines: CharterTripLineRecord[];
 }
 
@@ -53,12 +83,20 @@ export interface CharterTripLineInput {
   quantity: number;
 }
 
+export interface CharterExtraItemInput {
+  itemType: CharterExtraItemType;
+  amountMyr: string | number;
+  note?: string | null;
+}
+
 export interface CharterTripInput {
   id?: string;
   date: string;
   truckId: string;
   shipperId?: string | null;
   stockAreaNote?: string | null;
+  billToCustomerName?: string | null;
+  billingCompany?: CharterBillingCompany;
   driverName?: string | null;
   cargoType: CharterCargoType;
   includeBorderFees: boolean;
@@ -68,10 +106,7 @@ export interface CharterTripInput {
   charterDriverSalaryMyr?: string | number | null;
   charterOtherCostMyr?: string | number | null;
   charterOtherCostNote?: string | null;
-  charterExtraRevenueMyr?: string | number | null;
-  charterExtraRevenueNote?: string | null;
-  charterExtraCostMyr?: string | number | null;
-  charterExtraCostNote?: string | null;
+  extraItems?: CharterExtraItemInput[];
   lines?: CharterTripLineInput[];
 }
 
@@ -120,6 +155,25 @@ export function normalizeCharterNote(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function serializeExtraItem(row: {
+  id: string;
+  itemType: string;
+  amountMyr: unknown;
+  note: string | null;
+  sortOrder: number;
+}): CharterExtraItemRecord | null {
+  if (!isCharterExtraItemType(row.itemType)) return null;
+  const amountMyr = decimalToNumber(row.amountMyr);
+  if (amountMyr == null) return null;
+  return {
+    id: row.id,
+    itemType: row.itemType,
+    amountMyr,
+    note: row.note,
+    sortOrder: row.sortOrder,
+  };
+}
+
 export function serializeCharterTrip(row: {
   id: string;
   charterNo: string | null;
@@ -130,6 +184,8 @@ export function serializeCharterTrip(row: {
   driverName: string | null;
   shipperId?: string | null;
   stockAreaNote?: string | null;
+  billToCustomerName?: string | null;
+  billingCompany: string;
   cargoType: string;
   includeBorderFees: boolean;
   charterMileageKm: unknown;
@@ -138,12 +194,15 @@ export function serializeCharterTrip(row: {
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
   charterOtherCostNote: string | null;
-  charterExtraRevenueMyr: unknown;
-  charterExtraRevenueNote: string | null;
-  charterExtraCostMyr: unknown;
-  charterExtraCostNote: string | null;
   computedLkimMyr: unknown;
   computedCrateRentalMyr: unknown;
+  extraItems?: Array<{
+    id: string;
+    itemType: string;
+    amountMyr: unknown;
+    note: string | null;
+    sortOrder: number;
+  }>;
   lines: Array<{
     id: string;
     tongTypeId: string;
@@ -152,10 +211,15 @@ export function serializeCharterTrip(row: {
   }>;
 }): CharterTripRecord | null {
   if (!isCharterCargoType(row.cargoType)) return null;
+  if (!isCharterBillingCompany(row.billingCompany)) return null;
 
   const mileage = decimalToNumber(row.charterMileageKm);
   const revenue = decimalToNumber(row.charterRevenueMyr);
   if (mileage == null || revenue == null) return null;
+
+  const extraItems = (row.extraItems ?? [])
+    .map(serializeExtraItem)
+    .filter((item): item is CharterExtraItemRecord => item != null);
 
   return {
     id: row.id,
@@ -167,6 +231,8 @@ export function serializeCharterTrip(row: {
     shipperCode: row.shipper?.code ?? null,
     shipperName: row.shipper?.name ?? null,
     stockAreaNote: row.stockAreaNote ?? null,
+    billToCustomerName: row.billToCustomerName ?? null,
+    billingCompany: row.billingCompany,
     driverName: row.driverName,
     cargoType: row.cargoType,
     includeBorderFees: row.includeBorderFees,
@@ -176,12 +242,10 @@ export function serializeCharterTrip(row: {
     charterDriverSalaryMyr: decimalToNumber(row.charterDriverSalaryMyr),
     charterOtherCostMyr: decimalToNumber(row.charterOtherCostMyr),
     charterOtherCostNote: row.charterOtherCostNote,
-    charterExtraRevenueMyr: decimalToNumber(row.charterExtraRevenueMyr),
-    charterExtraRevenueNote: row.charterExtraRevenueNote,
-    charterExtraCostMyr: decimalToNumber(row.charterExtraCostMyr),
-    charterExtraCostNote: row.charterExtraCostNote,
     computedLkimMyr: decimalToNumber(row.computedLkimMyr),
     computedCrateRentalMyr: decimalToNumber(row.computedCrateRentalMyr),
+    extraRevenueItems: extraItems.filter((item) => item.itemType === "revenue"),
+    extraCostItems: extraItems.filter((item) => item.itemType === "cost"),
     lines: row.lines.map((line) => ({
       id: line.id,
       tongTypeId: line.tongTypeId,
@@ -218,4 +282,25 @@ export function serializeCharterTripListItem(row: {
     charterRevenueMyr: revenue,
     charterMileageKm: mileage,
   };
+}
+
+export function parseCharterExtraItems(
+  items: CharterExtraItemInput[] | undefined,
+  itemType: CharterExtraItemType
+) {
+  if (!items?.length) return [];
+
+  return items
+    .map((item, index) => {
+      if (item.itemType !== itemType) return null;
+      const amountMyr = parseCharterMoneyInput(item.amountMyr);
+      if (amountMyr == null || amountMyr <= 0) return null;
+      return {
+        itemType,
+        amountMyr,
+        note: normalizeCharterNote(item.note),
+        sortOrder: index,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null);
 }

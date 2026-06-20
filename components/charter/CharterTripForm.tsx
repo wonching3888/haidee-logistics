@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -13,8 +13,12 @@ import { Input } from "@/components/ui/input";
 import { DateInputField } from "@/components/shared/DateInputField";
 import type { CharterCostPreview } from "@/lib/charter-costs";
 import {
+  charterBillingCompanyLabel,
   charterCargoTypeLabel,
+  CHARTER_BILLING_COMPANIES,
+  type CharterBillingCompany,
   type CharterCargoType,
+  type CharterExtraItemRecord,
   type CharterTripRecord,
 } from "@/lib/charter";
 
@@ -51,6 +55,12 @@ interface LineDraft {
   quantity: string;
 }
 
+interface ExtraItemDraft {
+  key: string;
+  amount: string;
+  note: string;
+}
+
 interface CharterTripFormProps {
   mode: "new" | "edit";
   date: string;
@@ -75,6 +85,25 @@ function emptyLine(): LineDraft {
     tongTypeId: "",
     quantity: "",
   };
+}
+
+function emptyExtraItem(): ExtraItemDraft {
+  return {
+    key: crypto.randomUUID(),
+    amount: "",
+    note: "",
+  };
+}
+
+function extraItemsFromInitial(
+  items: CharterExtraItemRecord[]
+): ExtraItemDraft[] {
+  if (!items.length) return [emptyExtraItem()];
+  return items.map((item) => ({
+    key: item.id,
+    amount: moneyField(item.amountMyr),
+    note: noteField(item.note),
+  }));
 }
 
 function linesFromInitial(initial: CharterTripRecord | null | undefined): LineDraft[] {
@@ -136,17 +165,17 @@ export function CharterTripForm({
   const [otherCostNote, setOtherCostNote] = useState(
     noteField(initial?.charterOtherCostNote)
   );
-  const [extraRevenueMyr, setExtraRevenueMyr] = useState(
-    moneyField(initial?.charterExtraRevenueMyr)
+  const [billingCompany, setBillingCompany] = useState<CharterBillingCompany>(
+    initial?.billingCompany ?? "haidee"
   );
-  const [extraRevenueNote, setExtraRevenueNote] = useState(
-    noteField(initial?.charterExtraRevenueNote)
+  const [billToCustomerName, setBillToCustomerName] = useState(
+    noteField(initial?.billToCustomerName)
   );
-  const [extraCostMyr, setExtraCostMyr] = useState(
-    moneyField(initial?.charterExtraCostMyr)
+  const [extraRevenueItems, setExtraRevenueItems] = useState<ExtraItemDraft[]>(
+    () => extraItemsFromInitial(initial?.extraRevenueItems ?? [])
   );
-  const [extraCostNote, setExtraCostNote] = useState(
-    noteField(initial?.charterExtraCostNote)
+  const [extraCostItems, setExtraCostItems] = useState<ExtraItemDraft[]>(() =>
+    extraItemsFromInitial(initial?.extraCostItems ?? [])
   );
   const [lines, setLines] = useState<LineDraft[]>(() => linesFromInitial(initial));
   const [preview, setPreview] = useState<CharterCostPreview | null>(null);
@@ -231,6 +260,16 @@ export function CharterTripForm({
     }
   }
 
+  function parseExtraItemsForSave(items: ExtraItemDraft[], itemType: "revenue" | "cost") {
+    return items
+      .map((item) => ({
+        itemType,
+        amountMyr: item.amount.trim(),
+        note: item.note.trim() || null,
+      }))
+      .filter((item) => item.amountMyr !== "" && Number(item.amountMyr) !== 0);
+  }
+
   function handleSave() {
     setError(null);
     startTransition(async () => {
@@ -239,8 +278,10 @@ export function CharterTripForm({
           id: initial?.id,
           date,
           truckId,
-          shipperId: cargoType === "seafood" ? shipperId : null,
+          shipperId: shipperId.trim() || null,
           stockAreaNote: cargoType === "seafood" ? stockAreaNote : null,
+          billToCustomerName: billToCustomerName.trim() || null,
+          billingCompany,
           driverName,
           cargoType,
           includeBorderFees,
@@ -250,10 +291,10 @@ export function CharterTripForm({
           charterDriverSalaryMyr: driverSalaryMyr,
           charterOtherCostMyr: otherCostMyr,
           charterOtherCostNote: otherCostNote,
-          charterExtraRevenueMyr: extraRevenueMyr,
-          charterExtraRevenueNote: extraRevenueNote,
-          charterExtraCostMyr: extraCostMyr,
-          charterExtraCostNote: extraCostNote,
+          extraItems: [
+            ...parseExtraItemsForSave(extraRevenueItems, "revenue"),
+            ...parseExtraItemsForSave(extraCostItems, "cost"),
+          ],
           lines:
             cargoType === "seafood"
               ? lines
@@ -271,6 +312,72 @@ export function CharterTripForm({
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
       }
     });
+  }
+
+  function renderExtraItemList(
+    label: string,
+    items: ExtraItemDraft[],
+    setItems: Dispatch<SetStateAction<ExtraItemDraft[]>>
+  ) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-haidee-text">{label}</p>
+        {items.map((item) => (
+          <div key={item.key} className="flex flex-wrap items-start gap-2">
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={item.amount}
+              onChange={(e) =>
+                setItems((prev) =>
+                  prev.map((row) =>
+                    row.key === item.key ? { ...row, amount: e.target.value } : row
+                  )
+                )
+              }
+              placeholder="金额 Amount"
+              className="min-h-[44px] w-32 font-mono"
+            />
+            <Input
+              value={item.note}
+              onChange={(e) =>
+                setItems((prev) =>
+                  prev.map((row) =>
+                    row.key === item.key ? { ...row, note: e.target.value } : row
+                  )
+                )
+              }
+              placeholder="说明 Note"
+              className="min-h-[44px] min-w-[160px] flex-1"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setItems((prev) =>
+                  prev.length <= 1
+                    ? prev
+                    : prev.filter((row) => row.key !== item.key)
+                )
+              }
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-haidee-muted hover:text-haidee-red"
+              aria-label="Remove item"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setItems((prev) => [...prev, emptyExtraItem()])}
+          className="min-h-[44px]"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          添加一行 Add row
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -353,28 +460,34 @@ export function CharterTripForm({
           </div>
         </div>
 
-        {cargoType === "seafood" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-haidee-text">
-                寄货人 Shipper
-              </label>
-              <select
-                value={shipperId}
-                onChange={(e) => setShipperId(e.target.value)}
-                className="min-h-[44px] w-full rounded-md border border-haidee-border bg-white px-3 text-sm"
-              >
-                <option value="">选择寄货人 Select shipper</option>
-                {shippers.map((shipper) => (
-                  <option key={shipper.id} value={shipper.id}>
-                    {shipper.code} — {shipper.name}
-                  </option>
-                ))}
-              </select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-haidee-text">
+              寄货人 Shipper{cargoType === "general" ? "（可选 optional）" : ""}
+            </label>
+            <select
+              value={shipperId}
+              onChange={(e) => setShipperId(e.target.value)}
+              className="min-h-[44px] w-full rounded-md border border-haidee-border bg-white px-3 text-sm"
+            >
+              <option value="">选择寄货人 Select shipper</option>
+              {shippers.map((shipper) => (
+                <option key={shipper.id} value={shipper.id}>
+                  {shipper.code} — {shipper.name}
+                </option>
+              ))}
+            </select>
+            {cargoType === "seafood" ? (
               <p className="text-xs text-haidee-muted">
                 租桶（isRental）扣减该寄货人名下库存；顾客自有桶不扣减。
               </p>
-            </div>
+            ) : (
+              <p className="text-xs text-haidee-muted">
+                可选关联寄货人；未选时可填下方 Bill To 客户名用于发票。
+              </p>
+            )}
+          </div>
+          {cargoType === "seafood" ? (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-haidee-text">
                 仓库区域 Stock area（SADAO 可选）
@@ -386,7 +499,30 @@ export function CharterTripForm({
                 className="min-h-[44px]"
               />
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-haidee-text">
+                Bill To 客户名 Customer name
+              </label>
+              <Input
+                value={billToCustomerName}
+                onChange={(e) => setBillToCustomerName(e.target.value)}
+                placeholder="无寄货人时填写，用于发票 Bill To"
+                className="min-h-[44px]"
+              />
+            </div>
+          )}
+        </div>
+
+        {cargoType === "seafood" && shipperId && (
+          <p className="text-xs text-haidee-muted">
+            发票 Bill To 将使用所选寄货人名称与地址。
+          </p>
+        )}
+        {cargoType === "general" && shipperId && (
+          <p className="text-xs text-haidee-muted">
+            已选寄货人时发票 Bill To 优先用寄货人；Bill To 客户名将被忽略。
+          </p>
         )}
 
         <label className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-lg border border-haidee-border bg-haidee-surface/30 px-4 py-3">
@@ -509,6 +645,32 @@ export function CharterTripForm({
           <h3 className="text-sm font-semibold text-haidee-text">财务录入 Finance</h3>
         </div>
 
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-haidee-text">
+            开票主体 Billing company
+          </label>
+          <div className="flex flex-wrap gap-4">
+            {CHARTER_BILLING_COMPANIES.map((company) => (
+              <label
+                key={company}
+                className="flex min-h-[40px] cursor-pointer items-center gap-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="billingCompany"
+                  checked={billingCompany === company}
+                  onChange={() => setBillingCompany(company)}
+                  className="h-4 w-4 accent-haidee-navy"
+                />
+                {charterBillingCompanyLabel(company)}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-haidee-muted">
+            HAIDEE 为普通 INVOICE；WTL 为 TAX INVOICE（含 6% SST，明细行显示含税金额）。
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-haidee-text">
@@ -592,52 +754,18 @@ export function CharterTripForm({
           </div>
         )}
 
-        <div className="rounded-lg border border-dashed border-haidee-border bg-haidee-surface/30 p-4">
-          <p className="mb-3 text-xs font-medium text-haidee-muted">额外项 Extra items</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-haidee-text">
-                额外收费 Extra revenue (MYR)
-              </label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={extraRevenueMyr}
-                onChange={(e) => setExtraRevenueMyr(e.target.value)}
-                className="min-h-[44px] font-mono"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-haidee-text">说明 Note</label>
-              <Input
-                value={extraRevenueNote}
-                onChange={(e) => setExtraRevenueNote(e.target.value)}
-                className="min-h-[44px]"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-haidee-text">
-                额外开销 Extra cost (MYR)
-              </label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={extraCostMyr}
-                onChange={(e) => setExtraCostMyr(e.target.value)}
-                className="min-h-[44px] font-mono"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-haidee-text">说明 Note</label>
-              <Input
-                value={extraCostNote}
-                onChange={(e) => setExtraCostNote(e.target.value)}
-                className="min-h-[44px]"
-              />
-            </div>
-          </div>
+        <div className="rounded-lg border border-dashed border-haidee-border bg-haidee-surface/30 p-4 space-y-6">
+          <p className="text-xs font-medium text-haidee-muted">额外项 Extra items</p>
+          {renderExtraItemList(
+            "额外收费 Extra revenue（计入客户发票）",
+            extraRevenueItems,
+            setExtraRevenueItems
+          )}
+          {renderExtraItemList(
+            "额外开销 Extra cost（内部成本，不出现在客户发票）",
+            extraCostItems,
+            setExtraCostItems
+          )}
         </div>
       </div>
 
