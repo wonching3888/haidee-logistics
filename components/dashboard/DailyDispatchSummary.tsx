@@ -41,7 +41,7 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
       heightOffset={400}
       className="daily-summary-print shadow-sm"
     >
-      <div className="daily-summary-header flex items-center gap-3 px-5 py-4">
+      <div className="daily-summary-header flex items-center justify-center gap-3 px-5 py-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo.png"
@@ -51,7 +51,7 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
           className="shrink-0"
           style={{ mixBlendMode: "multiply" }}
         />
-        <div className="min-w-0 flex-1">
+        <div className="text-center">
           <p className="text-base font-bold tracking-wide text-haidee-text">
             WTL EXPRESS SDN BHD
           </p>

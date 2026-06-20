@@ -5,6 +5,7 @@
 .daily-summary-header {
   background: #ffffff;
   border-bottom: 1px solid #d0d7e3;
+  text-align: center;
 }
 
 .daily-summary-table {
@@ -25,14 +26,14 @@
 .daily-summary-table .daily-summary-td {
   border: 1px solid #e2e8f0;
   padding: 7px 6px;
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   color: #1a2540;
 }
 
 .daily-summary-col-lorry {
   width: 4.5rem;
-  text-align: left !important;
+  text-align: center;
 }
 
 .daily-summary-col-qty {
@@ -118,6 +119,7 @@
     border: 1px solid #000000 !important;
     color: #000000 !important;
     font-size: 10pt !important;
+    text-align: center !important;
   }
 
   .daily-summary-col-qty,
