@@ -7,7 +7,6 @@ import {
   formatInvoicePeriodLabel,
   getMonthlyInvoiceModeConfig,
   isMonthlyInvoiceMode,
-  type MonthlyInvoiceMode,
 } from "@/lib/constants/monthly-invoice";
 import {
   buildMonthlyInvoiceCustomerSummaries,
