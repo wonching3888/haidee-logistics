@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { FileText, PlusCircle } from "lucide-react";
 import { getMonthlyInvoiceCustomers } from "@/app/actions/monthly-invoice";
+import { getUnpricedInboundForMonth } from "@/app/actions/unpriced-inbound";
+import type { UnpricedInboundLine } from "@/lib/unpriced-inbound";
 import { MonthlyInvoiceExtraChargesDialog } from "@/components/documents/MonthlyInvoiceExtraChargesDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,7 +55,18 @@ interface MonthlyInvoiceQueryData {
   customers: CustomerRow[];
   periodLabel: string;
   currency: string;
+  unpriced: UnpricedInboundLine[];
+  unpricedCount: number;
 }
+
+const MODE_DISPLAY: Record<string, string> = {
+  "1a": "1a",
+  "1b": "1b",
+  "2": "2",
+  "3": "3",
+  "4": "Mode4",
+  other: "其他",
+};
 
 function formatAmount(value: number, currency: string) {
   return `${value.toFixed(2)} ${currency}`;
@@ -93,15 +106,20 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
   );
 
   const fetchData = useCallback(async (draft: MonthlyInvoiceDraft) => {
-    const result = await getMonthlyInvoiceCustomers({
-      year: draft.year,
-      month: draft.month,
-      mode: draft.mode,
-    });
+    const [result, unpricedResult] = await Promise.all([
+      getMonthlyInvoiceCustomers({
+        year: draft.year,
+        month: draft.month,
+        mode: draft.mode,
+      }),
+      getUnpricedInboundForMonth(draft.year, draft.month),
+    ]);
     return {
       customers: result.customers,
       periodLabel: result.periodLabel,
       currency: result.mode.currency,
+      unpriced: unpricedResult.lines,
+      unpricedCount: unpricedResult.count,
     };
   }, []);
 
@@ -212,6 +230,60 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
           <br />
           Select year, month, and payment mode, then click Search.
         </ReportAwaitingQuery>
+      )}
+
+      {hasQueried && data && data.unpricedCount > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">
+            ⚠️ 本月有 {data.unpricedCount}{" "}
+            行已录入但未定价，不会计入账单，请先补费率/主数据
+          </p>
+          <p className="mt-1 text-xs text-amber-900">
+            These tagged inbound lines have no freight amount and are excluded from
+            monthly invoices (freightAmount &gt; 0 filter).
+          </p>
+          <details className="mt-3 border-t border-amber-200 pt-3">
+            <summary className="cursor-pointer text-xs font-medium text-amber-900 hover:text-amber-950">
+              查看明细 View details ({data.unpricedCount})
+            </summary>
+            <ScrollMatrixTable heightOffset={520} className="mt-3">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-amber-100/60 hover:bg-amber-100/60">
+                    <TableHead>业务日 Date</TableHead>
+                    <TableHead>趟次 Session</TableHead>
+                    <TableHead>寄货人/收货人 Party</TableHead>
+                    <TableHead>市场 Mkt</TableHead>
+                    <TableHead>Mode</TableHead>
+                    <TableHead>原因 Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.unpriced.map((line) => (
+                    <TableRow key={line.lineId}>
+                      <TableCell className="font-mono text-xs">
+                        {line.businessDate}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {line.sessionCode}
+                      </TableCell>
+                      <TableCell className="text-xs">{line.partyLabel}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {line.marketCode || "—"}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {MODE_DISPLAY[line.mode] ?? line.mode}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {line.gapReasonLabel}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollMatrixTable>
+          </details>
+        </div>
       )}
 
       {hasQueried && data && (
