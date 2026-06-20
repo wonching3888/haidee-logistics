@@ -108,6 +108,34 @@ export function inlineResolvedColorsForHtml2Canvas(
   }
 }
 
+export function expandOverflowContainersForCapture(cloneRoot: HTMLElement) {
+  const queue: HTMLElement[] = [cloneRoot];
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.setProperty("overflow-x", "visible", "important");
+    node.style.setProperty("overflow-y", "visible", "important");
+    node.style.setProperty("max-height", "none", "important");
+
+    if (node.classList.contains("scroll-matrix-table")) {
+      node.style.setProperty("height", "auto", "important");
+      node.style.setProperty("min-height", "0", "important");
+    }
+
+    for (const child of Array.from(node.children)) {
+      if (child instanceof HTMLElement) {
+        queue.push(child);
+      }
+    }
+  }
+
+  cloneRoot.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    if (el.classList.contains("sticky")) {
+      el.style.setProperty("position", "static", "important");
+    }
+  });
+}
+
 export function prepareHtml2CanvasClone(
   clonedDoc: Document,
   sourceRoot: HTMLElement,
@@ -115,6 +143,7 @@ export function prepareHtml2CanvasClone(
 ) {
   sanitizeClonedDocumentStyles(clonedDoc);
   inlineResolvedColorsForHtml2Canvas(sourceRoot, clonedRoot);
+  expandOverflowContainersForCapture(clonedRoot);
 }
 
 function patchLiveDocumentStyleTags(doc: Document): () => void {

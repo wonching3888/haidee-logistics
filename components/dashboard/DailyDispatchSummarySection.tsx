@@ -40,7 +40,7 @@ export function DailyDispatchSummarySection({
           payload={sharePayload}
         />
       </div>
-      <div ref={captureRef} className="min-w-0">
+      <div ref={captureRef} className="min-w-0" data-pdf-capture-root>
         <DailyDispatchSummary data={data} />
       </div>
     </div>
