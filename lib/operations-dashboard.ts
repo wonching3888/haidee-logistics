@@ -56,6 +56,7 @@ export interface OperationsDashboardData {
     wtlMode3Myr: number;
     partnerFreightMyr: number;
     crateReturnIncomeMyr: number;
+    monthlyInvoiceExtraChargesMyr: number;
     charterRevenueMyr: number;
     totalMyr: number;
     lines: MetricLine[];
@@ -168,6 +169,7 @@ export function buildOperationsDashboardMetrics(input: {
     wtlShipperMyr: number;
     partnerFreightMyr: number;
     crateReturnIncomeMyr: number;
+    monthlyInvoiceExtraChargesMyr: number;
     charterRevenueMyr: number;
     missingRateLineCount: number;
     missingRateQuantity: number;
@@ -232,6 +234,7 @@ export function buildOperationsDashboardMetrics(input: {
       input.income.wtlMode3Myr +
       input.income.partnerFreightMyr +
       input.income.crateReturnIncomeMyr +
+      input.income.monthlyInvoiceExtraChargesMyr +
       input.income.charterRevenueMyr
   );
 
@@ -297,6 +300,14 @@ export function buildOperationsDashboardMetrics(input: {
       amountMyr: input.income.crateReturnIncomeMyr,
       source: "actual",
       detail: "顾客自有桶回收（GLY/GKS）车力费 + 收桶费",
+    },
+    {
+      key: "monthlyInvoiceExtraChargesMyr",
+      label: "额外收费 Extra Charges",
+      labelEn: "Monthly Invoice Extra Charges",
+      amountMyr: input.income.monthlyInvoiceExtraChargesMyr,
+      source: "actual",
+      detail: "月结账单额外收费（按账单月归月）",
     },
     {
       key: "charterRevenue",
@@ -613,6 +624,7 @@ export function buildOperationsDashboardMetrics(input: {
       wtlMode3Myr: input.income.wtlMode3Myr,
       partnerFreightMyr: input.income.partnerFreightMyr,
       crateReturnIncomeMyr: input.income.crateReturnIncomeMyr,
+      monthlyInvoiceExtraChargesMyr: input.income.monthlyInvoiceExtraChargesMyr,
       charterRevenueMyr: input.income.charterRevenueMyr,
       totalMyr: totalRevenueMyr,
       lines: revenueLines,

@@ -61,6 +61,7 @@ import { lineRevenueMyr } from "@/lib/wtl-revenue";
 import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
 import { aggregateCrateReturnIncomeMyr } from "@/lib/crate-return-billing";
+import { aggregateMonthlyInvoiceExtraChargesMyr } from "@/lib/monthly-invoice-extra-charges";
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
@@ -342,6 +343,7 @@ function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
     revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
     partnerFreightMyr: 0,
     crateReturnIncomeMyr: 0,
+    monthlyInvoiceExtraChargesMyr: 0,
     directCostMyr: roundMoney(trips.reduce((s, t) => s + t.directCostMyr, 0)),
     allocatedCostMyr: roundMoney(
       trips.reduce((s, t) => s + t.allocatedCostMyr, 0)
@@ -448,6 +450,35 @@ async function enrichTripTotalsWithCrateReturnIncome(
   };
 }
 
+async function enrichTripTotalsWithMonthlyInvoiceExtraCharges(
+  totals: PnlTripTotals,
+  year: number,
+  month: number,
+  day?: string | null
+): Promise<PnlTripTotals> {
+  const monthlyInvoiceExtraChargesMyr =
+    await aggregateMonthlyInvoiceExtraChargesMyr(year, month, day);
+  if (monthlyInvoiceExtraChargesMyr <= 0) {
+    return { ...totals, monthlyInvoiceExtraChargesMyr: 0 };
+  }
+  const revenueMyr = roundMoney(
+    totals.revenueMyr + monthlyInvoiceExtraChargesMyr
+  );
+  const grossProfitMyr = roundMoney(
+    totals.grossProfitMyr + monthlyInvoiceExtraChargesMyr
+  );
+  return {
+    ...totals,
+    monthlyInvoiceExtraChargesMyr,
+    revenueMyr,
+    grossProfitMyr,
+    marginPct:
+      revenueMyr > 0
+        ? roundMoney((grossProfitMyr / revenueMyr) * 100)
+        : 0,
+  };
+}
+
 async function enrichTripTotalsWithSupplementalIncome(
   totals: PnlTripTotals,
   year: number,
@@ -460,8 +491,14 @@ async function enrichTripTotalsWithSupplementalIncome(
     month,
     day
   );
-  return enrichTripTotalsWithCrateReturnIncome(
+  const withCrate = await enrichTripTotalsWithCrateReturnIncome(
     withPartner,
+    year,
+    month,
+    day
+  );
+  return enrichTripTotalsWithMonthlyInvoiceExtraCharges(
+    withCrate,
     year,
     month,
     day

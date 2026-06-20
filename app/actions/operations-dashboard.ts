@@ -63,6 +63,7 @@ async function aggregateIncome(
     wtlShipperMyr: income.wtlShipperMyr,
     partnerFreightMyr: income.partnerFreightMyr,
     crateReturnIncomeMyr: income.crateReturnIncomeMyr,
+    monthlyInvoiceExtraChargesMyr: income.monthlyInvoiceExtraChargesMyr,
     charterRevenueMyr: charterIncome.charterRevenueMyr,
     missingRateLineCount: income.missingRateLineCount,
     missingRateQuantity: income.missingRateQuantity,

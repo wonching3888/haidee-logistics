@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { decimalToNumber } from "@/lib/freight-rates";
+import { convertThbToMyr, decimalToNumber } from "@/lib/freight-rates";
+import { loadExchangeRate } from "@/lib/exchange-rate";
 import type { MonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import type { WtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
@@ -134,6 +135,44 @@ export async function applyMonthlyInvoiceExtraChargesToPrintData(
   }
 
   return data;
+}
+
+function extraChargeRowToMyr(
+  mode: string,
+  amount: number,
+  exchangeRate: number
+): number {
+  if (mode === "1a") {
+    return roundMoney(convertThbToMyr(amount, exchangeRate));
+  }
+  return roundMoney(amount);
+}
+
+export async function aggregateMonthlyInvoiceExtraChargesMyr(
+  year: number,
+  month: number,
+  day?: string | null
+): Promise<number> {
+  if (day?.trim()) {
+    return 0;
+  }
+
+  const rows = await prisma.monthlyInvoiceExtraCharge.findMany({
+    where: { year, month },
+    select: { mode: true, amount: true },
+  });
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const exchangeRate = await loadExchangeRate(year, month);
+  let total = 0;
+  for (const row of rows) {
+    const amount = decimalToNumber(row.amount) ?? 0;
+    if (amount <= 0) continue;
+    total += extraChargeRowToMyr(row.mode, amount, exchangeRate);
+  }
+  return roundMoney(total);
 }
 
 export function validateMonthlyInvoiceExtraChargeInputs(
