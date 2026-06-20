@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import type { DashboardData } from "@/app/actions/dashboard";
-import { DailyDispatchSummary } from "@/components/dashboard/DailyDispatchSummary";
+import { DailyDispatchSummarySection } from "@/components/dashboard/DailyDispatchSummarySection";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { stickyFirstColTableClass } from "@/lib/table-scroll";
@@ -110,12 +110,7 @@ export function DashboardView({
         ))}
       </div>
 
-      <div className="min-w-0 space-y-3">
-        <h3 className="text-lg font-semibold text-haidee-text">
-          每日派车总结 Daily Summary
-        </h3>
-        <DailyDispatchSummary data={dailySummary} />
-      </div>
+      <DailyDispatchSummarySection data={dailySummary} />
 
       <Card className="border-haidee-border">
         <CardHeader>

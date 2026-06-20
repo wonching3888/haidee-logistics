@@ -23,9 +23,10 @@ function DepotCells({
   qty: DepotQty;
   bold?: boolean;
 }) {
-  const cellClass = `daily-summary-td daily-summary-col-qty font-mono${
-    bold ? " font-bold" : ""
-  }`;
+  const cellClass = cn(
+    "daily-summary-td daily-summary-col-qty font-mono",
+    bold && "font-semibold"
+  );
   return (
     <>
       <td className={cellClass}>{formatTong(qty)}</td>
@@ -38,21 +39,32 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
   return (
     <ScrollMatrixTable
       heightOffset={400}
-      className="daily-summary-print rounded-xl"
+      className="daily-summary-print shadow-sm"
     >
-      <div className="daily-summary-header px-4 py-3 text-center">
-        <p className="text-base font-bold tracking-wide text-gray-900">
-          WTL EXPRESS SDN BHD
-        </p>
-        <p className="mt-1 text-sm text-gray-700">
-          Date: {data.date}
-          <span className="mx-3">|</span>
-          Daily Record
-        </p>
+      <div className="daily-summary-header flex items-center gap-3 px-5 py-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          width={36}
+          height={36}
+          alt="WTL Logo"
+          className="shrink-0"
+          style={{ mixBlendMode: "multiply" }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-bold tracking-wide text-haidee-text">
+            WTL EXPRESS SDN BHD
+          </p>
+          <p className="mt-0.5 text-sm text-haidee-muted">
+            Date: {data.date}
+            <span className="mx-2 text-haidee-border">|</span>
+            Daily Record
+          </p>
+        </div>
       </div>
 
       {data.rows.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-haidee-muted">
+        <p className="px-5 py-10 text-center text-sm text-haidee-muted">
           当日暂无派车数据 No dispatch data for this date
         </p>
       ) : (
@@ -65,7 +77,7 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
               <th
                 rowSpan={2}
                 className={cn(
-                  "daily-summary-th daily-summary-col-lorry text-left",
+                  "daily-summary-th daily-summary-col-lorry",
                   STICKY_HEAD_FIRST
                 )}
               >
@@ -75,14 +87,14 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
                 <th
                   key={depot}
                   colSpan={2}
-                  className="daily-summary-th daily-summary-col-group sticky top-0 z-20 bg-[#c8e6c9]"
+                  className="daily-summary-th daily-summary-col-group sticky top-0 z-20 bg-haidee-surface"
                 >
                   {depot}
                 </th>
               ))}
               <th
                 colSpan={2}
-                className="daily-summary-th daily-summary-col-group sticky top-0 z-20 bg-[#c8e6c9]"
+                className="daily-summary-th daily-summary-col-group sticky top-0 z-20 bg-haidee-surface"
               >
                 Total
               </th>
@@ -91,21 +103,21 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
               {data.activeDepots.flatMap((depot) => [
                 <th
                   key={`${depot}-tong`}
-                  className="daily-summary-th daily-summary-col-qty sticky top-[2.5rem] z-20 bg-[#c8e6c9]"
+                  className="daily-summary-th daily-summary-col-qty sticky top-[2.35rem] z-20 bg-haidee-surface"
                 >
                   Tong
                 </th>,
                 <th
                   key={`${depot}-box`}
-                  className="daily-summary-th daily-summary-col-qty sticky top-[2.5rem] z-20 bg-[#c8e6c9]"
+                  className="daily-summary-th daily-summary-col-qty sticky top-[2.35rem] z-20 bg-haidee-surface"
                 >
                   Box
                 </th>,
               ])}
-              <th className="daily-summary-th daily-summary-col-qty sticky top-[2.5rem] z-20 bg-[#c8e6c9]">
+              <th className="daily-summary-th daily-summary-col-qty sticky top-[2.35rem] z-20 bg-haidee-surface">
                 Tong
               </th>
-              <th className="daily-summary-th daily-summary-col-qty sticky top-[2.5rem] z-20 bg-[#c8e6c9]">
+              <th className="daily-summary-th daily-summary-col-qty sticky top-[2.35rem] z-20 bg-haidee-surface">
                 Box
               </th>
             </tr>
@@ -122,9 +134,9 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
               >
                 <td
                   className={cn(
-                    "daily-summary-td daily-summary-col-lorry font-mono font-medium text-left",
+                    "daily-summary-td daily-summary-col-lorry font-mono font-medium",
                     STICKY_BODY_FIRST,
-                    index % 2 === 0 ? "bg-white" : "bg-[#f1f8f4]"
+                    index % 2 === 0 ? "bg-white" : "bg-[#f9fafb]"
                   )}
                 >
                   {row.lorryNo}
@@ -143,9 +155,9 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             <tr className="daily-summary-total-row">
               <td
                 className={cn(
-                  "daily-summary-td daily-summary-col-lorry font-bold text-left",
+                  "daily-summary-td daily-summary-col-lorry font-bold",
                   STICKY_BODY_FIRST,
-                  "bg-[#e8f5e9]"
+                  "bg-[#eef2f7]"
                 )}
               >
                 Total

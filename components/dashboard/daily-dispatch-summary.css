@@ -1,10 +1,10 @@
 .daily-summary-print {
-  background: #f1f8f4;
+  background: #ffffff;
 }
 
 .daily-summary-header {
-  background: #d4edda;
-  border-bottom: 1px solid #a3d9a5;
+  background: #ffffff;
+  border-bottom: 1px solid #d0d7e3;
 }
 
 .daily-summary-table {
@@ -12,24 +12,27 @@
 }
 
 .daily-summary-table .daily-summary-th {
-  background: #c8e6c9;
-  border: 1px solid #81c784;
-  padding: 6px 4px;
+  background: #f5f7fa;
+  border: 1px solid #d0d7e3;
+  padding: 8px 6px;
   text-align: center;
-  font-weight: 700;
-  color: #1b5e20;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #1a2540;
   white-space: nowrap;
 }
 
 .daily-summary-table .daily-summary-td {
-  border: 1px solid #c8e6c9;
-  padding: 6px 4px;
-  text-align: center;
-  color: #111;
+  border: 1px solid #e2e8f0;
+  padding: 7px 6px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #1a2540;
 }
 
 .daily-summary-col-lorry {
   width: 4.5rem;
+  text-align: left !important;
 }
 
 .daily-summary-col-qty {
@@ -45,15 +48,28 @@
 }
 
 .daily-summary-row-odd {
-  background: #f1f8f4;
+  background: #f9fafb;
+}
+
+.daily-summary-row-even .daily-summary-col-lorry {
+  background: #ffffff;
+}
+
+.daily-summary-row-odd .daily-summary-col-lorry {
+  background: #f9fafb;
 }
 
 .daily-summary-total-row {
-  background: #e8f5e9;
+  background: #eef2f7;
 }
 
 .daily-summary-total-row .daily-summary-td {
-  border-top: 2px solid #66bb6a;
+  border-top: 2px solid #b0bec5;
+  font-weight: 700;
+}
+
+.daily-summary-total-row .daily-summary-col-lorry {
+  background: #eef2f7;
 }
 
 @media (max-width: 767px) {
@@ -75,7 +91,6 @@
     box-shadow: none !important;
     background: #ffffff !important;
     color: #000000 !important;
-    font-weight: 700 !important;
   }
 
   .daily-summary-header {
@@ -85,7 +100,6 @@
 
   .daily-summary-header p {
     color: #000000 !important;
-    font-weight: 700 !important;
   }
 
   .daily-summary-table {
@@ -93,7 +107,7 @@
   }
 
   .daily-summary-table .daily-summary-th {
-    background: #a8a8a8 !important;
+    background: #e8e8e8 !important;
     border: 1px solid #000000 !important;
     color: #000000 !important;
     font-weight: 700 !important;
@@ -103,7 +117,6 @@
   .daily-summary-table .daily-summary-td {
     border: 1px solid #000000 !important;
     color: #000000 !important;
-    font-weight: 700 !important;
     font-size: 10pt !important;
   }
 
@@ -111,7 +124,6 @@
   .daily-summary-table .font-mono {
     font-size: 10pt !important;
     font-variant-numeric: tabular-nums;
-    font-weight: 700 !important;
     color: #000000 !important;
   }
 
@@ -121,7 +133,14 @@
     background: #ffffff !important;
   }
 
+  .daily-summary-row-even .daily-summary-col-lorry,
+  .daily-summary-row-odd .daily-summary-col-lorry,
+  .daily-summary-total-row .daily-summary-col-lorry {
+    background: #ffffff !important;
+  }
+
   .daily-summary-total-row .daily-summary-td {
     border-top: 2px solid #000000 !important;
+    font-weight: 700 !important;
   }
 }
