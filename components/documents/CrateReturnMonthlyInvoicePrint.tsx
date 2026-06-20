@@ -25,7 +25,7 @@ export function CrateReturnMonthlyInvoicePrint({
       </div>
 
       <div className="monthly-invoice-meta">
-        <div>
+        <div className="monthly-invoice-meta-info">
           <div>
             <strong>Invoice No:</strong> {data.invoiceNo}
           </div>

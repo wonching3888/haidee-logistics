@@ -1,13 +1,16 @@
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
-import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import {
+  formatHaideeInvoiceMoney,
+  HaideeInvoiceGrandTotal,
+  HaideeInvoiceMetaBlocks,
+  HaideeInvoicePrintDocument,
+  HaideeInvoicePrintHeader,
+  HaideeInvoiceSignatureRow,
+} from "@/components/documents/HaideeInvoicePrintLayout";
 
 interface HaideeMarketInvoicePrintProps {
   data: HaideeMonthlyInvoiceData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 function billToLabel(role: HaideeMonthlyInvoiceData["billToRole"]) {
@@ -19,31 +22,28 @@ export function HaideeMarketInvoicePrint({ data }: HaideeMarketInvoicePrintProps
   const { summary } = data;
 
   return (
-    <div className="document-print haidee-market-invoice-print">
-      <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
+    <HaideeInvoicePrintDocument>
+      <HaideeInvoicePrintHeader
+        nameZh={company.nameZh}
+        nameEn={company.nameEn}
+        subtitle={`${data.customerName} · ${data.periodLabel} · ${data.currency}`}
+      />
 
-      <div className="mode4-tax-invoice-title">INVOICE</div>
-      <div className="header-sub">
-        {data.customerName} · {data.periodLabel} · {data.currency}
-      </div>
-
-      <div className="monthly-invoice-meta">
-        <div>
-          <div>
-            <strong>账单月份 Period:</strong> {data.periodLabel}
-          </div>
-          <div>
-            <strong>币种 Currency:</strong> {data.currency}
-          </div>
-        </div>
-        <div className="monthly-invoice-bill-to">
-          <div className="monthly-invoice-bill-to-label">
-            {billToLabel(data.billToRole)}
-          </div>
-          <div className="monthly-invoice-bill-to-name">{data.customerName}</div>
-          <div className="monthly-invoice-bill-to-code">{data.customerCode}</div>
-        </div>
-      </div>
+      <HaideeInvoiceMetaBlocks
+        billToLabel={billToLabel(data.billToRole)}
+        billToName={data.customerName}
+        billToCode={data.customerCode}
+        info={
+          <>
+            <div>
+              <strong>账单月份 Period:</strong> {data.periodLabel}
+            </div>
+            <div>
+              <strong>币种 Currency:</strong> {data.currency}
+            </div>
+          </>
+        }
+      />
 
       {summary.sections.map((section) => (
         <div key={section.kind} className="monthly-invoice-section">
@@ -71,7 +71,7 @@ export function HaideeMarketInvoicePrint({ data }: HaideeMarketInvoicePrintProps
                 <td className="text-right">{section.totalQty}</td>
                 <td />
                 <td className="text-right">
-                  {formatMoney(section.totalAmount, data.currency)}
+                  {formatHaideeInvoiceMoney(section.totalAmount, data.currency)}
                 </td>
               </tr>
             </tbody>
@@ -79,23 +79,13 @@ export function HaideeMarketInvoicePrint({ data }: HaideeMarketInvoicePrintProps
         </div>
       ))}
 
-      <table className="monthly-invoice-table mode4-tax-invoice-totals">
-        <tbody>
-          <tr className="monthly-invoice-grand-row">
-            <td className="text-right" colSpan={3}>
-              总计 Grand Total
-            </td>
-            <td className="text-right">
-              {formatMoney(summary.grandTotalAmount, data.currency)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <HaideeInvoiceGrandTotal
+        amountMyr={summary.grandTotalAmount}
+        currency={data.currency}
+        labelColSpan={3}
+      />
 
-      <div className="signature-row">
-        <span>Prepared by: _______________</span>
-        <span>Approved by: _______________</span>
-      </div>
-    </div>
+      <HaideeInvoiceSignatureRow />
+    </HaideeInvoicePrintDocument>
   );
 }
