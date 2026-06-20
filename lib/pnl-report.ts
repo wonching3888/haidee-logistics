@@ -1,3 +1,4 @@
+import { loadFleetPayrollAggregate } from "@/lib/payroll-fleet";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import {
   buildCrateRentalMyrRateMap,
@@ -667,6 +668,8 @@ function buildPeriodSummaryFromTrips(input: {
     tripCount: input.trips.length,
     totalQuantity: input.trips.reduce((s, t) => s + t.totalCrates, 0),
     trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+    fleetPayrollTotalMyr: null,
+    netProfitAfterFleetPayrollMyr: null,
   };
 }
 
@@ -1961,6 +1964,22 @@ function mergePeriodSummaryWithTripTotals(
   };
 }
 
+async function enrichPeriodSummaryWithFleetPayroll(
+  summary: PnlPeriodSummary,
+  year: number,
+  month: number
+): Promise<PnlPeriodSummary> {
+  const payroll = await loadFleetPayrollAggregate(year, month, { sync: false });
+  const fleetPayrollTotalMyr = roundMoney(payroll.totalCostMyr);
+  return {
+    ...summary,
+    fleetPayrollTotalMyr,
+    netProfitAfterFleetPayrollMyr: roundMoney(
+      summary.grossProfitMyr - fleetPayrollTotalMyr
+    ),
+  };
+}
+
 export async function buildPnlPeriodSummary(input: {
   year: number;
   month: number;
@@ -1986,14 +2005,18 @@ export async function buildPnlPeriodSummary(input: {
     return {
       year: input.year,
       month: input.month,
-      periodSummary: mergePeriodSummaryWithTripTotals(
-        buildPeriodSummaryFromTrips({
-          year: input.year,
-          month: input.month,
-          mode: "month",
-          trips,
-        }),
-        computed.tripTotals
+      periodSummary: await enrichPeriodSummaryWithFleetPayroll(
+        mergePeriodSummaryWithTripTotals(
+          buildPeriodSummaryFromTrips({
+            year: input.year,
+            month: input.month,
+            mode: "month",
+            trips,
+          }),
+          computed.tripTotals
+        ),
+        input.year,
+        input.month
       ),
     };
   }
@@ -2133,6 +2156,8 @@ export async function buildPnlReport(input: {
       trend: Array.from(trendMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       ),
+      fleetPayrollTotalMyr: null,
+      netProfitAfterFleetPayrollMyr: null,
     };
     return {
       year: input.year,
@@ -2248,6 +2273,8 @@ export async function buildPnlReport(input: {
     trend: Array.from(trendMap.values()).sort((a, b) =>
       a.date.localeCompare(b.date)
     ),
+    fleetPayrollTotalMyr: null,
+    netProfitAfterFleetPayrollMyr: null,
   };
 
   const { customers, lossCustomers } = buildCustomersFromTrips(

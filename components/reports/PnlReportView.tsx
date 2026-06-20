@@ -645,6 +645,43 @@ export function PnlReportView({
                   value={String(periodData.periodSummary.totalQuantity)}
                 />
               </div>
+              {periodData.periodSummary.fleetPayrollTotalMyr != null &&
+                periodData.periodSummary.netProfitAfterFleetPayrollMyr != null && (
+                  <section className="rounded-xl border-2 border-slate-300 bg-slate-50/80 p-5">
+                    <h4 className="text-sm font-semibold text-haidee-text">
+                      参考指标 Reference Metric
+                    </h4>
+                    <p className="mt-1 text-xs text-haidee-muted">
+                      含全月车队薪资（底薪 + EPF/SOCSO/EIS 雇主供款等），非按趟分摊。此为毛利与全月薪资的简单相减参考值，不影响上方毛利及趟次/顾客分析口径。
+                    </p>
+                    <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+                      <div>
+                        <dt className="text-sm text-haidee-muted">
+                          车队全月薪资 Fleet Payroll (month)
+                        </dt>
+                        <dd className="mt-1 font-mono text-lg font-semibold text-haidee-text">
+                          {formatMyr(periodData.periodSummary.fleetPayrollTotalMyr)} MYR
+                        </dd>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <dt className="text-sm text-haidee-muted">
+                          净利润（扣除车队薪资）Net Profit (After Fleet Payroll)
+                        </dt>
+                        <dd className="mt-1 font-mono text-2xl font-bold text-haidee-navy">
+                          {formatMyr(
+                            periodData.periodSummary.netProfitAfterFleetPayrollMyr
+                          )}{" "}
+                          MYR
+                        </dd>
+                        <dd className="mt-1 text-xs text-haidee-muted">
+                          = 毛利 {formatMyr(periodData.periodSummary.grossProfitMyr)} −
+                          车队薪资{" "}
+                          {formatMyr(periodData.periodSummary.fleetPayrollTotalMyr)}
+                        </dd>
+                      </div>
+                    </dl>
+                  </section>
+                )}
               <PnlTrendChart points={periodData.periodSummary.trend} />
             </>
           )}

@@ -103,6 +103,10 @@ export interface PnlPeriodSummary {
   tripCount: number;
   totalQuantity: number;
   trend: PnlDailyTrendPoint[];
+  /** Reference only (month mode): full-month fleet payroll total cost. */
+  fleetPayrollTotalMyr: number | null;
+  /** Reference only (month mode): grossProfitMyr − fleetPayrollTotalMyr. */
+  netProfitAfterFleetPayrollMyr: number | null;
 }
 
 export interface PnlCustomerRow {
