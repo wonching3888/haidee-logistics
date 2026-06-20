@@ -31,6 +31,10 @@ import {
   handleUnloadingFeesOnDispatchCancel,
   syncUnloadingFeeEstimatesForTrip,
 } from "@/lib/driver-expense-service";
+import {
+  handleDriverPayrollTripOnDispatchCancel,
+  syncDriverPayrollTripForDispatch,
+} from "@/lib/driver-payroll-trip-sync";
 
 export interface CrateBoxQty {
   crate: number;
@@ -1110,6 +1114,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     }, DISPATCH_TRANSACTION_OPTIONS);
 
     await syncUnloadingFeeEstimatesForTrip(input.dispatchOrderId!);
+    await syncDriverPayrollTripForDispatch(input.dispatchOrderId!);
 
     revalidatePath("/dispatch");
     revalidatePath("/summary");
@@ -1156,6 +1161,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   }, DISPATCH_TRANSACTION_OPTIONS);
 
   await syncUnloadingFeeEstimatesForTrip(order.id);
+  await syncDriverPayrollTripForDispatch(order.id);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");
@@ -1199,6 +1205,7 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
   }, DISPATCH_TRANSACTION_OPTIONS);
 
   await handleUnloadingFeesOnDispatchCancel(dispatchOrderId);
+  await handleDriverPayrollTripOnDispatchCancel(dispatchOrderId);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");
@@ -1259,6 +1266,7 @@ export async function changeDispatchTruck(
   }, DISPATCH_TRANSACTION_OPTIONS);
 
   await syncUnloadingFeeEstimatesForTrip(dispatchOrderId);
+  await syncDriverPayrollTripForDispatch(dispatchOrderId);
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");

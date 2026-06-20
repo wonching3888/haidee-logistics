@@ -1,16 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
-import { loadPayrollAllowanceContext } from "@/app/actions/allowance-settings";
-import { getRouteLabel } from "@/lib/payroll-route-label";
-import { marketsForTripAllowance } from "@/lib/mc-dispatch-delivery";
+import { syncDriverPayrollTripForDispatch } from "@/lib/driver-payroll-trip-sync";
 import {
-  buildCrateReturnImportLookup,
-  calculateTripAllowance,
-  countPayrollMarketGroups,
-  crateReturnCommissionForDispatch,
-  dispatchHasCrateReturn,
-} from "@/lib/trip-allowance";
+  dispatchMatchesDriver,
+  normalizePayrollDriverName,
+} from "@/lib/payroll-driver-match";
 import type { MaritalStatus } from "@/lib/constants/payroll";
 
 const dispatchIncludeForPayroll = {
@@ -33,8 +28,6 @@ type DispatchForPayroll = Awaited<
   >
 >[number];
 
-type AllowanceContext = Awaited<ReturnType<typeof loadPayrollAllowanceContext>>;
-
 type PayrollDriverSync = {
   id: string;
   name: string;
@@ -45,35 +38,10 @@ type PayrollDriverSync = {
   childCount: number;
 };
 
-export function normalizePayrollDriverName(value: string | null | undefined) {
-  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function buildDriverMatchKeys(driver: {
-  name: string;
-  fullName: string | null;
-  nickname: string | null;
-}) {
-  const keys = new Set<string>();
-  for (const value of [driver.name, driver.fullName, driver.nickname]) {
-    const key = normalizePayrollDriverName(value);
-    if (key) keys.add(key);
-  }
-  return keys;
-}
-
-export function dispatchMatchesDriver(
-  driver: {
-    name: string;
-    fullName: string | null;
-    nickname: string | null;
-  },
-  order: { driverName: string | null }
-) {
-  const orderKey = normalizePayrollDriverName(order.driverName);
-  if (!orderKey) return false;
-  return buildDriverMatchKeys(driver).has(orderKey);
-}
+export {
+  dispatchMatchesDriver,
+  normalizePayrollDriverName,
+} from "@/lib/payroll-driver-match";
 
 function serializeDriverForSync(driver: {
   id: string;
@@ -131,78 +99,18 @@ function groupDispatchesForDrivers(
   return { byDriverId, unmatched };
 }
 
-function computePayrollTripFields(
-  order: DispatchForPayroll,
-  allowanceContext: AllowanceContext,
-  hasCrateReturn: boolean
-) {
-  const assignedLines = (order.lines ?? []).map((row) => ({
-    marketCode: row.inboundLine.stall.market?.code ?? null,
-    mcDeliveryMode: row.inboundLine.mcDeliveryMode,
-  }));
-  const allowanceMarkets = marketsForTripAllowance(
-    order.markets,
-    assignedLines
-  );
-  const allowanceResult = calculateTripAllowance({
-    markets: allowanceMarkets,
-    routes: allowanceContext.routes,
-    extraMarketAllowance: allowanceContext.extraMarketAllowance,
-  });
-  return {
-    autoTripAllowance: allowanceResult.tripAllowance,
-    marketCount: countPayrollMarketGroups(
-      allowanceMarkets,
-      allowanceContext.routes
-    ),
-    crateReturnCommission: crateReturnCommissionForDispatch({
-      truckType: order.truck.type,
-      hasCrateReturn,
-      rates: {
-        bigTruckCrateCommission: allowanceContext.bigTruckCrateCommission,
-        smallTruckCrateCommission: allowanceContext.smallTruckCrateCommission,
-      },
-    }),
-    routeLabel: getRouteLabel(allowanceMarkets),
-  };
-}
-
-async function loadCrateReturnImports(start: Date, end: Date) {
-  return prisma.tongImport.findMany({
-    where: {
-      date: { gte: start, lte: end },
-      quantity: { gt: 0 },
-    },
-    select: {
-      date: true,
-      quantity: true,
-      truck: { select: { plate: true } },
-    },
-  });
-}
-
 async function loadPayrollMonthContext(year: number, month: number) {
   const { start, end } = getMonthDateRange(year, month);
-  const [dispatches, crateImports, allowanceContext] = await Promise.all([
-    prisma.dispatchOrder.findMany({
-      where: {
-        status: { notIn: ["cancelled"] },
-        date: { gte: start, lte: end },
-      },
-      include: dispatchIncludeForPayroll,
-      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-    }),
-    loadCrateReturnImports(start, end),
-    loadPayrollAllowanceContext(),
-  ]);
+  const dispatches = await prisma.dispatchOrder.findMany({
+    where: {
+      status: { notIn: ["cancelled"] },
+      date: { gte: start, lte: end },
+    },
+    include: dispatchIncludeForPayroll,
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
 
-  return {
-    start,
-    end,
-    dispatches,
-    allowanceContext,
-    importLookup: buildCrateReturnImportLookup(crateImports),
-  };
+  return { start, end, dispatches };
 }
 
 async function ensurePayrollMonth(driverId: string, yearMonth: string) {
@@ -243,79 +151,35 @@ function logPayrollSyncDiagnostics(input: {
 
 async function syncDispatchTripsForMonth(
   payrollMonthId: string,
-  driver: PayrollDriverSync,
-  dispatches: DispatchForPayroll[],
-  allowanceContext: AllowanceContext,
-  importLookup: Set<string>
+  _driver: PayrollDriverSync,
+  dispatches: DispatchForPayroll[]
 ) {
-  const existingTrips = await prisma.driverPayrollTrip.findMany({
-    where: { payrollMonthId },
-  });
+  for (const order of dispatches) {
+    await syncDriverPayrollTripForDispatch(order.id);
+  }
 
-  const dispatchById = new Map(dispatches.map((order) => [order.id, order]));
-  const linkedIds = new Set(
-    existingTrips
-      .map((trip) => trip.dispatchOrderId)
-      .filter((id): id is string => Boolean(id))
+  const dispatchIds = dispatches.map((order) => order.id);
+  const [payrollTripCount, linkedTrips] = await Promise.all([
+    prisma.driverPayrollTrip.count({ where: { payrollMonthId } }),
+    dispatchIds.length > 0
+      ? prisma.driverPayrollTrip.findMany({
+          where: {
+            payrollMonthId,
+            dispatchOrderId: { in: dispatchIds },
+          },
+          select: { tripAllowance: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const tripAllowanceTotal = linkedTrips.reduce(
+    (sum, trip) => sum + (decimalToNumber(trip.tripAllowance) ?? 0),
+    0
   );
-
-  let tripAllowanceTotal = 0;
-
-  for (const trip of existingTrips) {
-    if (!trip.dispatchOrderId) continue;
-    const order = dispatchById.get(trip.dispatchOrderId);
-    if (!order) continue;
-
-    const computed = computePayrollTripFields(
-      order,
-      allowanceContext,
-      dispatchHasCrateReturn(order, importLookup)
-    );
-
-    await prisma.driverPayrollTrip.update({
-      where: { id: trip.id },
-      data: {
-        route: computed.routeLabel,
-        markets: order.markets,
-        marketCount: computed.marketCount,
-        tripAllowance: computed.autoTripAllowance,
-        crateReturnCommission: computed.crateReturnCommission,
-        truckType: order.truck.type,
-      },
-    });
-    tripAllowanceTotal += computed.autoTripAllowance;
-  }
-
-  const toCreate = dispatches.filter((order) => !linkedIds.has(order.id));
-  if (toCreate.length > 0) {
-    await prisma.driverPayrollTrip.createMany({
-      data: toCreate.map((order, index) => {
-        const computed = computePayrollTripFields(
-          order,
-          allowanceContext,
-          dispatchHasCrateReturn(order, importLookup)
-        );
-        tripAllowanceTotal += computed.autoTripAllowance;
-        return {
-          payrollMonthId,
-          dispatchOrderId: order.id,
-          date: order.date,
-          route: computed.routeLabel,
-          markets: order.markets,
-          marketCount: computed.marketCount,
-          tripAllowance: computed.autoTripAllowance,
-          crateReturnCommission: computed.crateReturnCommission,
-          truckType: order.truck.type,
-          notes: order.truck.plate,
-          sortOrder: existingTrips.length + index,
-        };
-      }),
-    });
-  }
 
   return {
     dispatchCount: dispatches.length,
-    payrollTripCount: existingTrips.length + toCreate.length,
+    payrollTripCount,
     tripAllowanceTotal: Math.round(tripAllowanceTotal * 100) / 100,
   };
 }
@@ -347,9 +211,7 @@ export async function syncFleetPayrollForMonth(year: number, month: number) {
     const result = await syncDispatchTripsForMonth(
       payrollMonth.id,
       driver,
-      grouped.byDriverId.get(driver.id) ?? [],
-      monthContext.allowanceContext,
-      monthContext.importLookup
+      grouped.byDriverId.get(driver.id) ?? []
     );
     driverResults.push({
       driverName: driver.name,
@@ -398,9 +260,7 @@ export async function syncDriverPayrollForMonth(
   const result = await syncDispatchTripsForMonth(
     payrollMonth.id,
     serializedDriver,
-    dispatches,
-    monthContext.allowanceContext,
-    monthContext.importLookup
+    dispatches
   );
 
   logPayrollSyncDiagnostics({
