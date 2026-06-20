@@ -26,6 +26,10 @@ export interface CharterTripRecord {
   date: string;
   truckId: string;
   truckPlate: string;
+  shipperId: string | null;
+  shipperCode: string | null;
+  shipperName: string | null;
+  stockAreaNote: string | null;
   driverName: string | null;
   cargoType: CharterCargoType;
   includeBorderFees: boolean;
@@ -53,6 +57,8 @@ export interface CharterTripInput {
   id?: string;
   date: string;
   truckId: string;
+  shipperId?: string | null;
+  stockAreaNote?: string | null;
   driverName?: string | null;
   cargoType: CharterCargoType;
   includeBorderFees: boolean;
@@ -120,7 +126,10 @@ export function serializeCharterTrip(row: {
   date: Date;
   truckId: string;
   truck: { plate: string };
+  shipper?: { code: string; name: string } | null;
   driverName: string | null;
+  shipperId?: string | null;
+  stockAreaNote?: string | null;
   cargoType: string;
   includeBorderFees: boolean;
   charterMileageKm: unknown;
@@ -154,6 +163,10 @@ export function serializeCharterTrip(row: {
     date: row.date.toISOString().slice(0, 10),
     truckId: row.truckId,
     truckPlate: row.truck.plate,
+    shipperId: row.shipperId ?? null,
+    shipperCode: row.shipper?.code ?? null,
+    shipperName: row.shipper?.name ?? null,
+    stockAreaNote: row.stockAreaNote ?? null,
     driverName: row.driverName,
     cargoType: row.cargoType,
     includeBorderFees: row.includeBorderFees,

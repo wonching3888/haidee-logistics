@@ -38,6 +38,13 @@ interface TongTypeOption {
   isBox: boolean;
 }
 
+interface ShipperOption {
+  id: string;
+  code: string;
+  name: string;
+  pickupLocation: string;
+}
+
 interface LineDraft {
   key: string;
   tongTypeId: string;
@@ -50,6 +57,7 @@ interface CharterTripFormProps {
   trucks: TruckOption[];
   drivers: DriverOption[];
   tongTypes: TongTypeOption[];
+  shippers: ShipperOption[];
   initial?: CharterTripRecord | null;
 }
 
@@ -92,6 +100,7 @@ export function CharterTripForm({
   trucks,
   drivers,
   tongTypes,
+  shippers,
   initial = null,
 }: CharterTripFormProps) {
   const router = useRouter();
@@ -103,6 +112,10 @@ export function CharterTripForm({
     initial?.cargoType ?? "seafood"
   );
   const [truckId, setTruckId] = useState(initial?.truckId ?? "");
+  const [shipperId, setShipperId] = useState(initial?.shipperId ?? "");
+  const [stockAreaNote, setStockAreaNote] = useState(
+    noteField(initial?.stockAreaNote)
+  );
   const [driverName, setDriverName] = useState(initial?.driverName ?? "");
   const [includeBorderFees, setIncludeBorderFees] = useState(
     initial?.includeBorderFees ?? false
@@ -226,6 +239,8 @@ export function CharterTripForm({
           id: initial?.id,
           date,
           truckId,
+          shipperId: cargoType === "seafood" ? shipperId : null,
+          stockAreaNote: cargoType === "seafood" ? stockAreaNote : null,
           driverName,
           cargoType,
           includeBorderFees,
@@ -337,6 +352,42 @@ export function CharterTripForm({
             </datalist>
           </div>
         </div>
+
+        {cargoType === "seafood" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-haidee-text">
+                寄货人 Shipper
+              </label>
+              <select
+                value={shipperId}
+                onChange={(e) => setShipperId(e.target.value)}
+                className="min-h-[44px] w-full rounded-md border border-haidee-border bg-white px-3 text-sm"
+              >
+                <option value="">选择寄货人 Select shipper</option>
+                {shippers.map((shipper) => (
+                  <option key={shipper.id} value={shipper.id}>
+                    {shipper.code} — {shipper.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-haidee-muted">
+                租桶（isRental）扣减该寄货人名下库存；顾客自有桶不扣减。
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-haidee-text">
+                仓库区域 Stock area（SADAO 可选）
+              </label>
+              <Input
+                value={stockAreaNote}
+                onChange={(e) => setStockAreaNote(e.target.value)}
+                placeholder="例如 PANTAI REMIS，留空则用默认库位"
+                className="min-h-[44px]"
+              />
+            </div>
+          </div>
+        )}
 
         <label className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-lg border border-haidee-border bg-haidee-surface/30 px-4 py-3">
           <input

@@ -132,6 +132,7 @@ model Shipper {
   tongExports          TongExport[]
   customerCrateStock   CustomerCrateStock[]
   customerCrateLedger  CustomerCrateLedger[]
+  charterTrips         CharterTrip[]
   partnerFreightRates  PartnerFreightRate[]  @relation("PartnerFreightBillTo")
   partnerTripInvoices  PartnerTripInvoice[]  @relation("PartnerTripBillTo")
   crateReturnFreightRates   CrateReturnFreightRate[]   @relation("CrateReturnFreightBillTo")
@@ -587,6 +588,8 @@ model CharterTrip {
   charterNo              String?  @unique @map("charter_no")
   date                   DateTime @db.Date
   truckId                String   @map("truck_id") @db.Uuid
+  shipperId              String?  @map("shipper_id") @db.Uuid
+  stockAreaNote          String?  @map("stock_area_note")
   driverName             String?  @map("driver_name")
   cargoType              String   @map("cargo_type")
   includeBorderFees      Boolean  @default(false) @map("include_border_fees")
@@ -607,6 +610,7 @@ model CharterTrip {
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   truck     Truck             @relation(fields: [truckId], references: [id])
+  shipper   Shipper?          @relation(fields: [shipperId], references: [id])
   createdBy User?             @relation(fields: [createdById], references: [id])
   lines     CharterTripLine[]
 

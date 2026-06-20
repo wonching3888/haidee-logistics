@@ -9,6 +9,13 @@ import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { loadExchangeRate } from "@/lib/exchange-rate";
 import { generateCharterNo } from "@/lib/charter-no";
 import {
+  applyCharterCrateDeduction,
+  charterLinesToStockLines,
+  resolveCharterStockContext,
+  reverseCharterCrateDeduction,
+} from "@/lib/charter-crate-stock";
+import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
+import {
   buildCharterCostPreview,
   computeCharterStoredCosts,
   type CharterCostPreview,
@@ -53,6 +60,7 @@ export async function getCharterTrip(id: string): Promise<CharterTripRecord | nu
     where: { id },
     include: {
       truck: { select: { plate: true } },
+      shipper: { select: { code: true, name: true } },
       lines: {
         orderBy: { id: "asc" },
         include: {
@@ -66,7 +74,7 @@ export async function getCharterTrip(id: string): Promise<CharterTripRecord | nu
 }
 
 export async function getCharterFormOptions() {
-  const [trucks, drivers, tongTypes] = await Promise.all([
+  const [trucks, drivers, tongTypes, shippers] = await Promise.all([
     prisma.truck.findMany({
       where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { plate: "asc" }],
@@ -88,6 +96,11 @@ export async function getCharterFormOptions() {
       orderBy: [{ displayOrder: "asc" }, { code: "asc" }],
       select: { id: true, code: true, name: true, isBox: true },
     }),
+    prisma.shipper.findMany({
+      where: OPERATIONAL_SHIPPER_WHERE,
+      orderBy: { name: "asc" },
+      select: { id: true, code: true, name: true, pickupLocation: true },
+    }),
   ]);
 
   return {
@@ -100,6 +113,7 @@ export async function getCharterFormOptions() {
     })),
     drivers,
     tongTypes,
+    shippers,
   };
 }
 
@@ -212,8 +226,23 @@ function buildCharterTripData(input: CharterTripInput) {
     throw new Error("请选择车牌 Select truck plate");
   }
 
+  const shipperId =
+    input.cargoType === "seafood"
+      ? input.shipperId?.trim() || null
+      : null;
+  if (input.cargoType === "seafood" && !shipperId) {
+    throw new Error("海产包车请选择寄货人 Seafood charter requires a shipper");
+  }
+
+  const stockAreaNote =
+    input.cargoType === "seafood"
+      ? normalizeCharterNote(input.stockAreaNote)
+      : null;
+
   return {
     cargoType: input.cargoType,
+    shipperId,
+    stockAreaNote,
     includeBorderFees: input.includeBorderFees,
     charterMileageKm,
     charterRevenueMyr,
@@ -232,6 +261,61 @@ function buildCharterTripData(input: CharterTripInput) {
     charterExtraCostMyr: parseCharterMoneyInput(input.charterExtraCostMyr),
     charterExtraCostNote: normalizeCharterNote(input.charterExtraCostNote),
   };
+}
+
+type CharterStockSnapshot = {
+  cargoType: string;
+  shipperId: string | null;
+  stockAreaNote: string | null;
+  charterNo: string | null;
+  lines: Array<{ tongTypeId: string; quantity: number }>;
+};
+
+async function syncCharterCrateStock(input: {
+  before: CharterStockSnapshot | null;
+  after: CharterStockSnapshot;
+}) {
+  if (
+    input.before?.cargoType === "seafood" &&
+    input.before.shipperId &&
+    input.before.lines.length > 0
+  ) {
+    const { stockLocation } = await resolveCharterStockContext(
+      input.before.shipperId,
+      input.before.stockAreaNote
+    );
+    const stockLines = await charterLinesToStockLines(input.before.lines);
+    await reverseCharterCrateDeduction({
+      shipperId: input.before.shipperId,
+      stockLocation,
+      lines: stockLines,
+      charterNo: input.before.charterNo,
+    });
+  }
+
+  if (
+    input.after.cargoType === "seafood" &&
+    input.after.shipperId &&
+    input.after.lines.length > 0
+  ) {
+    const { stockLocation } = await resolveCharterStockContext(
+      input.after.shipperId,
+      input.after.stockAreaNote
+    );
+    const stockLines = await charterLinesToStockLines(input.after.lines);
+    await applyCharterCrateDeduction({
+      shipperId: input.after.shipperId,
+      stockLocation,
+      lines: stockLines,
+      charterNo: input.after.charterNo,
+    });
+  }
+}
+
+function revalidateCharterPaths(id?: string) {
+  revalidatePath("/charter");
+  revalidatePath("/crate/customer-stock");
+  if (id) revalidatePath(`/charter/${id}`);
 }
 
 export async function saveCharterTrip(
@@ -264,13 +348,32 @@ export async function saveCharterTrip(
   });
 
   const driverName = normalizeCharterNote(input.driverName) ?? null;
+  const afterLines = resolvedLines.map((line) => ({
+    tongTypeId: line.tongTypeId,
+    quantity: line.quantity,
+  }));
 
   if (input.id) {
     const existing = await prisma.charterTrip.findUnique({
       where: { id: input.id },
-      select: { id: true },
+      select: {
+        id: true,
+        charterNo: true,
+        cargoType: true,
+        shipperId: true,
+        stockAreaNote: true,
+        lines: { select: { tongTypeId: true, quantity: true } },
+      },
     });
     if (!existing) throw new Error("包车记录不存在 Charter trip not found");
+
+    const beforeSnapshot: CharterStockSnapshot = {
+      cargoType: existing.cargoType,
+      shipperId: existing.shipperId,
+      stockAreaNote: existing.stockAreaNote,
+      charterNo: existing.charterNo,
+      lines: existing.lines,
+    };
 
     await prisma.$transaction(async (tx) => {
       await tx.charterTrip.update({
@@ -300,8 +403,18 @@ export async function saveCharterTrip(
       }
     });
 
-    revalidatePath("/charter");
-    revalidatePath(`/charter/${input.id}`);
+    await syncCharterCrateStock({
+      before: beforeSnapshot,
+      after: {
+        cargoType: data.cargoType,
+        shipperId: data.shipperId,
+        stockAreaNote: data.stockAreaNote,
+        charterNo: existing.charterNo,
+        lines: afterLines,
+      },
+    });
+
+    revalidateCharterPaths(input.id);
     return { ok: true, id: input.id };
   }
 
@@ -334,8 +447,18 @@ export async function saveCharterTrip(
     return trip;
   });
 
-  revalidatePath("/charter");
-  revalidatePath(`/charter/${created.id}`);
+  await syncCharterCrateStock({
+    before: null,
+    after: {
+      cargoType: data.cargoType,
+      shipperId: data.shipperId,
+      stockAreaNote: data.stockAreaNote,
+      charterNo,
+      lines: afterLines,
+    },
+  });
+
+  revalidateCharterPaths(created.id);
   return { ok: true, id: created.id };
 }
 
@@ -343,7 +466,36 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
   const user = await getCurrentUser();
   if (!user) throw new Error("未登录 Unauthorized");
 
+  const existing = await prisma.charterTrip.findUnique({
+    where: { id },
+    select: {
+      charterNo: true,
+      cargoType: true,
+      shipperId: true,
+      stockAreaNote: true,
+      lines: { select: { tongTypeId: true, quantity: true } },
+    },
+  });
+  if (!existing) throw new Error("包车记录不存在 Charter trip not found");
+
+  await syncCharterCrateStock({
+    before: {
+      cargoType: existing.cargoType,
+      shipperId: existing.shipperId,
+      stockAreaNote: existing.stockAreaNote,
+      charterNo: existing.charterNo,
+      lines: existing.lines,
+    },
+    after: {
+      cargoType: "general",
+      shipperId: null,
+      stockAreaNote: null,
+      charterNo: existing.charterNo,
+      lines: [],
+    },
+  });
+
   await prisma.charterTrip.delete({ where: { id } });
-  revalidatePath("/charter");
+  revalidateCharterPaths();
   return { ok: true };
 }

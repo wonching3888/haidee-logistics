@@ -16,7 +16,7 @@ export default async function NewCharterPage({ searchParams }: NewCharterPagePro
 
   const params = await searchParams;
   const date = resolveDateParam(params.date);
-  const { trucks, drivers, tongTypes } = await getCharterFormOptions();
+  const { trucks, drivers, tongTypes, shippers } = await getCharterFormOptions();
 
   return (
     <div className="space-y-6">
@@ -33,6 +33,7 @@ export default async function NewCharterPage({ searchParams }: NewCharterPagePro
         trucks={trucks}
         drivers={drivers}
         tongTypes={tongTypes}
+        shippers={shippers}
       />
     </div>
   );

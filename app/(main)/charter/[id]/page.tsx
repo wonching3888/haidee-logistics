@@ -34,6 +34,7 @@ export default async function EditCharterPage({ params }: EditCharterPageProps) 
         trucks={options.trucks}
         drivers={options.drivers}
         tongTypes={options.tongTypes}
+        shippers={options.shippers}
         initial={trip}
       />
     </div>
