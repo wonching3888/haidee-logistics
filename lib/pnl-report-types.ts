@@ -51,7 +51,10 @@ export interface PnlTripVehicleCosts {
   totalMyr: number;
 }
 
+export type PnlTripSource = "dispatch" | "charter";
+
 export interface PnlTripRow {
+  tripSource: PnlTripSource;
   dispatchOrderId: string;
   date: string;
   routeKey: string;
@@ -127,6 +130,7 @@ export interface PnlCustomerSuggestion {
 
 export interface PnlTripListItem {
   tripId: string;
+  tripSource: PnlTripSource;
   date: string;
   route: string;
   routeGroups: string[];

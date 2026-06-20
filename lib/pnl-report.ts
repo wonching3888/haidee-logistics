@@ -9,6 +9,15 @@ import { loadInboundFreightContext } from "@/lib/freight-context";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { isOtherMarket } from "@/lib/markets";
 import {
+  CHARTER_PNL_MARKET_CODE,
+  CHARTER_UNSPECIFIED_CUSTOMER_ID,
+  charterTripPnlSelect,
+  computeCharterPnlRow,
+  isCharterManualCustomerId,
+  normalizeCharterBillToKey,
+  type CharterTripPnlInput,
+} from "@/lib/charter-pnl";
+import {
   computeInboundLineFreight,
   normalizeMcDeliveryMode,
 } from "@/lib/inbound-freight";
@@ -97,6 +106,7 @@ const PNL_TRIP_ROUTE_ORDER = [
   "KD",
   "JB",
   "OTHER",
+  "CHARTER",
 ] as const;
 
 function pnlTripRouteSortIndex(routeGroups: string[]): number {
@@ -294,6 +304,7 @@ function pnlTripRowToListItem(
 ): PnlTripListItem {
   return {
     tripId: trip.dispatchOrderId,
+    tripSource: trip.tripSource,
     date: trip.date,
     route: meta.routeLabel || trip.routeKey || "—",
     routeGroups: meta.routeGroups,
@@ -329,6 +340,39 @@ function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
       ? roundMoney((totals.grossProfitMyr / totals.revenueMyr) * 100)
       : 0;
   return totals;
+}
+
+async function loadCharterTripsForPnl(
+  start: Date,
+  end: Date
+): Promise<CharterTripPnlInput[]> {
+  return prisma.charterTrip.findMany({
+    where: { date: { gte: start, lte: end } },
+    select: charterTripPnlSelect,
+  }) as Promise<CharterTripPnlInput[]>;
+}
+
+async function computeCharterPnlRowsForFilters(input: {
+  start: Date;
+  end: Date;
+  ctx: PnlComputationContext;
+  routeFilter: PnlRouteFilter;
+  driverFilter: string;
+}): Promise<PnlTripRow[]> {
+  if (input.routeFilter !== "ALL") return [];
+
+  const charters = await loadCharterTripsForPnl(input.start, input.end);
+  const rows: PnlTripRow[] = [];
+
+  for (const charter of charters) {
+    if (!tripMatchesDriverFilter(charter.driverName, input.driverFilter)) {
+      continue;
+    }
+    const row = computeCharterPnlRow(charter, input.ctx.globalCosts);
+    if (row) rows.push(row);
+  }
+
+  return rows;
 }
 
 async function enrichTripTotalsWithPartnerFreight(
@@ -446,14 +490,6 @@ async function computeFilteredPnlTrips(input: {
 
     await preloadPnlFreightContexts(ctx, dispatches, monthEnd);
 
-    const drivers = Array.from(
-      new Set(
-        dispatches
-          .map((d) => d.driverName?.trim())
-          .filter((name): name is string => Boolean(name))
-      )
-    ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
-
     const matchedDispatches: DispatchPnlRow[] = [];
     for (const dispatch of dispatches) {
       const routeGroups = getRouteGroups(dispatch.markets);
@@ -462,13 +498,32 @@ async function computeFilteredPnlTrips(input: {
       matchedDispatches.push(dispatch);
     }
 
-    const trips = (
+    const dispatchTrips = (
       await Promise.all(
         matchedDispatches.map((dispatch) =>
           computeTripPnlRow(dispatch, ctx, monthEnd)
         )
       )
     ).filter((trip): trip is PnlTripRow => trip != null);
+
+    const charterTrips = await computeCharterPnlRowsForFilters({
+      start,
+      end,
+      ctx,
+      routeFilter,
+      driverFilter,
+    });
+
+    const trips = [...dispatchTrips, ...charterTrips];
+
+    const drivers = Array.from(
+      new Set(
+        [
+          ...dispatches.map((d) => d.driverName?.trim()),
+          ...charterTrips.map((t) => t.driverName?.trim()),
+        ].filter((name): name is string => Boolean(name))
+      )
+    ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
 
     trips.sort((a, b) =>
       comparePnlTrips(
@@ -1366,6 +1421,7 @@ async function computeTripPnlRow(
   };
 
   return {
+    tripSource: "dispatch",
     dispatchOrderId: dispatch.id,
     date: toDateInputValue(dispatch.date),
     routeKey,
@@ -1410,6 +1466,83 @@ export async function buildPnlTripsList(input: {
   };
 }
 
+async function appendCharterCustomerMarketRows(input: {
+  shipperId: string;
+  year: number;
+  month: number;
+  ctx: PnlComputationContext;
+  marketMap: Map<
+    string,
+    {
+      quantity: number;
+      revenueMyr: number;
+      crateRentalMyr: number;
+      lkimMaqisMyr: number;
+      thaiSegmentMyr: number;
+      unloadFeeMyr: number;
+      allocatedCostMyr: number;
+      charterDirectMyr?: number;
+    }
+  >;
+}) {
+  const { start, end } = getMonthDateRange(input.year, input.month);
+  const charters = await loadCharterTripsForPnl(start, end);
+
+  const matched = charters.filter((trip) => {
+    if (trip.shipper?.id === input.shipperId) return true;
+    if (isCharterManualCustomerId(input.shipperId)) {
+      const key = input.shipperId.slice("manual:".length);
+      const billTo = trip.billToCustomerName?.trim();
+      return !trip.shipperId && billTo
+        ? normalizeCharterBillToKey(billTo) === key
+        : false;
+    }
+    if (input.shipperId === CHARTER_UNSPECIFIED_CUSTOMER_ID) {
+      return !trip.shipperId && !trip.billToCustomerName?.trim();
+    }
+    return false;
+  });
+
+  if (matched.length === 0) return;
+
+  const existing = input.marketMap.get(CHARTER_PNL_MARKET_CODE) ?? {
+    quantity: 0,
+    revenueMyr: 0,
+    crateRentalMyr: 0,
+    lkimMaqisMyr: 0,
+    thaiSegmentMyr: 0,
+    unloadFeeMyr: 0,
+    allocatedCostMyr: 0,
+  };
+
+  for (const charter of matched) {
+    const row = computeCharterPnlRow(charter, input.ctx.globalCosts);
+    if (!row) continue;
+    const shipper = row.shippers[0];
+    if (!shipper) continue;
+
+    existing.quantity += row.totalQuantity;
+    existing.revenueMyr = roundMoney(existing.revenueMyr + row.revenueMyr);
+    existing.crateRentalMyr = roundMoney(
+      existing.crateRentalMyr + shipper.crateRentalMyr
+    );
+    existing.lkimMaqisMyr = roundMoney(
+      existing.lkimMaqisMyr + shipper.lkimMaqisMyr
+    );
+    existing.unloadFeeMyr = roundMoney(
+      existing.unloadFeeMyr + shipper.unloadFeeMyr
+    );
+    existing.allocatedCostMyr = roundMoney(
+      existing.allocatedCostMyr + shipper.allocatedCostMyr
+    );
+    existing.charterDirectMyr = roundMoney(
+      (existing.charterDirectMyr ?? 0) + row.directCostMyr
+    );
+  }
+
+  input.marketMap.set(CHARTER_PNL_MARKET_CODE, existing);
+}
+
 export async function buildPnlCustomerMarketBreakdown(input: {
   shipperId: string;
   year: number;
@@ -1448,6 +1581,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
       allocatedCostMyr: number;
+      charterDirectMyr?: number;
     }
   >();
 
@@ -1637,14 +1771,25 @@ export async function buildPnlCustomerMarketBreakdown(input: {
     }
   }
 
+  await appendCharterCustomerMarketRows({
+    shipperId: input.shipperId,
+    year: input.year,
+    month: input.month,
+    ctx,
+    marketMap,
+  });
+
   return Array.from(marketMap.entries())
     .map(([marketCode, row]) => {
-      const directCostMyr = roundMoney(
-        row.crateRentalMyr +
-          row.lkimMaqisMyr +
-          row.thaiSegmentMyr +
-          row.unloadFeeMyr
-      );
+      const directCostMyr =
+        marketCode === CHARTER_PNL_MARKET_CODE && row.charterDirectMyr != null
+          ? row.charterDirectMyr
+          : roundMoney(
+              row.crateRentalMyr +
+                row.lkimMaqisMyr +
+                row.thaiSegmentMyr +
+                row.unloadFeeMyr
+            );
       const totalCostMyr = roundMoney(directCostMyr + row.allocatedCostMyr);
       const grossProfitMyr = roundMoney(row.revenueMyr - totalCostMyr);
       const ratePerCrate =
@@ -1671,6 +1816,21 @@ export async function buildPnlTripDetail(input: {
   year: number;
   month: number;
 }): Promise<PnlTripRow> {
+  const charter = (await prisma.charterTrip.findUnique({
+    where: { id: input.tripId },
+    select: charterTripPnlSelect,
+  })) as CharterTripPnlInput | null;
+
+  const ctx = await loadPnlComputationContext(input.year, input.month);
+
+  if (charter) {
+    const trip = computeCharterPnlRow(charter, ctx.globalCosts);
+    if (!trip) {
+      throw new Error("该趟次无有效桶数 No assigned crates for this trip");
+    }
+    return trip;
+  }
+
   const dispatch = (await prisma.dispatchOrder.findUnique({
     where: { id: input.tripId },
     select: dispatchPnlSelect,
@@ -1680,7 +1840,6 @@ export async function buildPnlTripDetail(input: {
     throw new Error("趟次不存在 Trip not found");
   }
 
-  const ctx = await loadPnlComputationContext(input.year, input.month);
   const { end } = getMonthDateRange(input.year, input.month);
   await preloadPnlFreightContexts(ctx, [dispatch], end);
   const trip = await computeTripPnlRow(dispatch, ctx, end);
@@ -2026,9 +2185,28 @@ export async function buildPnlReport(input: {
     if (!tripMatchesDriverFilter(dispatch.driverName, driverFilter)) continue;
     matchedDispatches.push(dispatch);
   }
-  const trips = (await Promise.all(
+  const dispatchTrips = (await Promise.all(
     matchedDispatches.map((dispatch) => computeTripPnlRow(dispatch, ctx, end))
   )).filter((trip): trip is PnlTripRow => trip != null);
+
+  const charterTrips = await computeCharterPnlRowsForFilters({
+    start,
+    end,
+    ctx,
+    routeFilter,
+    driverFilter,
+  });
+
+  const trips = [...dispatchTrips, ...charterTrips];
+
+  const driversWithCharter = Array.from(
+    new Set(
+      [
+        ...drivers,
+        ...charterTrips.map((t) => t.driverName?.trim()),
+      ].filter((name): name is string => Boolean(name))
+    )
+  ).sort((a, b) => a.localeCompare(b, "zh-Hans"));
 
   const tripTotals = await enrichTripTotalsWithSupplementalIncome(
     buildTripTotalsFromRows(trips),
@@ -2083,7 +2261,7 @@ export async function buildPnlReport(input: {
     month: input.month,
     exchangeRate: ctx.exchangeRate,
     lkimRatePerCrate: ctx.lkimRatePerCrate,
-    drivers,
+    drivers: driversWithCharter,
     trips,
     tripTotals,
     periodSummary,

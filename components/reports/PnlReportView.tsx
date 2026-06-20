@@ -1061,7 +1061,11 @@ function CustomerListRow({
                   <TableBody>
                     {markets.map((market) => (
                       <TableRow key={market.marketCode}>
-                        <TableCell>{market.marketCode}</TableCell>
+                        <TableCell>
+                          {market.marketCode === "CHARTER"
+                            ? "包车 CHARTER"
+                            : market.marketCode}
+                        </TableCell>
                         <TableCell className="text-right">
                           {market.quantity}
                         </TableCell>
