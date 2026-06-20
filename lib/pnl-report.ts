@@ -22,6 +22,7 @@ import {
   computeInboundLineFreight,
   normalizeMcDeliveryMode,
 } from "@/lib/inbound-freight";
+import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
 import {
   buildRouteKey,
   computeTripRouteCosts,
@@ -750,6 +751,7 @@ const dispatchPnlSelect = {
           quantity: true,
           dispatchStatus: true,
           mcDeliveryMode: true,
+          thirdPartyFee: true,
           freightAmount: true,
           currency: true,
           paymentMode: true,
@@ -796,6 +798,7 @@ type DispatchPnlRow = {
       quantity: unknown;
       dispatchStatus: string;
       mcDeliveryMode: string | null;
+      thirdPartyFee: unknown;
       freightAmount: unknown;
       currency: string | null;
       paymentMode: string | null;
@@ -1123,6 +1126,7 @@ async function computeTripPnlRow(
       lkimMaqisMyr: number;
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
+      mcThirdPartyHaulageMyr: number;
     }
   >();
 
@@ -1266,6 +1270,7 @@ async function computeTripPnlRow(
         rates: ctx.thaiSegmentRates,
         marketCode,
       });
+      const mcThirdPartyHaulageMyr = lineMcThirdPartyHaulageMyr(inbound);
       const unload = allocateShare(
         quantity,
         totalTripQuantity,
@@ -1282,6 +1287,7 @@ async function computeTripPnlRow(
         lkimMaqisMyr: 0,
         thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
+        mcThirdPartyHaulageMyr: 0,
       };
 
       existing.quantity += quantity;
@@ -1294,6 +1300,9 @@ async function computeTripPnlRow(
         existing.thaiSegmentMyr + thaiSegmentMyr
       );
       existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
+      existing.mcThirdPartyHaulageMyr = roundMoney(
+        existing.mcThirdPartyHaulageMyr + mcThirdPartyHaulageMyr
+      );
       shipperMap.set(shipperId, existing);
 
       tripQuantity += quantity;
@@ -1319,7 +1328,10 @@ async function computeTripPnlRow(
   const shippers: PnlShipperRow[] = Array.from(shipperMap.values()).map(
     (row) => {
       const directCostMyr = roundMoney(
-        row.crateRentalMyr + row.lkimMaqisMyr + row.thaiSegmentMyr
+        row.crateRentalMyr +
+          row.lkimMaqisMyr +
+          row.thaiSegmentMyr +
+          row.mcThirdPartyHaulageMyr
       );
       const allocatedFuelMyr = allocateShare(
         row.quantity,
@@ -1496,6 +1508,7 @@ async function appendCharterCustomerMarketRows(input: {
       lkimMaqisMyr: number;
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
+      mcThirdPartyHaulageMyr: number;
       allocatedCostMyr: number;
       charterDirectMyr?: number;
     }
@@ -1528,6 +1541,7 @@ async function appendCharterCustomerMarketRows(input: {
     lkimMaqisMyr: 0,
     thaiSegmentMyr: 0,
     unloadFeeMyr: 0,
+    mcThirdPartyHaulageMyr: 0,
     allocatedCostMyr: 0,
   };
 
@@ -1596,6 +1610,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       lkimMaqisMyr: number;
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
+      mcThirdPartyHaulageMyr: number;
       allocatedCostMyr: number;
       charterDirectMyr?: number;
     }
@@ -1744,6 +1759,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         rates: ctx.thaiSegmentRates,
         marketCode,
       });
+      const mcThirdPartyHaulageMyr = lineMcThirdPartyHaulageMyr(inbound);
       const unload = allocateShare(
         quantity,
         tripQuantity,
@@ -1762,6 +1778,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         lkimMaqisMyr: 0,
         thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
+        mcThirdPartyHaulageMyr: 0,
         allocatedCostMyr: 0,
       };
 
@@ -1775,6 +1792,9 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         existing.thaiSegmentMyr + thaiSegmentMyr
       );
       existing.unloadFeeMyr = roundMoney(existing.unloadFeeMyr + unload);
+      existing.mcThirdPartyHaulageMyr = roundMoney(
+        existing.mcThirdPartyHaulageMyr + mcThirdPartyHaulageMyr
+      );
       existing.allocatedCostMyr = roundMoney(
         existing.allocatedCostMyr + allocatedCostMyr
       );
@@ -1799,7 +1819,8 @@ export async function buildPnlCustomerMarketBreakdown(input: {
               row.crateRentalMyr +
                 row.lkimMaqisMyr +
                 row.thaiSegmentMyr +
-                row.unloadFeeMyr
+                row.unloadFeeMyr +
+                row.mcThirdPartyHaulageMyr
             );
       const totalCostMyr = roundMoney(directCostMyr + row.allocatedCostMyr);
       const grossProfitMyr = roundMoney(row.revenueMyr - totalCostMyr);
@@ -1814,6 +1835,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         lkimMaqisMyr: row.lkimMaqisMyr,
         thaiSegmentMyr: row.thaiSegmentMyr,
         unloadFeeMyr: row.unloadFeeMyr,
+        mcThirdPartyHaulageMyr: row.mcThirdPartyHaulageMyr,
         allocatedCostMyr: row.allocatedCostMyr,
         totalCostMyr,
         grossProfitMyr,

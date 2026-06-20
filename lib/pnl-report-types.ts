@@ -24,6 +24,7 @@ export interface PnlShipperRow {
   lkimMaqisMyr: number;
   thaiSegmentMyr: number;
   unloadFeeMyr: number;
+  mcThirdPartyHaulageMyr: number;
   directCostMyr: number;
   allocatedFuelMyr: number;
   allocatedMaintenanceMyr: number;
@@ -167,6 +168,7 @@ export interface PnlCustomerMarketRow {
   lkimMaqisMyr: number;
   thaiSegmentMyr: number;
   unloadFeeMyr: number;
+  mcThirdPartyHaulageMyr: number;
   allocatedCostMyr: number;
   totalCostMyr: number;
   grossProfitMyr: number;

@@ -180,6 +180,7 @@ export function computeCharterPnlRow(
     lkimMaqisMyr: lkimMyr,
     thaiSegmentMyr: 0,
     unloadFeeMyr,
+    mcThirdPartyHaulageMyr: 0,
     directCostMyr: shipperDirectCoreMyr,
     allocatedFuelMyr: truckCosts.fuelMyr,
     allocatedMaintenanceMyr: truckCosts.maintenanceMyr,

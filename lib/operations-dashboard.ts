@@ -436,6 +436,7 @@ export function buildOperationsDashboardMetrics(input: {
       labelEn: "MC Third Party",
       amountMyr: input.mcThirdPartyMyr,
       source: "actual",
+      detail: "已派车 MC 转第三方 · 按派车日期",
     },
   ];
 

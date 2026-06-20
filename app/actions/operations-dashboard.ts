@@ -22,6 +22,7 @@ import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
 } from "@/lib/operations-dashboard";
+import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
 
 async function requireOperationsAccess() {
   const user = await getCurrentUser();
@@ -76,17 +77,22 @@ async function aggregateMcThirdParty(year: number, month: number) {
 
   const lines = await prisma.inboundLine.findMany({
     where: {
-      session: {
-        status: "confirmed",
-        date: { gte: start, lte: end },
+      dispatchStatus: "assigned",
+      mcDeliveryMode: "third_party",
+      dispatchLines: {
+        some: {
+          dispatchOrder: {
+            status: { notIn: ["draft", "cancelled"] },
+            date: { gte: start, lte: end },
+          },
+        },
       },
-      thirdPartyFee: { gt: 0 },
     },
-    select: { thirdPartyFee: true },
+    select: { thirdPartyFee: true, mcDeliveryMode: true },
   });
 
   return roundMoney(
-    lines.reduce((sum, line) => sum + (decimalToNumber(line.thirdPartyFee) ?? 0), 0)
+    lines.reduce((sum, line) => sum + lineMcThirdPartyHaulageMyr(line), 0)
   );
 }
 
