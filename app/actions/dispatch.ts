@@ -24,6 +24,10 @@ import {
   marketPriorityRank,
   sortMarkets,
 } from "@/lib/markets";
+import {
+  handleUnloadingFeesOnDispatchCancel,
+  syncUnloadingFeeEstimatesForTrip,
+} from "@/lib/driver-expense-service";
 
 export interface CrateBoxQty {
   crate: number;
@@ -999,8 +1003,11 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
       await syncDispatchDriverAllowance(tx, input.dispatchOrderId!);
     }, DISPATCH_TRANSACTION_OPTIONS);
 
+    await syncUnloadingFeeEstimatesForTrip(input.dispatchOrderId!);
+
     revalidatePath("/dispatch");
     revalidatePath("/summary");
+    revalidatePath("/documents/driver-expenses");
     return {
       id: input.dispatchOrderId,
       dispatchNo: existing.dispatchNo,
@@ -1042,8 +1049,11 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     return created;
   }, DISPATCH_TRANSACTION_OPTIONS);
 
+  await syncUnloadingFeeEstimatesForTrip(order.id);
+
   revalidatePath("/dispatch");
   revalidatePath("/summary");
+  revalidatePath("/documents/driver-expenses");
   return { id: order.id, dispatchNo, date: input.date };
 }
 
@@ -1081,9 +1091,12 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
     }
   }, DISPATCH_TRANSACTION_OPTIONS);
 
+  await handleUnloadingFeesOnDispatchCancel(dispatchOrderId);
+
   revalidatePath("/dispatch");
   revalidatePath("/summary");
   revalidatePath("/documents");
+  revalidatePath("/documents/driver-expenses");
 }
 
 export async function changeDispatchTruck(
@@ -1138,7 +1151,10 @@ export async function changeDispatchTruck(
     }
   }, DISPATCH_TRANSACTION_OPTIONS);
 
+  await syncUnloadingFeeEstimatesForTrip(dispatchOrderId);
+
   revalidatePath("/dispatch");
   revalidatePath("/summary");
   revalidatePath("/documents");
+  revalidatePath("/documents/driver-expenses");
 }

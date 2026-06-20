@@ -351,7 +351,7 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-          生成/刷新费用
+          重新同步估算
         </Button>
       </div>
 
@@ -371,7 +371,9 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
         <>
           <ModuleCard title="Module 1 — Upah Turun（下货费）">
             {unloadingGroups.length === 0 ? (
-              <p className="text-sm text-haidee-muted">此日期暂无下货费记录</p>
+              <p className="text-sm text-haidee-muted">
+                此日期暂无下货费记录（派车保存后会自动生成估算）
+              </p>
             ) : (
               <div className="space-y-2">
                 {unloadingGroups.map((group) => {

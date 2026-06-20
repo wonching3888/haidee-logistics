@@ -347,8 +347,53 @@ async function loadDispatchForExpense(tripId: string) {
   return dispatch;
 }
 
-export async function generateUnloadingFeesForTrip(tripId: string) {
+function dispatchHasAssignedInboundLines(
+  dispatch: Awaited<ReturnType<typeof loadDispatchForExpense>>
+) {
+  return dispatch.lines.some(
+    (dl) =>
+      dl.inboundLine?.dispatchStatus === "assigned" &&
+      (decimalToNumber(dl.inboundLine.quantity) ?? 0) > 0
+  );
+}
+
+function rowHasUnloadingActualOverride(row: {
+  unloadFeeOverride: number | null;
+  kpbFeeOverride: number | null;
+}) {
+  return row.unloadFeeOverride != null || row.kpbFeeOverride != null;
+}
+
+export type SyncUnloadingFeeEstimatesOptions = {
+  /** When true, skip sync for cancelled dispatches (default true). */
+  skipIfCancelled?: boolean;
+};
+
+export async function syncUnloadingFeeEstimatesForTrip(
+  tripId: string,
+  options?: SyncUnloadingFeeEstimatesOptions
+) {
+  const skipIfCancelled = options?.skipIfCancelled ?? true;
   const dispatch = await loadDispatchForExpense(tripId);
+
+  if (skipIfCancelled && dispatch.status === "cancelled") {
+    return prisma.unloadingFee.findMany({
+      where: { tripId },
+      orderBy: [{ tripDate: "desc" }, { route: "asc" }, { market: "asc" }],
+    });
+  }
+
+  if (!dispatchHasAssignedInboundLines(dispatch)) {
+    await prisma.unloadingFee.deleteMany({
+      where: {
+        tripId,
+        unloadFeeOverride: null,
+        kpbFeeOverride: null,
+      },
+    });
+    return [];
+  }
+
   const ratesByMarket = await loadUnloadingRatesMap();
   const truckSize = resolveTruckSize(dispatch.truck.type);
   const marketLines = aggregateDispatchUnloadingLines(dispatch);
@@ -362,29 +407,92 @@ export async function generateUnloadingFeesForTrip(tripId: string) {
   const route = formatTripRouteLabel(dispatch.markets);
   const lorry = dispatch.truck.plate;
   const driver = dispatch.driverName ?? "";
+  const calculatedMarkets = new Set(calculated.map((row) => row.market));
 
-  await prisma.unloadingFee.deleteMany({ where: { tripId } });
-
-  if (calculated.length === 0) return [];
-
-  return prisma.unloadingFee.createManyAndReturn({
-    data: calculated.map((row) => ({
-      tripId,
-      tripDate: dispatch.date,
-      lorry,
-      driver,
-      route,
-      market: row.market,
-      storeCode: row.storeCode,
-      smallCrateQty: row.smallCrateQty,
-      largeCrateQty: row.largeCrateQty,
-      boxQty: row.boxQty,
-      unloadFee: row.unloadFee,
-      kpbFee: row.kpbFee,
-      isKpbExempt: row.isKpbExempt,
-      tripLevelNote: row.tripLevelNote,
-    })),
+  const existingRows = await prisma.unloadingFee.findMany({
+    where: { tripId },
   });
+
+  for (const row of calculated) {
+    await prisma.unloadingFee.upsert({
+      where: {
+        tripId_market: { tripId, market: row.market },
+      },
+      create: {
+        tripId,
+        tripDate: dispatch.date,
+        lorry,
+        driver,
+        route,
+        market: row.market,
+        storeCode: row.storeCode,
+        smallCrateQty: row.smallCrateQty,
+        largeCrateQty: row.largeCrateQty,
+        boxQty: row.boxQty,
+        unloadFee: row.unloadFee,
+        kpbFee: row.kpbFee,
+        isKpbExempt: row.isKpbExempt,
+        tripLevelNote: row.tripLevelNote,
+      },
+      update: {
+        tripDate: dispatch.date,
+        lorry,
+        driver,
+        route,
+        storeCode: row.storeCode,
+        smallCrateQty: row.smallCrateQty,
+        largeCrateQty: row.largeCrateQty,
+        boxQty: row.boxQty,
+        unloadFee: row.unloadFee,
+        kpbFee: row.kpbFee,
+        isKpbExempt: row.isKpbExempt,
+        tripLevelNote: row.tripLevelNote,
+      },
+    });
+  }
+
+  for (const existing of existingRows) {
+    if (calculatedMarkets.has(existing.market)) continue;
+    if (rowHasUnloadingActualOverride(existing)) continue;
+    await prisma.unloadingFee.delete({ where: { id: existing.id } });
+  }
+
+  return prisma.unloadingFee.findMany({
+    where: { tripId },
+    orderBy: [{ tripDate: "desc" }, { route: "asc" }, { market: "asc" }],
+  });
+}
+
+/** @deprecated Use syncUnloadingFeeEstimatesForTrip — preserves override fields. */
+export async function generateUnloadingFeesForTrip(tripId: string) {
+  return syncUnloadingFeeEstimatesForTrip(tripId);
+}
+
+export async function tripHasVoucherUnloadingActuals(
+  tripId: string
+): Promise<boolean> {
+  const voucher = await prisma.driverVoucher.findFirst({
+    where: { tripId },
+    select: { upahTurunActual: true, kpbActual: true },
+  });
+  if (!voucher) return false;
+  return (
+    voucher.upahTurunActual != null || voucher.kpbActual != null
+  );
+}
+
+/** @deprecated Use tripHasVoucherUnloadingActuals for cancel policy. */
+export async function tripHasRecordedUnloadingActuals(tripId: string) {
+  return tripHasVoucherUnloadingActuals(tripId);
+}
+
+export async function handleUnloadingFeesOnDispatchCancel(tripId: string) {
+  if (await tripHasVoucherUnloadingActuals(tripId)) {
+    return { deleted: false, keptForActuals: true };
+  }
+
+  const result = await prisma.unloadingFee.deleteMany({ where: { tripId } });
+  return { deleted: true, keptForActuals: false, count: result.count };
 }
 
 export async function generateCrateLoadingFeesForTrip(tripId: string) {
@@ -1013,7 +1121,7 @@ export async function getVoucherPrintBreakdown(tripId: string) {
 
 export async function syncTripDriverExpenses(tripId: string) {
   const [unloading, loading] = await Promise.all([
-    generateUnloadingFeesForTrip(tripId),
+    syncUnloadingFeeEstimatesForTrip(tripId),
     generateCrateLoadingFeesForTrip(tripId),
   ]);
   return { unloading, loading };

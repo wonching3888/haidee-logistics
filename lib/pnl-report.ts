@@ -30,6 +30,12 @@ import {
   loadGlobalTripCostValues,
   type RouteMasterCostRow,
 } from "@/lib/operations-cost";
+import {
+  getUnloadingRatesByMarket,
+  type UnloadingDispatchEstimateInput,
+} from "@/lib/driver-expense-service";
+import { resolveTripLoadUnloadCost } from "@/lib/unloading-trip-cost";
+import type { UnloadingRateConfigInput } from "@/lib/unloading-calculator";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
 import type { ThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
@@ -147,35 +153,44 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function buildPnlDispatchUnloadingEstimate(
+  dispatch: DispatchPnlRow
+): UnloadingDispatchEstimateInput {
+  return {
+    truck: { type: dispatch.truck.type ?? null },
+    lines: dispatch.lines.map((line) => ({
+      inboundLine: line.inboundLine
+        ? {
+            dispatchStatus: line.inboundLine.dispatchStatus,
+            quantity: line.inboundLine.quantity,
+            stall: {
+              code: line.inboundLine.stall.code,
+              market: line.inboundLine.stall.market,
+            },
+            tongType: line.inboundLine.tongType,
+          }
+        : null,
+    })),
+  };
+}
+
+function resolvePnlTripLoadUnloadTotal(
+  dispatch: DispatchPnlRow,
+  ctx: PnlComputationContext
+) {
+  const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
+  const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
+  return resolveTripLoadUnloadCost({
+    unloadingRows: tripUnloadingRows,
+    loadingRows: tripLoadingRows,
+    dispatchEstimate: buildPnlDispatchUnloadingEstimate(dispatch),
+    ratesByMarket: ctx.unloadingRatesByMarket,
+  });
+}
+
 function allocateShare(part: number, total: number, amount: number) {
   if (total <= 0 || amount <= 0 || part <= 0) return 0;
   return roundMoney((part / total) * amount);
-}
-
-function tripLoadUnloadActualTotal(
-  unloadingRows: {
-    unloadFee: number;
-    unloadFeeOverride: number | null;
-    kpbFee: number;
-    kpbFeeOverride: number | null;
-    isKpbExempt: boolean;
-  }[],
-  loadingRows: {
-    loadingFee: number;
-    loadingFeeOverride: number | null;
-  }[]
-) {
-  let total = 0;
-  for (const row of unloadingRows) {
-    total += row.unloadFeeOverride ?? row.unloadFee;
-    if (!row.isKpbExempt) {
-      total += row.kpbFeeOverride ?? row.kpbFee;
-    }
-  }
-  for (const row of loadingRows) {
-    total += row.loadingFeeOverride ?? row.loadingFee;
-  }
-  return roundMoney(total);
 }
 
 type FreightCtxCache = Awaited<
@@ -718,7 +733,7 @@ const dispatchPnlSelect = {
   driverName: true,
   driverAllowanceAmount: true,
   truckId: true,
-  truck: { select: { plate: true } },
+  truck: { select: { plate: true, type: true } },
   payrollTrip: {
     select: {
       tripAllowance: true,
@@ -739,7 +754,7 @@ const dispatchPnlSelect = {
           currency: true,
           paymentMode: true,
           tongType: { select: { code: true, isBox: true } },
-          stall: { select: { market: { select: { code: true } } } },
+          stall: { select: { code: true, market: { select: { code: true } } } },
           session: {
             select: {
               shipperId: true,
@@ -768,7 +783,7 @@ type DispatchPnlRow = {
   driverName: string | null;
   driverAllowanceAmount: unknown;
   truckId: string;
-  truck: { plate: string };
+  truck: { plate: string; type: string | null };
   payrollTrip: {
     tripAllowance: unknown;
     extraAllowance: unknown;
@@ -785,7 +800,7 @@ type DispatchPnlRow = {
       currency: string | null;
       paymentMode: string | null;
       tongType: { code: string; isBox: boolean } | null;
-      stall: { market: { code: string } | null };
+      stall: { market: { code: string } | null; code: string | null };
       session: {
         shipperId: string;
         pickupLocation: string | null;
@@ -838,6 +853,7 @@ interface PnlComputationContext {
       loadingFeeOverride: number | null;
     }[]
   >;
+  unloadingRatesByMarket: Map<string, UnloadingRateConfigInput>;
   voucherByTripId: Map<
     string,
     {
@@ -856,7 +872,7 @@ async function loadPnlComputationContext(
   month: number
 ): Promise<PnlComputationContext> {
   const { start, end } = getMonthDateRange(year, month);
-  const [exchangeRate, lkimRates, thaiSegmentRates, routeMasters, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers] =
+  const [exchangeRate, lkimRates, thaiSegmentRates, routeMasters, crateRentalRates, globalCosts, trucks, unloadingFees, loadingFees, vouchers, unloadingRatesByMarket] =
     await Promise.all([
       loadExchangeRate(year, month),
       loadLkimRate(),
@@ -953,6 +969,7 @@ async function loadPnlComputationContext(
           fishCheckActual: number | null;
         }[]
       >,
+      getUnloadingRatesByMarket(),
     ]);
 
   const routes: RouteMasterCostRow[] = routeMasters.map((route) => ({
@@ -1037,6 +1054,7 @@ async function loadPnlComputationContext(
     freightCtxTongTypeIds: new Map(),
     unloadingByTripId,
     loadingByTripId,
+    unloadingRatesByMarket,
     voucherByTripId,
   };
 }
@@ -1058,12 +1076,7 @@ async function computeTripPnlRow(
     truck?.tollClass
   );
   const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
-  const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
-  const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
-  const tripLoadUnloadTotal = tripLoadUnloadActualTotal(
-    tripUnloadingRows,
-    tripLoadingRows
-  );
+  const tripLoadUnloadTotal = resolvePnlTripLoadUnloadTotal(dispatch, ctx);
   const tripFishMyr =
     tripVoucher?.fishCheckActual ??
     tripVoucher?.fishCheckAmt ??
@@ -1597,12 +1610,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       truck?.tollClass
     );
     const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
-    const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
-    const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
-    const tripLoadUnloadTotal = tripLoadUnloadActualTotal(
-      tripUnloadingRows,
-      tripLoadingRows
-    );
+    const tripLoadUnloadTotal = resolvePnlTripLoadUnloadTotal(dispatch, ctx);
     const tripFishMyr =
       tripVoucher?.fishCheckActual ??
       tripVoucher?.fishCheckAmt ??

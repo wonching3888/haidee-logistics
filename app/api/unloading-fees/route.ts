@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  generateUnloadingFeesForTrip,
+  syncUnloadingFeeEstimatesForTrip,
   listUnloadingFees,
   syncTripDriverExpenses,
 } from "@/lib/driver-expense-service";
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       const result = await syncTripDriverExpenses(body.tripId);
       return NextResponse.json(result);
     }
-    const fees = await generateUnloadingFeesForTrip(body.tripId);
+    const fees = await syncUnloadingFeeEstimatesForTrip(body.tripId);
     return NextResponse.json({ fees });
   } catch (error) {
     return NextResponse.json(

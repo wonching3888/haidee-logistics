@@ -2,10 +2,8 @@ import { isOtherMarket, sortMarkets } from "@/lib/markets";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { prisma } from "@/lib/prisma";
-import {
-  estimateTripUnloadingFeesTotal,
-  getUnloadingRatesByMarket,
-} from "@/lib/driver-expense-service";
+import { getUnloadingRatesByMarket } from "@/lib/driver-expense-service";
+import { resolveTripLoadUnloadCost } from "@/lib/unloading-trip-cost";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import {
   buildCrateRentalMyrRateMap,
@@ -421,24 +419,13 @@ export async function aggregateOperationsCosts(
 
     const tripUnloadingRows = unloadingByTrip.get(dispatch.id) ?? [];
     const tripLoadingRows = loadingByTrip.get(dispatch.id) ?? [];
-    let tripLoadUnloadFee = 0;
-    if (tripUnloadingRows.length > 0 || tripLoadingRows.length > 0) {
-      for (const row of tripUnloadingRows) {
-        tripLoadUnloadFee += row.unloadFeeOverride ?? row.unloadFee;
-        if (!row.isKpbExempt) {
-          tripLoadUnloadFee += row.kpbFeeOverride ?? row.kpbFee;
-        }
-      }
-      for (const row of tripLoadingRows) {
-        tripLoadUnloadFee += row.loadingFeeOverride ?? row.loadingFee;
-      }
-    } else if (!otherOnly) {
-      tripLoadUnloadFee += estimateTripUnloadingFeesTotal(
-        dispatch,
-        unloadingRatesByMarket
-      );
-    }
-    totals.loadUnloadFee += tripLoadUnloadFee;
+    const tripLoadUnloadFee = resolveTripLoadUnloadCost({
+      unloadingRows: tripUnloadingRows,
+      loadingRows: tripLoadingRows,
+      dispatchEstimate: dispatch,
+      ratesByMarket: unloadingRatesByMarket,
+    });
+    totals.loadUnloadFee += otherOnly ? 0 : tripLoadUnloadFee;
 
     for (const line of dispatch.lines) {
       const inboundLine = line.inboundLine;
