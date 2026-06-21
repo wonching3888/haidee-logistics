@@ -13,7 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import { SettingsSidebarMenu } from "@/components/shared/SettingsSidebarMenu";
 import type { StoredUserRole } from "@/types";
-import { canAccessDriverPayroll, canViewOperationsDashboard } from "@/lib/auth-roles";
+import {
+  canAccessPage,
+  filterNavGroupByAccess,
+} from "@/lib/page-access";
 import {
   MAIN_NAV_CRATE,
   MAIN_NAV_DASHBOARD,
@@ -62,6 +65,27 @@ const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
   children: DOCUMENTS_SIDEBAR_CHILDREN,
 };
 
+const REPORTS_SIDEBAR_GROUP: MainNavGroup = {
+  id: "reports",
+  label: "报表",
+  labelEn: "Reports",
+  icon: BarChart3,
+  children: [
+    ...MAIN_NAV_REPORTS_BASE,
+    MAIN_NAV_REPORTS_OPERATIONS,
+    MAIN_NAV_REPORTS_PNL,
+    MAIN_NAV_REPORTS_DRIVER_PAYROLL,
+  ],
+};
+
+const SETTINGS_SIDEBAR_GROUP: MainNavGroup = {
+  id: "settings",
+  label: "系统设置",
+  labelEn: "Settings",
+  icon: Settings,
+  children: [{ href: "/settings", label: "系统设置", labelEn: "Settings" }],
+};
+
 const SIDEBAR_BG = "bg-[#9DC08B]";
 const SIDEBAR_TEXT = "text-[#0d1a0d]";
 const SIDEBAR_LABEL_MUTED = "text-[#0d1a0d] font-semibold";
@@ -78,30 +102,20 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const isAdmin = role === "admin";
-  const showDriverPayroll = canAccessDriverPayroll(role);
-  const showOperations = canViewOperationsDashboard(role);
 
-  const navGroups = useMemo<MainNavGroup[]>(
-    () => [
-      MAIN_NAV_OPERATIONS,
-      DOCUMENTS_SIDEBAR_GROUP,
-      MAIN_NAV_CRATE,
-      {
-        id: "reports",
-        label: "报表",
-        labelEn: "Reports",
-        icon: BarChart3,
-        children: [
-          ...MAIN_NAV_REPORTS_BASE,
-          ...(showOperations
-            ? [MAIN_NAV_REPORTS_OPERATIONS, MAIN_NAV_REPORTS_PNL]
-            : []),
-          ...(showDriverPayroll ? [MAIN_NAV_REPORTS_DRIVER_PAYROLL] : []),
-        ],
-      },
-    ],
-    [showDriverPayroll, showOperations]
+  const showDashboard = canAccessPage(role, MAIN_NAV_DASHBOARD.href);
+  const showHistory = canAccessPage(role, MAIN_NAV_HISTORY.href);
+  const showSettings = canAccessPage(role, "/settings");
+
+  const navGroups = useMemo(
+    () =>
+      [
+        filterNavGroupByAccess(role, MAIN_NAV_OPERATIONS),
+        filterNavGroupByAccess(role, DOCUMENTS_SIDEBAR_GROUP),
+        filterNavGroupByAccess(role, MAIN_NAV_CRATE),
+        filterNavGroupByAccess(role, REPORTS_SIDEBAR_GROUP),
+      ].filter((group): group is MainNavGroup => group !== null),
+    [role]
   );
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -114,12 +128,12 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
           next[group.id] = true;
         }
       }
-      if (pathname.startsWith("/settings")) {
+      if (showSettings && pathname.startsWith("/settings")) {
         next.settings = true;
       }
       return next;
     });
-  }, [pathname, navGroups]);
+  }, [pathname, navGroups, showSettings]);
 
   function toggleGroup(id: string) {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -159,11 +173,13 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="m-0 list-none space-y-1 p-0">
-          <NavLink
-            item={MAIN_NAV_DASHBOARD}
-            pathname={pathname}
-            onNavigate={onNavigate}
-          />
+          {showDashboard && (
+            <NavLink
+              item={MAIN_NAV_DASHBOARD}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          )}
 
           {navGroups.map((group) => (
             <ExpandableNavGroup
@@ -176,21 +192,17 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
             />
           ))}
 
-          <NavLink
-            item={MAIN_NAV_HISTORY}
-            pathname={pathname}
-            onNavigate={onNavigate}
-          />
+          {showHistory && (
+            <NavLink
+              item={MAIN_NAV_HISTORY}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          )}
 
-          {isAdmin && (
+          {showSettings && (
             <ExpandableNavGroup
-              group={{
-                id: "settings",
-                label: "系统设置",
-                labelEn: "Settings",
-                icon: Settings,
-                children: [],
-              }}
+              group={SETTINGS_SIDEBAR_GROUP}
               open={openGroups.settings ?? false}
               onToggle={() => toggleGroup("settings")}
               pathname={pathname}

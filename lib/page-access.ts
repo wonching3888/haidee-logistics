@@ -136,3 +136,23 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
       return false;
   }
 }
+
+/** Filter sidebar / nav leaf items by the same rules as page access gates. */
+export function filterNavItemsByAccess<T extends { href: string }>(
+  role: StoredUserRole,
+  items: readonly T[]
+): T[] {
+  return items.filter((item) => canAccessPage(role, item.href));
+}
+
+/** Return a nav group with accessible children only, or null if none remain. */
+export function filterNavGroupByAccess<
+  T extends { href: string; label: string; labelEn: string },
+  G extends { id: string; label: string; labelEn: string; icon: unknown; children: T[] },
+>(role: StoredUserRole, group: G): (G & { children: T[] }) | null {
+  const children = filterNavItemsByAccess(role, group.children);
+  if (children.length === 0) {
+    return null;
+  }
+  return { ...group, children };
+}
