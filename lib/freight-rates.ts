@@ -4,6 +4,7 @@ import {
   MARKETS_WITHOUT_FREIGHT,
 } from "@/lib/markets";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
+import { RATE_DEFAULT_EFFECTIVE_FLOOR } from "@/lib/constants/rate-effective-date";
 import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 
 export interface RateCell {
@@ -36,6 +37,23 @@ export function getCurrentYearMonth(date = new Date()) {
 export function getNextMonthFirstDayInput(date = new Date()) {
   const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
   return toDateInputValue(next);
+}
+
+export function entityHasFreightRateHistory(matrix: Record<string, RateCell>) {
+  return Object.values(matrix).some((cell) => cell.effectiveDate != null);
+}
+
+export function getDefaultRateEffectiveDateInputs(hasExistingRates: boolean) {
+  if (!hasExistingRates) {
+    return {
+      immediate: false,
+      scheduledDate: RATE_DEFAULT_EFFECTIVE_FLOOR,
+    };
+  }
+  return {
+    immediate: true,
+    scheduledDate: toDateInputValue(new Date()),
+  };
 }
 
 export function resolveEffectiveDateInput(input: {

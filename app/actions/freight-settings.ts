@@ -24,6 +24,15 @@ import {
 import { sortMarkets } from "@/lib/markets";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
+import {
+  checkConsigneeRateSaveWarning,
+  checkShipperRateSaveWarning,
+  type RateSaveWarning,
+} from "@/lib/rate-save-warning";
+
+export type SaveFreightRatesResult =
+  | { saved: true }
+  | { saved: false; warning: RateSaveWarning };
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -236,7 +245,8 @@ export async function saveShipperFreightRates(input: {
   rates: { marketId: string; rateTong?: number | null; rateBox?: number | null }[];
   immediate: boolean;
   scheduledDate?: string;
-}) {
+  acknowledgeWarning?: boolean;
+}): Promise<SaveFreightRatesResult> {
   await requireAdmin();
 
   const shipper = await prisma.shipper.findUnique({
@@ -251,6 +261,17 @@ export async function saveShipperFreightRates(input: {
     immediate: input.immediate,
     scheduledDate: input.scheduledDate,
   });
+
+  if (!input.acknowledgeWarning) {
+    const warning = await checkShipperRateSaveWarning({
+      shipperId: input.shipperId,
+      marketIds: input.rates.map((rate) => rate.marketId),
+      effectiveDate,
+    });
+    if (warning) {
+      return { saved: false, warning };
+    }
+  }
 
   await prisma.$transaction(
     input.rates.map((rate) =>
@@ -280,6 +301,7 @@ export async function saveShipperFreightRates(input: {
   );
 
   revalidatePath("/settings");
+  return { saved: true };
 }
 
 export async function saveConsignee(input: {
@@ -325,7 +347,8 @@ export async function saveConsigneeFreightRates(input: {
   rates: { marketId: string; rateTong?: number | null; rateBox?: number | null }[];
   immediate: boolean;
   scheduledDate?: string;
-}) {
+  acknowledgeWarning?: boolean;
+}): Promise<SaveFreightRatesResult> {
   await requireAdmin();
 
   const consignee = await prisma.consignee.findUnique({
@@ -340,6 +363,17 @@ export async function saveConsigneeFreightRates(input: {
     immediate: input.immediate,
     scheduledDate: input.scheduledDate,
   });
+
+  if (!input.acknowledgeWarning) {
+    const warning = await checkConsigneeRateSaveWarning({
+      consigneeId: input.consigneeId,
+      marketIds: input.rates.map((rate) => rate.marketId),
+      effectiveDate,
+    });
+    if (warning) {
+      return { saved: false, warning };
+    }
+  }
 
   await prisma.$transaction(
     input.rates.map((rate) =>
@@ -367,6 +401,7 @@ export async function saveConsigneeFreightRates(input: {
   );
 
   revalidatePath("/settings");
+  return { saved: true };
 }
 
 export async function savePaymentRelation(input: {

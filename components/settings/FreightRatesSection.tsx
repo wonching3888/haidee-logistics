@@ -27,7 +27,8 @@ import {
   getPaymentModeLabel,
   PAYMENT_MODES,
 } from "@/lib/constants/freight-settings";
-import { getNextMonthFirstDayInput, parseOptionalRate, type RateCell } from "@/lib/freight-rates";
+import { getDefaultRateEffectiveDateInputs, entityHasFreightRateHistory, parseOptionalRate, type RateCell } from "@/lib/freight-rates";
+import type { RateSaveWarning } from "@/lib/rate-save-warning";
 import { cn } from "@/lib/utils";
 import {
   deleteConsignee,
@@ -108,6 +109,7 @@ type RateDialogState =
       kind: "shipper" | "consignee";
       entityId: string;
       entityName: string;
+      entityCode: string;
       currencyLabel?: string;
     }
   | null;
@@ -230,7 +232,10 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
     Record<string, { tong: string; box: string }>
   >({});
   const [immediate, setImmediate] = useState(true);
-  const [scheduledDate, setScheduledDate] = useState(getNextMonthFirstDayInput());
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [rateSaveWarning, setRateSaveWarning] = useState<RateSaveWarning | null>(
+    null
+  );
 
   const [consigneeDialog, setConsigneeDialog] = useState(false);
   const [consigneeEditId, setConsigneeEditId] = useState<string | undefined>();
@@ -263,7 +268,6 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
     startTransition(async () => {
       try {
         await fn();
-        setRateDialog(null);
         setConsigneeDialog(false);
         setPaymentDialog(false);
         refresh();
@@ -286,45 +290,72 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
       };
     }
     setRateInputs(nextInputs);
-    setImmediate(true);
-    setScheduledDate(getNextMonthFirstDayInput());
+    const hasExistingRates = entityHasFreightRateHistory(row.matrix);
+    const defaults = getDefaultRateEffectiveDateInputs(hasExistingRates);
+    setImmediate(defaults.immediate);
+    setScheduledDate(defaults.scheduledDate);
+    setRateSaveWarning(null);
     setRateDialog({
       kind,
       entityId: row.id,
       entityName: row.name,
+      entityCode: row.code,
       currencyLabel:
         kind === "shipper" && "currency" in row ? row.currency : "MYR",
     });
+  }
+
+  async function persistRateDialog(acknowledgeWarning = false) {
+    if (!rateDialog) return;
+
+    const rates = data.freightMarkets.map((market) => {
+      const input = rateInputs[market.id] ?? { tong: "", box: "" };
+      return {
+        marketId: market.id,
+        rateTong: parseOptionalRate(input.tong),
+        rateBox: parseOptionalRate(input.box),
+      };
+    });
+
+    const payload = {
+      rates,
+      immediate,
+      scheduledDate: immediate ? undefined : scheduledDate,
+      acknowledgeWarning,
+    };
+
+    const result =
+      rateDialog.kind === "shipper"
+        ? await saveShipperFreightRates({
+            shipperId: rateDialog.entityId,
+            ...payload,
+          })
+        : await saveConsigneeFreightRates({
+            consigneeId: rateDialog.entityId,
+            ...payload,
+          });
+
+    if (!result.saved) {
+      setRateSaveWarning(result.warning);
+      return;
+    }
+
+    setRateDialog(null);
+    setRateSaveWarning(null);
+    refresh();
   }
 
   function saveRateDialog() {
     if (!rateDialog) return;
 
     runAction(async () => {
-      const rates = data.freightMarkets.map((market) => {
-        const input = rateInputs[market.id] ?? { tong: "", box: "" };
-        return {
-          marketId: market.id,
-          rateTong: parseOptionalRate(input.tong),
-          rateBox: parseOptionalRate(input.box),
-        };
-      });
+      await persistRateDialog(false);
+    });
+  }
 
-      if (rateDialog.kind === "shipper") {
-        await saveShipperFreightRates({
-          shipperId: rateDialog.entityId,
-          rates,
-          immediate,
-          scheduledDate: immediate ? undefined : scheduledDate,
-        });
-      } else {
-        await saveConsigneeFreightRates({
-          consigneeId: rateDialog.entityId,
-          rates,
-          immediate,
-          scheduledDate: immediate ? undefined : scheduledDate,
-        });
-      }
+  function confirmRateSaveDespiteWarning() {
+    runAction(async () => {
+      await persistRateDialog(true);
     });
   }
 
@@ -550,8 +581,8 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              编辑费率 Edit Rates — {rateDialog?.entityName}
-              {rateDialog?.currencyLabel ? ` (${rateDialog.currencyLabel})` : ""}
+              编辑费率 Edit Rates — {rateDialog?.entityName} ({rateDialog?.entityCode})
+              {rateDialog?.currencyLabel ? ` · ${rateDialog.currencyLabel}` : ""}
             </DialogTitle>
           </DialogHeader>
 
@@ -631,7 +662,10 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setRateDialog(null)}
+              onClick={() => {
+                setRateSaveWarning(null);
+                setRateDialog(null);
+              }}
             >
               取消
             </Button>
@@ -642,6 +676,42 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
               onClick={saveRateDialog}
             >
               保存 Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!rateSaveWarning}
+        onOpenChange={(open) => {
+          if (!open) setRateSaveWarning(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>生效日提醒 Effective Date Notice</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed">
+            {rateSaveWarning?.message}
+          </p>
+          <p className="text-xs text-haidee-muted">
+            {rateSaveWarning?.partyLabel}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRateSaveWarning(null)}
+            >
+              返回改生效日 Adjust Date
+            </Button>
+            <Button
+              type="button"
+              className="bg-haidee-blue text-white"
+              disabled={isPending}
+              onClick={confirmRateSaveDespiteWarning}
+            >
+              仍然保存 Save Anyway
             </Button>
           </div>
         </DialogContent>
