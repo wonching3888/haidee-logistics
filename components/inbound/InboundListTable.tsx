@@ -9,11 +9,9 @@ import {
   INBOUND_COLUMN_WIDTHS,
   INBOUND_STICKY_LEFT_PX,
   INBOUND_TABLE_MIN_WIDTH_PX,
-  STICKY_BODY_ACTIONS,
   STICKY_BODY_BATCH,
   STICKY_BODY_CONSIGNOR,
   STICKY_BODY_FIRST,
-  STICKY_HEAD_ACTIONS,
   STICKY_HEAD_BATCH,
   STICKY_HEAD_CONSIGNOR,
   STICKY_HEAD_FIRST,
@@ -41,7 +39,6 @@ const tableStyle: CSSProperties = {
 };
 
 const stickyLeft = (px: number): CSSProperties => ({ left: px });
-const stickyRight: CSSProperties = { right: 0 };
 
 const stickyHeadTopClass = cn(STICKY_HEAD_TOP, "border-b border-haidee-border");
 
@@ -179,13 +176,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
             <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}>
               状态 Status
             </th>
-            <th
-              style={stickyRight}
-              className={cn(
-                STICKY_HEAD_ACTIONS,
-                "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 text-right font-medium"
-              )}
-            >
+            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 text-right font-medium")}>
               操作 Actions
             </th>
           </tr>
@@ -215,8 +206,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 )}
               >
                 <div
-                  className="truncate"
-                  style={{ maxWidth: innerWidth(W.batch) }}
+                  className="whitespace-nowrap"
                   title={s.sessionNo ?? undefined}
                 >
                   {s.sessionNo ?? (
@@ -300,14 +290,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                   </Badge>
                 )}
               </td>
-              <td
-                style={stickyRight}
-                className={cn(
-                  STICKY_BODY_ACTIONS,
-                  stickyRowHoverBodyClass,
-                  "overflow-hidden whitespace-nowrap px-3 py-2 text-right"
-                )}
-              >
+              <td className="overflow-hidden whitespace-nowrap px-3 py-2 text-right">
                 <div className="flex items-center justify-end gap-1">
                   <Link
                     href={`/inbound/${s.id}/edit`}

@@ -50,9 +50,9 @@ export const FIRST_COL_WIDTH = "min-w-[160px] max-w-[160px] w-[160px]";
 /** Inbound list column widths (px) — sum drives table width, not width:100%. */
 export const INBOUND_COLUMN_WIDTHS = {
   date: 92,
-  batch: 100,
-  consignor: 150,
-  pickup: 140,
+  batch: 140,
+  consignor: 190,
+  pickup: 150,
   area: 72,
   plate: 88,
   total: 110,
@@ -75,8 +75,8 @@ export const INBOUND_STICKY_LEFT_PX = {
 
 /** @deprecated Use INBOUND_COLUMN_WIDTHS + inline width styles in InboundListTable colgroup */
 export const INBOUND_DATE_COL = "w-[92px] min-w-[92px] max-w-[92px]";
-export const INBOUND_BATCH_COL = "w-[100px] min-w-[100px] max-w-[100px]";
-export const INBOUND_CONSIGNOR_COL = "w-[150px] min-w-[150px] max-w-[150px]";
+export const INBOUND_BATCH_COL = "w-[140px] min-w-[140px] max-w-[140px]";
+export const INBOUND_CONSIGNOR_COL = "w-[190px] min-w-[190px] max-w-[190px]";
 
 export const INBOUND_AREA_COL = "w-[72px] min-w-[72px] max-w-[72px]";
 export const INBOUND_TH_PLATE_COL = "w-[88px] min-w-[88px] max-w-[88px]";
