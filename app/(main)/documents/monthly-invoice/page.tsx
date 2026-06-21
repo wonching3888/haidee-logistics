@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { MonthlyInvoicePicker } from "@/components/documents/MonthlyInvoicePicker";
+import { InvoiceHubTabs } from "@/components/documents/InvoiceHubTabs";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewFreightInfo } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
@@ -14,11 +14,9 @@ export default async function MonthlyInvoicePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-haidee-text">
-          月结账单 Monthly Invoice
-        </h2>
+        <h2 className="text-2xl font-bold text-haidee-text">账单 INVOICE</h2>
         <p className="text-sm text-haidee-muted">
-          按客户与月份生成月结账单 PDF
+          按客户与月份生成派车账单 PDF；包车发票见下方「包车发票」标签页
         </p>
       </div>
 
@@ -29,7 +27,7 @@ export default async function MonthlyInvoicePage() {
               <div className="h-32 animate-pulse rounded-lg bg-haidee-border/30" />
             }
           >
-            <MonthlyInvoicePicker />
+            <InvoiceHubTabs />
           </Suspense>
         </div>
       </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { FileText, PlusCircle } from "lucide-react";
@@ -75,9 +75,14 @@ function formatAmount(value: number, currency: string) {
 interface MonthlyInvoicePickerProps {
   /** List page to return to from print view (e.g. embedded in /documents). */
   listHref?: string;
+  /** Hide year/month fields when parent hub owns the shared filter. */
+  sharedYearMonth?: boolean;
 }
 
-export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {}) {
+export function MonthlyInvoicePicker({
+  listHref,
+  sharedYearMonth = false,
+}: MonthlyInvoicePickerProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -128,8 +133,10 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
     params.set("year", String(draft.year));
     params.set("month", String(draft.month));
     params.set("mode", draft.mode);
+    const tab = searchParams.get("tab");
+    if (tab === "charter") params.set("tab", tab);
     return params;
-  }, []);
+  }, [searchParams]);
 
   const {
     draft,
@@ -167,6 +174,12 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
   const activeMode = MONTHLY_INVOICE_MODES.find((item) => item.value === draft.mode)!;
   const displayParams = applied ?? draft;
 
+  useEffect(() => {
+    if (!sharedYearMonth) return;
+    const { year, month } = parseYearMonthFromSearchParams(searchParams);
+    setDraft((prev) => ({ ...prev, year, month }));
+  }, [searchParams, sharedYearMonth, setDraft]);
+
   const [extraChargesTarget, setExtraChargesTarget] = useState<{
     customerId: string;
     customerName: string;
@@ -176,17 +189,24 @@ export function MonthlyInvoicePicker({ listHref }: MonthlyInvoicePickerProps = {
   return (
     <div className="space-y-4">
       <p className="text-xs text-haidee-muted">
-        选择年份与月份，按五种付款模式分别生成月结账单。每位顾客单独一份 PDF。
+        选择年份与月份，按五种付款模式分别生成账单。每位顾客单独一份 PDF。
         Select year/month and mode; one printable invoice per customer.
       </p>
 
       <ReportFilterBar loading={loading} onSearch={() => void search()}>
-        <YearMonthFields
-          year={draft.year}
-          month={draft.month}
-          onYearChange={(year) => setDraft((prev) => ({ ...prev, year }))}
-          onMonthChange={(month) => setDraft((prev) => ({ ...prev, month }))}
-        />
+        {!sharedYearMonth && (
+          <YearMonthFields
+            year={draft.year}
+            month={draft.month}
+            onYearChange={(year) => setDraft((prev) => ({ ...prev, year }))}
+            onMonthChange={(month) => setDraft((prev) => ({ ...prev, month }))}
+          />
+        )}
+        {sharedYearMonth && (
+          <span className="text-sm text-haidee-muted">
+            月份 Year/Month：{draft.year}年{draft.month}月（与上方筛选一致）
+          </span>
+        )}
       </ReportFilterBar>
 
       <div className="flex flex-wrap gap-2">

@@ -34,8 +34,8 @@ const DOCUMENTS_SIDEBAR_CHILDREN: MainNavLink[] = [
   { href: "/documents", label: "文件生成", labelEn: "Documents" },
   {
     href: "/documents/monthly-invoice",
-    label: "月结账单",
-    labelEn: "Monthly Invoice",
+    label: "账单",
+    labelEn: "INVOICE",
   },
   {
     href: "/documents/partner-trip-invoice",

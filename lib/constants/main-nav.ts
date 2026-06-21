@@ -50,8 +50,8 @@ export const MAIN_NAV_DOCUMENTS_GENERATE: MainNavLink = {
 
 export const MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE: MainNavLink = {
   href: "/documents/monthly-invoice",
-  label: "月结账单",
-  labelEn: "Monthly Invoice",
+    label: "账单",
+    labelEn: "INVOICE",
 };
 
 export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES: MainNavLink = {

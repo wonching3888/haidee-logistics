@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { parseDateInput } from "@/lib/date-utils";
+import { parseDateInput, formatDisplayDate } from "@/lib/date-utils";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { loadExchangeRate } from "@/lib/exchange-rate";
@@ -30,6 +30,8 @@ import {
   parseRequiredCharterQuantity,
   serializeCharterTrip,
   serializeCharterTripListItem,
+  charterBillingCompanyLabel,
+  type CharterBillingCompany,
   type CharterTripInput,
   type CharterTripLineInput,
   type CharterTripListItem,
@@ -37,8 +39,12 @@ import {
 } from "@/lib/charter";
 import {
   buildCharterInvoiceFromTrip,
+  computeCharterInvoiceAmountMyr,
+  resolveCharterBillToDisplayLabelFromTrip,
   type CharterInvoiceData,
 } from "@/lib/charter-invoice";
+import { canViewFreightInfo } from "@/lib/auth-roles";
+import type { UserRole } from "@/types";
 
 export async function getCharterTrips(dateStr: string): Promise<CharterTripListItem[]> {
   const date = parseDateInput(dateStr);
@@ -94,6 +100,95 @@ export async function getCharterInvoiceData(
   });
   if (!row) throw new Error("包车记录不存在 Charter trip not found");
   return buildCharterInvoiceFromTrip(row);
+}
+
+export interface CharterInvoiceMonthTrip {
+  id: string;
+  charterNo: string;
+  date: string;
+  dateLabel: string;
+  truckPlate: string;
+  billToDisplayLabel: string | null;
+  billingCompany: CharterBillingCompany;
+  billingCompanyLabel: string;
+  amountMyr: number;
+}
+
+function parseCharterInvoiceYearMonth(year: number, month: number) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    throw new Error("无效年份 Invalid year");
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error("无效月份 Invalid month");
+  }
+}
+
+function charterMonthDateRange(year: number, month: number) {
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = new Date(Date.UTC(year, month - 1, lastDay));
+  return { start, end };
+}
+
+export async function getCharterInvoiceTripsForMonth(input: {
+  year: number;
+  month: number;
+}): Promise<{ trips: CharterInvoiceMonthTrip[]; totalAmountMyr: number }> {
+  const user = await getCurrentUser();
+  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+    throw new Error("无权限查看账单 Unauthorized");
+  }
+
+  parseCharterInvoiceYearMonth(input.year, input.month);
+  const { start, end } = charterMonthDateRange(input.year, input.month);
+
+  const rows = await prisma.charterTrip.findMany({
+    where: {
+      date: { gte: start, lte: end },
+    },
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      charterNo: true,
+      date: true,
+      billingCompany: true,
+      billToCustomerName: true,
+      charterRevenueMyr: true,
+      cargoType: true,
+      truck: { select: { plate: true } },
+      shipper: { select: { code: true, name: true } },
+      extraItems: {
+        where: { itemType: "revenue" },
+        select: { itemType: true, amountMyr: true },
+      },
+    },
+  });
+
+  const trips: CharterInvoiceMonthTrip[] = [];
+  for (const row of rows) {
+    if (!isCharterCargoType(row.cargoType)) continue;
+    if (!isCharterBillingCompany(row.billingCompany)) continue;
+
+    const amountMyr = computeCharterInvoiceAmountMyr(row);
+    if (amountMyr <= 0) continue;
+
+    trips.push({
+      id: row.id,
+      charterNo: row.charterNo ?? row.id.slice(0, 8),
+      date: row.date.toISOString().slice(0, 10),
+      dateLabel: formatDisplayDate(row.date),
+      truckPlate: row.truck.plate,
+      billToDisplayLabel: resolveCharterBillToDisplayLabelFromTrip(row),
+      billingCompany: row.billingCompany,
+      billingCompanyLabel: charterBillingCompanyLabel(row.billingCompany),
+      amountMyr,
+    });
+  }
+
+  const totalAmountMyr =
+    Math.round(trips.reduce((sum, trip) => sum + trip.amountMyr, 0) * 100) / 100;
+
+  return { trips, totalAmountMyr };
 }
 
 function buildAllExtraItems(input: CharterTripInput) {

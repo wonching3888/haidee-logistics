@@ -363,7 +363,7 @@ export function DocumentsClient({
       </ModuleCard>
 
       {showMonthlyInvoice && (
-        <ModuleCard title="月结账单 Monthly Invoice">
+        <ModuleCard title="账单 INVOICE">
           <MonthlyInvoicePicker listHref={`/documents?date=${encodeURIComponent(date)}`} />
         </ModuleCard>
       )}

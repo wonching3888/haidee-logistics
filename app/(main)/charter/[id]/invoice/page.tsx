@@ -7,19 +7,23 @@ export const dynamic = "force-dynamic";
 
 interface CharterInvoicePageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }
 
 export default async function CharterInvoicePage({
   params,
+  searchParams,
 }: CharterInvoicePageProps) {
   const { id } = await params;
+  const { returnTo: returnToRaw } = await searchParams;
+  const returnTo = returnToRaw?.trim() ?? "";
 
   try {
     const data = await getCharterInvoiceData(id);
     return (
       <CharterInvoicePrintClient
         data={data}
-        backHref={`/charter/${id}`}
+        backHref={returnTo || `/charter/${id}`}
       />
     );
   } catch (error) {

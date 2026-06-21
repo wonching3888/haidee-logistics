@@ -29,6 +29,33 @@ export function formatCharterBillToDisplayLabel(billTo: CharterInvoiceBillTo): s
   return billTo.name;
 }
 
+export function resolveCharterBillToDisplayLabelFromTrip(trip: {
+  shipper: { code: string; name: string } | null;
+  billToCustomerName: string | null;
+}): string | null {
+  if (trip.shipper) {
+    return formatCharterBillToDisplayLabel({
+      code: trip.shipper.code,
+      name: trip.shipper.name,
+      location: null,
+      source: "shipper",
+    });
+  }
+  const manual = trip.billToCustomerName?.trim();
+  return manual || null;
+}
+
+export function computeCharterInvoiceAmountMyr(trip: {
+  charterRevenueMyr: unknown;
+  extraItems: Array<{ itemType: string; amountMyr: unknown }>;
+}): number {
+  const revenue = decimalToNumber(trip.charterRevenueMyr) ?? 0;
+  const extraRevenue = trip.extraItems
+    .filter((item) => item.itemType === "revenue")
+    .reduce((sum, item) => sum + (decimalToNumber(item.amountMyr) ?? 0), 0);
+  return Math.round((revenue + extraRevenue) * 100) / 100;
+}
+
 export interface CharterInvoiceData {
   charterTripId: string;
   charterNo: string;

@@ -60,13 +60,13 @@ export default async function MonthlyInvoicePrintPage({
 
     return (
       <DOPrintPageWithShare
-        title={`月结账单 Monthly Invoice — ${data.customerName}`}
+        title={`账单 INVOICE — ${data.customerName}`}
         documentTitle={documentTitle}
         backHref={backHref}
         sharePayload={{
           fileName: `${documentTitle}.pdf`,
           title: documentTitle,
-          text: `Monthly Invoice ${data.customerName} (${data.customerCode}) · ${mode} · ${year}-${String(month).padStart(2, "0")}`,
+          text: `Invoice ${data.customerName} (${data.customerCode}) · ${mode} · ${year}-${String(month).padStart(2, "0")}`,
         }}
       >
         {isWtlMonthlyInvoiceData(data) ? (
@@ -82,7 +82,7 @@ export default async function MonthlyInvoicePrintPage({
     return (
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-haidee-text">
-          月结账单 Monthly Invoice
+          账单 INVOICE
         </h2>
         <PageError error={error} />
       </div>
