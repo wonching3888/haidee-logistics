@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
+    if (!user || user.role !== "admin") {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }
     const body = (await request.json()) as {

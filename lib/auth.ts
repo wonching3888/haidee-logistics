@@ -18,9 +18,20 @@ export async function getCurrentUser(): Promise<AppUser | null> {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      active: true,
+    },
   });
 
   if (dbUser) {
+    if (!dbUser.active) {
+      return null;
+    }
+
     return {
       id: dbUser.id,
       email: dbUser.email,

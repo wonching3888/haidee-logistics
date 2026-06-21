@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { createGlobalCostSettingsTable } from "@/lib/create-global-cost-settings-table";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 
@@ -8,6 +9,11 @@ import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
  */
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
+    }
+
     await createGlobalCostSettingsTable();
     const settings = await listGlobalCostSettings();
 

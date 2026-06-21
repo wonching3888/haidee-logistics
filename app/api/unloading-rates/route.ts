@@ -11,6 +11,12 @@ async function requireAuth() {
   return user;
 }
 
+async function requireAdminApi() {
+  const user = await requireAuth();
+  if (!user || user.role !== "admin") return null;
+  return user;
+}
+
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -29,7 +35,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireAuth();
+    const user = await requireAdminApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

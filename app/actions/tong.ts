@@ -29,6 +29,7 @@ import {
   saveCrateExport,
   type CrateExportLineInput,
 } from "@/app/actions/crateExport";
+import { requireWrite } from "@/lib/require-auth";
 
 export type ImportRowInput = CrateImportRowInput;
 
@@ -92,7 +93,19 @@ export async function getTongTypesForExport() {
   });
 }
 
+async function listLocationPoolShippers() {
+  const codes = LOCATION_POOL_SHIPPER_LIST.map((spec) => spec.code);
+  return prisma.shipper.findMany({
+    where: { code: { in: [...codes] } },
+    orderBy: { code: "asc" },
+    select: { id: true, code: true, name: true },
+  });
+}
+
+/** Seed/update location-pool shippers — call from admin/setup only, not read paths. */
 export async function ensureLocationPoolShippers() {
+  await requireWrite();
+
   const shippers = [];
   for (const spec of LOCATION_POOL_SHIPPER_LIST) {
     const shipper = await prisma.shipper.upsert({
@@ -117,7 +130,7 @@ export async function ensureLocationPoolShippers() {
 
 export async function getShippersForExport() {
   const [poolShippers, shippers] = await Promise.all([
-    ensureLocationPoolShippers(),
+    listLocationPoolShippers(),
     prisma.shipper.findMany({
       where: OPERATIONAL_SHIPPER_WHERE,
       orderBy: { name: "asc" },

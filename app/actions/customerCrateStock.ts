@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
@@ -262,6 +263,8 @@ export async function addCustomerCratesBatch(
   location: string,
   notes?: string
 ) {
+  await requireWrite();
+
   const additions = items.filter((item) => item.quantity > 0);
   if (additions.length === 0) return;
 
@@ -317,6 +320,8 @@ export async function deductCustomerCratesBatch(
   location: string,
   notes?: string
 ) {
+  await requireWrite();
+
   const deductions = items.filter((item) => item.quantity > 0);
   if (deductions.length === 0) return;
 
