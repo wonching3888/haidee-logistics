@@ -176,6 +176,11 @@ function injectPdfCaptureTypography(doc: Document, minPdfFontPt: number) {
   const style = doc.createElement("style");
   style.setAttribute("data-html2canvas-pdf-typography", "true");
   style.textContent = `
+    [data-pdf-capture-root] .scroll-matrix-table {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+    }
     [data-pdf-capture-root] .daily-summary-table,
     [data-pdf-capture-root] .daily-summary-table .daily-summary-th,
     [data-pdf-capture-root] .daily-summary-table .daily-summary-td,
