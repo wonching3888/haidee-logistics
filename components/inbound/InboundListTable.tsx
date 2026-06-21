@@ -6,12 +6,9 @@ import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import type { InboundSessionListRow } from "@/lib/inbound-list";
 import {
-  INBOUND_ACTIONS_COL,
-  INBOUND_AREA_COL,
-  INBOUND_BATCH_COL,
-  INBOUND_CONSIGNOR_COL,
-  INBOUND_DATE_COL,
-  INBOUND_TH_PLATE_COL,
+  INBOUND_COLUMN_WIDTHS,
+  INBOUND_STICKY_LEFT_PX,
+  INBOUND_TABLE_MIN_WIDTH_PX,
   STICKY_BODY_ACTIONS,
   STICKY_BODY_BATCH,
   STICKY_BODY_CONSIGNOR,
@@ -30,12 +27,21 @@ interface InboundListTableProps {
   sessions: InboundSessionListRow[];
 }
 
-/** Fixed leading columns + scrollable middle; min-width keeps horizontal scroll for wide rows. */
+const W = INBOUND_COLUMN_WIDTHS;
+
+/** Content width inside px-3 cells (12px padding each side). */
+function innerWidth(colWidth: number, px = 12): number {
+  return Math.max(0, colWidth - px * 2);
+}
+
 const tableStyle: CSSProperties = {
   tableLayout: "fixed",
-  minWidth: "980px",
-  width: "100%",
+  width: `${INBOUND_TABLE_MIN_WIDTH_PX}px`,
+  minWidth: `${INBOUND_TABLE_MIN_WIDTH_PX}px`,
 };
+
+const stickyLeft = (px: number): CSSProperties => ({ left: px });
+const stickyRight: CSSProperties = { right: 0 };
 
 const stickyHeadTopClass = cn(STICKY_HEAD_TOP, "border-b border-haidee-border");
 
@@ -47,17 +53,18 @@ function safeDisplayDate(value: string) {
 
 function TruncatedCell({
   text,
-  widthClass,
+  maxWidth,
   className,
 }: {
   text: string | null | undefined;
-  widthClass?: string;
+  maxWidth: number;
   className?: string;
 }) {
   const display = text?.trim() || "—";
   return (
     <div
-      className={cn(widthClass, "truncate", className)}
+      className={cn("truncate", className)}
+      style={{ maxWidth }}
       title={display !== "—" ? display : undefined}
     >
       {display}
@@ -97,41 +104,41 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
     <ScrollMatrixTable fillParent className="h-full rounded-xl">
       <table data-inbound-table-scroll style={tableStyle} className="text-sm">
         <colgroup>
-          <col style={{ width: 92 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 150 }} />
-          <col />
-          <col style={{ width: 72 }} />
-          <col style={{ width: 88 }} />
-          <col style={{ width: 88 }} />
-          <col style={{ width: 88 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 132 }} />
+          <col style={{ width: W.date }} />
+          <col style={{ width: W.batch }} />
+          <col style={{ width: W.consignor }} />
+          <col style={{ width: W.pickup }} />
+          <col style={{ width: W.area }} />
+          <col style={{ width: W.plate }} />
+          <col style={{ width: W.total }} />
+          <col style={{ width: W.unassigned }} />
+          <col style={{ width: W.status }} />
+          <col style={{ width: W.actions }} />
         </colgroup>
         <thead>
           <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
             <th
+              style={stickyLeft(INBOUND_STICKY_LEFT_PX.date)}
               className={cn(
                 STICKY_HEAD_FIRST,
-                INBOUND_DATE_COL,
                 "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 font-medium"
               )}
             >
               日期 Date
             </th>
             <th
+              style={stickyLeft(INBOUND_STICKY_LEFT_PX.batch)}
               className={cn(
                 STICKY_HEAD_BATCH,
-                INBOUND_BATCH_COL,
                 "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 font-medium"
               )}
             >
               批次号 Batch
             </th>
             <th
+              style={stickyLeft(INBOUND_STICKY_LEFT_PX.consignor)}
               className={cn(
                 STICKY_HEAD_CONSIGNOR,
-                INBOUND_CONSIGNOR_COL,
                 "overflow-hidden border-b border-haidee-border px-3 py-3 font-medium"
               )}
             >
@@ -140,26 +147,18 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 Consignor
               </div>
             </th>
-            <th className={cn(stickyHeadTopClass, "whitespace-nowrap px-3 py-3 font-medium")}>
+            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}>
               收货地点 Pickup
             </th>
             <NarrowHeader
               primary="地区"
               secondary="Area"
-              className={cn(
-                stickyHeadTopClass,
-                INBOUND_AREA_COL,
-                "overflow-hidden px-2 py-3 font-medium"
-              )}
+              className={cn(stickyHeadTopClass, "overflow-hidden px-2 py-3 font-medium")}
             />
             <NarrowHeader
               primary="车牌"
               secondary="TH Plt"
-              className={cn(
-                stickyHeadTopClass,
-                INBOUND_TH_PLATE_COL,
-                "overflow-hidden px-2 py-3 font-medium"
-              )}
+              className={cn(stickyHeadTopClass, "overflow-hidden px-2 py-3 font-medium")}
             />
             <th
               className={cn(
@@ -177,13 +176,13 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
             >
               未分配 Unassigned
             </th>
-            <th className={cn(stickyHeadTopClass, "whitespace-nowrap px-3 py-3 font-medium")}>
+            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}>
               状态 Status
             </th>
             <th
+              style={stickyRight}
               className={cn(
                 STICKY_HEAD_ACTIONS,
-                INBOUND_ACTIONS_COL,
                 "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 text-right font-medium"
               )}
             >
@@ -198,25 +197,26 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
               className="group border-b border-haidee-border hover:bg-haidee-surface/50"
             >
               <td
+                style={stickyLeft(INBOUND_STICKY_LEFT_PX.date)}
                 className={cn(
                   STICKY_BODY_FIRST,
                   stickyRowHoverBodyClass,
-                  INBOUND_DATE_COL,
                   "overflow-hidden whitespace-nowrap px-3 py-2 font-mono"
                 )}
               >
                 {safeDisplayDate(s.date)}
               </td>
               <td
+                style={stickyLeft(INBOUND_STICKY_LEFT_PX.batch)}
                 className={cn(
                   STICKY_BODY_BATCH,
                   stickyRowHoverBodyClass,
-                  INBOUND_BATCH_COL,
                   "overflow-hidden px-3 py-2 font-mono text-sm"
                 )}
               >
                 <div
-                  className="w-[100px] truncate"
+                  className="truncate"
+                  style={{ maxWidth: innerWidth(W.batch) }}
                   title={s.sessionNo ?? undefined}
                 >
                   {s.sessionNo ?? (
@@ -225,25 +225,35 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 </div>
               </td>
               <td
+                style={stickyLeft(INBOUND_STICKY_LEFT_PX.consignor)}
                 className={cn(
                   STICKY_BODY_CONSIGNOR,
                   stickyRowHoverBodyClass,
-                  INBOUND_CONSIGNOR_COL,
                   "overflow-hidden px-3 py-2 font-medium"
                 )}
               >
-                <div className="w-[150px] truncate" title={s.shipperName}>
+                <div
+                  className="truncate"
+                  style={{ maxWidth: innerWidth(W.consignor) }}
+                  title={s.shipperName}
+                >
                   {s.shipperName}
                 </div>
               </td>
-              <td className="overflow-hidden whitespace-nowrap px-3 py-2 text-sm text-haidee-text">
-                {s.pickupLocationLabel}
+              <td className="overflow-hidden px-3 py-2 text-sm text-haidee-text">
+                <div
+                  className="truncate"
+                  style={{ maxWidth: innerWidth(W.pickup) }}
+                  title={s.pickupLocationLabel}
+                >
+                  {s.pickupLocationLabel}
+                </div>
               </td>
-              <td className={cn(INBOUND_AREA_COL, "overflow-hidden px-2 py-2 font-mono text-haidee-muted")}>
-                <TruncatedCell text={s.areaNote} widthClass="w-[72px]" />
+              <td className="overflow-hidden px-2 py-2 font-mono text-haidee-muted">
+                <TruncatedCell text={s.areaNote} maxWidth={innerWidth(W.area, 8)} />
               </td>
-              <td className={cn(INBOUND_TH_PLATE_COL, "overflow-hidden px-2 py-2 font-mono text-haidee-muted")}>
-                <TruncatedCell text={s.thVehiclePlate} widthClass="w-[88px]" />
+              <td className="overflow-hidden px-2 py-2 font-mono text-haidee-muted">
+                <TruncatedCell text={s.thVehiclePlate} maxWidth={innerWidth(W.plate, 8)} />
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right font-mono font-semibold">
                 {formatCrateBoxQty(s.crateQty, s.boxQty)}
@@ -263,42 +273,45 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                   </span>
                 )}
               </td>
-              <td className="whitespace-nowrap px-3 py-2">
+              <td className="overflow-hidden whitespace-nowrap px-3 py-2">
                 {s.status === "draft" ? (
                   <Badge
                     variant="outline"
-                    className="border-haidee-orange text-haidee-orange"
+                    className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
+                    title="草稿 Draft"
                   >
                     草稿 Draft
                   </Badge>
                 ) : s.unassignedQty > 0 ? (
                   <Badge
                     variant="outline"
-                    className="border-haidee-orange text-haidee-orange"
+                    className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
+                    title="未分配 Unassigned"
                   >
                     未分配 Unassigned
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
-                    className="border-haidee-green text-haidee-green"
+                    className="max-w-full truncate border-haidee-green text-xs text-haidee-green"
+                    title="已分配 Assigned"
                   >
                     已分配 Assigned
                   </Badge>
                 )}
               </td>
               <td
+                style={stickyRight}
                 className={cn(
                   STICKY_BODY_ACTIONS,
                   stickyRowHoverBodyClass,
-                  INBOUND_ACTIONS_COL,
                   "overflow-hidden whitespace-nowrap px-3 py-2 text-right"
                 )}
               >
                 <div className="flex items-center justify-end gap-1">
                   <Link
                     href={`/inbound/${s.id}/edit`}
-                    className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
+                    className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
                   >
                     编辑 Edit
                   </Link>

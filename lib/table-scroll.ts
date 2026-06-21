@@ -47,37 +47,56 @@ export const STICKY_BODY_ACTIONS =
 
 export const FIRST_COL_WIDTH = "min-w-[160px] max-w-[160px] w-[160px]";
 
-/** Inbound list: three consecutive sticky left columns (date + batch + consignor). */
+/** Inbound list column widths (px) — sum drives table width, not width:100%. */
+export const INBOUND_COLUMN_WIDTHS = {
+  date: 92,
+  batch: 100,
+  consignor: 150,
+  pickup: 140,
+  area: 72,
+  plate: 88,
+  total: 110,
+  unassigned: 80,
+  status: 120,
+  actions: 132,
+} as const;
+
+export const INBOUND_TABLE_MIN_WIDTH_PX = Object.values(INBOUND_COLUMN_WIDTHS).reduce(
+  (sum, w) => sum + w,
+  0
+);
+
+/** Sticky left offsets (px) = cumulative column widths; use inline style, not Tailwind arbitrary left-[]. */
+export const INBOUND_STICKY_LEFT_PX = {
+  date: 0,
+  batch: INBOUND_COLUMN_WIDTHS.date,
+  consignor: INBOUND_COLUMN_WIDTHS.date + INBOUND_COLUMN_WIDTHS.batch,
+} as const;
+
+/** @deprecated Use INBOUND_COLUMN_WIDTHS + inline width styles in InboundListTable colgroup */
 export const INBOUND_DATE_COL = "w-[92px] min-w-[92px] max-w-[92px]";
 export const INBOUND_BATCH_COL = "w-[100px] min-w-[100px] max-w-[100px]";
 export const INBOUND_CONSIGNOR_COL = "w-[150px] min-w-[150px] max-w-[150px]";
-
-/** Cumulative left offsets: 0 → 92 → 192 (92 + 100). */
-export const INBOUND_BATCH_STICKY_LEFT = "left-[92px]";
-export const INBOUND_CONSIGNOR_STICKY_LEFT = "left-[192px]";
 
 export const INBOUND_AREA_COL = "w-[72px] min-w-[72px] max-w-[72px]";
 export const INBOUND_TH_PLATE_COL = "w-[88px] min-w-[88px] max-w-[88px]";
 export const INBOUND_ACTIONS_COL = "w-[132px] min-w-[132px] max-w-[132px]";
 
+/** Base sticky classes for inbound — horizontal offset via inline style left/right. */
 export const STICKY_HEAD_BATCH = cn(
-  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border",
-  INBOUND_BATCH_STICKY_LEFT
+  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border"
 );
 
 export const STICKY_BODY_BATCH = cn(
-  "sticky z-[15] bg-white shadow-[1px_0_0_0] shadow-haidee-border",
-  INBOUND_BATCH_STICKY_LEFT
+  "sticky z-[15] bg-white shadow-[1px_0_0_0] shadow-haidee-border"
 );
 
 export const STICKY_HEAD_CONSIGNOR = cn(
-  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border",
-  INBOUND_CONSIGNOR_STICKY_LEFT
+  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border"
 );
 
 export const STICKY_BODY_CONSIGNOR = cn(
-  "sticky z-20 bg-white shadow-[1px_0_0_0] shadow-haidee-border",
-  INBOUND_CONSIGNOR_STICKY_LEFT
+  "sticky z-20 bg-white shadow-[1px_0_0_0] shadow-haidee-border"
 );
 
 export const stickyRowHoverBodyClass =
