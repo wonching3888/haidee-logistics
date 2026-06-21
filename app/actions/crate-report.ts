@@ -5,7 +5,10 @@ import {
   mapTongToColumn,
   orderActiveTongColumns,
 } from "@/lib/constants/tong-columns";
-import { fetchCrateDispatchEntries } from "@/lib/reports/fetch-dispatch-quantities";
+import {
+  fetchCharterCrateEntries,
+  fetchCrateDispatchEntries,
+} from "@/lib/reports/fetch-dispatch-quantities";
 import {
   buildPeriodReport,
   getMonthDateRange,
@@ -44,17 +47,16 @@ export async function getCrateReport(input: {
       ? getMonthDateRange(year, month)
       : getYearDateRange(year);
 
-  const entries = await fetchCrateDispatchEntries(
-    range.start,
-    range.end,
-    mapTongToColumn
-  );
+  const [dispatchEntries, charterEntries] = await Promise.all([
+    fetchCrateDispatchEntries(range.start, range.end, mapTongToColumn),
+    fetchCharterCrateEntries(range.start, range.end, mapTongToColumn),
+  ]);
 
   return buildPeriodReport({
     mode,
     year,
     month,
-    entries,
+    entries: [...dispatchEntries, ...charterEntries],
     buildColumns: buildCrateColumns,
   });
 }

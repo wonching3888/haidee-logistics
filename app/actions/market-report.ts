@@ -3,7 +3,11 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { MARKET_ORDER, getActiveMarkets } from "@/lib/markets";
-import { fetchMarketDispatchEntries } from "@/lib/reports/fetch-dispatch-quantities";
+import {
+  fetchCharterMarketEntries,
+  fetchDispatchBoxQuantity,
+  fetchMarketDispatchEntries,
+} from "@/lib/reports/fetch-dispatch-quantities";
 import {
   buildPeriodReport,
   getMonthDateRange,
@@ -42,13 +46,18 @@ export async function getMarketReport(input: {
       ? getMonthDateRange(year, month)
       : getYearDateRange(year);
 
-  const entries = await fetchMarketDispatchEntries(range.start, range.end);
+  const [dispatchEntries, charterEntries, boxTotal] = await Promise.all([
+    fetchMarketDispatchEntries(range.start, range.end),
+    fetchCharterMarketEntries(range.start, range.end),
+    fetchDispatchBoxQuantity(range.start, range.end),
+  ]);
 
   return buildPeriodReport({
     mode,
     year,
     month,
-    entries,
+    entries: [...dispatchEntries, ...charterEntries],
     buildColumns: buildMarketColumns,
+    supplementalBoxTotal: boxTotal,
   });
 }
