@@ -3,15 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useLayoutEffect, useMemo, useState } from "react";
-import {
-  BarChart3,
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  Settings,
-} from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SettingsSidebarMenu } from "@/components/shared/SettingsSidebarMenu";
+import { useT } from "@/components/shared/locale-context";
+import type { MessageKey } from "@/lib/i18n/messages";
 import type { StoredUserRole } from "@/types";
 import {
   canAccessPage,
@@ -20,71 +16,16 @@ import {
 import {
   MAIN_NAV_CRATE,
   MAIN_NAV_DASHBOARD,
+  MAIN_NAV_DOCUMENTS,
   MAIN_NAV_HISTORY,
   MAIN_NAV_OPERATIONS,
-  MAIN_NAV_REPORTS_BASE,
-  MAIN_NAV_REPORTS_DRIVER_PAYROLL,
-  MAIN_NAV_REPORTS_OPERATIONS,
-  MAIN_NAV_REPORTS_PNL,
+  MAIN_NAV_REPORTS,
+  MAIN_NAV_SETTINGS,
   isGroupActive,
   isPathActive,
   type MainNavGroup,
   type MainNavLink,
 } from "@/lib/constants/main-nav";
-
-/** Documents submenu rendered by Sidebar — keep all items in this file. */
-const DOCUMENTS_SIDEBAR_CHILDREN: MainNavLink[] = [
-  { href: "/documents", label: "文件生成", labelEn: "Documents" },
-  {
-    href: "/documents/monthly-invoice",
-    label: "账单",
-    labelEn: "INVOICE",
-  },
-  {
-    href: "/documents/partner-trip-invoice",
-    label: "合作伙伴车力单",
-    labelEn: "Partner Trip Invoice",
-  },
-  {
-    href: "/documents/crate-return-invoice",
-    label: "回收桶月结单",
-    labelEn: "Crate Return Invoice",
-  },
-  {
-    href: "/documents/driver-expenses",
-    label: "司机费用单",
-    labelEn: "Driver Expenses",
-  },
-];
-
-const DOCUMENTS_SIDEBAR_GROUP: MainNavGroup = {
-  id: "documents",
-  label: "文件",
-  labelEn: "Documents",
-  icon: FileText,
-  children: DOCUMENTS_SIDEBAR_CHILDREN,
-};
-
-const REPORTS_SIDEBAR_GROUP: MainNavGroup = {
-  id: "reports",
-  label: "报表",
-  labelEn: "Reports",
-  icon: BarChart3,
-  children: [
-    ...MAIN_NAV_REPORTS_BASE,
-    MAIN_NAV_REPORTS_OPERATIONS,
-    MAIN_NAV_REPORTS_PNL,
-    MAIN_NAV_REPORTS_DRIVER_PAYROLL,
-  ],
-};
-
-const SETTINGS_SIDEBAR_GROUP: MainNavGroup = {
-  id: "settings",
-  label: "系统设置",
-  labelEn: "Settings",
-  icon: Settings,
-  children: [{ href: "/settings", label: "系统设置", labelEn: "Settings" }],
-};
 
 const SIDEBAR_BG = "bg-[#9DC08B]";
 const SIDEBAR_TEXT = "text-[#0d1a0d]";
@@ -100,6 +41,31 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+function NavLabel({
+  messageKey,
+  active,
+}: {
+  messageKey: MessageKey;
+  active: boolean;
+}) {
+  const { parts } = useT();
+  const { local, en } = parts(messageKey);
+
+  return (
+    <>
+      {local}{" "}
+      <span
+        className={cn(
+          "text-xs",
+          active ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
+        )}
+      >
+        {en}
+      </span>
+    </>
+  );
+}
+
 export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
@@ -111,9 +77,9 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
     () =>
       [
         filterNavGroupByAccess(role, MAIN_NAV_OPERATIONS),
-        filterNavGroupByAccess(role, DOCUMENTS_SIDEBAR_GROUP),
+        filterNavGroupByAccess(role, MAIN_NAV_DOCUMENTS),
         filterNavGroupByAccess(role, MAIN_NAV_CRATE),
-        filterNavGroupByAccess(role, REPORTS_SIDEBAR_GROUP),
+        filterNavGroupByAccess(role, MAIN_NAV_REPORTS),
       ].filter((group): group is MainNavGroup => group !== null),
     [role]
   );
@@ -202,7 +168,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
 
           {showSettings && (
             <ExpandableNavGroup
-              group={SETTINGS_SIDEBAR_GROUP}
+              group={MAIN_NAV_SETTINGS}
               open={openGroups.settings ?? false}
               onToggle={() => toggleGroup("settings")}
               pathname={pathname}
@@ -261,15 +227,7 @@ function ExpandableNavGroup({
       >
         <Icon className="h-5 w-5 shrink-0" />
         <span className="flex-1 text-left">
-          {group.label}{" "}
-          <span
-            className={cn(
-              "text-xs",
-              groupActive ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
-            )}
-          >
-            {group.labelEn}
-          </span>
+          <NavLabel messageKey={group.messageKey} active={groupActive} />
         </span>
         {open ? (
           <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
@@ -285,8 +243,7 @@ function ExpandableNavGroup({
               <li key={child.href}>
                 <SidebarSubLink
                   href={child.href}
-                  label={child.label}
-                  labelEn={child.labelEn}
+                  messageKey={child.messageKey}
                   isActive={isPathActive(pathname, child.href)}
                   onNavigate={onNavigate}
                 />
@@ -300,11 +257,15 @@ function ExpandableNavGroup({
 
 function SidebarSubLink({
   href,
-  label,
-  labelEn,
+  messageKey,
   isActive,
   onNavigate,
-}: MainNavLink & { isActive: boolean; onNavigate?: () => void }) {
+}: {
+  href: string;
+  messageKey: MessageKey;
+  isActive: boolean;
+  onNavigate?: () => void;
+}) {
   return (
     <Link
       href={href}
@@ -315,15 +276,7 @@ function SidebarSubLink({
       )}
     >
       <span>
-        {label}{" "}
-        <span
-          className={cn(
-            "text-xs",
-            isActive ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
-          )}
-        >
-          {labelEn}
-        </span>
+        <NavLabel messageKey={messageKey} active={isActive} />
       </span>
     </Link>
   );
@@ -353,15 +306,7 @@ function NavLink({
       >
         <Icon className="h-5 w-5 shrink-0" />
         <span>
-          {item.label}{" "}
-          <span
-            className={cn(
-              "text-xs",
-              active ? SIDEBAR_ACTIVE_LABEL_MUTED : SIDEBAR_LABEL_MUTED
-            )}
-          >
-            {item.labelEn}
-          </span>
+          <NavLabel messageKey={item.messageKey} active={active} />
         </span>
       </Link>
     </li>

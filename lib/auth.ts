@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isStoredUserRole } from "@/lib/auth-roles";
+import { normalizeUserLanguage } from "@/lib/i18n/messages";
 import type { AppUser } from "@/types";
 import { redirect } from "next/navigation";
 
@@ -26,6 +27,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       email: true,
       name: true,
       role: true,
+      language: true,
       active: true,
     },
   });
@@ -40,6 +42,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       email: dbUser.email,
       name: dbUser.name,
       role: isStoredUserRole(dbUser.role) ? dbUser.role : "clerk",
+      language: normalizeUserLanguage(dbUser.language),
     };
   }
 
@@ -48,6 +51,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     email: user.email,
     name: user.user_metadata?.name ?? null,
     role: "clerk",
+    language: "zh",
   };
 }
 

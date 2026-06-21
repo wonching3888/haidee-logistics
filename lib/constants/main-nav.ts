@@ -5,77 +5,70 @@ import {
   FileText,
   Package,
   History,
+  Settings,
+  BarChart3,
 } from "lucide-react";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export interface MainNavLink {
   href: string;
-  label: string;
-  labelEn: string;
+  messageKey: MessageKey;
 }
 
 export interface MainNavGroup {
   id: string;
-  label: string;
-  labelEn: string;
+  messageKey: MessageKey;
   icon: LucideIcon;
   children: MainNavLink[];
 }
 
 export const MAIN_NAV_DASHBOARD: MainNavLink & { icon: LucideIcon } = {
   href: "/dashboard",
-  label: "总览",
-  labelEn: "Dashboard",
+  messageKey: "nav.dashboard",
   icon: LayoutDashboard,
 };
 
 export const MAIN_NAV_OPERATIONS: MainNavGroup = {
   id: "operations",
-  label: "物流操作",
-  labelEn: "Operations",
+  messageKey: "nav.operations",
   icon: PackageSearch,
   children: [
-    { href: "/inbound", label: "进货录入", labelEn: "Inbound" },
-    { href: "/dispatch", label: "派车调度", labelEn: "Dispatch" },
-    { href: "/charter", label: "包车", labelEn: "Charter" },
-    { href: "/summary", label: "每日总单", labelEn: "Daily Summary" },
-    { href: "/search", label: "查询", labelEn: "Search" },
+    { href: "/inbound", messageKey: "nav.inbound" },
+    { href: "/dispatch", messageKey: "nav.dispatch" },
+    { href: "/charter", messageKey: "nav.charter" },
+    { href: "/summary", messageKey: "nav.summary" },
+    { href: "/search", messageKey: "nav.search" },
   ],
 };
 
 export const MAIN_NAV_DOCUMENTS_GENERATE: MainNavLink = {
   href: "/documents",
-  label: "文件生成",
-  labelEn: "Documents",
+  messageKey: "nav.documentsGenerate",
 };
 
 export const MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE: MainNavLink = {
   href: "/documents/monthly-invoice",
-    label: "账单",
-    labelEn: "INVOICE",
+  messageKey: "nav.monthlyInvoice",
 };
 
 export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES: MainNavLink = {
   href: "/documents/driver-expenses",
-  label: "司机费用单",
-  labelEn: "Driver Expenses",
+  messageKey: "nav.driverExpenses",
 };
 
 export const MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE: MainNavLink = {
   href: "/documents/partner-trip-invoice",
-  label: "合作伙伴车力单",
-  labelEn: "Partner Trip Invoice",
+  messageKey: "nav.partnerTripInvoice",
 };
 
 export const MAIN_NAV_DOCUMENTS_CRATE_RETURN_INVOICE: MainNavLink = {
   href: "/documents/crate-return-invoice",
-  label: "回收桶月结单",
-  labelEn: "Crate Return Invoice",
+  messageKey: "nav.crateReturnInvoice",
 };
 
 export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   id: "documents",
-  label: "文件",
-  labelEn: "Documents",
+  messageKey: "nav.documents",
   icon: FileText,
   children: [
     MAIN_NAV_DOCUMENTS_GENERATE,
@@ -88,56 +81,68 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
 
 export const MAIN_NAV_CRATE: MainNavGroup = {
   id: "crate",
-  label: "桶管理",
-  labelEn: "Crate Management",
+  messageKey: "nav.crate",
   icon: Package,
   children: [
-    { href: "/crate/import", label: "空桶回收", labelEn: "Crate Import" },
-    { href: "/crate/export", label: "空桶归还", labelEn: "Crate Export" },
-    { href: "/crate/stock", label: "桶库存", labelEn: "Crate Stock" },
+    { href: "/crate/import", messageKey: "nav.crateImport" },
+    { href: "/crate/export", messageKey: "nav.crateExport" },
+    { href: "/crate/stock", messageKey: "nav.crateStock" },
     {
       href: "/crate/customer-stock",
-      label: "顾客桶库存",
-      labelEn: "Customer Crate Stock",
+      messageKey: "nav.customerCrateStock",
     },
   ],
 };
 
 export const MAIN_NAV_REPORTS_CRATE_RENTAL: MainNavLink = {
   href: "/reports/crate-rental",
-  label: "租桶月结",
-  labelEn: "Crate Rental Statement",
+  messageKey: "nav.crateRental",
 };
 
 export const MAIN_NAV_REPORTS_BASE: MainNavLink[] = [
-  { href: "/reports/market", label: "市场报表", labelEn: "Market Report" },
-  { href: "/reports/crate", label: "桶型报表", labelEn: "Crate Report" },
+  { href: "/reports/market", messageKey: "nav.marketReport" },
+  { href: "/reports/crate", messageKey: "nav.crateReport" },
   MAIN_NAV_REPORTS_CRATE_RENTAL,
 ];
 
 export const MAIN_NAV_REPORTS_OPERATIONS: MainNavLink = {
   href: "/operations",
-  label: "运营报表",
-  labelEn: "Operations",
+  messageKey: "nav.operationsReport",
 };
 
 export const MAIN_NAV_REPORTS_PNL: MainNavLink = {
   href: "/reports/pnl",
-  label: "损益分析",
-  labelEn: "P&L Analysis",
+  messageKey: "nav.pnl",
 };
 
 export const MAIN_NAV_REPORTS_DRIVER_PAYROLL: MainNavLink = {
   href: "/driver-payroll",
-  label: "司机薪资",
-  labelEn: "Driver Payroll",
+  messageKey: "nav.driverPayroll",
+};
+
+export const MAIN_NAV_REPORTS: MainNavGroup = {
+  id: "reports",
+  messageKey: "nav.reports",
+  icon: BarChart3,
+  children: [
+    ...MAIN_NAV_REPORTS_BASE,
+    MAIN_NAV_REPORTS_OPERATIONS,
+    MAIN_NAV_REPORTS_PNL,
+    MAIN_NAV_REPORTS_DRIVER_PAYROLL,
+  ],
 };
 
 export const MAIN_NAV_HISTORY: MainNavLink & { icon: LucideIcon } = {
   href: "/history",
-  label: "修改记录",
-  labelEn: "History",
+  messageKey: "nav.history",
   icon: History,
+};
+
+export const MAIN_NAV_SETTINGS: MainNavGroup = {
+  id: "settings",
+  messageKey: "nav.settings",
+  icon: Settings,
+  children: [{ href: "/settings", messageKey: "nav.settings" }],
 };
 
 export function isPathActive(pathname: string, href: string) {

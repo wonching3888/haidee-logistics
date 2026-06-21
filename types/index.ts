@@ -12,9 +12,13 @@ export type LegacyUserRole = "accounting" | "owner";
 /** Any role string persisted in `users.role`. */
 export type StoredUserRole = UserRole | LegacyUserRole;
 
+/** UI local language — English is always shown alongside. */
+export type UserLanguage = "zh" | "th";
+
 export interface AppUser {
   id: string;
   email: string;
   name: string | null;
   role: StoredUserRole;
+  language: UserLanguage;
 }

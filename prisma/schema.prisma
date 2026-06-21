@@ -13,6 +13,7 @@ model User {
   email     String   @unique
   name      String?
   role String   @default("clerk") // admin | clerk | thai_accounting | my_accounting | viewer (legacy: accounting, owner→viewer)
+  language  String   @default("zh") // zh | th — UI local language (English always shown)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 

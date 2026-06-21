@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { CanWriteProvider } from "@/components/shared/can-write-context";
+import { LocaleProvider } from "@/components/shared/locale-context";
 import { Header } from "@/components/shared/Header";
 import type { AppUser, StoredUserRole } from "@/types";
 
@@ -23,7 +24,8 @@ export function AppShell({ user, role, canWrite, children }: AppShellProps) {
   }, [pathname]);
 
   return (
-    <div className="flex h-screen" style={{ overflow: "hidden" }}>
+    <LocaleProvider language={user.language}>
+      <div className="flex h-screen" style={{ overflow: "hidden" }}>
       {menuOpen && (
         <button
           type="button"
@@ -52,6 +54,7 @@ export function AppShell({ user, role, canWrite, children }: AppShellProps) {
           © 2026 DMC SYSTEM. All Rights Reserved.
         </footer>
       </div>
-    </div>
+      </div>
+    </LocaleProvider>
   );
 }

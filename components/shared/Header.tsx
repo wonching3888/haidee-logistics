@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LogOut, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { createClient } from "@/lib/supabase/client";
 import { getRoleLabel } from "@/lib/auth-roles";
 import type { AppUser } from "@/types";
@@ -45,13 +46,17 @@ export function Header({ user, onMenuToggle }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 text-sm text-haidee-muted">
+      <div className="flex items-center gap-3 md:gap-4">
+        <LanguageSwitcher current={user.language} />
+        <div className="hidden items-center gap-2 text-sm text-haidee-muted sm:flex">
           <User className="h-4 w-4" />
           <span>{user.name ?? user.email}</span>
           <span className="rounded bg-haidee-navy2 px-2 py-0.5 text-xs text-white">
             {roleLabel}
           </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-haidee-muted sm:hidden">
+          <User className="h-4 w-4 shrink-0" />
         </div>
         <Button
           variant="outline"

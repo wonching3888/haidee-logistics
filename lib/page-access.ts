@@ -150,8 +150,8 @@ export function filterNavItemsByAccess<T extends { href: string }>(
 
 /** Return a nav group with accessible children only, or null if none remain. */
 export function filterNavGroupByAccess<
-  T extends { href: string; label: string; labelEn: string },
-  G extends { id: string; label: string; labelEn: string; icon: unknown; children: T[] },
+  T extends { href: string },
+  G extends { id: string; messageKey: string; icon: unknown; children: T[] },
 >(role: StoredUserRole, group: G): (G & { children: T[] }) | null {
   const children = filterNavItemsByAccess(role, group.children);
   if (children.length === 0) {
