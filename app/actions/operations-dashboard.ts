@@ -57,6 +57,7 @@ async function aggregateIncome(
   ]);
   return {
     mode1aThb: income.mode1aThb,
+    mode1aMyr: income.mode1aMyr,
     mode1bMyr: income.mode1bMyr,
     mode2Myr: income.mode2Myr,
     wtlMode3Myr: income.wtlMode3Myr,

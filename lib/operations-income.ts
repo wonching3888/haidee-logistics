@@ -1,14 +1,13 @@
-import { prisma } from "@/lib/prisma";
-import type { PaymentMode } from "@/lib/constants/freight-settings";
-import { WTL_SST_MULTIPLIER } from "@/lib/constants/freight-settings";
 import {
   classifyInboundFreightGap,
-  computeInboundLineFreight,
+  inboundLineStoredSnapshot,
   isMissingRateGap,
   normalizeMcDeliveryMode,
   type InboundFreightGapReason,
+  type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import { loadExchangeRate } from "@/lib/exchange-rate";
 import {
   fetchOperationsAssignedInboundLines,
   type OperationsAssignedInboundLine,
@@ -19,10 +18,11 @@ import {
 } from "@/lib/operations-freight-preload";
 import {
   dualPaymentWtlRevenueMyr,
-  nklPermitRevenueMyr,
+  lineRevenueMyr,
   operationsFreightIncomeMyr,
   shouldExcludeWtlSstFromRevenue,
 } from "@/lib/wtl-revenue";
+import { convertThbToMyr } from "@/lib/freight-rates";
 import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
 import { aggregateCrateReturnIncomeMyr } from "@/lib/crate-return-billing";
@@ -32,46 +32,6 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function addIncomeAmount(
-  totals: {
-    mode1aThb: number;
-    mode1bMyr: number;
-    mode2Myr: number;
-    wtlMode3Myr: number;
-    wtlShipperMyr: number;
-  },
-  paymentMode: PaymentMode,
-  amount: number,
-  currency: string,
-  billingCompany?: string | null
-) {
-  if (amount <= 0) return;
-
-  if (
-    paymentMode === "1b" &&
-    currency === "MYR" &&
-    billingCompany === "wtl"
-  ) {
-    totals.wtlShipperMyr += amount;
-    return;
-  }
-
-  if (paymentMode === "1a" && currency === "THB") {
-    totals.mode1aThb += amount;
-    return;
-  }
-  if (paymentMode === "1b" && currency === "MYR") {
-    totals.mode1bMyr += amount;
-    return;
-  }
-  if (paymentMode === "2" && currency === "MYR") {
-    totals.mode2Myr += amount;
-    return;
-  }
-  if (paymentMode === "3" && currency === "MYR") {
-    totals.wtlMode3Myr += amount;
-  }
-}
 
 export interface OperationsIncomeWarningSample {
   shipperCode: string;
@@ -83,10 +43,12 @@ export interface OperationsIncomeWarningSample {
 
 export interface OperationsIncomeResult {
   mode1aThb: number;
+  mode1aMyr: number;
   mode1bMyr: number;
   mode2Myr: number;
   wtlMode3Myr: number;
   wtlShipperMyr: number;
+  freightRevenueMyr: number;
   partnerFreightMyr: number;
   crateReturnIncomeMyr: number;
   monthlyInvoiceExtraChargesMyr: number;
@@ -98,7 +60,6 @@ export interface OperationsIncomeResult {
 }
 
 const WARNING_SAMPLE_LIMIT = 8;
-const NKL_CONSIGNEE_CODE = "3000-N001";
 
 function resolveLineDispatchDate(
   line: OperationsAssignedInboundLine,
@@ -107,59 +68,60 @@ function resolveLineDispatchDate(
   return line.dispatchLines[0]?.dispatchOrder.date ?? monthEnd;
 }
 
-async function aggregateNklPermitIncome(year: number, month: number) {
-  const { start, end } = getMonthDateRange(year, month);
-  const consignee = await prisma.consignee.findUnique({
-    where: { code: NKL_CONSIGNEE_CODE },
-    select: { id: true },
-  });
-  if (!consignee) return 0;
-
-  const market = await prisma.market.findUnique({
-    where: { code: "NT" },
-    select: { id: true },
-  });
-  if (!market) return 0;
-
-  const rateRow = await prisma.consigneeFreightRate.findFirst({
-    where: {
-      consigneeId: consignee.id,
-      marketId: market.id,
-      effectiveDate: { lte: end },
-    },
-    orderBy: { effectiveDate: "desc" },
-    select: { permitPerTrip: true, sstApplicable: true },
-  });
-  const permitBase = rateRow?.permitPerTrip
-    ? Number(rateRow.permitPerTrip)
-    : 0;
-  if (permitBase <= 0) return 0;
-
-  const permitPerTrip = rateRow?.sstApplicable
-    ? roundMoney(permitBase * WTL_SST_MULTIPLIER)
-    : permitBase;
-
-  const trips = await prisma.dispatchOrder.findMany({
-    where: {
-      date: { gte: start, lte: end },
-      status: { notIn: ["draft", "cancelled"] },
-      lines: {
-        some: {
-          inboundLine: {
-            stall: { consigneeId: consignee.id },
-            dispatchStatus: "assigned",
-          },
-        },
-      },
-    },
-    select: { date: true },
-  });
-
-  let total = 0;
-  for (const trip of trips) {
-    total += nklPermitRevenueMyr(permitPerTrip, trip.date);
+function accumulateStoredLineBuckets(
+  totals: {
+    mode1aThb: number;
+    mode1aMyr: number;
+    mode1bMyr: number;
+    mode2Myr: number;
+    wtlMode3Myr: number;
+    wtlShipperMyr: number;
+  },
+  snapshot: InboundLineFreightSnapshot,
+  exchangeRate: number,
+  tripDate: Date
+) {
+  if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
+    const dualOnly = dualPaymentWtlRevenueMyr(
+      snapshot,
+      shouldExcludeWtlSstFromRevenue(tripDate)
+    );
+    if (dualOnly > 0) {
+      totals.wtlMode3Myr += dualOnly;
+    }
+    return;
   }
-  return roundMoney(total);
+
+  const excludeSst = shouldExcludeWtlSstFromRevenue(tripDate);
+
+  if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
+    totals.mode1aThb += snapshot.freightAmount;
+    totals.mode1aMyr += roundMoney(
+      convertThbToMyr(snapshot.freightAmount, exchangeRate)
+    );
+  } else {
+    const freightIncome = operationsFreightIncomeMyr(snapshot, tripDate);
+    if (freightIncome > 0) {
+      if (
+        snapshot.paymentMode === "1b" &&
+        snapshot.currency === "MYR" &&
+        snapshot.billingCompany === "wtl"
+      ) {
+        totals.wtlShipperMyr += freightIncome;
+      } else if (snapshot.paymentMode === "1b" && snapshot.currency === "MYR") {
+        totals.mode1bMyr += freightIncome;
+      } else if (snapshot.paymentMode === "2" && snapshot.currency === "MYR") {
+        totals.mode2Myr += freightIncome;
+      } else if (snapshot.paymentMode === "3" && snapshot.currency === "MYR") {
+        totals.wtlMode3Myr += freightIncome;
+      }
+    }
+  }
+
+  const dualIncome = dualPaymentWtlRevenueMyr(snapshot, excludeSst);
+  if (dualIncome > 0) {
+    totals.wtlMode3Myr += dualIncome;
+  }
 }
 
 export async function aggregateOperationsIncome(
@@ -168,6 +130,7 @@ export async function aggregateOperationsIncome(
   preloadedLines?: OperationsAssignedInboundLine[]
 ): Promise<OperationsIncomeResult> {
   const { end } = getMonthDateRange(year, month);
+  const monthlyEx = await loadExchangeRate(year, month);
 
   const lines =
     preloadedLines ?? (await fetchOperationsAssignedInboundLines(year, month));
@@ -184,11 +147,13 @@ export async function aggregateOperationsIncome(
 
   const totals = {
     mode1aThb: 0,
+    mode1aMyr: 0,
     mode1bMyr: 0,
     mode2Myr: 0,
     wtlMode3Myr: 0,
     wtlShipperMyr: 0,
   };
+  let freightRevenueMyr = 0;
   const gapReasons: Partial<Record<InboundFreightGapReason, number>> = {};
   const warningSamples: OperationsIncomeWarningSample[] = [];
   let missingRateLineCount = 0;
@@ -200,82 +165,53 @@ export async function aggregateOperationsIncome(
         continue;
       }
       const tripDate = resolveLineDispatchDate(line, end);
-      const ctx = getOperationsFreightContext(
-        freightCache,
-        line,
-        end,
-        shipperLines
-      );
-      const marketCode = ctx.stalls.get(line.stallId)?.marketCode ?? "";
-      const snapshot = computeInboundLineFreight(
-        {
-          stallId: line.stallId,
-          tongTypeId: line.tongTypeId,
-          quantity: line.quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            line.mcDeliveryMode
-          ),
-        },
-        ctx
-      );
-
-      const gapReason = classifyInboundFreightGap(
-        {
-          stallId: line.stallId,
-          tongTypeId: line.tongTypeId,
-          quantity: line.quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            line.mcDeliveryMode
-          ),
-        },
-        ctx,
-        snapshot
-      );
-
-      if (gapReason) {
-        gapReasons[gapReason] = (gapReasons[gapReason] ?? 0) + 1;
-        if (isMissingRateGap(gapReason)) {
-          missingRateLineCount += 1;
-          missingRateQuantity += line.quantity;
-          if (warningSamples.length < WARNING_SAMPLE_LIMIT) {
-            warningSamples.push({
-              shipperCode: line.session.shipper.code,
-              shipperName: line.session.shipper.name,
-              marketCode,
-              quantity: line.quantity,
-              reason: gapReason,
-            });
-          }
-        }
-      }
+      const marketCode = line.stall.market?.code ?? "";
+      const snapshot = inboundLineStoredSnapshot(line, monthlyEx, marketCode);
 
       if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
+        const ctx = getOperationsFreightContext(
+          freightCache,
+          line,
+          end,
+          shipperLines
+        );
+        const gapReason = classifyInboundFreightGap(
+          {
+            stallId: line.stallId,
+            tongTypeId: line.tongTypeId,
+            quantity: line.quantity,
+            mcDeliveryMode: normalizeMcDeliveryMode(
+              marketCode,
+              line.mcDeliveryMode
+            ),
+          },
+          ctx,
+          snapshot
+        );
+
+        if (gapReason) {
+          gapReasons[gapReason] = (gapReasons[gapReason] ?? 0) + 1;
+          if (isMissingRateGap(gapReason)) {
+            missingRateLineCount += 1;
+            missingRateQuantity += line.quantity;
+            if (warningSamples.length < WARNING_SAMPLE_LIMIT) {
+              warningSamples.push({
+                shipperCode: line.session.shipper.code,
+                shipperName: line.session.shipper.name,
+                marketCode,
+                quantity: line.quantity,
+                reason: gapReason,
+              });
+            }
+          }
+        }
         continue;
       }
 
-      const freightIncome = operationsFreightIncomeMyr(snapshot, tripDate);
-      addIncomeAmount(
-        totals,
-        snapshot.paymentMode,
-        freightIncome,
-        snapshot.currency,
-        snapshot.billingCompany
-      );
-
-      const dualIncome = dualPaymentWtlRevenueMyr(
-        snapshot,
-        shouldExcludeWtlSstFromRevenue(tripDate)
-      );
-      if (dualIncome > 0) {
-        addIncomeAmount(totals, "3", dualIncome, "MYR");
-      }
+      freightRevenueMyr += lineRevenueMyr(snapshot, monthlyEx, tripDate);
+      accumulateStoredLineBuckets(totals, snapshot, monthlyEx, tripDate);
     }
   }
-
-  const permitMyr = await aggregateNklPermitIncome(year, month);
-  totals.wtlMode3Myr += permitMyr;
 
   const partnerFreightMyr = await aggregatePartnerFreightIncomeMyr(year, month);
   const crateReturnIncomeMyr = await aggregateCrateReturnIncomeMyr(year, month);
@@ -284,10 +220,12 @@ export async function aggregateOperationsIncome(
 
   return {
     mode1aThb: roundMoney(totals.mode1aThb),
+    mode1aMyr: roundMoney(totals.mode1aMyr),
     mode1bMyr: roundMoney(totals.mode1bMyr),
     mode2Myr: roundMoney(totals.mode2Myr),
     wtlMode3Myr: roundMoney(totals.wtlMode3Myr),
     wtlShipperMyr: roundMoney(totals.wtlShipperMyr),
+    freightRevenueMyr: roundMoney(freightRevenueMyr),
     partnerFreightMyr,
     crateReturnIncomeMyr,
     monthlyInvoiceExtraChargesMyr,

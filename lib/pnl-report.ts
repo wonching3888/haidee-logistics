@@ -19,8 +19,7 @@ import {
   type CharterTripPnlInput,
 } from "@/lib/charter-pnl";
 import {
-  computeInboundLineFreight,
-  normalizeMcDeliveryMode,
+  inboundLineStoredSnapshot,
 } from "@/lib/inbound-freight";
 import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
 import {
@@ -790,8 +789,19 @@ const dispatchPnlSelect = {
           mcDeliveryMode: true,
           thirdPartyFee: true,
           freightAmount: true,
+          freightRate: true,
           currency: true,
           paymentMode: true,
+          billingCompany: true,
+          consigneeId: true,
+          paymentParty: true,
+          mySegmentFreightRate: true,
+          mySegmentFreightAmount: true,
+          thFreightRate: true,
+          thFreightAmount: true,
+          dualPaymentWtlRate: true,
+          dualPaymentWtlAmount: true,
+          dualPaymentWtlConsigneeId: true,
           tongType: { select: { code: true, isBox: true } },
           stall: { select: { code: true, market: { select: { code: true } } } },
           session: {
@@ -837,8 +847,19 @@ type DispatchPnlRow = {
       mcDeliveryMode: string | null;
       thirdPartyFee: unknown;
       freightAmount: unknown;
+      freightRate: unknown;
       currency: string | null;
       paymentMode: string | null;
+      billingCompany: string | null;
+      consigneeId: string | null;
+      paymentParty: string | null;
+      mySegmentFreightRate: unknown;
+      mySegmentFreightAmount: unknown;
+      thFreightRate: unknown;
+      thFreightAmount: unknown;
+      dualPaymentWtlRate: unknown;
+      dualPaymentWtlAmount: unknown;
+      dualPaymentWtlConsigneeId: string | null;
       tongType: { code: string; isBox: boolean } | null;
       stall: { market: { code: string } | null; code: string | null };
       session: {
@@ -1262,23 +1283,19 @@ async function computeTripPnlRow(
     for (const inbound of assignedLines) {
       if (!inbound.tongType?.code) continue;
 
-      const marketCode = freightCtx.stalls.get(inbound.stallId)?.marketCode ?? "";
+      const marketCode =
+        inbound.stall.market?.code ??
+        freightCtx.stalls.get(inbound.stallId)?.marketCode ??
+        "";
       if (!marketCode || isOtherMarket(marketCode)) continue;
 
       const quantity = decimalToNumber(inbound.quantity) ?? 0;
       if (quantity <= 0) continue;
 
-      const snapshot = computeInboundLineFreight(
-        {
-          stallId: inbound.stallId,
-          tongTypeId: inbound.tongTypeId,
-          quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            inbound.mcDeliveryMode
-          ),
-        },
-        freightCtx
+      const snapshot = inboundLineStoredSnapshot(
+        inbound,
+        ctx.exchangeRate,
+        marketCode
       );
 
       const revenue = lineRevenueMyr(
@@ -1751,23 +1768,19 @@ export async function buildPnlCustomerMarketBreakdown(input: {
     for (const inbound of shipperLines) {
       if (!inbound.tongType?.code) continue;
 
-      const marketCode = freightCtx.stalls.get(inbound.stallId)?.marketCode ?? "";
+      const marketCode =
+        inbound.stall.market?.code ??
+        freightCtx.stalls.get(inbound.stallId)?.marketCode ??
+        "";
       if (!marketCode || isOtherMarket(marketCode)) continue;
 
       const quantity = decimalToNumber(inbound.quantity) ?? 0;
       if (quantity <= 0) continue;
 
-      const snapshot = computeInboundLineFreight(
-        {
-          stallId: inbound.stallId,
-          tongTypeId: inbound.tongTypeId,
-          quantity,
-          mcDeliveryMode: normalizeMcDeliveryMode(
-            marketCode,
-            inbound.mcDeliveryMode
-          ),
-        },
-        freightCtx
+      const snapshot = inboundLineStoredSnapshot(
+        inbound,
+        ctx.exchangeRate,
+        marketCode
       );
 
       const revenue = lineRevenueMyr(

@@ -609,6 +609,50 @@ export function freightAmountMyrEquivalent(
   );
 }
 
+/** Build freight snapshot from InboundLine stored inventory (no rate recompute). */
+export function inboundLineStoredSnapshot(
+  line: {
+    freightAmount?: unknown;
+    freightRate?: unknown;
+    paymentMode?: string | null;
+    currency?: string | null;
+    billingCompany?: string | null;
+    mcDeliveryMode?: string | null;
+    consigneeId?: string | null;
+    paymentParty?: string | null;
+    thirdPartyFee?: unknown;
+    mySegmentFreightRate?: unknown;
+    mySegmentFreightAmount?: unknown;
+    thFreightRate?: unknown;
+    thFreightAmount?: unknown;
+    dualPaymentWtlRate?: unknown;
+    dualPaymentWtlAmount?: unknown;
+    dualPaymentWtlConsigneeId?: string | null;
+  },
+  monthlyExchangeRate: number,
+  marketCode?: string | null
+): InboundLineFreightSnapshot {
+  return {
+    consigneeId: line.consigneeId ?? null,
+    paymentParty: (line.paymentParty as "shipper" | "consignee") ?? "shipper",
+    paymentMode: (line.paymentMode ?? "1b") as PaymentMode,
+    currency: line.currency ?? "MYR",
+    billingCompany: line.billingCompany ?? "haidee",
+    freightRate: decimalToNumber(line.freightRate),
+    freightAmount: decimalToNumber(line.freightAmount),
+    exchangeRate: monthlyExchangeRate,
+    mcDeliveryMode: normalizeMcDeliveryMode(marketCode ?? "", line.mcDeliveryMode),
+    thirdPartyFee: decimalToNumber(line.thirdPartyFee),
+    mySegmentFreightRate: decimalToNumber(line.mySegmentFreightRate),
+    mySegmentFreightAmount: decimalToNumber(line.mySegmentFreightAmount),
+    thFreightRate: decimalToNumber(line.thFreightRate),
+    thFreightAmount: decimalToNumber(line.thFreightAmount),
+    dualPaymentWtlRate: decimalToNumber(line.dualPaymentWtlRate),
+    dualPaymentWtlAmount: decimalToNumber(line.dualPaymentWtlAmount),
+    dualPaymentWtlConsigneeId: line.dualPaymentWtlConsigneeId ?? null,
+  };
+}
+
 export function defaultExchangeRate(rate: number | null | undefined) {
   return rate && rate > 0 ? rate : DEFAULT_EXCHANGE_RATE;
 }

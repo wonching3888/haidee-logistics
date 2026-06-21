@@ -80,7 +80,7 @@ export function lineRevenueMyr(
   let total = 0;
 
   if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
-    total += convertThbToMyr(snapshot.freightAmount, exchangeRate);
+    total += roundMoney(convertThbToMyr(snapshot.freightAmount, exchangeRate));
   } else if (snapshot.billingCompany === "wtl" && excludeSst) {
     total += wtlBillingFreightRevenueMyr(snapshot, true);
   } else if (snapshot.currency === "MYR") {

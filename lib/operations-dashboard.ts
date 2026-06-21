@@ -163,6 +163,7 @@ export function buildOperationsDashboardMetrics(input: {
   exchangeRateMissing: boolean;
   income: {
     mode1aThb: number;
+    mode1aMyr?: number;
     mode1bMyr: number;
     mode2Myr: number;
     wtlMode3Myr: number;
@@ -224,7 +225,10 @@ export function buildOperationsDashboardMetrics(input: {
     lkimPerBox: number;
   };
 }): OperationsDashboardData {
-  const mode1aMyr = thbToMyr(input.income.mode1aThb, input.exchangeRate);
+  const mode1aMyr =
+    input.income.mode1aMyr != null
+      ? roundMoney(input.income.mode1aMyr)
+      : thbToMyr(input.income.mode1aThb, input.exchangeRate);
   const haideeTotalMyr = roundMoney(
     mode1aMyr + input.income.mode1bMyr + input.income.mode2Myr
   );
