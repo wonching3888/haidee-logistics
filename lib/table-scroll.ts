@@ -1,17 +1,29 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
+const matrixTableScrollBase: CSSProperties = {
+  maxHeight: "100%",
+  minHeight: 0,
+  overflowX: "auto",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+};
+
 export function getMatrixTableScrollStyle(heightOffset = 260): CSSProperties {
   return {
+    ...matrixTableScrollBase,
     height: `calc(100vh - ${heightOffset}px)`,
-    maxHeight: "100%",
-    minHeight: 0,
-    overflowX: "auto",
-    overflowY: "auto",
-    WebkitOverflowScrolling: "touch",
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
+  };
+}
+
+/** Fill parent flex chain (opt-in via ScrollMatrixTable fillParent). */
+export function getMatrixTableFillParentScrollStyle(): CSSProperties {
+  return {
+    ...matrixTableScrollBase,
+    height: "100%",
   };
 }
 
@@ -34,6 +46,42 @@ export const STICKY_BODY_ACTIONS =
   "sticky right-0 z-10 bg-white shadow-[-1px_0_0_0] shadow-haidee-border";
 
 export const FIRST_COL_WIDTH = "min-w-[160px] max-w-[160px] w-[160px]";
+
+/** Inbound list: three consecutive sticky left columns (date + batch + consignor). */
+export const INBOUND_DATE_COL = "w-[92px] min-w-[92px] max-w-[92px]";
+export const INBOUND_BATCH_COL = "w-[100px] min-w-[100px] max-w-[100px]";
+export const INBOUND_CONSIGNOR_COL = "w-[150px] min-w-[150px] max-w-[150px]";
+
+/** Cumulative left offsets: 0 → 92 → 192 (92 + 100). */
+export const INBOUND_BATCH_STICKY_LEFT = "left-[92px]";
+export const INBOUND_CONSIGNOR_STICKY_LEFT = "left-[192px]";
+
+export const INBOUND_AREA_COL = "w-[72px] min-w-[72px] max-w-[72px]";
+export const INBOUND_TH_PLATE_COL = "w-[88px] min-w-[88px] max-w-[88px]";
+export const INBOUND_ACTIONS_COL = "w-[132px] min-w-[132px] max-w-[132px]";
+
+export const STICKY_HEAD_BATCH = cn(
+  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border",
+  INBOUND_BATCH_STICKY_LEFT
+);
+
+export const STICKY_BODY_BATCH = cn(
+  "sticky z-[15] bg-white shadow-[1px_0_0_0] shadow-haidee-border",
+  INBOUND_BATCH_STICKY_LEFT
+);
+
+export const STICKY_HEAD_CONSIGNOR = cn(
+  "sticky top-0 z-30 bg-haidee-surface shadow-[1px_0_0_0] shadow-haidee-border",
+  INBOUND_CONSIGNOR_STICKY_LEFT
+);
+
+export const STICKY_BODY_CONSIGNOR = cn(
+  "sticky z-20 bg-white shadow-[1px_0_0_0] shadow-haidee-border",
+  INBOUND_CONSIGNOR_STICKY_LEFT
+);
+
+export const stickyRowHoverBodyClass =
+  "bg-white group-hover:bg-haidee-surface/50";
 
 /** Apply sticky first column to shadcn Table via descendant selectors */
 export const stickyFirstColTableClass = cn(
