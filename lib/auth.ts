@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { isUserRole } from "@/lib/auth-roles";
+import { isStoredUserRole } from "@/lib/auth-roles";
 import type { AppUser } from "@/types";
 
 export async function getCurrentUser(): Promise<AppUser | null> {
@@ -25,7 +25,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       id: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
-      role: isUserRole(dbUser.role) ? dbUser.role : "clerk",
+      role: isStoredUserRole(dbUser.role) ? dbUser.role : "clerk",
     };
   }
 

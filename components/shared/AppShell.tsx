@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { Header } from "@/components/shared/Header";
-import type { AppUser, UserRole } from "@/types";
+import type { AppUser, StoredUserRole } from "@/types";
 
 interface AppShellProps {
   user: AppUser;
-  role: UserRole;
+  role: StoredUserRole;
   children: React.ReactNode;
 }
 

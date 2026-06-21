@@ -59,7 +59,8 @@ import {
   type TruckCountry,
 } from "@/lib/constants/truck-cost";
 import { calcGrandTotalPerKm, calcFuelCostPerKm } from "@/lib/truck-cost";
-import { getRoleLabel } from "@/lib/auth-roles";
+import { getRoleLabel, isLegacyUserRole } from "@/lib/auth-roles";
+import type { StoredUserRole } from "@/types";
 import {
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
@@ -668,7 +669,7 @@ export function SettingsClient({
                   <TableCell>{u.name ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                      {getRoleLabel(u.role as "admin" | "clerk" | "accounting" | "owner")}
+                      {getRoleLabel(u.role as StoredUserRole)}
                     </Badge>
                   </TableCell>
                   <TableCell><ActiveBadge active={u.active} /></TableCell>
@@ -985,10 +986,16 @@ export function SettingsClient({
             onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
           >
-            <option value="clerk">书记 Operation</option>
-            <option value="admin">管理员 Admin</option>
-            <option value="accounting">会计 Accounting</option>
-            <option value="owner">老板 Owner</option>
+            <option value="clerk">{getRoleLabel("clerk")}</option>
+            <option value="admin">{getRoleLabel("admin")}</option>
+            <option value="thai_accounting">{getRoleLabel("thai_accounting")}</option>
+            <option value="my_accounting">{getRoleLabel("my_accounting")}</option>
+            <option value="viewer">{getRoleLabel("viewer")}</option>
+            {isLegacyUserRole(userForm.role) && (
+              <option value={userForm.role}>
+                {getRoleLabel(userForm.role as StoredUserRole)}
+              </option>
+            )}
           </select>
         </FormField>
         <FormField label={editId ? "新密码 New Password (留空不改)" : "密码 Password"}>

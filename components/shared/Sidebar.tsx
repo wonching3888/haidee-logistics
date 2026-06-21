@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SettingsSidebarMenu } from "@/components/shared/SettingsSidebarMenu";
-import type { UserRole } from "@/types";
+import type { StoredUserRole } from "@/types";
 import { canAccessDriverPayroll, canViewOperationsDashboard } from "@/lib/auth-roles";
 import {
   MAIN_NAV_CRATE,
@@ -71,7 +71,7 @@ const SIDEBAR_NAV_INACTIVE =
 const SIDEBAR_ACTIVE_LABEL_MUTED = "text-[#FFFFFF] font-bold";
 
 interface SidebarProps {
-  role: UserRole;
+  role: StoredUserRole;
   isOpen?: boolean;
   onNavigate?: () => void;
 }

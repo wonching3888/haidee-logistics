@@ -12,7 +12,7 @@ model User {
   id        String   @id @default(uuid()) @db.Uuid
   email     String   @unique
   name      String?
-  role String   @default("clerk") // admin | clerk | accounting | owner
+  role String   @default("clerk") // admin | clerk | thai_accounting | my_accounting | viewer (legacy: accounting, owner→viewer)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
