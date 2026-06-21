@@ -486,6 +486,7 @@ export function PnlReportView({
                     <TableHead>司机 Driver</TableHead>
                     <TableHead>车牌 Plate</TableHead>
                     <TableHead className="text-right">总桶数</TableHead>
+                    <TableHead className="text-right">总盒子</TableHead>
                     <TableHead className="text-right">总收入 MYR</TableHead>
                     <TableHead className="text-right">直接成本</TableHead>
                     <TableHead className="text-right">分摊成本</TableHead>
@@ -508,7 +509,7 @@ export function PnlReportView({
                   {trips.length === 0 && !tripsLoading && (
                     <TableRow>
                       <TableCell
-                        colSpan={12}
+                        colSpan={13}
                         className="py-8 text-center text-haidee-muted"
                       >
                         {emptyTripMessage}
@@ -522,7 +523,10 @@ export function PnlReportView({
                         {appliedTripDay ? "当日合计 Day Total" : "当月合计 Month Total"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {totals.totalQuantity}
+                        {totals.totalBarrelQty}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {totals.totalBoxQty}
                       </TableCell>
                       <TableCell className="text-right">
                         {formatMyr(totals.revenueMyr)}
@@ -641,8 +645,12 @@ export function PnlReportView({
                   value={String(periodData.periodSummary.tripCount)}
                 />
                 <SummaryCard
-                  label="总桶数 Crates"
-                  value={String(periodData.periodSummary.totalQuantity)}
+                  label="总桶数 Total Barrels"
+                  value={String(periodData.periodSummary.totalBarrelQty)}
+                />
+                <SummaryCard
+                  label="总盒子 Total Boxes"
+                  value={String(periodData.periodSummary.totalBoxQty)}
                 />
               </div>
               {periodData.periodSummary.fleetPayrollTotalMyr != null &&
@@ -737,6 +745,7 @@ export function PnlReportView({
                       <TableHead />
                       <TableHead>寄货人</TableHead>
                       <TableHead className="text-right">总桶数</TableHead>
+                      <TableHead className="text-right">总盒子</TableHead>
                       <TableHead className="text-right">总收入 MYR</TableHead>
                       <TableHead className="text-right">直接成本</TableHead>
                       <TableHead className="text-right">分摊成本</TableHead>
@@ -760,6 +769,25 @@ export function PnlReportView({
                         }
                       />
                     ))}
+                    {customerData.customers.length > 0 && (
+                      <TableRow className="bg-slate-100 font-semibold">
+                        <TableCell />
+                        <TableCell>当月合计 Month Total</TableCell>
+                        <TableCell className="text-right">
+                          {customerData.customers.reduce(
+                            (sum, row) => sum + row.totalBarrelQty,
+                            0
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {customerData.customers.reduce(
+                            (sum, row) => sum + row.totalBoxQty,
+                            0
+                          )}
+                        </TableCell>
+                        <TableCell colSpan={8} />
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </ScrollMatrixTable>
@@ -852,6 +880,9 @@ function TripListRow({
         <TableCell>{trip.driver ?? "—"}</TableCell>
         <TableCell>{trip.plate}</TableCell>
         <TableCell className="text-right">{trip.totalCrates}</TableCell>
+        <TableCell className="text-right">
+          {trip.totalBoxes > 0 ? trip.totalBoxes : "—"}
+        </TableCell>
         <TableCell className="text-right">{formatMyr(trip.revenueMyr)}</TableCell>
         <TableCell className="text-right">
           {formatMyr(trip.directCostMyr)}
@@ -867,7 +898,7 @@ function TripListRow({
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={12} className="bg-slate-50 p-0">
+          <TableCell colSpan={13} className="bg-slate-50 p-0">
             {loading && !detail ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-haidee-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1037,10 +1068,12 @@ function CustomerListRow({
           </button>
         </TableCell>
         <TableCell>
-          {customer.shipperName}
-          <div className="text-xs text-haidee-muted">{customer.shipperCode}</div>
+          {customer.shipperName} ({customer.shipperCode})
         </TableCell>
-        <TableCell className="text-right">{customer.totalQuantity}</TableCell>
+        <TableCell className="text-right">{customer.totalBarrelQty}</TableCell>
+        <TableCell className="text-right">
+          {customer.totalBoxQty > 0 ? customer.totalBoxQty : "—"}
+        </TableCell>
         <TableCell className="text-right">
           {formatMyr(customer.revenueMyr)}
         </TableCell>
@@ -1075,7 +1108,7 @@ function CustomerListRow({
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={11} className="bg-slate-50 p-0">
+          <TableCell colSpan={12} className="bg-slate-50 p-0">
             {loading && !markets ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-haidee-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />

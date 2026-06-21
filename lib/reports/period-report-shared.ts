@@ -1,4 +1,5 @@
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
+import { isBoxColumn } from "@/lib/constants/tong-columns";
 
 export type PeriodReportMode = "monthly" | "yearly";
 
@@ -10,7 +11,10 @@ export interface PeriodReportColumn {
 export interface PeriodReportRow {
   key: string;
   label: string;
+  /** Barrel qty only (non-BOX columns). */
   rowTotal: number;
+  /** BOX column qty for this row. */
+  rowBoxTotal: number;
   values: Record<string, number>;
   isTotal?: boolean;
 }
@@ -22,7 +26,10 @@ export interface PeriodReportData {
   periodLabel: string;
   columns: PeriodReportColumn[];
   rows: PeriodReportRow[];
+  /** @deprecated Use grandTotalBarrels + grandTotalBoxes */
   grandTotal: number;
+  grandTotalBarrels: number;
+  grandTotalBoxes: number;
 }
 
 export const MONTH_LABELS = [
@@ -87,6 +94,26 @@ export function sumActiveColumns(
   return activeCodes.reduce((sum, code) => sum + (values[code] ?? 0), 0);
 }
 
+export function sumBarrelColumns(
+  values: Record<string, number>,
+  activeCodes: readonly string[]
+): number {
+  return activeCodes.reduce(
+    (sum, code) => (isBoxColumn(code) ? sum : sum + (values[code] ?? 0)),
+    0
+  );
+}
+
+export function sumBoxColumns(
+  values: Record<string, number>,
+  activeCodes: readonly string[]
+): number {
+  return activeCodes.reduce(
+    (sum, code) => (isBoxColumn(code) ? sum + (values[code] ?? 0) : sum),
+    0
+  );
+}
+
 export function buildPeriodReport(input: {
   mode: PeriodReportMode;
   year: number;
@@ -98,6 +125,8 @@ export function buildPeriodReport(input: {
     quantity: number;
   }[];
   buildColumns: (columnTotals: Record<string, number>) => PeriodReportColumn[];
+  /** When BOX is not a report column (market report), pass dispatch box total here. */
+  supplementalBoxTotal?: number;
 }): PeriodReportData {
   const { mode, year, month, entries, buildColumns } = input;
 
@@ -123,18 +152,24 @@ export function buildPeriodReport(input: {
       rows.push({
         key,
         label: formatDisplayDate(date),
-        rowTotal: sumActiveColumns(values, activeCodes),
+        rowTotal: sumBarrelColumns(values, activeCodes),
+        rowBoxTotal: sumBoxColumns(values, activeCodes),
         values: pickColumnValues(values, activeCodes),
       });
     }
 
     const grandValues = pickColumnValues(columnTotals, activeCodes);
-    const grandTotal = sumActiveColumns(columnTotals, activeCodes);
+    const grandTotalBarrels = sumBarrelColumns(columnTotals, activeCodes);
+    const grandTotalBoxes =
+      sumBoxColumns(columnTotals, activeCodes) +
+      (input.supplementalBoxTotal ?? 0);
+    const grandTotal = grandTotalBarrels + grandTotalBoxes;
 
     rows.push({
       key: "total",
       label: "当月总计 Month Total",
-      rowTotal: grandTotal,
+      rowTotal: grandTotalBarrels,
+      rowBoxTotal: grandTotalBoxes,
       values: grandValues,
       isTotal: true,
     });
@@ -147,6 +182,8 @@ export function buildPeriodReport(input: {
       columns,
       rows,
       grandTotal,
+      grandTotalBarrels,
+      grandTotalBoxes,
     };
   }
 
@@ -169,18 +206,24 @@ export function buildPeriodReport(input: {
     rows.push({
       key: monthKey,
       label: `${m}月 ${MONTH_LABELS[m - 1]}`,
-      rowTotal: sumActiveColumns(values, activeCodes),
+      rowTotal: sumBarrelColumns(values, activeCodes),
+      rowBoxTotal: sumBoxColumns(values, activeCodes),
       values: pickColumnValues(values, activeCodes),
     });
   }
 
   const grandValues = pickColumnValues(columnTotals, activeCodes);
-  const grandTotal = sumActiveColumns(columnTotals, activeCodes);
+  const grandTotalBarrels = sumBarrelColumns(columnTotals, activeCodes);
+  const grandTotalBoxes =
+    sumBoxColumns(columnTotals, activeCodes) +
+    (input.supplementalBoxTotal ?? 0);
+  const grandTotal = grandTotalBarrels + grandTotalBoxes;
 
   rows.push({
     key: "total",
     label: "全年总计 Year Total",
-    rowTotal: grandTotal,
+    rowTotal: grandTotalBarrels,
+    rowBoxTotal: grandTotalBoxes,
     values: grandValues,
     isTotal: true,
   });
@@ -193,5 +236,7 @@ export function buildPeriodReport(input: {
     columns,
     rows,
     grandTotal,
+    grandTotalBarrels,
+    grandTotalBoxes,
   };
 }

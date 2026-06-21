@@ -19,6 +19,8 @@ export interface PnlShipperRow {
   shipperCode: string;
   shipperName: string;
   quantity: number;
+  barrelQty: number;
+  boxQty: number;
   revenueMyr: number;
   crateRentalMyr: number;
   lkimMaqisMyr: number;
@@ -64,6 +66,8 @@ export interface PnlTripRow {
   driverName: string | null;
   truckPlate: string;
   totalQuantity: number;
+  totalBarrelQty: number;
+  totalBoxQty: number;
   revenueMyr: number;
   directCostMyr: number;
   allocatedCostMyr: number;
@@ -86,6 +90,8 @@ export interface PnlTripTotals {
   marginPct: number;
   tripCount: number;
   totalQuantity: number;
+  totalBarrelQty: number;
+  totalBoxQty: number;
 }
 
 export interface PnlDailyTrendPoint {
@@ -104,6 +110,8 @@ export interface PnlPeriodSummary {
   marginPct: number;
   tripCount: number;
   totalQuantity: number;
+  totalBarrelQty: number;
+  totalBoxQty: number;
   trend: PnlDailyTrendPoint[];
   /** Reference only (month mode): full-month fleet payroll total cost. */
   fleetPayrollTotalMyr: number | null;
@@ -116,6 +124,8 @@ export interface PnlCustomerRow {
   shipperCode: string;
   shipperName: string;
   totalQuantity: number;
+  totalBarrelQty: number;
+  totalBoxQty: number;
   revenueMyr: number;
   directCostMyr: number;
   allocatedCostMyr: number;
@@ -143,6 +153,7 @@ export interface PnlTripListItem {
   driver: string | null;
   plate: string;
   totalCrates: number;
+  totalBoxes: number;
   revenueMyr: number;
   directCostMyr: number;
   allocatedCostMyr: number;

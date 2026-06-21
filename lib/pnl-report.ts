@@ -327,7 +327,8 @@ function pnlTripRowToListItem(
     routeGroups: meta.routeGroups,
     driver: trip.driverName,
     plate: trip.truckPlate,
-    totalCrates: trip.totalQuantity,
+    totalCrates: trip.totalBarrelQty,
+    totalBoxes: trip.totalBoxQty,
     revenueMyr: trip.revenueMyr,
     directCostMyr: trip.directCostMyr,
     allocatedCostMyr: trip.allocatedCostMyr,
@@ -338,6 +339,8 @@ function pnlTripRowToListItem(
 }
 
 function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
+  const totalBarrelQty = trips.reduce((s, t) => s + t.totalBarrelQty, 0);
+  const totalBoxQty = trips.reduce((s, t) => s + t.totalBoxQty, 0);
   const totals: PnlTripTotals = {
     revenueMyr: roundMoney(trips.reduce((s, t) => s + t.revenueMyr, 0)),
     partnerFreightMyr: 0,
@@ -351,7 +354,9 @@ function buildTripTotalsFromRows(trips: PnlTripRow[]): PnlTripTotals {
     grossProfitMyr: roundMoney(trips.reduce((s, t) => s + t.grossProfitMyr, 0)),
     marginPct: 0,
     tripCount: trips.length,
-    totalQuantity: trips.reduce((s, t) => s + t.totalQuantity, 0),
+    totalQuantity: totalBarrelQty + totalBoxQty,
+    totalBarrelQty,
+    totalBoxQty,
   };
   totals.marginPct =
     totals.revenueMyr > 0
@@ -703,6 +708,8 @@ function buildPeriodSummaryFromTrips(input: {
   const revenueMyr = roundMoney(input.trips.reduce((s, t) => s + t.revenueMyr, 0));
   const costMyr = roundMoney(input.trips.reduce((s, t) => s + t.totalCostMyr, 0));
   const grossProfitMyr = roundMoney(revenueMyr - costMyr);
+  const totalBarrelQty = input.trips.reduce((s, t) => s + t.totalCrates, 0);
+  const totalBoxQty = input.trips.reduce((s, t) => s + t.totalBoxes, 0);
   return {
     mode: input.mode,
     periodLabel: periodLabel({
@@ -718,7 +725,9 @@ function buildPeriodSummaryFromTrips(input: {
     grossProfitMyr,
     marginPct: revenueMyr > 0 ? roundMoney((grossProfitMyr / revenueMyr) * 100) : 0,
     tripCount: input.trips.length,
-    totalQuantity: input.trips.reduce((s, t) => s + t.totalCrates, 0),
+    totalQuantity: totalBarrelQty + totalBoxQty,
+    totalBarrelQty,
+    totalBoxQty,
     trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     fleetPayrollTotalMyr: null,
     netProfitAfterFleetPayrollMyr: null,
@@ -1179,6 +1188,8 @@ async function computeTripPnlRow(
       shipperCode: string;
       shipperName: string;
       quantity: number;
+      barrelQty: number;
+      boxQty: number;
       revenueMyr: number;
       crateRentalMyr: number;
       lkimMaqisMyr: number;
@@ -1189,6 +1200,8 @@ async function computeTripPnlRow(
   >();
 
   let tripQuantity = 0;
+  let tripBarrelQty = 0;
+  let tripBoxQty = 0;
   let totalTripQuantity = 0;
   let tripRevenue = 0;
 
@@ -1336,6 +1349,8 @@ async function computeTripPnlRow(
         shipperCode: inbound.session.shipper.code,
         shipperName: inbound.session.shipper.name,
         quantity: 0,
+        barrelQty: 0,
+        boxQty: 0,
         revenueMyr: 0,
         crateRentalMyr: 0,
         lkimMaqisMyr: 0,
@@ -1345,6 +1360,13 @@ async function computeTripPnlRow(
       };
 
       existing.quantity += quantity;
+      if (inbound.tongType.isBox) {
+        existing.boxQty += quantity;
+        tripBoxQty += quantity;
+      } else {
+        existing.barrelQty += quantity;
+        tripBarrelQty += quantity;
+      }
       existing.revenueMyr = roundMoney(existing.revenueMyr + revenue);
       existing.crateRentalMyr = roundMoney(
         existing.crateRentalMyr + crateRental
@@ -1511,7 +1533,9 @@ async function computeTripPnlRow(
     routeGroups,
     driverName: dispatch.driverName,
     truckPlate: dispatch.truck.plate,
-    totalQuantity: tripQuantity,
+    totalQuantity: tripBarrelQty + tripBoxQty,
+    totalBarrelQty: tripBarrelQty,
+    totalBoxQty: tripBoxQty,
     revenueMyr: tripRevenue,
     directCostMyr,
     allocatedCostMyr,
@@ -1940,7 +1964,7 @@ function compareCustomerRows(
 ): number {
   let cmp = 0;
   if (customerSort === "quantity") {
-    cmp = a.totalQuantity - b.totalQuantity;
+    cmp = a.totalBarrelQty - b.totalBarrelQty;
   } else if (customerSort === "revenue") {
     cmp = a.revenueMyr - b.revenueMyr;
   } else if (customerSort === "margin") {
@@ -1967,6 +1991,8 @@ function buildCustomersFromTrips(
         shipperCode: shipper.shipperCode,
         shipperName: shipper.shipperName,
         totalQuantity: 0,
+        totalBarrelQty: 0,
+        totalBoxQty: 0,
         revenueMyr: 0,
         directCostMyr: 0,
         allocatedCostMyr: 0,
@@ -1977,6 +2003,8 @@ function buildCustomersFromTrips(
         status: "normal" as PnlCustomerStatus,
       };
       existing.totalQuantity += shipper.quantity;
+      existing.totalBarrelQty += shipper.barrelQty;
+      existing.totalBoxQty += shipper.boxQty;
       existing.revenueMyr = roundMoney(existing.revenueMyr + shipper.revenueMyr);
       existing.directCostMyr = roundMoney(
         existing.directCostMyr + shipper.directCostMyr
@@ -2000,8 +2028,8 @@ function buildCustomersFromTrips(
         ? roundMoney((row.grossProfitMyr / row.revenueMyr) * 100)
         : 0;
     const profitPerCrate =
-      row.totalQuantity > 0
-        ? roundMoney(row.grossProfitMyr / row.totalQuantity)
+      row.totalBarrelQty > 0
+        ? roundMoney(row.grossProfitMyr / row.totalBarrelQty)
         : 0;
     return {
       ...row,
@@ -2233,6 +2261,8 @@ export async function buildPnlReport(input: {
       marginPct: computed.tripTotals.marginPct,
       tripCount: computed.tripTotals.tripCount,
       totalQuantity: computed.tripTotals.totalQuantity,
+      totalBarrelQty: computed.tripTotals.totalBarrelQty,
+      totalBoxQty: computed.tripTotals.totalBoxQty,
       trend: Array.from(trendMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       ),
@@ -2350,6 +2380,8 @@ export async function buildPnlReport(input: {
     marginPct: tripTotals.marginPct,
     tripCount: tripTotals.tripCount,
     totalQuantity: tripTotals.totalQuantity,
+    totalBarrelQty: tripTotals.totalBarrelQty,
+    totalBoxQty: tripTotals.totalBoxQty,
     trend: Array.from(trendMap.values()).sort((a, b) =>
       a.date.localeCompare(b.date)
     ),

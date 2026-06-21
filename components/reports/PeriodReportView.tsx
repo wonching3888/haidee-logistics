@@ -265,7 +265,7 @@ export function PeriodReportView({
                         {periodHeader}
                       </th>
                       <th className={cn(stickyTotalHead, TOTAL_COL_CLASS)}>
-                        合计 Total
+                        总桶数 Barrels
                       </th>
                       {data.columns.map((column) => (
                         <th
@@ -303,7 +303,20 @@ export function PeriodReportView({
                               stickyBg
                             )}
                           >
-                            {row.rowTotal > 0 ? row.rowTotal : ""}
+                            {row.isTotal ? (
+                              <div className="space-y-0.5">
+                                <div>{row.rowTotal > 0 ? row.rowTotal : ""}</div>
+                                {row.rowBoxTotal > 0 && (
+                                  <div className="text-xs font-normal text-haidee-muted">
+                                    +{row.rowBoxTotal}盒
+                                  </div>
+                                )}
+                              </div>
+                            ) : row.rowTotal > 0 ? (
+                              row.rowTotal
+                            ) : (
+                              ""
+                            )}
                           </td>
                           {data.columns.map((column) => (
                             <td
@@ -321,6 +334,24 @@ export function PeriodReportView({
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {data.columns.length > 0 && (
+            <div className="shrink-0 border-t border-haidee-border px-4 py-3 text-sm">
+              <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono">
+                <span>
+                  总桶数 Total Barrels:{" "}
+                  <strong>{data.grandTotalBarrels.toLocaleString("en-MY")}</strong>
+                </span>
+                <span>
+                  总盒子 Total Boxes:{" "}
+                  <strong>{data.grandTotalBoxes.toLocaleString("en-MY")}</strong>
+                </span>
+                <span className="text-haidee-muted">
+                  合计 {data.grandTotal.toLocaleString("en-MY")}（桶+盒）
+                </span>
               </div>
             </div>
           )}
