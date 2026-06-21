@@ -140,7 +140,14 @@ export function CrateRentalMonthlyView({
                     <TableCell className="font-mono font-medium">
                       {row.crateType}
                     </TableCell>
-                    <TableCell className="text-right">{row.quantity}</TableCell>
+                    <TableCell className="text-right">
+                      <div>{row.quantity}</div>
+                      {row.charterQuantity > 0 && (
+                        <div className="text-xs font-normal text-haidee-muted">
+                          派车 {row.dispatchQuantity} + 包车 {row.charterQuantity}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-mono">
                       {row.rate > 0
                         ? `${row.rate.toFixed(2)} ${row.currency}`
@@ -162,7 +169,13 @@ export function CrateRentalMonthlyView({
                 <TableRow className="bg-haidee-surface font-semibold">
                   <TableCell>合计 Total</TableCell>
                   <TableCell className="text-right">
-                    {data.totals.quantity}
+                    <div>{data.totals.quantity}</div>
+                    {data.totals.charterQuantity > 0 && (
+                      <div className="text-xs font-normal text-haidee-muted">
+                        派车 {data.totals.dispatchQuantity} + 包车{" "}
+                        {data.totals.charterQuantity}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell />
                   <TableCell />
