@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import {
   formatInvoicePeriodLabel,
@@ -20,7 +20,7 @@ import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoic
 
 async function requireFreightViewer() {
   const user = await getCurrentUser();
-  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+  if (!user || !canViewInvoiceAmounts(user.role as UserRole)) {
     throw new Error("无权限查看车力账单 Unauthorized");
   }
   return user;

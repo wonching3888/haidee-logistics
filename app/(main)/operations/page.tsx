@@ -1,13 +1,9 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { OperationsDashboardView } from "@/components/operations/OperationsDashboardView";
-import { getCurrentUser } from "@/lib/auth";
-import { canViewOperationsDashboard } from "@/lib/auth-roles";
 import {
   parseReportMonth,
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
-import type { UserRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +14,6 @@ interface OperationsPageProps {
 export default async function OperationsPage({
   searchParams,
 }: OperationsPageProps) {
-  const user = await getCurrentUser();
-  if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const year = parseReportYear(params.year);
   const month = parseReportMonth(params.month);

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewOperationsDashboard } from "@/lib/auth-roles";
+import { canViewPnlOperations } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
 import { decimalToNumber } from "@/lib/freight-rates";
@@ -26,7 +26,7 @@ import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
 
 async function requireOperationsAccess() {
   const user = await getCurrentUser();
-  if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
+  if (!user || !canViewPnlOperations(user.role as UserRole)) {
     throw new Error("无权限 Unauthorized");
   }
   return user;

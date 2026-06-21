@@ -87,27 +87,31 @@ export function canAccessAllDocuments(role: StoredUserRole): boolean {
   }
 }
 
-/** admin/thai_acct/my_acct ✓ · clerk/viewer ✗ (viewer N/A) */
+/** admin/thai/my ✓ · clerk/viewer/owner ✗ · legacy accounting ✓ */
 export function canViewInvoiceAmounts(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
     case "thai_accounting":
     case "my_accounting":
+    case "accounting":
       return true;
     case "clerk":
     case "viewer":
+    case "owner":
       return false;
     default:
       return false;
   }
 }
 
-/** admin/my_acct/viewer ✓ · clerk/thai_acct ✗ */
+/** admin/my/viewer ✓ · clerk/thai ✗ · legacy owner/accounting ✓ (owner read-only) */
 export function canViewPnlOperations(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
     case "my_accounting":
     case "viewer":
+    case "owner":
+    case "accounting":
       return true;
     case "clerk":
     case "thai_accounting":
@@ -117,15 +121,17 @@ export function canViewPnlOperations(role: StoredUserRole): boolean {
   }
 }
 
-/** admin/my_acct ✓ · all others ✗ */
+/** admin/my ✓ · all others ✗ · legacy accounting ✓ */
 export function canViewDriverPayroll(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
     case "my_accounting":
+    case "accounting":
       return true;
     case "clerk":
     case "thai_accounting":
     case "viewer":
+    case "owner":
       return false;
     default:
       return false;

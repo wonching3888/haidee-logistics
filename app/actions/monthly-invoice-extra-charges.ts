@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import {
   isMonthlyInvoiceMode,
@@ -16,9 +16,9 @@ import {
   type MonthlyInvoiceExtraChargeRow,
 } from "@/lib/monthly-invoice-extra-charges";
 
-async function requireFreightViewer() {
+async function requireInvoiceViewer() {
   const user = await getCurrentUser();
-  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+  if (!user || !canViewInvoiceAmounts(user.role as UserRole)) {
     throw new Error("无权限查看车力账单 Unauthorized");
   }
   return user;
@@ -39,7 +39,7 @@ export async function getMonthlyInvoiceExtraCharges(input: {
   mode: string;
   customerId: string;
 }): Promise<MonthlyInvoiceExtraChargeRow[]> {
-  await requireFreightViewer();
+  await requireInvoiceViewer();
   parseYearMonth(input.year, input.month);
   if (!isMonthlyInvoiceMode(input.mode)) {
     throw new Error("无效账单模式 Invalid invoice mode");
@@ -64,7 +64,7 @@ export async function saveMonthlyInvoiceExtraCharges(input: {
   items: MonthlyInvoiceExtraChargeInput[];
 }): Promise<MonthlyInvoiceExtraChargeRow[]> {
   await requireWrite();
-  await requireFreightViewer();
+  await requireInvoiceViewer();
   parseYearMonth(input.year, input.month);
   if (!isMonthlyInvoiceMode(input.mode)) {
     throw new Error("无效账单模式 Invalid invoice mode");

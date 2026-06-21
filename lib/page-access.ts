@@ -1,0 +1,138 @@
+import {
+  canAccessSettings,
+  canViewDriverPayroll,
+  canViewInvoiceAmounts,
+  canViewPnlOperations,
+  canWrite,
+} from "@/lib/auth-roles";
+import type { StoredUserRole } from "@/types";
+
+/** Modification history — admin / MY accounting (+ legacy accounting). */
+export function canAccessHistory(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "my_accounting":
+    case "accounting":
+      return true;
+    default:
+      return false;
+  }
+}
+
+export type PageAccessGate =
+  | "authenticated"
+  | "write"
+  | "invoice"
+  | "pnl"
+  | "payroll"
+  | "settings"
+  | "history"
+  | "driver-expenses";
+
+function normalizePathname(pathname: string): string {
+  const path = pathname.split("?")[0].replace(/\/$/, "") || "/";
+  return path;
+}
+
+/** Resolve which access gate applies to a path under `(main)`. */
+export function resolvePageGate(pathname: string): PageAccessGate | null {
+  const path = normalizePathname(pathname);
+
+  if (path === "/settings" || path.startsWith("/settings/")) {
+    return "settings";
+  }
+  if (path === "/driver-payroll" || path.startsWith("/driver-payroll/")) {
+    return "payroll";
+  }
+  if (path === "/history" || path.startsWith("/history/")) {
+    return "history";
+  }
+  if (path.startsWith("/documents/driver-expenses")) {
+    return "driver-expenses";
+  }
+
+  if (
+    path.startsWith("/documents/monthly-invoice") ||
+    path.startsWith("/documents/partner-trip-invoice") ||
+    path.startsWith("/documents/crate-return-invoice") ||
+    /^\/charter\/[^/]+\/invoice(\/|$)/.test(path)
+  ) {
+    return "invoice";
+  }
+
+  if (
+    path === "/dashboard" ||
+    path.startsWith("/dashboard/") ||
+    path === "/operations" ||
+    path.startsWith("/operations/") ||
+    path === "/reports/pnl" ||
+    path.startsWith("/reports/pnl/") ||
+    path === "/reports/market" ||
+    path.startsWith("/reports/market/") ||
+    path === "/reports/crate-rental" ||
+    path.startsWith("/reports/crate-rental/") ||
+    path === "/reports/crate" ||
+    path.startsWith("/reports/crate/") ||
+    path === "/market-report" ||
+    path.startsWith("/market-report/")
+  ) {
+    return "pnl";
+  }
+
+  if (path === "/dispatch" || path.startsWith("/dispatch/")) {
+    return "authenticated";
+  }
+  if (path === "/summary" || path.startsWith("/summary/")) {
+    return "authenticated";
+  }
+
+  if (
+    path === "/inbound" ||
+    path.startsWith("/inbound/") ||
+    path === "/search" ||
+    path.startsWith("/search/") ||
+    path === "/crate" ||
+    path.startsWith("/crate/") ||
+    path === "/tong" ||
+    path.startsWith("/tong/")
+  ) {
+    return "write";
+  }
+
+  if (path.startsWith("/charter")) {
+    return "write";
+  }
+
+  if (path === "/documents" || path.startsWith("/documents/")) {
+    return "write";
+  }
+
+  return null;
+}
+
+export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
+  const gate = resolvePageGate(pathname);
+  if (gate === null) {
+    return true;
+  }
+
+  switch (gate) {
+    case "authenticated":
+      return true;
+    case "write":
+      return canWrite(role);
+    case "invoice":
+      return canViewInvoiceAmounts(role);
+    case "pnl":
+      return canViewPnlOperations(role);
+    case "payroll":
+    case "driver-expenses":
+      return canViewDriverPayroll(role);
+    case "settings":
+      return canAccessSettings(role);
+    case "history":
+      return canAccessHistory(role);
+    default:
+      return false;
+  }
+}

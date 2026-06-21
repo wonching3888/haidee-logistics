@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { canAccessDriverPayroll } from "@/lib/auth-roles";
+import { canViewDriverPayroll } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
@@ -38,7 +38,7 @@ function payrollTripRouteSource(trip: {
 
 async function requirePayrollAccess() {
   const user = await getCurrentUser();
-  if (!user || !canAccessDriverPayroll(user.role as UserRole)) {
+  if (!user || !canViewDriverPayroll(user.role as UserRole)) {
     throw new Error("无权限 Unauthorized");
   }
   return user;

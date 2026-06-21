@@ -1,12 +1,8 @@
-import { redirect } from "next/navigation";
 import {
   getDriverPayrollDrivers,
 } from "@/app/actions/driver-payroll";
 import { DriverPayrollView } from "@/components/driver-payroll/DriverPayrollView";
 import { PageError } from "@/components/shared/PageError";
-import { getCurrentUser } from "@/lib/auth";
-import { canAccessDriverPayroll } from "@/lib/auth-roles";
-import type { UserRole } from "@/types";
 
 interface DriverPayrollPageProps {
   searchParams: Promise<{ driverId?: string; year?: string; month?: string }>;
@@ -15,11 +11,6 @@ interface DriverPayrollPageProps {
 export default async function DriverPayrollPage({
   searchParams,
 }: DriverPayrollPageProps) {
-  const user = await getCurrentUser();
-  if (!user || !canAccessDriverPayroll(user.role as UserRole)) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const now = new Date();
   const year = Number(params.year) || now.getFullYear();

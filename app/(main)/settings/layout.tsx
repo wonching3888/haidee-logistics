@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
+import { canAccessSettings } from "@/lib/auth-roles";
+import { getDefaultRoute } from "@/lib/routes";
 
 export default async function SettingsLayout({
   children,
@@ -9,8 +10,8 @@ export default async function SettingsLayout({
 }) {
   const user = await getCurrentUser();
 
-  if (!user || user.role !== "admin") {
-    redirect(DEFAULT_AUTHED_ROUTE);
+  if (!user || !canAccessSettings(user.role)) {
+    redirect(getDefaultRoute(user?.role ?? "clerk"));
   }
 
   return <>{children}</>;

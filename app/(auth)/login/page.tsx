@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
+import { getAuthedLandingPath } from "@/app/actions/auth-routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function LoginPage() {
     }
 
     await router.refresh();
-    router.replace(DEFAULT_AUTHED_ROUTE);
+    router.replace(await getAuthedLandingPath());
   }
 
   return (

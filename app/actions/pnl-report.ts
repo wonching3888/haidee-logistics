@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { canViewOperationsDashboard } from "@/lib/auth-roles";
+import { canViewPnlOperations } from "@/lib/auth-roles";
 import {
   buildPnlReport,
 } from "@/lib/pnl-report";
@@ -15,7 +15,7 @@ import type { UserRole } from "@/types";
 
 async function requireOperationsAccess() {
   const user = await getCurrentUser();
-  if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
+  if (!user || !canViewPnlOperations(user.role as UserRole)) {
     throw new Error("无权限 Unauthorized");
   }
   return user;

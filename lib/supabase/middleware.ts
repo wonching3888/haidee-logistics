@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -41,12 +40,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (isLoginPage || pathname === "/")) {
+  if (user && isLoginPage) {
     const url = request.nextUrl.clone();
-    url.pathname = DEFAULT_AUTHED_ROUTE;
+    url.pathname = "/";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
+  supabaseResponse.headers.set("x-pathname", pathname);
   return supabaseResponse;
 }

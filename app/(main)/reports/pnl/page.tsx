@@ -1,13 +1,9 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { PnlReportView } from "@/components/reports/PnlReportView";
-import { getCurrentUser } from "@/lib/auth";
-import { canViewOperationsDashboard } from "@/lib/auth-roles";
 import {
   parseReportMonth,
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
-import type { UserRole } from "@/types";
 
 function todayDateInput() {
   const now = new Date();
@@ -21,11 +17,6 @@ interface PnlReportPageProps {
 }
 
 export default async function PnlReportPage({ searchParams }: PnlReportPageProps) {
-  const user = await getCurrentUser();
-  if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const year = parseReportYear(params.year);
   const month = parseReportMonth(params.month);

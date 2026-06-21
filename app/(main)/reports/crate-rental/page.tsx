@@ -1,14 +1,10 @@
-import { redirect } from "next/navigation";
 import { getCrateRentalMonthlyReport } from "@/app/actions/crate-rental-monthly";
 import { CrateRentalMonthlyView } from "@/components/reports/CrateRentalMonthlyView";
 import { PageError } from "@/components/shared/PageError";
-import { getCurrentUser } from "@/lib/auth";
-import { canViewOperationsDashboard } from "@/lib/auth-roles";
 import {
   parseReportMonth,
   parseReportYear,
 } from "@/lib/reports/parse-report-params";
-import type { UserRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +18,6 @@ interface CrateRentalReportPageProps {
 export default async function CrateRentalReportPage({
   searchParams,
 }: CrateRentalReportPageProps) {
-  const user = await getCurrentUser();
-  if (!user || !canViewOperationsDashboard(user.role as UserRole)) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const year = parseReportYear(params.year);
   const month = parseReportMonth(params.month);

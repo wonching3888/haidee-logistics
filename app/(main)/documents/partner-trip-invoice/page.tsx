@@ -1,16 +1,7 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { PartnerTripInvoicePicker } from "@/components/documents/PartnerTripInvoicePicker";
-import { getCurrentUser } from "@/lib/auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
-import type { UserRole } from "@/types";
 
 export default async function PartnerTripInvoicePage() {
-  const user = await getCurrentUser();
-  if (!user || !canViewFreightInfo(user.role as UserRole)) {
-    redirect("/documents");
-  }
-
   return (
     <div className="space-y-6">
       <div>

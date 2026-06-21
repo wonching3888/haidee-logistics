@@ -8,7 +8,7 @@ import { DocumentsClient } from "@/components/documents/DocumentsClient";
 import { PageError } from "@/components/shared/PageError";
 import { resolveDateParam } from "@/lib/date-utils";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 
 interface DocumentsPageProps {
@@ -22,7 +22,7 @@ export default async function DocumentsPage({
   const date = resolveDateParam(params.date);
   const user = await getCurrentUser();
   const showMonthlyInvoice = user
-    ? canViewFreightInfo(user.role as UserRole)
+    ? canViewInvoiceAmounts(user.role as UserRole)
     : false;
 
   try {

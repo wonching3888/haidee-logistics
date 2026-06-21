@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
+import { getDefaultRoute } from "@/lib/routes";
 import { getCurrentUser, INACTIVE_SIGN_OUT_PATH } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const user = await getCurrentUser();
   if (user) {
-    redirect(DEFAULT_AUTHED_ROUTE);
+    redirect(getDefaultRoute(user.role));
   }
 
   const supabase = await createClient();

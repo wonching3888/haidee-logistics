@@ -44,7 +44,7 @@ import {
   resolveCharterBillToDisplayLabelFromTrip,
   type CharterInvoiceData,
 } from "@/lib/charter-invoice";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 
 export async function getCharterTrips(dateStr: string): Promise<CharterTripListItem[]> {
@@ -136,7 +136,7 @@ export async function getCharterInvoiceTripsForMonth(input: {
   month: number;
 }): Promise<{ trips: CharterInvoiceMonthTrip[]; totalAmountMyr: number }> {
   const user = await getCurrentUser();
-  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+  if (!user || !canViewInvoiceAmounts(user.role as UserRole)) {
     throw new Error("无权限查看账单 Unauthorized");
   }
 
