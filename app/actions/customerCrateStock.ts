@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
@@ -188,8 +187,7 @@ export async function updateCustomerCrateStock(
   location: string,
   notes?: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const loc = normalizeLocation(location);
 

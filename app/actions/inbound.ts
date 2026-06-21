@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { canViewFreightInfo } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import {
@@ -572,8 +573,7 @@ export async function removeShipperStallDefault(
   shipperId: string,
   stallId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   await prisma.shipperStallDefault.deleteMany({
     where: { shipperId, stallId },
@@ -933,8 +933,7 @@ interface SaveInboundInput {
 
 export async function saveInboundSession(input: SaveInboundInput) {
   try {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  const user = await requireWrite();
 
   const date = parseDateInput(input.date);
   const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
@@ -1333,8 +1332,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
 }
 
 export async function deleteInboundSession(sessionId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const session = await prisma.inboundSession.findUnique({
     where: { id: sessionId },

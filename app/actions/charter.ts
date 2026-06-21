@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput, formatDisplayDate } from "@/lib/date-utils";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
@@ -463,8 +464,7 @@ function revalidateCharterPaths(id?: string) {
 export async function saveCharterTrip(
   input: CharterTripInput
 ): Promise<{ ok: true; id: string }> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  const user = await requireWrite();
 
   const date = parseDateInput(input.date);
   const data = buildCharterTripData(input);
@@ -633,8 +633,7 @@ export async function saveCharterTrip(
 }
 
 export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const existing = await prisma.charterTrip.findUnique({
     where: { id },

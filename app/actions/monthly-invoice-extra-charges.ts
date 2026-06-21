@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { canViewFreightInfo } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import {
@@ -62,6 +63,7 @@ export async function saveMonthlyInvoiceExtraCharges(input: {
   customerId: string;
   items: MonthlyInvoiceExtraChargeInput[];
 }): Promise<MonthlyInvoiceExtraChargeRow[]> {
+  await requireWrite();
   await requireFreightViewer();
   parseYearMonth(input.year, input.month);
   if (!isMonthlyInvoiceMode(input.mode)) {

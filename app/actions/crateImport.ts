@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import {
@@ -222,8 +222,7 @@ export async function markCrateImportRowArrived(
   truckPlate: string,
   marketCode: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const date = parseDateInput(dateStr);
   const [truck, market] = await Promise.all([
@@ -341,8 +340,7 @@ export async function saveCrateImport(
   dateStr: string,
   rows: CrateImportRowInput[]
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  const user = await requireWrite();
 
   const date = parseDateInput(dateStr);
   const [trucks, markets, tongTypes] = await Promise.all([
@@ -406,8 +404,7 @@ export async function saveCrateImport(
 
 /** Mark in-transit imports as arrived — SADAO stock +quantity per crate type. */
 export async function confirmCrateImportArrived(dateStr: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const date = parseDateInput(dateStr);
   await prisma.tongImport.updateMany({

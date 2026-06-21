@@ -38,7 +38,7 @@ export function isOperationClerk(role: StoredUserRole) {
 // Legacy `accounting` / `owner` are handled separately on legacy can* helpers below.
 // These functions define the target model; pages/actions are not wired to them yet.
 
-/** admin/clerk/thai_acct/my_acct ✓ · viewer ✗ · legacy accounting/owner ✓ until reassigned */
+/** admin/clerk/thai_acct/my_acct ✓ · viewer ✗ · legacy accounting ✓ · legacy owner ✗ */
 export function canWrite(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
@@ -46,9 +46,9 @@ export function canWrite(role: StoredUserRole): boolean {
     case "thai_accounting":
     case "my_accounting":
     case "accounting":
-    case "owner":
       return true;
     case "viewer":
+    case "owner":
       return false;
     default:
       return false;

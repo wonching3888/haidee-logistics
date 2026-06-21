@@ -20,11 +20,20 @@ export async function requireRole(roles: UserRole[]): Promise<AppUser> {
   return user;
 }
 
-/** Require a role that may write business data. Not wired into actions yet. */
+/** Require a role that may write business data. */
 export async function requireWrite(): Promise<AppUser> {
   const user = await requireUser();
   if (!canWrite(user.role)) {
     throw new Error("无权限 Unauthorized");
+  }
+  return user;
+}
+
+/** Require write permission for API routes. Returns null → caller returns 403. */
+export async function requireWriteApi(): Promise<AppUser | null> {
+  const user = await getCurrentUser();
+  if (!user || !canWrite(user.role)) {
+    return null;
   }
   return user;
 }

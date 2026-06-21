@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { addCustomerCratesBatch } from "@/app/actions/customerCrateStock";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { generateExportNo, getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
@@ -28,8 +28,7 @@ export async function saveCrateExport(input: {
   location?: string;
   lines: CrateExportLineInput[];
 }) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  const user = await requireWrite();
 
   const date = parseDateInput(input.date);
   const activeLines = input.lines.filter(

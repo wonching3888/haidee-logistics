@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWriteApi } from "@/lib/require-auth";
 import {
   syncUnloadingFeeEstimatesForTrip,
   listUnloadingFees,
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireAuth();
+    const user = await requireWriteApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

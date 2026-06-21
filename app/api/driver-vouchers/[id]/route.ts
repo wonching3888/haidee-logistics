@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { requireWriteApi } from "@/lib/require-auth";
 import {
   getDriverVoucher,
   updateDriverVoucher,
@@ -36,7 +37,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = await requireWriteApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

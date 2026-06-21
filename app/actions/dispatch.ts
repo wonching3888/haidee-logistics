@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { buildConsignorSessionLabel } from "@/lib/consignor-label";
@@ -1053,8 +1053,7 @@ async function syncDispatchDriverAllowance(
 }
 
 export async function saveDispatchOrder(input: SaveDispatchInput) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  const user = await requireWrite();
 
   if (input.markets.length === 0) {
     throw new Error("请至少选择一个目的市场 Select at least one destination market");
@@ -1199,8 +1198,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
 }
 
 export async function cancelDispatchOrder(dispatchOrderId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
@@ -1246,8 +1244,7 @@ export async function changeDispatchTruck(
   dispatchOrderId: string,
   truckId: string
 ) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const [order, truck] = await Promise.all([
     prisma.dispatchOrder.findUnique({
