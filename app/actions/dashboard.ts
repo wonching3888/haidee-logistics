@@ -6,6 +6,7 @@ import {
   emptyDepotQty,
   marketToDepotLabel,
 } from "@/lib/constants/depot-groups";
+import { resolveActiveDepotLabels } from "@/lib/daily-dispatch-summary";
 import {
   formatDisplayDate,
   parseDateInput,
@@ -162,10 +163,7 @@ export async function getDailyDispatchSummary(
     grandTotal = sumDepotQty(grandTotal, row.total);
   }
 
-  const activeDepots = DEPOT_GROUPS.filter((group) => {
-    if (group.label !== "OTHERS") return true;
-    return hasDepotQty(columnTotals[group.label] ?? { crate: 0, box: 0 });
-  }).map((group) => group.label);
+  const activeDepots = resolveActiveDepotLabels(columnTotals);
 
   return {
     date: formatDisplayDate(date),

@@ -5,6 +5,7 @@ import { Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   shareElementAsPdf,
+  type PdfFromElementOptions,
   type PdfSharePayload,
   type PdfShareResult,
 } from "@/lib/print-pdf-share";
@@ -12,6 +13,7 @@ import {
 interface SharePdfButtonProps {
   getContentElement: () => HTMLElement | null;
   payload: PdfSharePayload;
+  pdfOptions?: PdfFromElementOptions;
   /** Compact icon+label for toolbars; default false */
   compact?: boolean;
 }
@@ -19,6 +21,7 @@ interface SharePdfButtonProps {
 export function SharePdfButton({
   getContentElement,
   payload,
+  pdfOptions,
   compact = false,
 }: SharePdfButtonProps) {
   const [busy, setBusy] = useState(false);
@@ -37,7 +40,7 @@ export function SharePdfButton({
     setLastResult(null);
 
     try {
-      const result = await shareElementAsPdf(element, payload);
+      const result = await shareElementAsPdf(element, payload, pdfOptions);
       setLastResult(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "生成或分享 PDF 失败");

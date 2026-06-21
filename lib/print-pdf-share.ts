@@ -3,12 +3,30 @@
  * Uses html2canvas + jsPDF — rasterized pages, not selectable text.
  */
 
-import { prepareHtml2CanvasClone, runWithHtml2CanvasCompat } from "@/lib/html2canvas-color-compat";
+import {
+  measureElementCaptureExtents,
+  prepareHtml2CanvasClone,
+  runWithHtml2CanvasCompat,
+  type Html2CanvasCloneOptions,
+} from "@/lib/html2canvas-color-compat";
 
 export interface PdfFromElementOptions {
   fileName?: string;
   /** html2canvas scale; 2 is a reasonable mobile/desktop balance */
   scale?: number;
+  /**
+   * Expand wide matrix tables to full intrinsic width before capture (Daily Record).
+   * Other print pages leave this false to preserve existing capture behavior.
+   */
+  captureFullContentWidth?: boolean;
+  wideTableSelector?: string;
+  /** When true, use landscape if activeDepotCount ≥ threshold or content width > px */
+  autoLandscape?: boolean;
+  activeDepotCount?: number;
+  landscapeWidthThresholdPx?: number;
+  minDepotCountForLandscape?: number;
+  minPdfFontPt?: number;
+  orientation?: "portrait" | "landscape";
 }
 
 export interface PdfSharePayload {
@@ -32,8 +50,35 @@ export interface ShareCapabilityProbe {
   notes: string[];
 }
 
+const DEFAULT_LANDSCAPE_WIDTH_THRESHOLD_PX = 900;
+const DEFAULT_MIN_DEPOT_COUNT_FOR_LANDSCAPE = 7;
+const DEFAULT_MIN_PDF_FONT_PT = 9;
+
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_") || "document.pdf";
+}
+
+export function resolvePdfOrientation(
+  options: PdfFromElementOptions | undefined,
+  contentWidthPx: number
+): "portrait" | "landscape" {
+  if (options?.orientation) {
+    return options.orientation;
+  }
+  if (!options?.autoLandscape) {
+    return "portrait";
+  }
+
+  const widthThreshold =
+    options.landscapeWidthThresholdPx ?? DEFAULT_LANDSCAPE_WIDTH_THRESHOLD_PX;
+  const depotThreshold =
+    options.minDepotCountForLandscape ?? DEFAULT_MIN_DEPOT_COUNT_FOR_LANDSCAPE;
+  const depotCount = options.activeDepotCount ?? 0;
+
+  if (depotCount >= depotThreshold || contentWidthPx > widthThreshold) {
+    return "landscape";
+  }
+  return "portrait";
 }
 
 export function probeShareCapability(): ShareCapabilityProbe {
@@ -85,26 +130,50 @@ export async function renderElementToPdfBlob(
   ]);
 
   const scale = options?.scale ?? 2;
+  const wideTableSelector = options?.wideTableSelector ?? ".daily-summary-table";
+
+  const captureExtents = options?.captureFullContentWidth
+    ? measureElementCaptureExtents(element, { wideTableSelector })
+    : {
+        width: Math.max(element.scrollWidth, 1),
+        height: Math.max(element.scrollHeight, 1),
+      };
+
+  const orientation = resolvePdfOrientation(options, captureExtents.width);
+  const cloneOptions: Html2CanvasCloneOptions | undefined =
+    options?.captureFullContentWidth
+      ? {
+          contentWidth: captureExtents.width,
+          contentHeight: captureExtents.height,
+          wideTableSelector,
+          minPdfFontPt: options.minPdfFontPt ?? DEFAULT_MIN_PDF_FONT_PT,
+        }
+      : undefined;
+
   const canvas = await runWithHtml2CanvasCompat(() =>
     html2canvas(element, {
       scale,
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
+      windowWidth: captureExtents.width,
+      windowHeight: captureExtents.height,
+      width: captureExtents.width,
+      height: captureExtents.height,
       onclone: (clonedDoc, clonedElement) => {
-        if (clonedElement instanceof HTMLElement) {
-          prepareHtml2CanvasClone(clonedDoc, element, clonedElement);
-        } else {
-          prepareHtml2CanvasClone(clonedDoc, element, element);
-        }
+        const clonedRoot =
+          clonedElement instanceof HTMLElement ? clonedElement : element;
+        prepareHtml2CanvasClone(clonedDoc, element, clonedRoot, cloneOptions);
       },
     })
   );
 
   const imgData = canvas.toDataURL("image/jpeg", 0.92);
-  const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+  const pdf = new jsPDF({
+    orientation: orientation === "landscape" ? "l" : "p",
+    unit: "mm",
+    format: "a4",
+  });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
@@ -226,9 +295,11 @@ export async function sharePdfBlob(
 
 export async function shareElementAsPdf(
   element: HTMLElement,
-  payload: PdfSharePayload
+  payload: PdfSharePayload,
+  options?: PdfFromElementOptions
 ): Promise<PdfShareResult> {
   const { blob, fileName } = await renderElementToPdfBlob(element, {
+    ...options,
     fileName: payload.fileName,
   });
   return sharePdfBlob(blob, fileName, payload);

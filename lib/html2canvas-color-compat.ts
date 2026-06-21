@@ -108,7 +108,18 @@ export function inlineResolvedColorsForHtml2Canvas(
   }
 }
 
-export function expandOverflowContainersForCapture(cloneRoot: HTMLElement) {
+export interface Html2CanvasCloneOptions {
+  /** When set, expand clone to this width so wide matrix tables are not clipped */
+  contentWidth?: number;
+  contentHeight?: number;
+  wideTableSelector?: string;
+  minPdfFontPt?: number;
+}
+
+export function expandOverflowContainersForCapture(
+  cloneRoot: HTMLElement,
+  options?: Html2CanvasCloneOptions
+) {
   const queue: HTMLElement[] = [cloneRoot];
   while (queue.length > 0) {
     const node = queue.shift()!;
@@ -116,6 +127,7 @@ export function expandOverflowContainersForCapture(cloneRoot: HTMLElement) {
     node.style.setProperty("overflow-x", "visible", "important");
     node.style.setProperty("overflow-y", "visible", "important");
     node.style.setProperty("max-height", "none", "important");
+    node.style.setProperty("max-width", "none", "important");
 
     if (node.classList.contains("scroll-matrix-table")) {
       node.style.setProperty("height", "auto", "important");
@@ -134,16 +146,135 @@ export function expandOverflowContainersForCapture(cloneRoot: HTMLElement) {
       el.style.setProperty("position", "static", "important");
     }
   });
+
+  if (options?.contentWidth && options.contentWidth > 0) {
+    const widthPx = `${Math.ceil(options.contentWidth)}px`;
+    cloneRoot.style.setProperty("width", widthPx, "important");
+    cloneRoot.style.setProperty("min-width", widthPx, "important");
+
+    const scrollHost = cloneRoot.querySelector(".scroll-matrix-table");
+    if (scrollHost instanceof HTMLElement) {
+      scrollHost.style.setProperty("width", widthPx, "important");
+      scrollHost.style.setProperty("min-width", widthPx, "important");
+    }
+
+    const wideSelector = options.wideTableSelector ?? ".daily-summary-table";
+    const table = cloneRoot.querySelector(wideSelector);
+    if (table instanceof HTMLElement) {
+      table.style.setProperty("width", "max-content", "important");
+      table.style.setProperty("min-width", "max-content", "important");
+      table.style.setProperty("table-layout", "auto", "important");
+    }
+  }
+
+  if (options?.contentHeight && options.contentHeight > 0) {
+    cloneRoot.style.setProperty("min-height", `${Math.ceil(options.contentHeight)}px`, "important");
+  }
+}
+
+function injectPdfCaptureTypography(doc: Document, minPdfFontPt: number) {
+  const style = doc.createElement("style");
+  style.setAttribute("data-html2canvas-pdf-typography", "true");
+  style.textContent = `
+    [data-pdf-capture-root] .daily-summary-table,
+    [data-pdf-capture-root] .daily-summary-table .daily-summary-th,
+    [data-pdf-capture-root] .daily-summary-table .daily-summary-td,
+    [data-pdf-capture-root] .daily-summary-header p {
+      font-size: ${minPdfFontPt}pt !important;
+      line-height: 1.25 !important;
+    }
+  `;
+  doc.head.appendChild(style);
 }
 
 export function prepareHtml2CanvasClone(
   clonedDoc: Document,
   sourceRoot: HTMLElement,
-  clonedRoot: HTMLElement
+  clonedRoot: HTMLElement,
+  options?: Html2CanvasCloneOptions
 ) {
   sanitizeClonedDocumentStyles(clonedDoc);
   inlineResolvedColorsForHtml2Canvas(sourceRoot, clonedRoot);
-  expandOverflowContainersForCapture(clonedRoot);
+  expandOverflowContainersForCapture(clonedRoot, options);
+  if (options?.minPdfFontPt && options.minPdfFontPt > 0) {
+    injectPdfCaptureTypography(clonedDoc, options.minPdfFontPt);
+  }
+}
+
+/**
+ * Measure full scroll extents for wide matrix tables (opt-in; Daily Record PDF).
+ * Temporarily expands overflow on the live DOM, then restores inline styles.
+ */
+export function measureElementCaptureExtents(
+  sourceRoot: HTMLElement,
+  options?: { wideTableSelector?: string }
+): { width: number; height: number } {
+  const wideSelector = options?.wideTableSelector ?? ".daily-summary-table";
+  const table = sourceRoot.querySelector(wideSelector);
+  const scrollHost = sourceRoot.querySelector(".scroll-matrix-table");
+
+  const snapshots = new Map<HTMLElement, string>();
+  const touched: HTMLElement[] = [];
+
+  function touch(el: HTMLElement) {
+    if (!snapshots.has(el)) {
+      snapshots.set(el, el.style.cssText);
+      touched.push(el);
+    }
+  }
+
+  function expandForMeasure(el: HTMLElement) {
+    touch(el);
+    el.style.setProperty("overflow", "visible", "important");
+    el.style.setProperty("overflow-x", "visible", "important");
+    el.style.setProperty("overflow-y", "visible", "important");
+    el.style.setProperty("max-width", "none", "important");
+    el.style.setProperty("max-height", "none", "important");
+  }
+
+  expandForMeasure(sourceRoot);
+  sourceRoot.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const overflow = window.getComputedStyle(el).overflowX;
+    if (overflow === "hidden" || overflow === "auto" || overflow === "scroll") {
+      expandForMeasure(el);
+    }
+  });
+
+  if (scrollHost instanceof HTMLElement) {
+    touch(scrollHost);
+    scrollHost.style.setProperty("height", "auto", "important");
+    scrollHost.style.setProperty("width", "max-content", "important");
+    scrollHost.style.setProperty("min-width", "max-content", "important");
+  }
+
+  if (table instanceof HTMLElement) {
+    touch(table);
+    table.style.setProperty("width", "max-content", "important");
+    table.style.setProperty("min-width", "max-content", "important");
+    table.style.setProperty("table-layout", "auto", "important");
+  }
+
+  const width = Math.max(
+    sourceRoot.scrollWidth,
+    scrollHost instanceof HTMLElement ? scrollHost.scrollWidth : 0,
+    table instanceof HTMLElement
+      ? Math.max(table.scrollWidth, table.offsetWidth)
+      : 0
+  );
+  const height = Math.max(
+    sourceRoot.scrollHeight,
+    scrollHost instanceof HTMLElement ? scrollHost.scrollHeight : 0,
+    table instanceof HTMLElement ? table.scrollHeight : 0
+  );
+
+  for (const el of touched) {
+    el.style.cssText = snapshots.get(el) ?? "";
+  }
+
+  return {
+    width: Math.max(width, 1),
+    height: Math.max(height, 1),
+  };
 }
 
 function patchLiveDocumentStyleTags(doc: Document): () => void {

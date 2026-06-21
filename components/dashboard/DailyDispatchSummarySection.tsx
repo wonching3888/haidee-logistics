@@ -28,6 +28,14 @@ export function DailyDispatchSummarySection({
     text: `WTL EXPRESS SDN BHD — Daily Record ${data.date}`,
   };
 
+  const pdfOptions = {
+    captureFullContentWidth: true,
+    wideTableSelector: ".daily-summary-table",
+    autoLandscape: true,
+    activeDepotCount: data.activeDepots.length,
+    minPdfFontPt: 9,
+  } as const;
+
   return (
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -38,6 +46,7 @@ export function DailyDispatchSummarySection({
           compact
           getContentElement={() => captureRef.current}
           payload={sharePayload}
+          pdfOptions={pdfOptions}
         />
       </div>
       <div ref={captureRef} className="min-w-0" data-pdf-capture-root>
