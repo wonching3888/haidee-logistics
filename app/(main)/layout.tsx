@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requirePageUser } from "@/lib/auth";
+import { canWrite } from "@/lib/auth-roles";
 import { AppShell } from "@/components/shared/AppShell";
 import { canAccessPage } from "@/lib/page-access";
 import { getDefaultRoute } from "@/lib/routes";
@@ -20,7 +21,7 @@ export default async function MainLayout({
   }
 
   return (
-    <AppShell user={user} role={user.role}>
+    <AppShell user={user} role={user.role} canWrite={canWrite(user.role)}>
       {children}
     </AppShell>
   );

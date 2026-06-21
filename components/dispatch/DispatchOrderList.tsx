@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { useCanWrite } from "@/components/shared/can-write-context";
 import {
   Table,
   TableBody,
@@ -52,6 +53,7 @@ interface DispatchOrderListProps {
 
 export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
   const router = useRouter();
+  const userCanWrite = useCanWrite();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<DispatchOrderRow | null>(
@@ -118,7 +120,9 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                 <TableHead className="min-w-[140px]">市场 Markets</TableHead>
                 <TableHead className="text-right">装载 Load</TableHead>
                 <TableHead>状态 Status</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                {userCanWrite ? (
+                  <TableHead className="text-right">操作</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -152,37 +156,39 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                       {o.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2 text-sm">
-                      <Link
-                        href={`/dispatch/${o.id}`}
-                        className="text-haidee-blue hover:underline"
-                      >
-                        编辑 Edit
-                      </Link>
-                      <span className="text-haidee-muted">|</span>
-                      <button
-                        type="button"
-                        onClick={() => openChangeDialog(o)}
-                        className="text-haidee-blue hover:underline"
-                        disabled={isPending}
-                      >
-                        换车 Change
-                      </button>
-                      <span className="text-haidee-muted">|</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError(null);
-                          setCancelTarget(o);
-                        }}
-                        className="text-red-600 hover:underline"
-                        disabled={isPending}
-                      >
-                        取消 Cancel
-                      </button>
-                    </div>
-                  </TableCell>
+                  {userCanWrite ? (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2 text-sm">
+                        <Link
+                          href={`/dispatch/${o.id}`}
+                          className="text-haidee-blue hover:underline"
+                        >
+                          编辑 Edit
+                        </Link>
+                        <span className="text-haidee-muted">|</span>
+                        <button
+                          type="button"
+                          onClick={() => openChangeDialog(o)}
+                          className="text-haidee-blue hover:underline"
+                          disabled={isPending}
+                        >
+                          换车 Change
+                        </button>
+                        <span className="text-haidee-muted">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setCancelTarget(o);
+                          }}
+                          className="text-red-600 hover:underline"
+                          disabled={isPending}
+                        >
+                          取消 Cancel
+                        </button>
+                      </div>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>
@@ -190,6 +196,8 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
         </div>
       </div>
 
+      {userCanWrite ? (
+        <>
       <Dialog
         open={cancelTarget !== null}
         onOpenChange={(open) => {
@@ -276,6 +284,8 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      ) : null}
     </>
   );
 }

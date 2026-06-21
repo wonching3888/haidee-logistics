@@ -79,8 +79,11 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
     return "pnl";
   }
 
-  if (path === "/dispatch" || path.startsWith("/dispatch/")) {
+  if (path === "/dispatch") {
     return "authenticated";
+  }
+  if (path.startsWith("/dispatch/")) {
+    return "write";
   }
   if (path === "/summary" || path.startsWith("/summary/")) {
     return "authenticated";

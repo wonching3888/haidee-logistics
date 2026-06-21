@@ -10,6 +10,8 @@ import { DispatchMatrix } from "@/components/dispatch/DispatchMatrix";
 import { DispatchOrderList } from "@/components/dispatch/DispatchOrderList";
 import { DispatchDateFilter } from "@/components/dispatch/DispatchDateFilter";
 import { PageError } from "@/components/shared/PageError";
+import { requirePageUser } from "@/lib/auth";
+import { canWrite } from "@/lib/auth-roles";
 import { resolveDateParam } from "@/lib/date-utils";
 
 interface DispatchPageProps {
@@ -19,6 +21,8 @@ interface DispatchPageProps {
 export default async function DispatchPage({ searchParams }: DispatchPageProps) {
   const params = await searchParams;
   const date = resolveDateParam(params.date);
+  const user = await requirePageUser();
+  const userCanWrite = canWrite(user.role);
 
   try {
     const [matrix, orders, trucks] = await Promise.all([
@@ -46,13 +50,15 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
             >
               <DispatchDateFilter />
             </Suspense>
-            <Link
-              href={`/dispatch/new?${new URLSearchParams({ date }).toString()}`}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-haidee-blue px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-haidee-blue/90"
-            >
-              <Plus className="h-4 w-4" />
-              新建派车单 New Dispatch
-            </Link>
+            {userCanWrite ? (
+              <Link
+                href={`/dispatch/new?${new URLSearchParams({ date }).toString()}`}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-haidee-blue px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-haidee-blue/90"
+              >
+                <Plus className="h-4 w-4" />
+                新建派车单 New Dispatch
+              </Link>
+            ) : null}
           </div>
         </div>
 
