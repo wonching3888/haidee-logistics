@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isStoredUserRole } from "@/lib/auth-roles";
 import type { AppUser } from "@/types";
+import { redirect } from "next/navigation";
+
+export const INACTIVE_SIGN_OUT_PATH = "/api/auth/sign-out";
 
 export async function getCurrentUser(): Promise<AppUser | null> {
   const backfillUser = (globalThis as { __BACKFILL_USER__?: AppUser })
@@ -46,4 +49,23 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     name: user.user_metadata?.name ?? null,
     role: "clerk",
   };
+}
+
+/** Page guard: active app user, or clear stale Supabase session before /login. */
+export async function requirePageUser(): Promise<AppUser> {
+  const appUser = await getCurrentUser();
+  if (appUser) {
+    return appUser;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (authUser) {
+    redirect(INACTIVE_SIGN_OUT_PATH);
+  }
+
+  redirect("/login");
 }
