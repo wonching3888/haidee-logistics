@@ -41,38 +41,37 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
       heightOffset={400}
       className="daily-summary-print shadow-sm"
     >
-      <div className="daily-summary-sheet">
-        <div className="daily-summary-header px-5 py-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            width={36}
-            height={36}
-            alt="WTL Logo"
-            className="shrink-0"
-            style={{ mixBlendMode: "multiply" }}
-          />
-          <div className="text-center">
-            <p className="text-base font-bold tracking-wide text-haidee-text">
-              WTL EXPRESS SDN BHD
-            </p>
-            <p className="mt-0.5 text-sm text-haidee-muted">
-              Date: {data.date}
-              <span className="mx-2 text-haidee-border">|</span>
-              Daily Record
-            </p>
-          </div>
-        </div>
-
-        {data.rows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-haidee-muted">
-            当日暂无派车数据 No dispatch data for this date
+      <div className="daily-summary-header flex items-center justify-center gap-3 px-5 py-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          width={36}
+          height={36}
+          alt="WTL Logo"
+          className="shrink-0"
+          style={{ mixBlendMode: "multiply" }}
+        />
+        <div className="text-center">
+          <p className="text-base font-bold tracking-wide text-haidee-text">
+            WTL EXPRESS SDN BHD
           </p>
-        ) : (
-          <table
-            className="daily-summary-table min-w-full border-collapse text-sm"
-            style={{ width: "100%" }}
-          >
+          <p className="mt-0.5 text-sm text-haidee-muted">
+            Date: {data.date}
+            <span className="mx-2 text-haidee-border">|</span>
+            Daily Record
+          </p>
+        </div>
+      </div>
+
+      {data.rows.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-haidee-muted">
+          当日暂无派车数据 No dispatch data for this date
+        </p>
+      ) : (
+        <table
+          className="daily-summary-table min-w-max border-collapse text-sm md:w-full"
+          style={{ width: "100%" }}
+        >
           <thead>
             <tr>
               <th
@@ -174,8 +173,7 @@ export function DailyDispatchSummary({ data }: DailyDispatchSummaryProps) {
             </tr>
           </tfoot>
         </table>
-        )}
-      </div>
+      )}
     </ScrollMatrixTable>
   );
 }
