@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   getTodayInboundByShipper,
   getTodayInboundByPickupLocation,
@@ -12,11 +13,6 @@ import {
   isLocationPoolShipperCode,
   stockLocationForPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
-import { PrintPreviewDialog } from "@/components/documents/PrintPreviewDialog";
-import {
-  TongExportReceipt,
-  type ReceiptData,
-} from "@/components/tong/TongExportReceipt";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +46,7 @@ interface TongExportFormProps {
 }
 
 export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [date, setDate] = useState(toDateInputValue(new Date()));
   const [shipperId, setShipperId] = useState("");
@@ -59,7 +56,6 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<ExportLineState[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const selectedShipper = shippers.find((s) => s.id === shipperId);
   const poolStockLocation = selectedShipper
@@ -161,7 +157,10 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
             quantityActual: parseInt(l.actual, 10) || 0,
           })),
         });
-        setReceipt(result);
+        const returnTo = `/crate/export?date=${encodeURIComponent(date)}`;
+        router.push(
+          `/crate/export/print?exportNo=${encodeURIComponent(result.exportNo)}&returnTo=${encodeURIComponent(returnTo)}`
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败");
       }
@@ -302,15 +301,6 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
       >
         {isPending ? "处理中…" : "确认归还 Confirm Export"}
       </Button>
-
-      <PrintPreviewDialog
-        open={receipt !== null}
-        onClose={() => setReceipt(null)}
-        title="空桶收据 Empty Crate Receipt"
-        documentTitle={receipt?.exportNo ?? "receipt"}
-      >
-        {receipt && <TongExportReceipt data={receipt} />}
-      </PrintPreviewDialog>
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { addCustomerCratesBatch } from "@/app/actions/customerCrateStock";
+import type { ReceiptData } from "@/components/tong/TongExportReceipt";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput } from "@/lib/inbound-utils";
@@ -124,6 +126,7 @@ export async function saveCrateExport(input: {
 
   revalidatePath("/tong/export");
   revalidatePath("/crate/export");
+  revalidatePath("/crate/export/print");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
   revalidatePath("/crate/customer-stock");
@@ -134,5 +137,45 @@ export async function saveCrateExport(input: {
     shipperName: shipper.name,
     thVehiclePlate: input.thVehiclePlate,
     lines: receiptLines,
+  };
+}
+
+/** Load receipt data for print / reprint by export batch number. */
+export async function getCrateExportReceiptData(
+  exportNo: string
+): Promise<ReceiptData | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const trimmed = exportNo.trim();
+  if (!trimmed) return null;
+
+  const rows = await prisma.tongExport.findMany({
+    where: { exportNo: trimmed },
+    include: {
+      shipper: { select: { name: true } },
+      tongType: { select: { name: true, displayOrder: true } },
+    },
+    orderBy: { tongType: { displayOrder: "asc" } },
+  });
+
+  if (rows.length === 0) return null;
+
+  const first = rows[0];
+  const lines = rows
+    .filter((row) => row.quantityActual > 0 || row.shortage > 0)
+    .map((row) => ({
+      tongName: row.tongType.name,
+      quantity: row.quantitySuggested ?? 0,
+      quantityActual: row.quantityActual,
+      shortage: row.shortage,
+    }));
+
+  return {
+    exportNo: trimmed,
+    date: formatDisplayDate(first.date),
+    shipperName: first.shipper.name,
+    thVehiclePlate: first.thVehiclePlate,
+    lines,
   };
 }

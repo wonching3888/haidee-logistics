@@ -7,17 +7,12 @@
 }
 
 .tong-receipt .receipt-header {
-  display: flex;
-  justify-content: space-between;
+  text-align: center;
   border-bottom: 2px solid #000;
   padding-bottom: 8px;
   margin-bottom: 12px;
-}
-
-.tong-receipt .receipt-header-right {
-  text-align: right;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .tong-receipt .receipt-company-cn {
@@ -31,6 +26,10 @@
 
 .tong-receipt .receipt-address {
   font-size: 10px;
+}
+
+.tong-receipt .receipt-phone {
+  font-size: 12px;
 }
 
 .tong-receipt .receipt-title {

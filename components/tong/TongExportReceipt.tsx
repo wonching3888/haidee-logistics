@@ -23,18 +23,13 @@ export function TongExportReceipt({ data }: TongExportReceiptProps) {
   return (
     <div className="tong-receipt">
       <div className="receipt-header">
-        <div className="receipt-header-left">
-          <div>เลขที่ {data.exportNo}</div>
+        <div>บริษัท ไฮดี โลจิสติกส์ จำกัด</div>
+        <div className="receipt-company-cn">海利物流有限公司</div>
+        <div className="receipt-company-en">HAI DEE LOGISTICS CO.,LTD</div>
+        <div className="receipt-address">
+          38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320
         </div>
-        <div className="receipt-header-right">
-          <div>บริษัท ไฮดี โลจิสติกส์ จำกัด</div>
-          <div className="receipt-company-cn">海利物流有限公司</div>
-          <div className="receipt-company-en">HAI DEE LOGISTICS CO.,LTD</div>
-          <div className="receipt-address">
-            99/9 หมู่ 4 ต.สำโรงเหนือ อ.เมืองสมุทรปราการ จ.สมุทรปราการ 10270
-          </div>
-          <div>โทร. 092-2701477, 098-3379070</div>
-        </div>
+        <div className="receipt-phone">โทร. 098 337 9070 / 092 270 1477</div>
       </div>
 
       <div className="receipt-title">ใบรับคืนถังเปล่า Empty Crate Receipt</div>
