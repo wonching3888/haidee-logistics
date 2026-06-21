@@ -17,27 +17,30 @@ export function CharterWtlInvoicePrint({ data }: CharterWtlInvoicePrintProps) {
   }
 
   return (
-    <div className="document-print mode4-tax-invoice-print wtl-tax-invoice-document">
+    <div className="document-print mode4-tax-invoice-print haidee-market-invoice-print wtl-tax-invoice-document">
       <WtlExpressInvoiceLetterhead />
 
       <div className="mode4-tax-invoice-title">TAX INVOICE</div>
       <div className="header-sub">
-        {data.billTo.name} · {data.dateLabel} · {data.currency}
+        {data.billToDisplayLabel} · {data.dateLabel} · {data.currency}
       </div>
 
       <div className="monthly-invoice-meta">
         <div className="monthly-invoice-meta-info">
           <div>
-            <strong>Charter No:</strong> {data.charterNo}
+            <strong>包车单号 Charter No:</strong> {data.charterNo}
           </div>
           <div>
-            <strong>Date:</strong> {data.dateLabel}
+            <strong>日期 Date:</strong> {data.dateLabel}
           </div>
           <div>
-            <strong>Plate:</strong> {data.truckPlate}
+            <strong>币种 Currency:</strong> {data.currency}
           </div>
           <div>
-            <strong>Cargo:</strong> {data.cargoTypeLabel}
+            <strong>车牌 Truck:</strong> {data.truckPlate}
+          </div>
+          <div>
+            <strong>货类 Cargo:</strong> {data.cargoTypeLabel}
           </div>
         </div>
         <div className="monthly-invoice-bill-to">
@@ -55,6 +58,9 @@ export function CharterWtlInvoicePrint({ data }: CharterWtlInvoicePrintProps) {
       </div>
 
       <div className="monthly-invoice-section">
+        <div className="monthly-invoice-section-title">
+          包车费用 Charter Charges
+        </div>
         <table className="monthly-invoice-table mode4-tax-invoice-table">
           <thead>
             <tr>

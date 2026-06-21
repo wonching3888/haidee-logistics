@@ -21,7 +21,7 @@ export function CharterHaideeInvoicePrint({ data }: CharterHaideeInvoicePrintPro
       <HaideeInvoicePrintHeader
         nameZh={company.nameZh}
         nameEn={company.nameEn}
-        subtitle={`${data.billTo.name} · ${data.dateLabel} · ${data.currency}`}
+        subtitle={`${data.billToDisplayLabel} · ${data.dateLabel} · ${data.currency}`}
       />
 
       <HaideeInvoiceMetaBlocks
@@ -56,7 +56,11 @@ export function CharterHaideeInvoicePrint({ data }: CharterHaideeInvoicePrintPro
         }
       />
 
-      <HaideeInvoiceDescriptionAmountTable lines={data.lines} />
+      <HaideeInvoiceDescriptionAmountTable
+        lines={data.lines}
+        sectionTitle="包车费用 Charter Charges"
+        amountHeader={`Amount (${data.currency})`}
+      />
 
       <HaideeInvoiceGrandTotal
         amountMyr={data.grandTotalMyr}

@@ -78,14 +78,19 @@ export interface HaideeInvoiceAmountLine {
 interface HaideeInvoiceDescriptionAmountTableProps {
   lines: HaideeInvoiceAmountLine[];
   amountHeader?: string;
+  sectionTitle?: string;
 }
 
 export function HaideeInvoiceDescriptionAmountTable({
   lines,
   amountHeader = "Amount",
+  sectionTitle,
 }: HaideeInvoiceDescriptionAmountTableProps) {
   return (
     <div className="monthly-invoice-section">
+      {sectionTitle ? (
+        <div className="monthly-invoice-section-title">{sectionTitle}</div>
+      ) : null}
       <table className="monthly-invoice-table mode4-tax-invoice-table">
         <thead>
           <tr>

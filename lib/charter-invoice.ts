@@ -22,6 +22,13 @@ export interface CharterInvoiceBillTo {
   source: "shipper" | "manual";
 }
 
+export function formatCharterBillToDisplayLabel(billTo: CharterInvoiceBillTo): string {
+  if (billTo.code) {
+    return `${billTo.name} (${billTo.code})`;
+  }
+  return billTo.name;
+}
+
 export interface CharterInvoiceData {
   charterTripId: string;
   charterNo: string;
@@ -30,6 +37,8 @@ export interface CharterInvoiceData {
   billingCompany: CharterBillingCompany;
   currency: "MYR";
   billTo: CharterInvoiceBillTo;
+  /** Subtitle / list display: 名字 (代码) when code exists */
+  billToDisplayLabel: string;
   truckPlate: string;
   driverName: string | null;
   cargoTypeLabel: string;
@@ -103,6 +112,7 @@ export function buildCharterInvoiceFromTrip(trip: {
     billingCompany: trip.billingCompany,
     currency: "MYR",
     billTo,
+    billToDisplayLabel: formatCharterBillToDisplayLabel(billTo),
     truckPlate: trip.truck.plate,
     driverName: trip.driverName,
     cargoTypeLabel: charterCargoTypeLabel(cargoType),
