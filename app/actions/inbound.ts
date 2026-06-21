@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewFreightOnEntry } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import {
   addCustomerCratesBatch,
@@ -750,7 +750,7 @@ interface PreviewInboundFreightInput {
 export async function previewInboundFreightLines(input: PreviewInboundFreightInput) {
   try {
     const user = await getCurrentUser();
-    if (!user || !canViewFreightInfo(user.role as UserRole)) {
+    if (!user || !canViewFreightOnEntry(user.role as UserRole)) {
       return [];
     }
 
@@ -832,7 +832,7 @@ export async function previewInboundFreightLines(input: PreviewInboundFreightInp
 export async function getInboundSession(id: string) {
   const user = await getCurrentUser();
   const showFreightInfo = user
-    ? canViewFreightInfo(user.role as UserRole)
+    ? canViewFreightOnEntry(user.role as UserRole)
     : false;
 
   const session = await prisma.inboundSession.findUnique({

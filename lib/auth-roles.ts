@@ -55,15 +55,17 @@ export function canWrite(role: StoredUserRole): boolean {
   }
 }
 
-/** admin/my_acct ✓ · clerk/thai_acct/viewer ✗ */
+/** admin/my_acct/legacy accounting ✓ · clerk/thai_acct/viewer/legacy owner ✗ */
 export function canViewFreightOnEntry(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
     case "my_accounting":
+    case "accounting":
       return true;
     case "clerk":
     case "thai_accounting":
     case "viewer":
+    case "owner":
       return false;
     default:
       return false;
