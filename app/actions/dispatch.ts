@@ -13,6 +13,7 @@ import {
   classifyInboundFreightGap,
   computeInboundLineFreight,
   computeMcThirdPartyFeeForLine,
+  isWrongZeroFreightSnapshot,
   MC_MARKET_CODE,
   normalizeMcDeliveryMode,
   serializeOperationalSettings,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/inbound-freight";
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import { rateAsOfForSessionDate } from "@/lib/constants/rate-effective-date";
 import {
   compareDispatchPriority,
   DISPATCH_MARKET_ORDER,
@@ -582,9 +584,11 @@ function freightRevenueSnapshotUpdateData(snapshot: InboundLineFreightSnapshot) 
 }
 
 /**
- * When lines are assigned at dispatch time, backfill freight snapshots if missing.
- * Uses dispatch order date for rate lookup (not session date) so rates effective
- * before dispatch day are available — covers delayed entry + late assignment.
+ * When lines are assigned at dispatch time, backfill freight snapshots if missing
+ * or wrongly stored as zero (recompute > 0).
+ * Uses dispatch order date for NULL snapshots; max(session.date, rate floor) for
+ * wrong-zero rows. Legitimate zeros (recompute = 0) and existing positive amounts
+ * are left untouched.
  */
 async function ensureFreightSnapshotsForAssignedLines(
   tx: Prisma.TransactionClient,
@@ -595,9 +599,13 @@ async function ensureFreightSnapshotsForAssignedLines(
   if (lineIds.length === 0) return;
 
   const lines = await tx.inboundLine.findMany({
-    where: { id: { in: lineIds }, freightAmount: null },
+    where: {
+      id: { in: lineIds },
+      OR: [{ freightAmount: null }, { freightAmount: 0 }],
+    },
     select: {
       id: true,
+      freightAmount: true,
       stallId: true,
       tongTypeId: true,
       quantity: true,
@@ -605,6 +613,7 @@ async function ensureFreightSnapshotsForAssignedLines(
       session: {
         select: {
           shipperId: true,
+          date: true,
           pickupLocation: true,
           shipper: { select: { pickupLocation: true } },
         },
@@ -620,18 +629,27 @@ async function ensureFreightSnapshotsForAssignedLines(
   >();
 
   for (const line of lines) {
+    const storedAmount = decimalToNumber(line.freightAmount);
+    if (storedAmount != null && storedAmount > 0) continue;
+
+    const isNullSnapshot = line.freightAmount == null;
+    const isWrongZero = storedAmount === 0;
+    const rateAsOfDate = isNullSnapshot
+      ? dispatchDate
+      : rateAsOfForSessionDate(line.session.date);
+
     const pickup = resolveSessionPickupLocation(
       line.session.pickupLocation,
       line.session.shipper.pickupLocation
     );
-    const cacheKey = `${line.session.shipperId}|${pickup}|${dispatchDate.toISOString().slice(0, 10)}`;
+    const cacheKey = `${line.session.shipperId}|${pickup}|${rateAsOfDate.toISOString().slice(0, 10)}`;
     let freightCtx = ctxCache.get(cacheKey);
     if (!freightCtx) {
       const loaded = await loadInboundFreightContext(
         line.session.shipperId,
         [line.stallId],
         [line.tongTypeId],
-        dispatchDate,
+        rateAsOfDate,
         pickup
       );
       freightCtx = loaded.ctx;
@@ -639,20 +657,34 @@ async function ensureFreightSnapshotsForAssignedLines(
     }
 
     const marketCode = line.stall.market?.code ?? "";
+    const mcMode =
+      marketCode === MC_MARKET_CODE
+        ? "self"
+        : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode);
     const snapshot = computeInboundLineFreight(
       {
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
-        mcDeliveryMode:
-          marketCode === MC_MARKET_CODE
-            ? "self"
-            : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode),
+        mcDeliveryMode: mcMode,
       },
       freightCtx
     );
 
-    if ((snapshot.freightAmount ?? 0) > 0) {
+    const recomputedAmount = snapshot.freightAmount ?? 0;
+
+    if (isWrongZero) {
+      if (!isWrongZeroFreightSnapshot(storedAmount, recomputedAmount)) {
+        continue;
+      }
+      await tx.inboundLine.update({
+        where: { id: line.id, freightAmount: 0 },
+        data: freightRevenueSnapshotUpdateData(snapshot),
+      });
+      continue;
+    }
+
+    if (recomputedAmount > 0) {
       await tx.inboundLine.update({
         where: { id: line.id },
         data: freightRevenueSnapshotUpdateData(snapshot),
@@ -666,10 +698,7 @@ async function ensureFreightSnapshotsForAssignedLines(
           stallId: line.stallId,
           tongTypeId: line.tongTypeId,
           quantity: line.quantity,
-          mcDeliveryMode:
-            marketCode === MC_MARKET_CODE
-              ? "self"
-              : normalizeMcDeliveryMode(marketCode, line.mcDeliveryMode),
+          mcDeliveryMode: mcMode,
         },
         freightCtx,
         snapshot
@@ -683,7 +712,7 @@ async function ensureFreightSnapshotsForAssignedLines(
         shipperId: line.session.shipperId,
         marketCode,
         gapReason: gap,
-        rateAsOfDate: dispatchDate.toISOString().slice(0, 10),
+        rateAsOfDate: rateAsOfDate.toISOString().slice(0, 10),
       })
     );
   }

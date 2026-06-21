@@ -599,6 +599,14 @@ export function isMissingRateGap(reason: InboundFreightGapReason) {
   );
 }
 
+/** Stored snapshot is explicitly zero but recompute says the line should bill. */
+export function isWrongZeroFreightSnapshot(
+  storedAmount: number | null | undefined,
+  recomputedAmount: number | null | undefined
+): boolean {
+  return storedAmount === 0 && (recomputedAmount ?? 0) > 0;
+}
+
 export function freightAmountMyrEquivalent(
   snapshot: InboundLineFreightSnapshot
 ) {

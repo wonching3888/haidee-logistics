@@ -1,21 +1,27 @@
 import {
   classifyInboundFreightGap,
   computeInboundLineFreight,
+  isWrongZeroFreightSnapshot,
   normalizeMcDeliveryMode,
   type InboundFreightGapReason,
 } from "@/lib/inbound-freight";
 import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
+import { rateAsOfForSessionDate } from "@/lib/constants/rate-effective-date";
 import { loadInboundFreightContext } from "@/lib/freight-context";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
+import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 
 export type BillingGapReasonCategory =
   | "no_shipper_rate"
   | "shipper_missing_box_rate"
   | "stall_missing_consignee"
+  | "zero_amount_with_rate"
   | "other";
+
+export const ZERO_AMOUNT_WITH_RATE_LABEL = "运费快照为 0 但重算有价";
 
 export interface UnpricedInboundLine {
   lineId: string;
@@ -80,10 +86,11 @@ export function toBillingGapReasonCategory(
 }
 
 export function billingGapReasonLabel(
-  reason: InboundFreightGapReason | null
+  reason: InboundFreightGapReason | BillingGapReasonCategory | null
 ): string {
+  if (reason === "zero_amount_with_rate") return ZERO_AMOUNT_WITH_RATE_LABEL;
   if (reason == null) return "未知原因";
-  return GAP_REASON_LABELS[reason] ?? "其他";
+  return GAP_REASON_LABELS[reason as InboundFreightGapReason] ?? "其他";
 }
 
 function formatPartyLabel(input: {
@@ -112,15 +119,20 @@ export async function findUnpricedInboundLines(input: {
 
   const lines = await prisma.inboundLine.findMany({
     where: {
-      freightAmount: null,
       session: {
         status: "confirmed",
         date: { gte: start, lte: end },
       },
       OR: [
-        { paymentMode: { not: null } },
-        { currency: { not: null } },
-        { billingCompany: { not: null } },
+        {
+          freightAmount: null,
+          OR: [
+            { paymentMode: { not: null } },
+            { currency: { not: null } },
+            { billingCompany: { not: null } },
+          ],
+        },
+        { freightAmount: 0 },
       ],
     },
     include: {
@@ -160,7 +172,8 @@ export async function findUnpricedInboundLines(input: {
 
   for (const line of billableLines) {
     const market = line.stall.market?.code ?? "";
-    const asOfDate = line.session.date;
+    const asOfDate = rateAsOfForSessionDate(line.session.date);
+    const storedAmount = decimalToNumber(line.freightAmount);
     const pickup = resolveSessionPickupLocation(
       line.session.pickupLocation,
       line.session.shipper.pickupLocation
@@ -168,7 +181,13 @@ export async function findUnpricedInboundLines(input: {
     const ctxKey = `${line.session.shipperId}|${toDateInputValue(asOfDate)}|${pickup}`;
     if (!ctxCache.has(ctxKey)) {
       const shipperLines = billableLines.filter(
-        (l) => l.session.shipperId === line.session.shipperId
+        (l) =>
+          l.session.shipperId === line.session.shipperId &&
+          rateAsOfForSessionDate(l.session.date).getTime() === asOfDate.getTime() &&
+          resolveSessionPickupLocation(
+            l.session.pickupLocation,
+            l.session.shipper.pickupLocation
+          ) === pickup
       );
       const { ctx } = await loadInboundFreightContext(
         line.session.shipperId,
@@ -180,21 +199,60 @@ export async function findUnpricedInboundLines(input: {
       ctxCache.set(ctxKey, ctx);
     }
     const ctx = ctxCache.get(ctxKey)!;
+    const mcMode = normalizeMcDeliveryMode(market, line.mcDeliveryMode);
     const snap = computeInboundLineFreight(
       {
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
-        mcDeliveryMode: normalizeMcDeliveryMode(market, line.mcDeliveryMode),
+        mcDeliveryMode: mcMode,
       },
       ctx
     );
+    const recomputedAmount = snap.freightAmount ?? 0;
+
+    if (storedAmount === 0) {
+      if (!isWrongZeroFreightSnapshot(storedAmount, recomputedAmount)) {
+        continue;
+      }
+      const mode = invoiceModeFromTags(
+        line.paymentMode,
+        line.currency,
+        line.billingCompany
+      );
+      const shipperCode = line.session.shipper.code;
+      const shipperName = line.session.shipper.name;
+      const consigneeCode = line.consignee?.code ?? null;
+      const consigneeName = line.consignee?.name ?? null;
+      results.push({
+        lineId: line.id,
+        sessionCode: line.session.sessionNo ?? "",
+        businessDate: formatDisplayDate(line.session.date),
+        shipperCode,
+        shipperName,
+        consigneeCode,
+        consigneeName,
+        partyLabel: formatPartyLabel({
+          mode,
+          shipperCode,
+          shipperName,
+          consigneeCode,
+          consigneeName,
+        }),
+        marketCode: market,
+        mode,
+        gapReason: "zero_amount_with_rate",
+        gapReasonLabel: ZERO_AMOUNT_WITH_RATE_LABEL,
+      });
+      continue;
+    }
+
     const rawGap = classifyInboundFreightGap(
       {
         stallId: line.stallId,
         tongTypeId: line.tongTypeId,
         quantity: line.quantity,
-        mcDeliveryMode: normalizeMcDeliveryMode(market, line.mcDeliveryMode),
+        mcDeliveryMode: mcMode,
       },
       ctx,
       snap
