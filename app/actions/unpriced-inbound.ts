@@ -1,16 +1,16 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { canViewFreightInfo } from "@/lib/auth-roles";
+import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import {
   findUnpricedInboundLines,
   type UnpricedInboundLine,
 } from "@/lib/unpriced-inbound";
 import type { UserRole } from "@/types";
 
-async function requireFreightViewer() {
+async function requireInvoiceViewer() {
   const user = await getCurrentUser();
-  if (!user || !canViewFreightInfo(user.role as UserRole)) {
+  if (!user || !canViewInvoiceAmounts(user.role as UserRole)) {
     throw new Error("无权限查看未定价行 Unauthorized");
   }
   return user;
@@ -29,7 +29,7 @@ export async function getUnpricedInboundForMonth(
   year: number,
   month: number
 ): Promise<{ lines: UnpricedInboundLine[]; count: number }> {
-  await requireFreightViewer();
+  await requireInvoiceViewer();
   parseYearMonth(year, month);
   const lines = await findUnpricedInboundLines({ year, month });
   return { lines, count: lines.length };
