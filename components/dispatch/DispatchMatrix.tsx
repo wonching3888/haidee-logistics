@@ -42,7 +42,9 @@ function TotalsCellDisplay({
 }
 
 /** Height of the market-label header row — row 2 sticks directly beneath it. */
-const MARKET_HEADER_ROW_TOP = "4rem";
+const MARKET_HEADER_ROW_TOP = "3rem";
+
+const MARKET_COL_CLASS = "min-w-[44px] max-w-[44px] w-[44px]";
 
 export function DispatchMatrix({ data }: DispatchMatrixProps) {
   const { shippers, markets, cells, rowTotals, colTotals, grandTotal } = data;
@@ -50,7 +52,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
 
   return (
     <ScrollMatrixTable heightOffset={280}>
-        <table className="w-full min-w-[900px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface">
               <th className={cn(STICKY_HEAD_FIRST, "whitespace-nowrap px-3 py-3 text-left font-medium text-haidee-muted")}>
@@ -59,10 +61,10 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
               {markets.map((code) => (
                 <th
                   key={code}
-                  className={cn(STICKY_HEAD_TOP, "min-w-[56px] whitespace-nowrap px-2 py-3 text-center")}
+                  className={cn(STICKY_HEAD_TOP, MARKET_COL_CLASS, "whitespace-nowrap px-1 py-2 text-center")}
                 >
                   <div className="flex justify-center">
-                    <DispatchMarketLabel code={code} className="font-mono" showDisplayName />
+                    <DispatchMarketLabel code={code} className="font-mono" />
                   </div>
                 </th>
               ))}
@@ -82,7 +84,7 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                 return (
                   <th
                     key={code}
-                    className={cn(STICKY_HEAD_TOP, "z-20 min-w-[56px] whitespace-nowrap bg-gray-100 px-2 py-2.5 text-center font-mono text-haidee-text")}
+                    className={cn(STICKY_HEAD_TOP, "z-20 whitespace-nowrap bg-gray-100 px-1 py-2 text-center font-mono text-haidee-text", MARKET_COL_CLASS)}
                     style={{ top: MARKET_HEADER_ROW_TOP }}
                   >
                     <TotalsCellDisplay crate={qty.crate} box={qty.box} />
@@ -130,7 +132,8 @@ export function DispatchMatrix({ data }: DispatchMatrixProps) {
                         <td
                           key={code}
                           className={cn(
-                            "whitespace-nowrap px-2 py-2.5 text-center font-mono text-sm text-gray-800",
+                            MARKET_COL_CLASS,
+                            "whitespace-nowrap px-1 py-2.5 text-center font-mono text-sm text-gray-800",
                             label && "font-semibold"
                           )}
                         >
