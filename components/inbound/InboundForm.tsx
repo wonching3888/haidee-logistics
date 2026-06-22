@@ -384,6 +384,9 @@ export function InboundForm({
           setError(result.error);
           return;
         }
+        if ("_timings" in result && result._timings) {
+          console.log("[saveInbound timings]", result._timings);
+        }
         router.replace("/inbound");
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
