@@ -685,7 +685,7 @@ model TongImport {
 
 model TongExport {
   id                String   @id @default(uuid()) @db.Uuid
-  exportNo          String?  @unique @map("export_no")
+  exportNo          String?  @map("export_no")
   date              DateTime @db.Date
   thVehiclePlate    String   @map("th_vehicle_plate")
   areaNote          String?  @map("area_note")
@@ -702,6 +702,7 @@ model TongExport {
   tongType  TongType @relation(fields: [tongTypeId], references: [id])
   createdBy User?    @relation(fields: [createdById], references: [id])
 
+  @@index([exportNo])
   @@map("tong_exports")
 }
 

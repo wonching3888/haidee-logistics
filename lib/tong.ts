@@ -4,10 +4,12 @@ import { toDateInputValue } from "@/lib/inbound-utils";
 export async function generateExportNo(date: Date): Promise<string> {
   const dateStr = toDateInputValue(date).replace(/-/g, "");
   const prefix = `TE-${dateStr}-`;
-  const count = await prisma.tongExport.count({
+  const rows = await prisma.tongExport.findMany({
     where: { exportNo: { startsWith: prefix } },
+    distinct: ["exportNo"],
+    select: { exportNo: true },
   });
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+  return `${prefix}${String(rows.length + 1).padStart(3, "0")}`;
 }
 
 export async function getSadaoStockByTongType(): Promise<
