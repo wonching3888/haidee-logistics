@@ -789,28 +789,29 @@
   }
 }
 
-/* Dispatch KL–MC summary (portrait A4, compact one-page) */
+/* Dispatch KL–MC summary (portrait A4, readable one-page) */
 .do-print-page:has(.dispatch-klmc-print) .do-print-surface {
-  padding: 6px !important;
+  padding: 8px !important;
 }
 
 .do-print-page:has(.dispatch-klmc-print) .do-print-surface > div {
-  padding: 6px 8px !important;
+  padding: 10px 12px !important;
   box-shadow: none !important;
 }
 
 .dispatch-klmc-print {
-  font-size: 7.5pt;
-  line-height: 1.1;
+  font-size: 11.5pt;
+  line-height: 1.55;
   color: #000000;
 }
 
 .dispatch-klmc-title {
-  margin: 0 0 4px;
-  font-size: 9pt;
+  margin: 0 0 8px;
+  font-size: 16pt;
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .dispatch-klmc-table {
@@ -822,45 +823,48 @@
 .dispatch-klmc-table th,
 .dispatch-klmc-table td {
   border: 1px solid #000000;
-  padding: 1px 3px;
+  padding: 7px 5px;
   vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
+  line-height: 1.55;
 }
 
 .dispatch-klmc-table th {
   background: #f3f4f6;
   font-weight: 700;
   text-align: center;
-  font-size: 7pt;
-  line-height: 1.1;
+  font-size: 11pt;
 }
 
 .dispatch-klmc-col-consignor {
-  width: 40%;
+  width: 35%;
   text-align: left;
+  font-size: 11pt;
 }
 
 .dispatch-klmc-col-notes {
-  width: 13%;
+  width: 15%;
   text-align: left;
+  font-size: 11pt;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dispatch-klmc-col-market {
-  width: 5.5%;
+  width: 8%;
   text-align: center;
   font-family: ui-monospace, monospace;
-  font-size: 7pt;
+  font-size: 12pt;
+  font-weight: 600;
 }
 
 .dispatch-klmc-col-total {
-  width: 7.5%;
+  width: 10%;
   text-align: center;
   font-family: ui-monospace, monospace;
   font-weight: 700;
-  font-size: 7pt;
+  font-size: 12pt;
 }
 
 .dispatch-klmc-consignor-line {
@@ -880,11 +884,13 @@
 
 .dispatch-klmc-consignor-suffix {
   flex: 0 0 auto;
-  margin-left: 2px;
+  margin-left: 3px;
 }
 
 .dispatch-klmc-qty {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 12pt;
+  line-height: 1.4;
 }
 
 .dispatch-klmc-totals-row td {
@@ -894,11 +900,11 @@
 
 .dispatch-klmc-totals-label {
   text-align: left;
-  font-size: 7pt;
+  font-size: 11pt;
 }
 
 .dispatch-klmc-empty {
-  padding: 12px;
+  padding: 16px;
   text-align: center;
   color: #6b7280;
 }
@@ -911,21 +917,32 @@
   }
 
   .do-print-page:has(.dispatch-klmc-print) .do-print-surface > div {
-    padding: 2mm 3mm !important;
+    padding: 4mm 5mm !important;
     max-width: none !important;
   }
 
   .dispatch-klmc-print {
-    font-size: 7pt;
+    font-size: 11pt;
+    line-height: 1.55;
   }
 
   .dispatch-klmc-title {
-    margin-bottom: 2mm;
-    font-size: 8.5pt;
+    margin-bottom: 4mm;
+    font-size: 15pt;
   }
 
   .dispatch-klmc-table th,
   .dispatch-klmc-table td {
-    padding: 0.5px 2px;
+    padding: 6px 4px;
+  }
+
+  .dispatch-klmc-table th {
+    font-size: 11pt;
+  }
+
+  .dispatch-klmc-col-market,
+  .dispatch-klmc-col-total,
+  .dispatch-klmc-qty {
+    font-size: 12pt;
   }
 }
