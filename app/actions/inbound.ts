@@ -28,7 +28,6 @@ import {
 } from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
 import { INBOUND_SESSIONS_LIST_LIMIT } from "@/lib/inbound-list";
-import { msSince, createStepTimer, type PerfTimings } from "@/lib/perf-timing";
 import {
   buildInboundChangeLogs,
   computeCrateStockAdjustments,
@@ -641,8 +640,6 @@ export async function getThVehiclePlates(shipperId: string) {
 }
 
 export async function getInboundSessions(filters: InboundSessionFilters = {}) {
-  const listTimings: PerfTimings = {};
-  const listStart = performance.now();
   const where: Prisma.InboundSessionWhereInput = {};
 
   if (filters.date) {
@@ -663,7 +660,6 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
     };
   }
 
-  const findManyStart = performance.now();
   const sessions = await prisma.inboundSession.findMany({
     where,
     include: {
@@ -677,10 +673,8 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: INBOUND_SESSIONS_LIST_LIMIT,
   });
-  listTimings.findMany = msSince(findManyStart);
 
-  const mapFilterStart = performance.now();
-  const mapped = sessions
+  return sessions
     .map((s) => {
       const totalQty = s.lines.reduce((sum, l) => sum + Number(l.quantity || 0), 0);
       const crateQty = s.lines
@@ -736,10 +730,6 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
       }
       return true;
     });
-  listTimings.mapFilter = msSince(mapFilterStart);
-  listTimings.total = msSince(listStart);
-
-  return { sessions: mapped, _timings: listTimings };
 }
 
 interface PreviewFreightLineInput {
@@ -946,8 +936,6 @@ interface SaveInboundInput {
 export async function saveInboundSession(input: SaveInboundInput) {
   try {
   const user = await requireWrite();
-  const timer = createStepTimer();
-  const saveStart = performance.now();
 
   const date = parseDateInput(input.date);
   const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
@@ -955,7 +943,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
     where: { id: input.shipperId },
     select: { pickupLocation: true, currency: true },
   });
-  timer.mark("shipperFindUnique");
   const effectivePickup = resolveSessionPickupLocation(
     sessionPickupLocation,
     shipper?.pickupLocation
@@ -985,7 +972,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
     input.shipperId,
     input.newStalls
   );
-  timer.mark("processNewStalls");
   const allLines = [...activeLines, ...createdNewStallLines];
 
   if (!input.asDraft && allLines.length === 0) {
@@ -999,29 +985,21 @@ export async function saveInboundSession(input: SaveInboundInput) {
     ])
   );
   const typeMap = await loadTongTypeMap(tongTypeIds);
-  timer.mark("loadTongTypeMap");
 
   await syncShipperStallDefaults(input.shipperId, allLines);
-  timer.mark("syncShipperStallDefaults");
 
   const freightRateDate = input.freightRateAsOfDate
     ? parseDateInput(input.freightRateAsOfDate)
     : date;
 
-  const {
-    ctx: freightCtx,
-    shipperCurrency,
-    _timings: freightTimings,
-  } = await loadInboundFreightContext(
+  const { ctx: freightCtx, shipperCurrency } = await loadInboundFreightContext(
     input.shipperId,
     allLines.map((line) => line.stallId),
     allLines.map((line) => line.tongTypeId),
     freightRateDate,
     effectivePickup
   );
-  timer.mark("loadInboundFreightContext");
   const freightSnapshots = computeFreightSnapshots(allLines, freightCtx);
-  timer.mark("computeFreightSnapshots");
 
   if (input.sessionId) {
     const existing = await prisma.inboundSession.findUnique({
@@ -1188,7 +1166,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
         { timeout: INBOUND_TX_TIMEOUT_MS }
       );
     }
-    timer.mark("mainTransaction");
 
     const editNote = `进货单修改 ${sessionNo ?? input.sessionId}`;
 
@@ -1216,7 +1193,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
         typeMap
       );
     }
-    timer.mark("crateStock");
 
     const allLinesWithIds = allLines.map((line, index) => ({
       ...line,
@@ -1259,22 +1235,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     revalidateInboundRelatedPaths();
-    timer.mark("revalidateInboundRelatedPaths");
-    return {
-      ok: true as const,
-      _timings: {
-        ...timer.timings,
-        ...(freightTimings
-          ? Object.fromEntries(
-              Object.entries(freightTimings).map(([key, value]) => [
-                `freight.${key}`,
-                value,
-              ])
-            )
-          : {}),
-        total: msSince(saveStart),
-      },
-    };
+    return { ok: true as const };
   }
 
   if (status === "confirmed") {
@@ -1325,7 +1286,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
     if (!created) {
       throw new Error("无法生成唯一进货编号 Failed to generate unique session number");
     }
-    timer.mark("mainTransaction");
   } else {
     await prisma.inboundSession.create({
       data: {
@@ -1350,7 +1310,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
       },
       select: { id: true },
     });
-    timer.mark("mainTransaction");
   }
 
   if (status === "confirmed") {
@@ -1360,26 +1319,10 @@ export async function saveInboundSession(input: SaveInboundInput) {
       allLines,
       typeMap
     );
-    timer.mark("applyInboundCrateDeduction");
   }
 
   revalidateInboundRelatedPaths();
-  timer.mark("revalidateInboundRelatedPaths");
-  return {
-    ok: true as const,
-    _timings: {
-      ...timer.timings,
-      ...(freightTimings
-        ? Object.fromEntries(
-            Object.entries(freightTimings).map(([key, value]) => [
-              `freight.${key}`,
-              value,
-            ])
-          )
-        : {}),
-      total: msSince(saveStart),
-    },
-  };
+  return { ok: true as const };
   } catch (error) {
     console.error("saveInboundSession failed:", error);
     return {

@@ -7,7 +7,6 @@ import {
 } from "@/lib/inbound-freight";
 import { getCurrentYearMonth } from "@/lib/freight-rates";
 import { incFreightContextLoadCount } from "@/lib/perf-metrics";
-import { msSince, type PerfTimings } from "@/lib/perf-timing";
 import { prisma } from "@/lib/prisma";
 
 export async function loadInboundFreightContext(
@@ -16,18 +15,11 @@ export async function loadInboundFreightContext(
   tongTypeIds: string[],
   asOfDate: Date,
   pickupLocation: PickupLocation
-): Promise<{
-  ctx: InboundFreightContext;
-  shipperCurrency: string;
-  _timings?: PerfTimings;
-}> {
+): Promise<{ ctx: InboundFreightContext; shipperCurrency: string }> {
   incFreightContextLoadCount();
-  const freightTimings: PerfTimings = {};
-  const freightStart = performance.now();
   const yearMonth = getCurrentYearMonth(asOfDate);
   const uniqueStallIds = Array.from(new Set(stallIds));
 
-  const promiseAllStart = performance.now();
   const [
     shipper,
     stalls,
@@ -70,7 +62,6 @@ export async function loadInboundFreightContext(
       : Promise.resolve([]),
     prisma.freightOperationalSettings.findUnique({ where: { id: "default" } }),
   ]);
-  freightTimings.promiseAll7 = msSince(promiseAllStart);
 
   if (!shipper) {
     throw new Error("寄货人不存在 Shipper not found");
@@ -89,15 +80,12 @@ export async function loadInboundFreightContext(
     )
   );
 
-  const consigneeRatesStart = performance.now();
   const consigneeRates =
     consigneeIds.length > 0
       ? await prisma.consigneeFreightRate.findMany({
           where: { consigneeId: { in: consigneeIds } },
         })
       : [];
-  freightTimings.consigneeRates = msSince(consigneeRatesStart);
-  freightTimings.total = msSince(freightStart);
 
   const { shipperRatesByMarket, consigneeRatesByConsigneeMarket } =
     buildInboundFreightMaps({
@@ -119,7 +107,6 @@ export async function loadInboundFreightContext(
 
   return {
     shipperCurrency: shipper.currency,
-    _timings: freightTimings,
     ctx: {
       shipper,
       exchangeRate: defaultExchangeRate(

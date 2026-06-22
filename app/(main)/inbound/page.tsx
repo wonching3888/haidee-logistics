@@ -6,7 +6,6 @@ import { InboundFilters } from "@/components/inbound/InboundFilters";
 import { InboundListTable } from "@/components/inbound/InboundListTable";
 import { PageError } from "@/components/shared/PageError";
 import { serializeInboundSessionListRows, resolveInboundListQueryDate } from "@/lib/inbound-list";
-import { msSince, type PerfTimings } from "@/lib/perf-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -29,25 +28,10 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
   };
 
   try {
-    const pageStart = performance.now();
-    const [sessionsResult, shippersResult] = await Promise.all([
+    const [sessions, shippers] = await Promise.all([
       getInboundSessions(filters),
-      (async () => {
-        const shippersStart = performance.now();
-        const shippers = await getShippers();
-        return { shippers, ms: msSince(shippersStart) };
-      })(),
+      getShippers(),
     ]);
-    const debugTimings: PerfTimings = {
-      pageFetchMs: msSince(pageStart),
-      getShippersMs: shippersResult.ms,
-      ...Object.fromEntries(
-        Object.entries(sessionsResult._timings).map(([key, value]) => [
-          `getInboundSessions.${key}`,
-          value,
-        ])
-      ),
-    };
 
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
@@ -75,14 +59,13 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
           }
         >
           <div className="shrink-0">
-            <InboundFilters shippers={shippersResult.shippers} />
+            <InboundFilters shippers={shippers} />
           </div>
         </Suspense>
 
         <div className="min-h-0 min-w-0 flex-1">
           <InboundListTable
-            sessions={serializeInboundSessionListRows(sessionsResult.sessions)}
-            debugTimings={debugTimings}
+            sessions={serializeInboundSessionListRows(sessions)}
           />
         </div>
       </div>

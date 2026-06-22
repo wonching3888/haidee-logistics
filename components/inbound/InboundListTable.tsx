@@ -5,8 +5,6 @@ import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import type { InboundSessionListRow } from "@/lib/inbound-list";
-import type { PerfTimings } from "@/lib/perf-timing";
-import { InboundTimingsLogger } from "@/components/inbound/InboundTimingsLogger";
 import {
   INBOUND_COLUMN_WIDTHS,
   INBOUND_STICKY_LEFT_PX,
@@ -25,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 
 interface InboundListTableProps {
   sessions: InboundSessionListRow[];
-  debugTimings?: PerfTimings;
 }
 
 const W = INBOUND_COLUMN_WIDTHS;
@@ -91,22 +88,17 @@ function NarrowHeader({
   );
 }
 
-export function InboundListTable({ sessions, debugTimings }: InboundListTableProps) {
+export function InboundListTable({ sessions }: InboundListTableProps) {
   if (sessions.length === 0) {
     return (
-      <>
-        {debugTimings ? <InboundTimingsLogger timings={debugTimings} /> : null}
-        <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
-          暂无进货记录 No inbound records found
-        </div>
-      </>
+      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
+        暂无进货记录 No inbound records found
+      </div>
     );
   }
 
   return (
-    <>
-      {debugTimings ? <InboundTimingsLogger timings={debugTimings} /> : null}
-      <ScrollMatrixTable fillParent className="h-full rounded-xl">
+    <ScrollMatrixTable fillParent className="h-full rounded-xl">
       <table data-inbound-table-scroll style={tableStyle} className="text-sm">
         <colgroup>
           <col style={{ width: W.date }} />
@@ -314,6 +306,5 @@ export function InboundListTable({ sessions, debugTimings }: InboundListTablePro
         </tbody>
       </table>
     </ScrollMatrixTable>
-    </>
   );
 }
