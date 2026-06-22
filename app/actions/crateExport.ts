@@ -7,15 +7,77 @@ import type { ReceiptData } from "@/components/tong/TongExportReceipt";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireWrite } from "@/lib/require-auth";
-import { parseDateInput } from "@/lib/inbound-utils";
+import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import { generateExportNo, getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
+import {
+  CRATE_EXPORT_LIST_LIMIT,
+  type CrateExportListRow,
+} from "@/lib/crate-export-list";
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 
 export interface CrateExportLineInput {
   tongTypeId: string;
   quantitySuggested: number;
   quantityActual: number;
+}
+
+export type { CrateExportListRow };
+
+/** List crate export batches for a calendar day (grouped by exportNo). */
+export async function listCrateExportsForDate(
+  dateInput: string
+): Promise<CrateExportListRow[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const date = parseDateInput(dateInput);
+  const rows = await prisma.tongExport.findMany({
+    where: { date },
+    include: { shipper: { select: { name: true } } },
+    orderBy: [{ createdAt: "desc" }],
+    take: CRATE_EXPORT_LIST_LIMIT * 20,
+  });
+
+  const grouped = new Map<
+    string,
+    CrateExportListRow & { sortCreatedAt: number }
+  >();
+
+  for (const row of rows) {
+    const exportNo = row.exportNo?.trim() || row.id;
+    const existing = grouped.get(exportNo);
+    if (existing) {
+      existing.totalActual += row.quantityActual;
+      existing.totalShortage += row.shortage;
+      existing.lineCount += 1;
+      continue;
+    }
+
+    grouped.set(exportNo, {
+      exportNo,
+      date: toDateInputValue(row.date),
+      shipperName: row.shipper.name,
+      thVehiclePlate: row.thVehiclePlate,
+      totalActual: row.quantityActual,
+      totalShortage: row.shortage,
+      lineCount: 1,
+      sortCreatedAt: row.createdAt.getTime(),
+    });
+  }
+
+  return Array.from(grouped.values())
+    .sort((a, b) => b.sortCreatedAt - a.sortCreatedAt)
+    .slice(0, CRATE_EXPORT_LIST_LIMIT)
+    .map((row) => ({
+      exportNo: row.exportNo,
+      date: row.date,
+      shipperName: row.shipperName,
+      thVehiclePlate: row.thVehiclePlate,
+      totalActual: row.totalActual,
+      totalShortage: row.totalShortage,
+      lineCount: row.lineCount,
+    }));
 }
 
 /**
