@@ -6,7 +6,9 @@ import {
   getTrucks,
 } from "@/app/actions/dispatch";
 import { DispatchForm } from "@/components/dispatch/DispatchForm";
+import { getCurrentUser } from "@/lib/auth";
 import { toDateInputValue } from "@/lib/date-utils";
+import { t } from "@/lib/i18n/translate";
 
 interface EditDispatchPageProps {
   params: Promise<{ id: string }>;
@@ -14,6 +16,8 @@ interface EditDispatchPageProps {
 
 export default async function EditDispatchPage({ params }: EditDispatchPageProps) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
 
   const order = await getDispatchOrder(id);
   if (!order) notFound();
@@ -28,7 +32,7 @@ export default async function EditDispatchPage({ params }: EditDispatchPageProps
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">
-          编辑派车单 Edit Dispatch
+          {t("dispatch.edit", locale)}
         </h2>
         <p className="text-sm text-haidee-muted">
           <span className="font-mono">{order.dispatchNo}</span>

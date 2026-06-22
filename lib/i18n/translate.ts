@@ -22,7 +22,19 @@ export function tLocal(
 }
 
 /** Local language + English, e.g. zh → "进货录入 Inbound", th → "นำเข้าสินค้า Inbound". */
-export function t(key: MessageKey, locale: UserLanguage): string {
-  const { local, en } = getMessageParts(key, locale);
+export function t(
+  key: MessageKey,
+  locale: UserLanguage,
+  vars?: Record<string, string>
+): string {
+  const parts = getMessageParts(key, locale);
+  let local: string = parts.local;
+  let en: string = parts.en;
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      local = local.replaceAll(`{${name}}`, value);
+      en = en.replaceAll(`{${name}}`, value);
+    }
+  }
   return `${local} ${en}`;
 }

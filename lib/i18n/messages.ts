@@ -556,6 +556,331 @@ export const MESSAGES = {
     en: "Other",
     th: "3 อื่นๆ",
   },
+  "common.back": {
+    zh: "返回",
+    en: "Back",
+    th: "กลับ",
+  },
+  "common.processing": {
+    zh: "处理中…",
+    en: "Processing…",
+    th: "กำลังดำเนินการ…",
+  },
+  "common.retry": {
+    zh: "重试",
+    en: "Retry",
+    th: "ลองใหม่",
+  },
+  "error.loadFailed": {
+    zh: "加载失败，请稍后重试",
+    en: "Failed to load data",
+    th: "โหลดข้อมูลล้มเหลว กรุณาลองใหม่ภายหลัง",
+  },
+  "error.pageLoadFailed": {
+    zh: "页面加载失败",
+    en: "Page load failed",
+    th: "โหลดหน้าล้มเหลว",
+  },
+  "dispatch.pageTitle": {
+    zh: "派车调度",
+    en: "Dispatch",
+    th: "จัดรถ",
+  },
+  "dispatch.matrixSubtitle": {
+    zh: "今日未分配货物矩阵",
+    en: "Unassigned cargo matrix",
+    th: "ตารางสินค้าที่ยังไม่จัดรถ (วันนี้)",
+  },
+  "dispatch.new": {
+    zh: "新建派车单",
+    en: "New Dispatch",
+    th: "สร้างใบจัดรถ",
+  },
+  "dispatch.newSubtitle": {
+    zh: "选择车辆、目的市场并勾选货物",
+    en: "Select truck, markets and cargo",
+    th: "เลือกรถ ตลาดปลายทาง และเลือกสินค้า",
+  },
+  "dispatch.edit": {
+    zh: "编辑派车单",
+    en: "Edit Dispatch",
+    th: "แก้ไขใบจัดรถ",
+  },
+  "dispatch.matrixConsignorArea": {
+    zh: "寄货人 / 地区",
+    en: "Consignor / Area",
+    th: "ผู้ส่ง / เขตพื้นที่",
+  },
+  "dispatch.marketTotals": {
+    zh: "各市场总计",
+    en: "Market Totals",
+    th: "รวมแต่ละตลาด",
+  },
+  "dispatch.noUnassignedCargo": {
+    zh: "暂无未分配货物",
+    en: "No unassigned cargo",
+    th: "ไม่มีสินค้าที่ยังไม่จัดรถ",
+  },
+  "dispatch.todayOrders": {
+    zh: "今日派车单",
+    en: "Today's Dispatch Orders",
+    th: "ใบจัดรถวันนี้",
+  },
+  "dispatch.doNo": {
+    zh: "派车单号",
+    en: "DO No.",
+    th: "เลขที่ใบจัดรถ",
+  },
+  "dispatch.plateField": {
+    zh: "车牌",
+    en: "Plate",
+    th: "ทะเบียนรถ",
+  },
+  "dispatch.driver": {
+    zh: "司机",
+    en: "Driver",
+    th: "คนขับ",
+  },
+  "dispatch.markets": {
+    zh: "市场",
+    en: "Markets",
+    th: "ตลาด",
+  },
+  "dispatch.load": {
+    zh: "装载",
+    en: "Load",
+    th: "บรรทุก",
+  },
+  "dispatch.changeTruck": {
+    zh: "换车",
+    en: "Change",
+    th: "เปลี่ยนรถ",
+  },
+  "dispatch.status.dispatched": {
+    zh: "已派车",
+    en: "Dispatched",
+    th: "จัดรถแล้ว",
+  },
+  "dispatch.status.cancelled": {
+    zh: "已取消",
+    en: "Cancelled",
+    th: "ยกเลิกแล้ว",
+  },
+  "dispatch.cancelTitle": {
+    zh: "取消派车单",
+    en: "Cancel Dispatch",
+    th: "ยกเลิกใบจัดรถ",
+  },
+  "dispatch.cancelConfirm": {
+    zh: "确认取消此派车单？桶数将退回未分配。",
+    en: "Cancel this dispatch order? Crates return to unassigned.",
+    th: "ยืนยันยกเลิกใบจัดรถนี้? จำนวนลังจะถูกคืนกลับเป็นยังไม่จัดรถ",
+  },
+  "dispatch.confirmCancel": {
+    zh: "确认取消",
+    en: "Confirm",
+    th: "ยืนยันยกเลิก",
+  },
+  "dispatch.changeTruckTitle": {
+    zh: "换车",
+    en: "Change Truck",
+    th: "เปลี่ยนรถ",
+  },
+  "dispatch.changeTruckDesc": {
+    zh: "选择新车牌，桶数与市场分配保持不变。",
+    en: "Select a new plate; crate counts and market allocation stay the same.",
+    th: "เลือกทะเบียนรถใหม่ จำนวนลังและการแบ่งตลาดคงเดิม",
+  },
+  "dispatch.confirmChangeTruck": {
+    zh: "确认换车",
+    en: "Confirm",
+    th: "ยืนยันเปลี่ยนรถ",
+  },
+  "dispatch.selectPlate": {
+    zh: "— 选择车牌 —",
+    en: "— Select —",
+    th: "— เลือกทะเบียนรถ —",
+  },
+  "dispatch.selectDriver": {
+    zh: "— 选择司机 —",
+    en: "— Select —",
+    th: "— เลือกคนขับ —",
+  },
+  "dispatch.destinationMarkets": {
+    zh: "目的市场",
+    en: "Markets",
+    th: "ตลาดปลายทาง",
+  },
+  "dispatch.selectCargo": {
+    zh: "勾选货物",
+    en: "Select Cargo",
+    th: "เลือกสินค้า",
+  },
+  "dispatch.cargoHint": {
+    zh: "仅显示今日未分配货物",
+    en: "Unassigned cargo for this date only",
+    th: "แสดงเฉพาะสินค้าที่ยังไม่จัดรถของวันนี้",
+  },
+  "dispatch.selectAll": {
+    zh: "全选",
+    en: "Select All",
+    th: "เลือกทั้งหมด",
+  },
+  "dispatch.deselectAll": {
+    zh: "全不选",
+    en: "Deselect All",
+    th: "ยกเลิกเลือกทั้งหมด",
+  },
+  "dispatch.mcMarkThirdParty": {
+    zh: "勾选的 MC 全转第三方",
+    en: "Mark selected MC as third-party",
+    th: "เปลี่ยน MC ที่เลือกทั้งหมดเป็นบุคคลที่สาม",
+  },
+  "dispatch.mcMarkSelf": {
+    zh: "全部改回自送",
+    en: "Mark all back to self-delivery",
+    th: "เปลี่ยนกลับเป็นส่งเองทั้งหมด",
+  },
+  "dispatch.loadingCargo": {
+    zh: "加载中…",
+    en: "Loading…",
+    th: "กำลังโหลด…",
+  },
+  "dispatch.noCargoForMarkets": {
+    zh: "所选市场暂无未分配货物",
+    en: "No unassigned cargo for selected markets",
+    th: "ไม่มีสินค้าที่ยังไม่จัดรถในตลาดที่เลือก",
+  },
+  "dispatch.split": {
+    zh: "拆分",
+    en: "Split",
+    th: "แยก",
+  },
+  "dispatch.unsplit": {
+    zh: "取消拆分",
+    en: "Unsplit",
+    th: "ยกเลิกแยก",
+  },
+  "dispatch.selfDelivery": {
+    zh: "自送",
+    en: "Self",
+    th: "ส่งเอง",
+  },
+  "dispatch.thirdParty": {
+    zh: "转第三方",
+    en: "Third-party",
+    th: "บุคคลที่สาม",
+  },
+  "dispatch.totalQty": {
+    zh: "共 {qty}",
+    en: "Total {qty}",
+    th: "รวม {qty}",
+  },
+  "dispatch.thisTruck": {
+    zh: "此车:",
+    en: "This truck:",
+    th: "รถคันนี้:",
+  },
+  "dispatch.remaining": {
+    zh: "剩余: {remaining}",
+    en: "Remaining: {remaining}",
+    th: "คงเหลือ: {remaining}",
+  },
+  "dispatch.loaded": {
+    zh: "已装",
+    en: "Loaded",
+    th: "บรรทุกแล้ว",
+  },
+  "dispatch.overload": {
+    zh: "超载",
+    en: "Overload",
+    th: "บรรทุกเกิน",
+  },
+  "dispatch.nearFull": {
+    zh: "接近满载",
+    en: "Near full",
+    th: "ใกล้เต็ม",
+  },
+  "dispatch.confirmEdit": {
+    zh: "确认修改",
+    en: "Confirm",
+    th: "ยืนยันแก้ไข",
+  },
+  "dispatch.confirmDispatch": {
+    zh: "确认派车",
+    en: "Confirm Dispatch",
+    th: "ยืนยันจัดรถ",
+  },
+  "dispatch.error.cancelFailed": {
+    zh: "取消失败",
+    en: "Cancel failed",
+    th: "ยกเลิกล้มเหลว",
+  },
+  "dispatch.error.changeFailed": {
+    zh: "换车失败",
+    en: "Change failed",
+    th: "เปลี่ยนรถล้มเหลว",
+  },
+  "dispatch.error.invalidSplit": {
+    zh: "拆分数量无效",
+    en: "Invalid split quantity",
+    th: "จำนวนแยกไม่ถูกต้อง",
+  },
+  "dispatch.error.splitExceeds": {
+    zh: "{shipper} {stall} 此车数量不能超过 {max}",
+    en: "{shipper} {stall} qty on this truck cannot exceed {max}",
+    th: "{shipper} {stall} จำนวนของรถคันนี้ต้องไม่เกิน {max}",
+  },
+  "dispatch.error.invalidAssignQty": {
+    zh: "分配数量无效",
+    en: "Invalid assignment quantity",
+    th: "จำนวนที่จัดไม่ถูกต้อง",
+  },
+  "dispatch.error.assignExceedsAvailable": {
+    zh: "分配数量不能超过可用数量 {n}",
+    en: "Cannot assign more than available quantity {n}",
+    th: "จำนวนที่จัดต้องไม่เกินจำนวนที่มี {n}",
+  },
+  "dispatch.error.cargoUnavailableAssigned": {
+    zh: "所选货物不可用或已被分配",
+    en: "Selected cargo unavailable or already assigned",
+    th: "สินค้าที่เลือกใช้ไม่ได้หรือถูกจัดไปแล้ว",
+  },
+  "dispatch.error.noMarket": {
+    zh: "请至少选择一个目的市场",
+    en: "Select at least one destination market",
+    th: "กรุณาเลือกตลาดปลายทางอย่างน้อยหนึ่งแห่ง",
+  },
+  "dispatch.error.noCargo": {
+    zh: "请至少勾选一项货物",
+    en: "Please select at least one cargo item",
+    th: "กรุณาเลือกสินค้าอย่างน้อยหนึ่งรายการ",
+  },
+  "dispatch.error.cargoUnavailable": {
+    zh: "所选货物不可用",
+    en: "Selected cargo unavailable",
+    th: "สินค้าที่เลือกใช้ไม่ได้",
+  },
+  "dispatch.error.truckNotFound": {
+    zh: "车辆不存在",
+    en: "Truck not found",
+    th: "ไม่พบรถ",
+  },
+  "dispatch.error.orderNotFound": {
+    zh: "派车单不存在",
+    en: "Dispatch order not found",
+    th: "ไม่พบใบจัดรถ",
+  },
+  "dispatch.error.alreadyCancelled": {
+    zh: "派车单已取消",
+    en: "Dispatch order already cancelled",
+    th: "ใบจัดรถถูกยกเลิกแล้ว",
+  },
+  "dispatch.error.cannotChangeCancelled": {
+    zh: "已取消的派车单无法换车",
+    en: "Cannot change truck on cancelled order",
+    th: "ใบจัดรถที่ยกเลิกแล้วไม่สามารถเปลี่ยนรถได้",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

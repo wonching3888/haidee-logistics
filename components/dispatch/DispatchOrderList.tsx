@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
 import { useCanWrite } from "@/components/shared/can-write-context";
+import { useT } from "@/components/shared/locale-context";
+import { getMessageParts, t } from "@/lib/i18n/translate";
+import type { MessageKey } from "@/lib/i18n/messages";
 import {
   Table,
   TableBody,
@@ -27,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { UserLanguage } from "@/types";
 
 interface TruckOption {
   id: string;
@@ -51,9 +55,27 @@ interface DispatchOrderListProps {
   trucks: TruckOption[];
 }
 
+function BilingualTableHead({ messageKey }: { messageKey: MessageKey }) {
+  const { parts } = useT();
+  const { local, en } = parts(messageKey);
+  return (
+    <TableHead>
+      <div>{local}</div>
+      {en ? <div className="text-[10px] text-haidee-muted">{en}</div> : null}
+    </TableHead>
+  );
+}
+
+function formatDispatchStatus(status: string, locale: UserLanguage): string {
+  if (status === "dispatched") return t("dispatch.status.dispatched", locale);
+  if (status === "cancelled") return t("dispatch.status.cancelled", locale);
+  return status;
+}
+
 export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
   const router = useRouter();
   const userCanWrite = useCanWrite();
+  const { t: tr, tLocal, parts, locale } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<DispatchOrderRow | null>(
@@ -63,6 +85,8 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
     null
   );
   const [newTruckId, setNewTruckId] = useState("");
+
+  const crateUnit = parts("common.crateUnit").local;
 
   if (orders.length === 0) return null;
 
@@ -81,7 +105,9 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
         setCancelTarget(null);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "取消失败 Cancel failed");
+        setError(
+          e instanceof Error ? e.message : tr("dispatch.error.cancelFailed")
+        );
       }
     });
   }
@@ -99,29 +125,49 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
         setChangeTarget(null);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "换车失败 Change failed");
+        setError(
+          e instanceof Error ? e.message : tr("dispatch.error.changeFailed")
+        );
       }
     });
   }
+
+  const todayTitle = getMessageParts("dispatch.todayOrders", locale);
 
   return (
     <>
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-haidee-text">
-          今日派车单 Today&apos;s Dispatch Orders
+          {todayTitle.local}
+          {todayTitle.en ? ` ${todayTitle.en}` : ""}
         </h3>
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
           <Table>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                <TableHead>派车单号 DO No.</TableHead>
-                <TableHead>车牌 Plate</TableHead>
-                <TableHead>司机 Driver</TableHead>
-                <TableHead className="min-w-[140px]">市场 Markets</TableHead>
-                <TableHead className="text-right">装载 Load</TableHead>
-                <TableHead>状态 Status</TableHead>
+                <BilingualTableHead messageKey="dispatch.doNo" />
+                <BilingualTableHead messageKey="dispatch.plateField" />
+                <BilingualTableHead messageKey="dispatch.driver" />
+                <TableHead className="min-w-[140px]">
+                  <div>{parts("dispatch.markets").local}</div>
+                  <div className="text-[10px] text-haidee-muted">
+                    {parts("dispatch.markets").en}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">
+                  <div>{parts("dispatch.load").local}</div>
+                  <div className="text-[10px] text-haidee-muted">
+                    {parts("dispatch.load").en}
+                  </div>
+                </TableHead>
+                <BilingualTableHead messageKey="common.status" />
                 {userCanWrite ? (
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead className="text-right">
+                    <div>{parts("common.actions").local}</div>
+                    <div className="text-[10px] text-haidee-muted">
+                      {parts("common.actions").en}
+                    </div>
+                  </TableHead>
                 ) : null}
               </TableRow>
             </TableHeader>
@@ -153,7 +199,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                       variant="outline"
                       className="border-haidee-green text-haidee-green"
                     >
-                      {o.status}
+                      {formatDispatchStatus(o.status, locale)}
                     </Badge>
                   </TableCell>
                   {userCanWrite ? (
@@ -163,7 +209,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                           href={`/dispatch/${o.id}`}
                           className="text-haidee-blue hover:underline"
                         >
-                          编辑 Edit
+                          {tr("common.edit")}
                         </Link>
                         <span className="text-haidee-muted">|</span>
                         <button
@@ -172,7 +218,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                           className="text-haidee-blue hover:underline"
                           disabled={isPending}
                         >
-                          换车 Change
+                          {tr("dispatch.changeTruck")}
                         </button>
                         <span className="text-haidee-muted">|</span>
                         <button
@@ -184,7 +230,7 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
                           className="text-red-600 hover:underline"
                           disabled={isPending}
                         >
-                          取消 Cancel
+                          {tr("common.cancel")}
                         </button>
                       </div>
                     </TableCell>
@@ -206,9 +252,9 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>取消派车单 Cancel Dispatch</DialogTitle>
+            <DialogTitle>{tr("dispatch.cancelTitle")}</DialogTitle>
             <DialogDescription>
-              确认取消此派车单？桶数将退回未分配。
+              {tLocal("dispatch.cancelConfirm")}
             </DialogDescription>
           </DialogHeader>
           {error && (
@@ -222,14 +268,14 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
               onClick={() => setCancelTarget(null)}
               disabled={isPending}
             >
-              返回 Back
+              {tr("common.back")}
             </Button>
             <Button
               variant="destructive"
               onClick={handleCancelConfirm}
               disabled={isPending}
             >
-              {isPending ? "处理中…" : "确认取消 Confirm"}
+              {isPending ? tr("common.processing") : tr("dispatch.confirmCancel")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -243,24 +289,26 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>换车 Change Truck</DialogTitle>
+            <DialogTitle>{tr("dispatch.changeTruckTitle")}</DialogTitle>
             <DialogDescription>
-              选择新车牌，桶数与市场分配保持不变。
+              {tLocal("dispatch.changeTruckDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-haidee-text">
-              车牌 Plate
+              {tr("dispatch.plateField")}
             </label>
             <select
               value={newTruckId}
               onChange={(e) => setNewTruckId(e.target.value)}
               className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 font-mono text-sm"
             >
-              {trucks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.plate}
-                  {t.capacityTong != null ? ` (${t.capacityTong}桶)` : ""}
+              {trucks.map((truck) => (
+                <option key={truck.id} value={truck.id}>
+                  {truck.plate}
+                  {truck.capacityTong != null
+                    ? ` (${truck.capacityTong}${crateUnit})`
+                    : ""}
                 </option>
               ))}
             </select>
@@ -276,10 +324,12 @@ export function DispatchOrderList({ orders, trucks }: DispatchOrderListProps) {
               onClick={() => setChangeTarget(null)}
               disabled={isPending}
             >
-              返回 Back
+              {tr("common.back")}
             </Button>
             <Button onClick={handleChangeConfirm} disabled={isPending}>
-              {isPending ? "处理中…" : "确认换车 Confirm"}
+              {isPending
+                ? tr("common.processing")
+                : tr("dispatch.confirmChangeTruck")}
             </Button>
           </DialogFooter>
         </DialogContent>

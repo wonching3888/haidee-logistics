@@ -13,6 +13,7 @@ import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
 import { canWrite } from "@/lib/auth-roles";
 import { resolveDateParam } from "@/lib/date-utils";
+import { t } from "@/lib/i18n/translate";
 
 interface DispatchPageProps {
   searchParams: Promise<{ date?: string }>;
@@ -22,6 +23,7 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
   const params = await searchParams;
   const date = resolveDateParam(params.date);
   const user = await requirePageUser();
+  const locale = user.language;
   const userCanWrite = canWrite(user.role);
 
   try {
@@ -36,10 +38,10 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-haidee-text">
-              派车调度 Dispatch
+              {t("dispatch.pageTitle", locale)}
             </h2>
             <p className="text-sm text-haidee-muted">
-              今日未分配货物矩阵 Unassigned cargo matrix
+              {t("dispatch.matrixSubtitle", locale)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -56,13 +58,13 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-haidee-blue px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-haidee-blue/90"
               >
                 <Plus className="h-4 w-4" />
-                新建派车单 New Dispatch
+                {t("dispatch.new", locale)}
               </Link>
             ) : null}
           </div>
         </div>
 
-        <DispatchMatrix data={matrix} />
+        <DispatchMatrix data={matrix} locale={locale} />
         <DispatchOrderList orders={orders} trucks={trucks} />
       </div>
     );
@@ -71,13 +73,13 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            派车调度 Dispatch
+            {t("dispatch.pageTitle", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            今日未分配货物矩阵 Unassigned cargo matrix
+            {t("dispatch.matrixSubtitle", locale)}
           </p>
         </div>
-        <PageError error={error} />
+        <PageError error={error} locale={locale} />
       </div>
     );
   }

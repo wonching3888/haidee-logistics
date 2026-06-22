@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWrite } from "@/lib/require-auth";
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
 import { generateDispatchNo } from "@/lib/dispatch";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { buildConsignorSessionLabel } from "@/lib/consignor-label";
@@ -788,12 +790,17 @@ function splitFreightSnapshotFields(
 async function splitAndAssignLine(
   tx: Prisma.TransactionClient,
   line: SplittableLine,
-  assignQty: number
+  assignQty: number,
+  locale: UserLanguage
 ): Promise<string> {
-  if (assignQty <= 0) throw new Error("分配数量无效 Invalid assignment quantity");
+  if (assignQty <= 0) {
+    throw new Error(t("dispatch.error.invalidAssignQty", locale));
+  }
   if (assignQty > line.quantity) {
     throw new Error(
-      `分配数量不能超过可用数量 ${line.quantity} Cannot assign more than available quantity`
+      t("dispatch.error.assignExceedsAvailable", locale, {
+        n: String(line.quantity),
+      })
     );
   }
   if (assignQty === line.quantity) return line.id;
@@ -850,7 +857,8 @@ async function assignLinesToOrder(
   dispatchOrderId: string,
   truckId: string,
   date: Date,
-  assignments: StallAssignment[]
+  assignments: StallAssignment[],
+  locale: UserLanguage
 ): Promise<void> {
   if (assignments.length === 0) return;
 
@@ -882,12 +890,10 @@ async function assignLinesToOrder(
   for (const assignment of assignments) {
     const line = lineMap.get(assignment.inboundLineId);
     if (!line) {
-      throw new Error(
-        "所选货物不可用或已被分配 Selected cargo unavailable or already assigned"
-      );
+      throw new Error(t("dispatch.error.cargoUnavailableAssigned", locale));
     }
 
-    const lineId = await splitAndAssignLine(tx, line, assignment.quantity);
+    const lineId = await splitAndAssignLine(tx, line, assignment.quantity, locale);
     dispatchLineRows.push({ dispatchOrderId, inboundLineId: lineId });
     assignedLineIds.push(lineId);
   }
@@ -1054,13 +1060,14 @@ async function syncDispatchDriverAllowance(
 
 export async function saveDispatchOrder(input: SaveDispatchInput) {
   const user = await requireWrite();
+  const locale = user.language;
 
   if (input.markets.length === 0) {
-    throw new Error("请至少选择一个目的市场 Select at least one destination market");
+    throw new Error(t("dispatch.error.noMarket", locale));
   }
 
   if (input.selections.length === 0) {
-    throw new Error("请至少勾选一项货物 Please select at least one cargo item");
+    throw new Error(t("dispatch.error.noCargo", locale));
   }
 
   const date = parseDateInput(input.date);
@@ -1071,7 +1078,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   );
 
   if (assignments.length === 0) {
-    throw new Error("所选货物不可用或已被分配 Selected cargo unavailable");
+    throw new Error(t("dispatch.error.cargoUnavailable", locale));
   }
 
   if (input.dispatchOrderId) {
@@ -1092,8 +1099,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         },
       }),
     ]);
-    if (!truck) throw new Error("车辆不存在 Truck not found");
-    if (!existing) throw new Error("派车单不存在 Dispatch order not found");
+    if (!truck) throw new Error(t("dispatch.error.truckNotFound", locale));
+    if (!existing) throw new Error(t("dispatch.error.orderNotFound", locale));
 
     const truckChanged = existing.truckId !== input.truckId;
     const driverChanged = (existing.driverName ?? "") !== input.driverName;
@@ -1136,7 +1143,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         input.dispatchOrderId!,
         input.truckId,
         date,
-        assignments
+        assignments,
+        locale
       );
       await syncDispatchDriverAllowance(tx, input.dispatchOrderId!);
     }, DISPATCH_TRANSACTION_OPTIONS);
@@ -1161,7 +1169,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     }),
     generateDispatchNo(date),
   ]);
-  if (!truck) throw new Error("车辆不存在 Truck not found");
+  if (!truck) throw new Error(t("dispatch.error.truckNotFound", locale));
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.dispatchOrder.create({
@@ -1181,7 +1189,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
       created.id,
       input.truckId,
       date,
-      assignments
+      assignments,
+      locale
     );
     await syncDispatchDriverAllowance(tx, created.id);
 
@@ -1198,7 +1207,8 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
 }
 
 export async function cancelDispatchOrder(dispatchOrderId: string) {
-  await requireWrite();
+  const user = await requireWrite();
+  const locale = user.language;
 
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
@@ -1207,9 +1217,9 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
       lines: { select: { inboundLineId: true } },
     },
   });
-  if (!order) throw new Error("派车单不存在 Dispatch order not found");
+  if (!order) throw new Error(t("dispatch.error.orderNotFound", locale));
   if (order.status === "cancelled") {
-    throw new Error("派车单已取消 Dispatch order already cancelled");
+    throw new Error(t("dispatch.error.alreadyCancelled", locale));
   }
 
   const inboundLineIds = order.lines.map((line) => line.inboundLineId);
@@ -1244,7 +1254,8 @@ export async function changeDispatchTruck(
   dispatchOrderId: string,
   truckId: string
 ) {
-  await requireWrite();
+  const user = await requireWrite();
+  const locale = user.language;
 
   const [order, truck] = await Promise.all([
     prisma.dispatchOrder.findUnique({
@@ -1261,11 +1272,11 @@ export async function changeDispatchTruck(
       select: { active: true },
     }),
   ]);
-  if (!order) throw new Error("派车单不存在 Dispatch order not found");
+  if (!order) throw new Error(t("dispatch.error.orderNotFound", locale));
   if (order.status === "cancelled") {
-    throw new Error("已取消的派车单无法换车 Cannot change truck on cancelled order");
+    throw new Error(t("dispatch.error.cannotChangeCancelled", locale));
   }
-  if (!truck?.active) throw new Error("车辆不存在 Truck not found");
+  if (!truck?.active) throw new Error(t("dispatch.error.truckNotFound", locale));
 
   const truckChanged = order.truckId !== truckId;
 

@@ -3,6 +3,8 @@ import {
   resolveSessionPickupLocation,
   type PickupLocation,
 } from "@/lib/constants/pickup-locations";
+import { MESSAGES } from "@/lib/i18n/messages";
+import type { UserLanguage } from "@/types";
 
 const MOBILE_NAME_MAX_LEN = 15;
 
@@ -58,15 +60,17 @@ export function formatLoadingListDisplayName(
 }
 
 /** Loading matrix cell: "20", "3盒", "20+3盒", or "" */
-export function cellDisplay(crateQty: number, boxQty: number): string {
+export function cellDisplay(
+  crateQty: number,
+  boxQty: number,
+  locale: UserLanguage = "zh"
+): string {
+  const boxUnit = MESSAGES["common.boxUnit"][locale];
   if (crateQty === 0 && boxQty === 0) return "";
-  if (crateQty === 0) return `${boxQty}盒`;
+  if (crateQty === 0) return `${boxQty}${boxUnit}`;
   if (boxQty === 0) return `${crateQty}`;
-  return `${crateQty}+${boxQty}盒`;
+  return `${crateQty}+${boxQty}${boxUnit}`;
 }
-
-import type { UserLanguage } from "@/types";
-import { MESSAGES } from "@/lib/i18n/messages";
 
 /** Display crate + box counts, e.g. "33桶 + 2盒" / "33ลัง + 2กล่อง" */
 export function formatCrateBoxQty(

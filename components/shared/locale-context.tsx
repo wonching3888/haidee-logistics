@@ -27,7 +27,8 @@ export function useT() {
   const locale = useLocale();
 
   const t = useCallback(
-    (key: MessageKey) => translate(key, locale),
+    (key: MessageKey, vars?: Record<string, string>) =>
+      translate(key, locale, vars),
     [locale]
   );
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import {
   getAssignableItems,
@@ -58,6 +59,9 @@ export function DispatchForm({
   initialOrder,
 }: DispatchFormProps) {
   const router = useRouter();
+  const { t, tLocal, parts } = useT();
+  const crateUnit = parts("common.crateUnit").local;
+  const boxUnit = parts("common.boxUnit").local;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -286,7 +290,11 @@ export function DispatchForm({
               parseInt(splitQty[stall.inboundLineId] ?? "0", 10) || 0;
             if (quantity > stall.quantity) {
               throw new Error(
-                `${item.shipperName} ${stall.stallCode} 此车数量不能超过 ${stall.quantity}`
+                t("dispatch.error.splitExceeds", {
+                  shipper: item.shipperName,
+                  stall: stall.stallCode,
+                  max: String(stall.quantity),
+                })
               );
             }
             return { inboundLineId: stall.inboundLineId, quantity };
@@ -321,7 +329,7 @@ export function DispatchForm({
     try {
       selections = buildSelections();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "拆分数量无效 Invalid split quantity");
+      setError(e instanceof Error ? e.message : t("dispatch.error.invalidSplit"));
       return;
     }
 
@@ -340,7 +348,7 @@ export function DispatchForm({
         });
         router.replace(`/dispatch?date=${encodeURIComponent(date)}`);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "保存失败 Save failed");
+        setError(e instanceof Error ? e.message : t("error.saveFailed"));
       }
     });
   }
@@ -350,7 +358,7 @@ export function DispatchForm({
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            车牌 Plate
+            {t("dispatch.plateField")}
           </label>
           <select
             value={truckId}
@@ -362,10 +370,11 @@ export function DispatchForm({
             }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 font-mono text-sm"
           >
-            <option value="">— 选择车牌 Select —</option>
-            {trucks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.plate} ({t.capacityTong ?? "?"}桶)
+            <option value="">{t("dispatch.selectPlate")}</option>
+            {trucks.map((truck) => (
+              <option key={truck.id} value={truck.id}>
+                {truck.plate} ({truck.capacityTong ?? "?"}
+                {crateUnit})
               </option>
             ))}
           </select>
@@ -373,14 +382,14 @@ export function DispatchForm({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            司机 Driver
+            {t("dispatch.driver")}
           </label>
           <select
             value={selectedDriverId}
             onChange={(e) => setSelectedDriverId(e.target.value)}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm"
           >
-            <option value="">— 选择司机 Select —</option>
+            <option value="">{t("dispatch.selectDriver")}</option>
             {drivers.map((driver) => (
               <option key={driver.id} value={driver.id}>
                 {driver.name}
@@ -392,7 +401,7 @@ export function DispatchForm({
 
       <div className="rounded-xl border border-haidee-border bg-white p-4">
         <label className="mb-3 block text-sm font-medium text-haidee-text">
-          目的市场 Markets
+          {t("dispatch.destinationMarkets")}
         </label>
         <div className="flex flex-wrap gap-2">
           {visibleMarketOptions.map((code) => {
@@ -418,10 +427,10 @@ export function DispatchForm({
       {markets.length > 0 && (
         <div className="mx-auto w-full max-w-4xl rounded-xl border border-haidee-border bg-white p-4">
           <h3 className="mb-1 text-sm font-semibold text-haidee-text">
-            勾选货物 Select Cargo
+            {t("dispatch.selectCargo")}
           </h3>
           <p className="mb-3 text-xs text-haidee-muted">
-            仅显示今日未分配货物 Unassigned cargo for this date only
+            {t("dispatch.cargoHint")}
           </p>
           {!loadingItems && items.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -431,7 +440,7 @@ export function DispatchForm({
                 size="sm"
                 onClick={selectAllCargo}
               >
-                全选 Select All
+                {t("dispatch.selectAll")}
               </Button>
               <Button
                 type="button"
@@ -439,7 +448,7 @@ export function DispatchForm({
                 size="sm"
                 onClick={deselectAllCargo}
               >
-                全不选 Deselect All
+                {t("dispatch.deselectAll")}
               </Button>
               <Button
                 type="button"
@@ -447,7 +456,7 @@ export function DispatchForm({
                 size="sm"
                 onClick={markSelectedMcThirdParty}
               >
-                勾选的 MC 全转第三方
+                {t("dispatch.mcMarkThirdParty")}
               </Button>
               <Button
                 type="button"
@@ -455,16 +464,14 @@ export function DispatchForm({
                 size="sm"
                 onClick={markSelectedMcSelf}
               >
-                全部改回自送
+                {t("dispatch.mcMarkSelf")}
               </Button>
             </div>
           )}
           {loadingItems ? (
-            <p className="text-haidee-muted">加载中… Loading…</p>
+            <p className="text-haidee-muted">{t("dispatch.loadingCargo")}</p>
           ) : items.length === 0 ? (
-            <p className="text-haidee-muted">
-              所选市场暂无未分配货物 No unassigned cargo for selected markets
-            </p>
+            <p className="text-haidee-muted">{t("dispatch.noCargoForMarkets")}</p>
           ) : (
             <div className="space-y-2">
               {items.map((item) => (
@@ -486,9 +493,11 @@ export function DispatchForm({
                     </span>
                     <DispatchMarketLabel code={item.marketCode} />
                     <span className="ml-auto font-mono text-lg font-semibold">
-                      {item.crateQuantity > 0 && `${item.crateQuantity} 桶`}
+                      {item.crateQuantity > 0 &&
+                        `${item.crateQuantity} ${crateUnit}`}
                       {item.crateQuantity > 0 && item.boxQuantity > 0 && " "}
-                      {item.boxQuantity > 0 && `${item.boxQuantity} 盒`}
+                      {item.boxQuantity > 0 &&
+                        `${item.boxQuantity} ${boxUnit}`}
                     </span>
                     <Button
                       type="button"
@@ -497,7 +506,9 @@ export function DispatchForm({
                       onClick={() => toggleSplit(item.key)}
                       className="shrink-0"
                     >
-                      {splitKeys.has(item.key) ? "取消拆分" : "拆分 Split"}
+                      {splitKeys.has(item.key)
+                        ? t("dispatch.unsplit")
+                        : t("dispatch.split")}
                     </Button>
                     {item.marketCode === MC_MARKET_CODE &&
                       !splitKeys.has(item.key) &&
@@ -516,7 +527,7 @@ export function DispatchForm({
                                 : "text-haidee-muted hover:text-haidee-text"
                             }`}
                           >
-                            自送
+                            {t("dispatch.selfDelivery")}
                           </button>
                           <button
                             type="button"
@@ -531,7 +542,7 @@ export function DispatchForm({
                                 : "text-haidee-muted hover:text-haidee-text"
                             }`}
                           >
-                            转第三方
+                            {t("dispatch.thirdParty")}
                           </button>
                         </div>
                       )}
@@ -553,10 +564,12 @@ export function DispatchForm({
                             </span>
                             <DispatchMarketLabel code={item.marketCode} />
                             <span className="text-haidee-muted">
-                              共 {stall.quantity}{" "}
-                              {stall.isBox ? "盒" : "桶"}
+                              {t("dispatch.totalQty", {
+                                qty: String(stall.quantity),
+                              })}{" "}
+                              {stall.isBox ? boxUnit : crateUnit}
                             </span>
-                            <span>此车:</span>
+                            <span>{t("dispatch.thisTruck")}</span>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -578,7 +591,9 @@ export function DispatchForm({
                                   : "text-haidee-green"
                               }
                             >
-                              剩余: {remaining}
+                              {t("dispatch.remaining", {
+                                remaining: String(remaining),
+                              })}
                             </span>
                           </div>
                         );
@@ -596,17 +611,19 @@ export function DispatchForm({
         <div className="rounded-xl border border-haidee-border bg-white p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="font-medium text-haidee-text">
-              已装 Loaded:{" "}
+              {t("dispatch.loaded")}:{" "}
               <span className="font-mono text-lg">{selectedQty}</span> /{" "}
-              <span className="font-mono">{capacity || "—"}</span> 桶
+              <span className="font-mono">{capacity || "—"}</span> {crateUnit}
             </span>
             {loadPct > 100 && (
               <span className="font-semibold text-haidee-red">
-                ❗ 超载 Overload
+                ❗ {t("dispatch.overload")}
               </span>
             )}
             {loadPct >= 90 && loadPct <= 100 && (
-              <span className="font-semibold text-haidee-orange">⚠️ 接近满载</span>
+              <span className="font-semibold text-haidee-orange">
+                ⚠️ {tLocal("dispatch.nearFull")}
+              </span>
             )}
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-haidee-border">
@@ -643,7 +660,7 @@ export function DispatchForm({
           disabled={isPending}
           className="min-h-[44px]"
         >
-          取消 Cancel
+          {t("common.cancel")}
         </Button>
         <Button
           type="button"
@@ -652,10 +669,10 @@ export function DispatchForm({
           className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
         >
           {isPending
-            ? "保存中…"
+            ? t("common.saving")
             : initialOrder
-              ? "确认修改 Confirm"
-              : "确认派车 Confirm Dispatch"}
+              ? t("dispatch.confirmEdit")
+              : t("dispatch.confirmDispatch")}
         </Button>
       </div>
     </div>

@@ -1,4 +1,10 @@
-export function getPageErrorMessage(error: unknown): string {
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
+
+export function getPageErrorMessage(
+  error: unknown,
+  locale: UserLanguage = "zh"
+): string {
   if (error instanceof Error) return error.message;
-  return "加载失败，请稍后重试 Failed to load data";
+  return t("error.loadFailed", locale);
 }
