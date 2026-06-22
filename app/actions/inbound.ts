@@ -27,6 +27,7 @@ import {
   MARKET_ORDER,
 } from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
+import { INBOUND_SESSIONS_LIST_LIMIT } from "@/lib/inbound-list";
 import {
   buildInboundChangeLogs,
   computeCrateStockAdjustments,
@@ -670,6 +671,7 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
       },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: INBOUND_SESSIONS_LIST_LIMIT,
   });
 
   return sessions

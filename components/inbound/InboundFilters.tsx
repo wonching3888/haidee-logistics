@@ -3,7 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { resolveDateParam } from "@/lib/date-utils";
+import {
+  INBOUND_LIST_ALL_DATES,
+  resolveInboundListDateFieldValue,
+} from "@/lib/inbound-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -41,12 +44,10 @@ export function InboundFilters({ shippers }: InboundFiltersProps) {
       <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">日期 Date</label>
         <DateInputField
-          value={
-            searchParams.get("date")
-              ? resolveDateParam(searchParams.get("date")!)
-              : ""
+          value={resolveInboundListDateFieldValue(searchParams.get("date"))}
+          onChange={(next) =>
+            updateParams("date", next || INBOUND_LIST_ALL_DATES)
           }
-          onChange={(next) => updateParams("date", next)}
         />
       </div>
 

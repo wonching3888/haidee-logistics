@@ -5,7 +5,7 @@ import { getInboundSessions, getShippers } from "@/app/actions/inbound";
 import { InboundFilters } from "@/components/inbound/InboundFilters";
 import { InboundListTable } from "@/components/inbound/InboundListTable";
 import { PageError } from "@/components/shared/PageError";
-import { serializeInboundSessionListRows } from "@/lib/inbound-list";
+import { serializeInboundSessionListRows, resolveInboundListQueryDate } from "@/lib/inbound-list";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ interface InboundPageProps {
 export default async function InboundPage({ searchParams }: InboundPageProps) {
   const params = await searchParams;
   const filters = {
-    date: params.date,
+    date: resolveInboundListQueryDate(params.date),
     shipperId: params.shipperId,
     status: params.status as "unassigned" | "assigned" | "draft" | undefined,
     search: params.search,

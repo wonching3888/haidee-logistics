@@ -1,4 +1,32 @@
-import { toDateInputValue } from "@/lib/inbound-utils";
+import {
+  getDefaultInboundDate,
+  resolveDateParam,
+  toDateInputValue,
+} from "@/lib/inbound-utils";
+
+/** URL sentinel when the user clears the date filter (recent sessions, not all history). */
+export const INBOUND_LIST_ALL_DATES = "all" as const;
+
+/** Hard cap on inbound list rows returned from the database. */
+export const INBOUND_SESSIONS_LIST_LIMIT = 300;
+
+/** Resolve list query date: default = inbound business date; `all` = no date filter. */
+export function resolveInboundListQueryDate(dateParam?: string): string | undefined {
+  if (!dateParam) {
+    return toDateInputValue(getDefaultInboundDate());
+  }
+  if (dateParam === INBOUND_LIST_ALL_DATES) {
+    return undefined;
+  }
+  return resolveDateParam(dateParam);
+}
+
+/** Date filter field display: default shows business today; `all` shows empty. */
+export function resolveInboundListDateFieldValue(dateParam: string | null): string {
+  if (dateParam === INBOUND_LIST_ALL_DATES) return "";
+  if (dateParam) return resolveDateParam(dateParam);
+  return toDateInputValue(getDefaultInboundDate());
+}
 
 export interface InboundSessionListRow {
   id: string;
