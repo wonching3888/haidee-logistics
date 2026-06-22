@@ -1,9 +1,20 @@
+import { MESSAGES, type MessageKey } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
+
 export const PICKUP_LOCATIONS = ["SADAO", "SONGKHLA", "PATTANI"] as const;
 
 export type PickupLocation = (typeof PICKUP_LOCATIONS)[number];
 
 export const DEFAULT_PICKUP_LOCATION: PickupLocation = "SADAO";
 
+const PICKUP_MESSAGE_KEYS: Record<PickupLocation, MessageKey> = {
+  SADAO: "pickup.sadao",
+  SONGKHLA: "pickup.songkhla",
+  PATTANI: "pickup.pattani",
+};
+
+/** @deprecated Use formatPickupLocationLabel(code, locale) */
 export const PICKUP_LOCATION_LABELS: Record<PickupLocation, string> = {
   SADAO: "SADAO",
   SONGKHLA: "宋卡 SONGKHLA",
@@ -27,7 +38,8 @@ export function tripPickupSelectValue(
 
 export function tripPickupSaveValue(
   selected: string,
-  shipperPickup: string | null | undefined
+  shipperPickup: string | null | undefined,
+  locale: UserLanguage = "zh"
 ): PickupLocation | null {
   if (
     !selected ||
@@ -39,7 +51,7 @@ export function tripPickupSaveValue(
   const shipperDefault = resolveSessionPickupLocation(null, shipperPickup);
   if (selected === shipperDefault) return null;
   if (!isPickupLocation(selected)) {
-    throw new Error("无效的收货地点 Invalid pickup location");
+    throw new Error(t("error.invalidPickup", locale));
   }
   return selected;
 }
@@ -61,16 +73,21 @@ export function usesThSegmentSplit(pickupLocation: PickupLocation) {
 }
 
 export function formatPickupLocationLabel(
-  code: string | null | undefined
+  code: string | null | undefined,
+  locale: UserLanguage = "zh"
 ): string {
-  if (code && isPickupLocation(code)) {
-    return PICKUP_LOCATION_LABELS[code];
+  const loc =
+    code && isPickupLocation(code) ? code : DEFAULT_PICKUP_LOCATION;
+  if (loc === "SADAO" && locale !== "th") {
+    return "SADAO";
   }
-  return PICKUP_LOCATION_LABELS[DEFAULT_PICKUP_LOCATION];
+  const local = MESSAGES[PICKUP_MESSAGE_KEYS[loc]][locale];
+  return `${local} ${loc}`;
 }
 
 export function normalizeSessionPickupInput(
-  value: string | null | undefined
+  value: string | null | undefined,
+  locale: UserLanguage = "zh"
 ): PickupLocation | null {
   if (
     !value ||
@@ -80,7 +97,7 @@ export function normalizeSessionPickupInput(
     return null;
   }
   if (!isPickupLocation(value)) {
-    throw new Error("无效的收货地点 Invalid pickup location");
+    throw new Error(t("error.invalidPickup", locale));
   }
   return value;
 }

@@ -8,11 +8,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useT } from "@/components/shared/locale-context";
 import {
   getBillingCompanyLabel,
   getPaymentModeLabel,
 } from "@/lib/constants/freight-settings";
 import { decimalToNumber } from "@/lib/freight-rates";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export interface InboundFreightLine {
   id: string;
@@ -45,13 +47,46 @@ function formatMoney(value: number | null | undefined, currency?: string | null)
   return currency ? `${formatted} ${currency}` : formatted;
 }
 
-function paymentPartyLabel(party: string | null | undefined) {
-  if (party === "consignee") return "收货人 Consignee";
-  if (party === "shipper") return "寄货人 Shipper";
+function FreightTableHead({
+  messageKey,
+  localOnly = false,
+}: {
+  messageKey: MessageKey;
+  localOnly?: boolean;
+}) {
+  const { parts, tLocal } = useT();
+  if (localOnly) {
+    return <TableHead>{tLocal(messageKey)}</TableHead>;
+  }
+  const { local, en } = parts(messageKey);
+  return (
+    <TableHead>
+      <div>{local}</div>
+      {en ? <div className="text-[10px] text-haidee-muted">{en}</div> : null}
+    </TableHead>
+  );
+}
+
+function PaymentPartyCell({
+  party,
+}: {
+  party: string | null | undefined;
+}) {
+  const { t } = useT();
+  if (party === "consignee") return t("freight.consignee");
+  if (party === "shipper") return t("freight.shipper");
   return "—";
 }
 
+function PaymentModeCell({ mode }: { mode: string | null | undefined }) {
+  const { locale } = useT();
+  if (!mode) return "—";
+  return getPaymentModeLabel(mode, locale);
+}
+
 export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
+  const { parts, tLocal } = useT();
+  const title = parts("freight.title");
   const hasThSplit = lines.some(
     (line) =>
       line.thFreightAmount != null || line.mySegmentFreightAmount != null
@@ -61,10 +96,11 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
     <div className="space-y-3 rounded-lg border border-haidee-border bg-white p-4">
       <div>
         <h3 className="text-base font-semibold text-haidee-text">
-          车力信息 Freight Details
+          {title.local}
+          {title.en ? ` ${title.en}` : ""}
         </h3>
         <p className="text-xs text-haidee-muted">
-          仅 Admin / Accounting / Owner 可见。Operation 角色不可见此区域。
+          {tLocal("freight.visibleNote")}
         </p>
       </div>
 
@@ -72,21 +108,21 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>收货人 Receiver</TableHead>
-              <TableHead>桶型 Type</TableHead>
-              <TableHead>数量 Qty</TableHead>
-              <TableHead>付款方 Payer</TableHead>
-              <TableHead>付款模式 Mode</TableHead>
-              <TableHead>费率/桶 Rate</TableHead>
-              <TableHead>车力金额 Amount</TableHead>
-              <TableHead>币种 Curr.</TableHead>
-              <TableHead>开单公司 Billing</TableHead>
+              <FreightTableHead messageKey="common.receiver" />
+              <FreightTableHead messageKey="common.crateType" />
+              <FreightTableHead messageKey="common.qty" />
+              <FreightTableHead messageKey="freight.payer" />
+              <FreightTableHead messageKey="freight.mode" />
+              <FreightTableHead messageKey="freight.rate" />
+              <FreightTableHead messageKey="freight.amount" />
+              <FreightTableHead messageKey="freight.currency" />
+              <FreightTableHead messageKey="freight.billing" />
               {hasThSplit && (
                 <>
-                  <TableHead>MY段费率</TableHead>
-                  <TableHead>MY段金额</TableHead>
-                  <TableHead>泰国段费率</TableHead>
-                  <TableHead>泰国段金额</TableHead>
+                  <FreightTableHead messageKey="freight.myRate" localOnly />
+                  <FreightTableHead messageKey="freight.myAmount" localOnly />
+                  <FreightTableHead messageKey="freight.thRate" localOnly />
+                  <FreightTableHead messageKey="freight.thAmount" localOnly />
                 </>
               )}
             </TableRow>
@@ -100,11 +136,11 @@ export function InboundFreightPanel({ lines }: InboundFreightPanelProps) {
                 </TableCell>
                 <TableCell className="font-mono">{line.tongTypeCode}</TableCell>
                 <TableCell className="font-mono">{line.quantity}</TableCell>
-                <TableCell>{paymentPartyLabel(line.paymentParty)}</TableCell>
                 <TableCell>
-                  {line.paymentMode
-                    ? getPaymentModeLabel(line.paymentMode)
-                    : "—"}
+                  <PaymentPartyCell party={line.paymentParty} />
+                </TableCell>
+                <TableCell>
+                  <PaymentModeCell mode={line.paymentMode} />
                 </TableCell>
                 <TableCell className="font-mono">
                   {formatMoney(line.freightRate, line.currency)}

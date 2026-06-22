@@ -34,7 +34,7 @@ export function InboundDeleteButton({
           router.replace(redirectUrl);
           return;
         }
-        alert(e instanceof Error ? e.message : "删除失败 Delete failed");
+        alert(e instanceof Error ? e.message : t("error.deleteFailed"));
       }
     });
   }

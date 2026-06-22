@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
 import { canViewFreightOnEntry } from "@/lib/auth-roles";
-import type { UserRole } from "@/types";
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage, UserRole } from "@/types";
 import {
   addCustomerCratesBatch,
   deductCustomerCratesBatch,
@@ -282,7 +283,8 @@ async function reverseInboundCrateDeduction(
 
 async function processNewStalls(
   shipperId: string,
-  newStalls: NewStallInput[] | undefined
+  newStalls: NewStallInput[] | undefined,
+  locale: UserLanguage
 ): Promise<InboundLineInput[]> {
   const createdLines: InboundLineInput[] = [];
   if (!newStalls?.length) return createdLines;
@@ -297,9 +299,7 @@ async function processNewStalls(
   for (const ns of newStalls) {
     const marketCode = marketCodeById.get(ns.marketId);
     if (isOtherMarket(marketCode) && !ns.name?.trim()) {
-      throw new Error(
-        "OTHER 市场请填写目的地 Please enter a destination for OTHER market"
-      );
+      throw new Error(t("error.otherMarketDestination", locale));
     }
   }
 
@@ -640,6 +640,8 @@ export async function getThVehiclePlates(shipperId: string) {
 }
 
 export async function getInboundSessions(filters: InboundSessionFilters = {}) {
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
   const where: Prisma.InboundSessionWhereInput = {};
 
   if (filters.date) {
@@ -709,7 +711,8 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
           resolveSessionPickupLocation(
             s.pickupLocation,
             s.shipper.pickupLocation
-          )
+          ),
+          locale
         ),
         thVehiclePlate: s.thVehiclePlate,
         totalQty,
@@ -774,8 +777,9 @@ export async function previewInboundFreightLines(input: PreviewInboundFreightInp
     });
     if (!shipper) return [];
 
+    const previewLocale = user?.language ?? "zh";
     const effectivePickup = resolveSessionPickupLocation(
-      normalizeSessionPickupInput(input.pickupLocation),
+      normalizeSessionPickupInput(input.pickupLocation, previewLocale),
       shipper.pickupLocation
     );
 
@@ -934,11 +938,16 @@ interface SaveInboundInput {
 }
 
 export async function saveInboundSession(input: SaveInboundInput) {
+  let locale: UserLanguage = "zh";
   try {
   const user = await requireWrite();
+  locale = user.language;
 
   const date = parseDateInput(input.date);
-  const sessionPickupLocation = normalizeSessionPickupInput(input.pickupLocation);
+  const sessionPickupLocation = normalizeSessionPickupInput(
+    input.pickupLocation,
+    locale
+  );
   const shipper = await prisma.shipper.findUnique({
     where: { id: input.shipperId },
     select: { pickupLocation: true, currency: true },
@@ -970,7 +979,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
   const createdNewStallLines = await processNewStalls(
     input.shipperId,
-    input.newStalls
+    input.newStalls,
+    locale
   );
   const allLines = [...activeLines, ...createdNewStallLines];
 
@@ -1016,16 +1026,14 @@ export async function saveInboundSession(input: SaveInboundInput) {
         },
       },
     });
-    if (!existing) throw new Error("进货单不存在 Session not found");
+    if (!existing) throw new Error(t("error.sessionNotFound", locale));
 
     if (status === "draft" && existing.status === "confirmed") {
       const hasAssigned = existing.lines.some(
         (line) => line.dispatchStatus === "assigned"
       );
       if (hasAssigned) {
-        throw new Error(
-          "已派车的进货单不能改回草稿 Cannot revert dispatched inbound to draft"
-        );
+        throw new Error(t("error.cannotRevertDispatched", locale));
       }
     }
 
@@ -1036,7 +1044,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             where: { id: input.shipperId },
             select: { id: true, name: true, pickupLocation: true },
           });
-    if (!afterShipper) throw new Error("寄货人不存在 Shipper not found");
+    if (!afterShipper) throw new Error(t("error.shipperNotFound", locale));
 
     const beforeSnapshot: InboundSessionSnapshot = {
       date: existing.date,
@@ -1284,7 +1292,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     if (!created) {
-      throw new Error("无法生成唯一进货编号 Failed to generate unique session number");
+      throw new Error(t("error.sessionNoFailed", locale));
     }
   } else {
     await prisma.inboundSession.create({
@@ -1328,13 +1336,13 @@ export async function saveInboundSession(input: SaveInboundInput) {
     return {
       ok: false as const,
       error:
-        error instanceof Error ? error.message : "保存失败 Save failed",
+        error instanceof Error ? error.message : t("error.saveFailed", locale),
     };
   }
 }
 
 export async function deleteInboundSession(sessionId: string) {
-  await requireWrite();
+  const user = await requireWrite();
 
   const session = await prisma.inboundSession.findUnique({
     where: { id: sessionId },
@@ -1351,7 +1359,7 @@ export async function deleteInboundSession(sessionId: string) {
     },
   });
 
-  if (!session) throw new Error("进货单不存在 Session not found");
+  if (!session) throw new Error(t("error.sessionNotFound", user.language));
 
   const lineIds = session.lines.map((l) => l.id);
   const dispatchOrderIds = Array.from(

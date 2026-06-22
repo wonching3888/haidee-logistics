@@ -31,7 +31,7 @@ import {
 import {
   DEFAULT_PICKUP_LOCATION,
   PICKUP_LOCATIONS,
-  PICKUP_LOCATION_LABELS,
+  formatPickupLocationLabel,
   resolveSessionPickupLocation,
   tripPickupSaveValue,
   tripPickupSelectValue,
@@ -95,7 +95,7 @@ export function InboundForm({
 }: InboundFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { t, parts, tLocal } = useT();
+  const { t, parts, tLocal, locale } = useT();
   const [error, setError] = useState<string | null>(null);
 
   const [date, setDate] = useState(
@@ -196,12 +196,12 @@ export function InboundForm({
         }
       } catch (e) {
         setRows([]);
-        setError(e instanceof Error ? e.message : "加载收货人失败 Failed to load receivers");
+        setError(e instanceof Error ? e.message : t("error.loadReceiversFailed"));
       } finally {
         setLoadingStalls(false);
       }
     },
-    [initialSession]
+    [initialSession, t]
   );
 
   useEffect(() => {
@@ -248,7 +248,8 @@ export function InboundForm({
             shipperId,
             pickupLocation: tripPickupSaveValue(
               selectedPickup,
-              shipper?.pickupLocation
+              shipper?.pickupLocation,
+              locale
             ),
             areaNote: areaNote || undefined,
             lines: activeLines,
@@ -278,6 +279,7 @@ export function InboundForm({
     areaNote,
     rows,
     shippers,
+    locale,
   ]);
 
   const mergedFreightLines = useMemo(() => {
@@ -339,7 +341,7 @@ export function InboundForm({
   function handleSave(asDraft: boolean) {
     setError(null);
     if (!shipperId) {
-      setError("请选择寄货人 Please select a consignor");
+      setError(t("error.selectConsignor"));
       return;
     }
 
@@ -365,7 +367,8 @@ export function InboundForm({
           areaNote: areaNote || undefined,
           pickupLocation: tripPickupSaveValue(
             selectedPickup,
-            shipper?.pickupLocation
+            shipper?.pickupLocation,
+            locale
           ),
           lines,
           removedStallIds,
@@ -388,7 +391,7 @@ export function InboundForm({
         }
         router.replace("/inbound");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "保存失败 Save failed");
+        setError(e instanceof Error ? e.message : t("error.saveFailed"));
       }
     });
   }
@@ -442,7 +445,7 @@ export function InboundForm({
             )}
             {PICKUP_LOCATIONS.map((code) => (
               <option key={code} value={code}>
-                {PICKUP_LOCATION_LABELS[code]}
+                {formatPickupLocationLabel(code, locale)}
               </option>
             ))}
           </select>

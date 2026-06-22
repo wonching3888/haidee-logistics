@@ -396,6 +396,166 @@ export const MESSAGES = {
     en: "Delete inbound session",
     th: "ลบรายการนำเข้า",
   },
+  "pickup.sadao": {
+    zh: "SADAO",
+    en: "SADAO",
+    th: "สะเดา",
+  },
+  "pickup.songkhla": {
+    zh: "宋卡",
+    en: "SONGKHLA",
+    th: "สงขลา",
+  },
+  "pickup.pattani": {
+    zh: "北大年",
+    en: "PATTANI",
+    th: "ปัตตานี",
+  },
+  "error.loadReceiversFailed": {
+    zh: "加载收货人失败",
+    en: "Failed to load receivers",
+    th: "โหลดผู้รับล้มเหลว",
+  },
+  "error.selectConsignor": {
+    zh: "请选择寄货人",
+    en: "Please select a consignor",
+    th: "กรุณาเลือกผู้ส่ง",
+  },
+  "error.saveFailed": {
+    zh: "保存失败",
+    en: "Save failed",
+    th: "บันทึกล้มเหลว",
+  },
+  "error.deleteFailed": {
+    zh: "删除失败",
+    en: "Delete failed",
+    th: "ลบล้มเหลว",
+  },
+  "error.otherMarketDestination": {
+    zh: "OTHER 市场请填写目的地",
+    en: "Please enter a destination for OTHER market",
+    th: "ตลาด OTHER กรุณากรอกปลายทาง",
+  },
+  "error.minQuantity": {
+    zh: "请至少填写一个收货人的桶数",
+    en: "Please enter at least one quantity",
+    th: "กรุณากรอกจำนวนลังอย่างน้อยหนึ่งรายการ",
+  },
+  "error.sessionNotFound": {
+    zh: "进货单不存在",
+    en: "Session not found",
+    th: "ไม่พบรายการนำเข้า",
+  },
+  "error.cannotRevertDispatched": {
+    zh: "已派车的进货单不能改回草稿",
+    en: "Cannot revert dispatched inbound to draft",
+    th: "รายการที่จัดรถแล้วเปลี่ยนกลับเป็นฉบับร่างไม่ได้",
+  },
+  "error.shipperNotFound": {
+    zh: "寄货人不存在",
+    en: "Shipper not found",
+    th: "ไม่พบผู้ส่ง",
+  },
+  "error.sessionNoFailed": {
+    zh: "无法生成唯一进货编号",
+    en: "Failed to generate unique session number",
+    th: "สร้างเลขที่นำเข้าไม่สำเร็จ",
+  },
+  "error.invalidPickup": {
+    zh: "无效的收货地点",
+    en: "Invalid pickup location",
+    th: "จุดรับสินค้าไม่ถูกต้อง",
+  },
+  "freight.title": {
+    zh: "车力信息",
+    en: "Freight Details",
+    th: "ข้อมูลค่าขนส่ง",
+  },
+  "freight.visibleNote": {
+    zh: "仅 Admin / Accounting / Owner 可见。Operation 角色不可见此区域。",
+    en: "",
+    th: "เฉพาะ Admin / Accounting / Owner เท่านั้นที่เห็นได้ บทบาท Operation ไม่เห็นส่วนนี้",
+  },
+  "freight.payer": {
+    zh: "付款方",
+    en: "Payer",
+    th: "ผู้ชำระ",
+  },
+  "freight.mode": {
+    zh: "付款模式",
+    en: "Mode",
+    th: "รูปแบบการชำระ",
+  },
+  "freight.rate": {
+    zh: "费率/桶",
+    en: "Rate",
+    th: "อัตรา/ลัง",
+  },
+  "freight.amount": {
+    zh: "车力金额",
+    en: "Amount",
+    th: "ค่าขนส่ง",
+  },
+  "freight.currency": {
+    zh: "币种",
+    en: "Curr.",
+    th: "สกุลเงิน",
+  },
+  "freight.billing": {
+    zh: "开单公司",
+    en: "Billing",
+    th: "บริษัทออกบิล",
+  },
+  "freight.consignee": {
+    zh: "收货人",
+    en: "Consignee",
+    th: "ผู้รับ",
+  },
+  "freight.shipper": {
+    zh: "寄货人",
+    en: "Shipper",
+    th: "ผู้ส่ง",
+  },
+  "freight.myRate": {
+    zh: "MY段费率",
+    en: "",
+    th: "อัตราช่วง MY",
+  },
+  "freight.myAmount": {
+    zh: "MY段金额",
+    en: "",
+    th: "ยอดช่วง MY",
+  },
+  "freight.thRate": {
+    zh: "泰国段费率",
+    en: "",
+    th: "อัตราช่วงไทย",
+  },
+  "freight.thAmount": {
+    zh: "泰国段金额",
+    en: "",
+    th: "ยอดช่วงไทย",
+  },
+  "mode.1a": {
+    zh: "1a 寄货人付 THB",
+    en: "",
+    th: "1a ผู้ส่งจ่าย THB",
+  },
+  "mode.1b": {
+    zh: "1b 寄货人付 MYR",
+    en: "",
+    th: "1b ผู้ส่งจ่าย MYR",
+  },
+  "mode.2": {
+    zh: "2 收货人付",
+    en: "Consignee pays",
+    th: "2 ผู้รับจ่าย",
+  },
+  "mode.3": {
+    zh: "3 其他",
+    en: "Other",
+    th: "3 อื่นๆ",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

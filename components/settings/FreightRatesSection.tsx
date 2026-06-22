@@ -849,7 +849,7 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
               >
                 {PAYMENT_MODES.map((mode) => (
                   <option key={mode.value} value={mode.value}>
-                    {mode.label}
+                    {getPaymentModeLabel(mode.value)}
                   </option>
                 ))}
               </select>

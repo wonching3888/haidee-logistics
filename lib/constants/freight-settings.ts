@@ -1,16 +1,27 @@
+import type { MessageKey } from "@/lib/i18n/messages";
+import { t, tLocal } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
+
 export const DEFAULT_EXCHANGE_RATE = 8.2;
 
 /** Malaysia SST rate applied to WTL MY-segment freight when sst_applicable. */
 export const WTL_SST_MULTIPLIER = 1.06;
 
 export const PAYMENT_MODES = [
-  { value: "1a", label: "1a 寄货人付 THB" },
-  { value: "1b", label: "1b 寄货人付 MYR" },
-  { value: "2", label: "2 收货人付 Consignee pays" },
-  { value: "3", label: "3 其他 Other" },
+  { value: "1a" },
+  { value: "1b" },
+  { value: "2" },
+  { value: "3" },
 ] as const;
 
 export type PaymentMode = (typeof PAYMENT_MODES)[number]["value"];
+
+const PAYMENT_MODE_KEYS: Record<PaymentMode, MessageKey> = {
+  "1a": "mode.1a",
+  "1b": "mode.1b",
+  "2": "mode.2",
+  "3": "mode.3",
+};
 
 export const BILLING_COMPANIES = [
   { value: "haidee", label: "HAIDEE" },
@@ -19,8 +30,16 @@ export const BILLING_COMPANIES = [
 
 export type BillingCompany = (typeof BILLING_COMPANIES)[number]["value"];
 
-export function getPaymentModeLabel(mode: string) {
-  return PAYMENT_MODES.find((item) => item.value === mode)?.label ?? mode;
+export function getPaymentModeLabel(
+  mode: string,
+  locale: UserLanguage = "zh"
+): string {
+  if (!isPaymentMode(mode)) return mode;
+  const key = PAYMENT_MODE_KEYS[mode];
+  if (mode === "1a" || mode === "1b") {
+    return tLocal(key, locale);
+  }
+  return t(key, locale);
 }
 
 export function getBillingCompanyLabel(company: string) {
