@@ -24,8 +24,8 @@ import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import { rateAsOfForSessionDate } from "@/lib/constants/rate-effective-date";
 import {
   compareDispatchPriority,
-  DISPATCH_MARKET_ORDER,
   DISPATCH_PRIORITY_ORDER,
+  MARKET_ORDER,
   marketPriorityRank,
   sortMarkets,
 } from "@/lib/markets";
@@ -282,7 +282,7 @@ export async function getUnassignedMatrix(
 
   return {
     shippers,
-    markets: [...DISPATCH_MARKET_ORDER],
+    markets: [...MARKET_ORDER],
     cells,
     rowTotals,
     colTotals,
