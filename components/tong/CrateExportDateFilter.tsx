@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import {
   getDefaultInboundDate,
   resolveDateParam,
@@ -12,6 +13,7 @@ import {
 export function CrateExportDateFilter() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
 
   const dateParam = searchParams.get("date");
@@ -22,7 +24,9 @@ export function CrateExportDateFilter() {
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
       <div className="space-y-1">
-        <label className="text-xs font-medium text-haidee-muted">日期 Date</label>
+        <label className="text-xs font-medium text-haidee-muted">
+          {t("common.date")}
+        </label>
         <DateInputField
           value={value}
           disabled={isPending}

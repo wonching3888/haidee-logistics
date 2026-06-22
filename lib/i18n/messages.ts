@@ -59,7 +59,7 @@ export const MESSAGES = {
   "nav.crateReturnInvoice": {
     zh: "回收桶月结单",
     en: "Crate Return Invoice",
-    th: "ใบแจ้งหนี้คืนถัง",
+    th: "ใบแจ้งหนี้คืนลัง",
   },
   "nav.driverExpenses": {
     zh: "司机费用单",
@@ -69,27 +69,27 @@ export const MESSAGES = {
   "nav.crate": {
     zh: "桶管理",
     en: "Crate Management",
-    th: "จัดการถัง",
+    th: "จัดการลัง",
   },
   "nav.crateImport": {
     zh: "空桶回收",
     en: "Crate Import",
-    th: "รับถังเปล่า",
+    th: "รับลังเปล่า",
   },
   "nav.crateExport": {
     zh: "空桶归还",
     en: "Crate Export",
-    th: "คืนถังเปล่า",
+    th: "คืนลังเปล่า",
   },
   "nav.crateStock": {
     zh: "桶库存",
     en: "Crate Stock",
-    th: "สต๊อกถัง",
+    th: "สต๊อกลัง",
   },
   "nav.customerCrateStock": {
     zh: "顾客桶库存",
     en: "Customer Crate Stock",
-    th: "สต๊อกถังลูกค้า",
+    th: "สต๊อกลังลูกค้า",
   },
   "nav.reports": {
     zh: "报表",
@@ -104,12 +104,12 @@ export const MESSAGES = {
   "nav.crateReport": {
     zh: "桶型报表",
     en: "Crate Report",
-    th: "รายงานประเภทถัง",
+    th: "รายงานประเภทลัง",
   },
   "nav.crateRental": {
     zh: "租桶月结",
     en: "Crate Rental Statement",
-    th: "ใบสรุปค่าเช่าถัง",
+    th: "ใบสรุปค่าเช่าลัง",
   },
   "nav.operationsReport": {
     zh: "运营报表",
@@ -561,6 +561,16 @@ export const MESSAGES = {
     en: "Back",
     th: "กลับ",
   },
+  "common.print": {
+    zh: "打印",
+    en: "Print",
+    th: "พิมพ์",
+  },
+  "common.downloadPdf": {
+    zh: "下载 PDF",
+    en: "Download PDF",
+    th: "ดาวน์โหลด PDF",
+  },
   "common.processing": {
     zh: "处理中…",
     en: "Processing…",
@@ -880,6 +890,156 @@ export const MESSAGES = {
     zh: "已取消的派车单无法换车",
     en: "Cannot change truck on cancelled order",
     th: "ใบจัดรถที่ยกเลิกแล้วไม่สามารถเปลี่ยนรถได้",
+  },
+  "crateExport.pageSubtitle": {
+    zh: "泰国车空桶归还录入及泰文收据",
+    en: "TH vehicle empty crate return & receipt",
+    th: "บันทึกคืนลังเปล่าของรถไทยและพิมพ์ใบรับ",
+  },
+  "crateExport.todayReturns": {
+    zh: "今日归还单",
+    en: "Today's Returns",
+    th: "ใบคืนลังวันนี้",
+  },
+  "crateExport.listHint": {
+    zh: "按日期查看已录入归还单",
+    en: "View saved returns by date",
+    th: "ดูใบคืนลังที่บันทึกไว้ตามวันที่",
+  },
+  "crateExport.editTitle": {
+    zh: "编辑归还单",
+    en: "Edit Export",
+    th: "แก้ไขใบคืนลัง",
+  },
+  "crateExport.editSubtitle": {
+    zh: "{exportNo} · 寄货人/日期不可改",
+    en: "{exportNo} · Consignor & date locked",
+    th: "{exportNo} · ผู้ส่งและวันที่แก้ไขไม่ได้",
+  },
+  "crateExport.backToList": {
+    zh: "返回列表",
+    en: "Back to list",
+    th: "กลับไปที่รายการ",
+  },
+  "crateExport.receiptTitle": {
+    zh: "空桶收据",
+    en: "Empty Crate Receipt",
+    th: "ใบรับคืนลังเปล่า",
+  },
+  "crateExport.location": {
+    zh: "产地",
+    en: "Location",
+    th: "แหล่งที่มา",
+  },
+  "crateExport.locationPlaceholder": {
+    zh: "如 PHUKET、TOT",
+    en: "e.g. PHUKET, TOT",
+    th: "เช่น PHUKET, TOT",
+  },
+  "crateExport.suggested": {
+    zh: "系统建议",
+    en: "Suggested",
+    th: "ระบบแนะนำ",
+  },
+  "crateExport.sadaoStock": {
+    zh: "SADAO现货",
+    en: "Stock",
+    th: "สต๊อก SADAO",
+  },
+  "crateExport.actual": {
+    zh: "实际给出",
+    en: "Actual",
+    th: "จ่ายจริง",
+  },
+  "crateExport.shortage": {
+    zh: "欠桶",
+    en: "Shortage",
+    th: "ค้างลัง",
+  },
+  "crateExport.saveChanges": {
+    zh: "保存修改",
+    en: "Save Changes",
+    th: "บันทึกการแก้ไข",
+  },
+  "crateExport.confirmExport": {
+    zh: "确认归还",
+    en: "Confirm Export",
+    th: "ยืนยันคืนลัง",
+  },
+  "crateExport.emptyList": {
+    zh: "该日暂无归还单",
+    en: "No crate exports for this date",
+    th: "ยังไม่มีใบคืนลังในวันที่นี้",
+  },
+  "crateExport.teNo": {
+    zh: "TE 号",
+    en: "TE No.",
+    th: "เลขที่ TE",
+  },
+  "crateExport.shortageBadge": {
+    zh: "欠 {n}",
+    en: "Short {n}",
+    th: "ค้าง {n}",
+  },
+  "crateExport.reprint": {
+    zh: "重打",
+    en: "Reprint",
+    th: "พิมพ์ซ้ำ",
+  },
+  "crateExport.void": {
+    zh: "作废",
+    en: "Void",
+    th: "ยกเลิก",
+  },
+  "crateExport.voidSuccess": {
+    zh: "归还单 {exportNo} 已作废",
+    en: "Export {exportNo} voided",
+    th: "ยกเลิกใบคืนลัง {exportNo} แล้ว",
+  },
+  "crateExport.updateSuccess": {
+    zh: "归还单 {exportNo} 已更新",
+    en: "Export {exportNo} updated",
+    th: "อัปเดตใบคืนลัง {exportNo} แล้ว",
+  },
+  "crateExport.voidTitle": {
+    zh: "作废归还单",
+    en: "Void Export",
+    th: "ยกเลิกใบคืนลัง",
+  },
+  "crateExport.voidConfirm": {
+    zh: "确认作废此归还单？将退回客户桶库存。",
+    en: "—",
+    th: "ยืนยันยกเลิกใบคืนลังนี้? จำนวนลังจะถูกคืนกลับเข้าสต๊อกของลูกค้า",
+  },
+  "crateExport.confirmVoid": {
+    zh: "确认作废",
+    en: "Confirm Void",
+    th: "ยืนยันยกเลิก",
+  },
+  "crateExport.error.thPlateRequired": {
+    zh: "请填写泰国车牌",
+    en: "Please enter TH plate",
+    th: "กรุณากรอกทะเบียนรถไทย",
+  },
+  "crateExport.error.voidFailed": {
+    zh: "作废失败",
+    en: "Void failed",
+    th: "ยกเลิกล้มเหลว",
+  },
+  "crateExport.error.minLines": {
+    zh: "请至少填写一行归还数据",
+    en: "Please enter at least one return line",
+    th: "กรุณากรอกข้อมูลการคืนอย่างน้อยหนึ่งรายการ",
+  },
+  "crateExport.error.invalidExportNo": {
+    zh: "归还单号无效",
+    en: "Invalid export number",
+    th: "เลขที่ใบคืนลังไม่ถูกต้อง",
+  },
+  "crateExport.error.notFound": {
+    zh: "归还单不存在",
+    en: "Export not found",
+    th: "ไม่พบใบคืนลัง",
   },
 } as const satisfies Record<
   string,

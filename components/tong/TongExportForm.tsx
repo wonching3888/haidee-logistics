@@ -16,6 +16,7 @@ import {
   stockLocationForPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDisplay } from "@/lib/date-utils";
@@ -59,6 +60,7 @@ export function TongExportForm({
   initialData,
 }: TongExportFormProps) {
   const router = useRouter();
+  const { t, parts } = useT();
   const isEdit = mode === "edit" && Boolean(initialData && exportNo);
   const [isPending, startTransition] = useTransition();
   const [date, setDate] = useState(
@@ -198,11 +200,11 @@ export function TongExportForm({
   function handleConfirm() {
     setError(null);
     if (!shipperId) {
-      setError("请选择寄货人 Please select consignor");
+      setError(t("error.selectConsignor"));
       return;
     }
     if (!thPlate) {
-      setError("请填写泰国车牌 Please enter TH plate");
+      setError(t("crateExport.error.thPlateRequired"));
       return;
     }
 
@@ -235,7 +237,7 @@ export function TongExportForm({
           `/crate/export/print?exportNo=${encodeURIComponent(result.exportNo)}&returnTo=${encodeURIComponent(returnTo)}`
         );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "保存失败");
+        setError(e instanceof Error ? e.message : t("error.saveFailed"));
       }
     });
   }
@@ -244,7 +246,9 @@ export function TongExportForm({
     <div className="space-y-6">
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-haidee-text">日期 Date</label>
+          <label className="text-sm font-medium text-haidee-text">
+            {t("common.date")}
+          </label>
           {isEdit ? (
             <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
               {formatDisplay(date)}
@@ -255,7 +259,7 @@ export function TongExportForm({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
-            寄货人 Consignor
+            {t("common.consignor")}
           </label>
           {isEdit ? (
             <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
@@ -270,7 +274,7 @@ export function TongExportForm({
               }}
               className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
             >
-              <option value="">— 选择 Select —</option>
+              <option value="">{t("inbound.selectConsignor")}</option>
               {shippers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -281,18 +285,18 @@ export function TongExportForm({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
-            地区/备注 Area/Note
+            {t("inbound.areaNote")}
           </label>
           <Input
             value={areaNote}
             onChange={(e) => setAreaNote(e.target.value)}
-            placeholder="地区/备注 Area/Note (选填 Optional)"
+            placeholder={`${t("inbound.areaNote")} (${parts("common.optional").local})`}
             className="min-h-[44px]"
           />
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
-            产地 Location
+            {t("crateExport.location")}
           </label>
           {isLocationPoolShipper && poolStockLocation ? (
             <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
@@ -302,14 +306,14 @@ export function TongExportForm({
             <Input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="如 PHUKET、TOT (选填 Optional)"
+              placeholder={`${t("crateExport.locationPlaceholder")} (${parts("common.optional").local})`}
               className="min-h-[44px]"
             />
           )}
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
-            泰国车牌 TH Plate
+            {t("inbound.thPlateField")}
           </label>
           <Input
             list="th-plates-export"
@@ -331,11 +335,11 @@ export function TongExportForm({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                <th className="px-4 py-3 text-left">桶型 Crate Type</th>
-                <th className="px-4 py-3 text-right">系统建议 Suggested</th>
-                <th className="px-4 py-3 text-right">SADAO现货 Stock</th>
-                <th className="px-4 py-3 text-right">实际给出 Actual</th>
-                <th className="px-4 py-3 text-right">欠桶 Shortage</th>
+                <th className="px-4 py-3 text-left">{t("common.crateType")}</th>
+                <th className="px-4 py-3 text-right">{t("crateExport.suggested")}</th>
+                <th className="px-4 py-3 text-right">{t("crateExport.sadaoStock")}</th>
+                <th className="px-4 py-3 text-right">{t("crateExport.actual")}</th>
+                <th className="px-4 py-3 text-right">{t("crateExport.shortage")}</th>
               </tr>
             </thead>
             <tbody>
@@ -385,10 +389,10 @@ export function TongExportForm({
         className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
       >
         {isPending
-          ? "处理中…"
+          ? t("common.processing")
           : isEdit
-            ? "保存修改 Save Changes"
-            : "确认归还 Confirm Export"}
+            ? t("crateExport.saveChanges")
+            : t("crateExport.confirmExport")}
       </Button>
     </div>
   );

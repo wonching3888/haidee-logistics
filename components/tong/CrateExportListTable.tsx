@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { voidCrateExport } from "@/app/actions/crateExport";
 import { SuccessBanner } from "@/components/shared/SuccessBanner";
 import { useCanWrite } from "@/components/shared/can-write-context";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ function buildReprintHref(exportNo: string, listDate: string): string {
 
 export function CrateExportListTable({ rows, listDate }: CrateExportListTableProps) {
   const router = useRouter();
+  const { t, tLocal, parts } = useT();
   const userCanWrite = useCanWrite();
   const [isPending, startTransition] = useTransition();
   const [voidTarget, setVoidTarget] = useState<CrateExportListRow | null>(null);
@@ -44,7 +46,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-haidee-border bg-white p-10 text-center text-sm text-haidee-muted">
-        该日暂无归还单 No crate exports for this date
+        {t("crateExport.emptyList")}
       </div>
     );
   }
@@ -57,10 +59,14 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
         await voidCrateExport(voidTarget.exportNo);
         const exportNo = voidTarget.exportNo;
         setVoidTarget(null);
-        setSuccessMessage(`归还单 ${exportNo} 已作废 ✓`);
+        setSuccessMessage(
+          t("crateExport.voidSuccess", { exportNo })
+        );
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "作废失败 Void failed");
+        setError(
+          e instanceof Error ? e.message : t("crateExport.error.voidFailed")
+        );
       }
     });
   }
@@ -77,20 +83,22 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
               <th className="whitespace-nowrap px-4 py-3 text-left font-medium">
-                日期 Date
-              </th>
-              <th className="whitespace-nowrap px-4 py-3 text-left font-medium">TE 号</th>
-              <th className="whitespace-nowrap px-4 py-3 text-left font-medium">
-                寄货人 Consignor
+                {t("common.date")}
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-left font-medium">
-                车牌 Plate
+                {t("crateExport.teNo")}
+              </th>
+              <th className="whitespace-nowrap px-4 py-3 text-left font-medium">
+                {t("common.consignor")}
+              </th>
+              <th className="whitespace-nowrap px-4 py-3 text-left font-medium">
+                {t("dispatch.plateField")}
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-right font-medium">
-                合计 Total (ลัง)
+                {t("common.total")} ({parts("common.crateUnit").local})
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-right font-medium">
-                操作
+                {t("common.actions")}
               </th>
             </tr>
           </thead>
@@ -119,7 +127,9 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                   {row.totalActual}
                   {row.totalShortage > 0 ? (
                     <span className="ml-2 text-xs font-normal text-haidee-red">
-                      欠 {row.totalShortage}
+                      {t("crateExport.shortageBadge", {
+                        n: String(row.totalShortage),
+                      })}
                     </span>
                   ) : null}
                 </td>
@@ -129,7 +139,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                       href={buildReprintHref(row.exportNo, listDate)}
                       className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
                     >
-                      重打 Reprint
+                      {t("crateExport.reprint")}
                     </Link>
                     {userCanWrite ? (
                       <>
@@ -137,7 +147,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                           href={buildEditHref(row.exportNo)}
                           className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-border px-3 text-sm text-haidee-text transition-colors hover:bg-haidee-surface"
                         >
-                          编辑 Edit
+                          {t("common.edit")}
                         </Link>
                         <Button
                           type="button"
@@ -149,7 +159,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                           }}
                           className="min-h-[36px] border-haidee-red text-haidee-red hover:bg-haidee-red/10"
                         >
-                          作废 Void
+                          {t("crateExport.void")}
                         </Button>
                       </>
                     ) : null}
@@ -172,12 +182,9 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>作废归还单 Void Export</DialogTitle>
+            <DialogTitle>{t("crateExport.voidTitle")}</DialogTitle>
             <DialogDescription>
-              确认作废归还单 {voidTarget?.exportNo}？将退回客户桶库存并删除整张单，不可恢复。
-              <br />
-              Void export {voidTarget?.exportNo}? Customer crate stock will be
-              reversed and all lines deleted. This cannot be undone.
+              {tLocal("crateExport.voidConfirm")}
             </DialogDescription>
           </DialogHeader>
           {error ? (
@@ -194,7 +201,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
               }}
               disabled={isPending}
             >
-              取消 Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -202,7 +209,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
               disabled={isPending}
               className="bg-haidee-red hover:bg-haidee-red/90"
             >
-              {isPending ? "处理中…" : "确认作废 Confirm Void"}
+              {isPending ? t("common.processing") : t("crateExport.confirmVoid")}
             </Button>
           </DialogFooter>
         </DialogContent>

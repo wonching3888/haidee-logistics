@@ -15,6 +15,9 @@ import {
   type CrateExportListRow,
 } from "@/lib/crate-export-list";
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
+import { t } from "@/lib/i18n/translate";
+import type { MessageKey } from "@/lib/i18n/messages";
+import type { UserLanguage } from "@/types";
 
 export interface CrateExportLineInput {
   tongTypeId: string;
@@ -53,16 +56,16 @@ function getActiveCrateExportLines(
   );
 }
 
-const CRATE_EXPORT_MIN_LINES_ERROR =
-  "请至少填写一行归还数据 Please enter at least one line";
+const CRATE_EXPORT_MIN_LINES_ERROR: MessageKey = "crateExport.error.minLines";
 
 /** At least one non-box line with quantityActual>0 or quantitySuggested>0. */
 async function assertCrateExportHasActiveLines(
-  lines: CrateExportLineInput[]
+  lines: CrateExportLineInput[],
+  locale: UserLanguage
 ): Promise<CrateExportLineInput[]> {
   const activeLines = getActiveCrateExportLines(lines);
   if (activeLines.length === 0) {
-    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
+    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
   }
 
   const tongTypeIds = Array.from(
@@ -80,7 +83,7 @@ async function assertCrateExportHasActiveLines(
   });
 
   if (!hasSavableLine) {
-    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
+    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
   }
 
   return activeLines;
@@ -148,9 +151,10 @@ export async function listCrateExportsForDate(
  */
 export async function saveCrateExport(input: CrateExportSaveInput) {
   const user = await requireWrite();
+  const locale = user.language;
 
   const date = parseDateInput(input.date);
-  const activeLines = await assertCrateExportHasActiveLines(input.lines);
+  const activeLines = await assertCrateExportHasActiveLines(input.lines, locale);
 
   const tongTypeIds = Array.from(
     new Set(activeLines.map((line) => line.tongTypeId))
@@ -173,7 +177,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     }),
   ]);
 
-  if (!shipper) throw new Error("寄货人不存在 Shipper not found");
+  if (!shipper) throw new Error(t("error.shipperNotFound", locale));
 
   const poolStockLocation = stockLocationForPoolShipperCode(shipper.code);
   const customerStockLocation =
@@ -225,7 +229,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   }
 
   if (exportRows.length === 0) {
-    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
+    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
   }
 
   await prisma.tongExport.createMany({ data: exportRows });
@@ -281,10 +285,13 @@ async function resolveCrateExportStockLocation(
   return ledger?.location ?? "";
 }
 
-async function reverseCrateExportInternal(exportNo: string) {
+async function reverseCrateExportInternal(
+  exportNo: string,
+  locale: UserLanguage
+) {
   const trimmed = exportNo.trim();
   if (!trimmed) {
-    throw new Error("归还单号无效 Invalid export number");
+    throw new Error(t("crateExport.error.invalidExportNo", locale));
   }
 
   const rows = await prisma.tongExport.findMany({
@@ -297,7 +304,7 @@ async function reverseCrateExportInternal(exportNo: string) {
   });
 
   if (rows.length === 0) {
-    throw new Error("归还单不存在 Export not found");
+    throw new Error(t("crateExport.error.notFound", locale));
   }
 
   const shipperId = rows[0].shipperId;
@@ -324,14 +331,15 @@ async function reverseCrateExportInternal(exportNo: string) {
 }
 
 export async function voidCrateExport(exportNo: string) {
-  await requireWrite();
+  const user = await requireWrite();
+  const locale = user.language;
 
   const trimmed = exportNo.trim();
   if (!trimmed) {
-    throw new Error("归还单号无效 Invalid export number");
+    throw new Error(t("crateExport.error.invalidExportNo", locale));
   }
 
-  await reverseCrateExportInternal(trimmed);
+  await reverseCrateExportInternal(trimmed, locale);
 
   revalidatePath("/crate/export");
   revalidatePath("/tong/export");
@@ -385,16 +393,17 @@ export async function editCrateExport(
   exportNo: string,
   input: Omit<CrateExportSaveInput, "forceExportNo">
 ) {
-  await requireWrite();
+  const user = await requireWrite();
+  const locale = user.language;
 
   const trimmed = exportNo.trim();
   if (!trimmed) {
-    throw new Error("归还单号无效 Invalid export number");
+    throw new Error(t("crateExport.error.invalidExportNo", locale));
   }
 
-  await assertCrateExportHasActiveLines(input.lines);
+  await assertCrateExportHasActiveLines(input.lines, locale);
 
-  await reverseCrateExportInternal(trimmed);
+  await reverseCrateExportInternal(trimmed, locale);
 
   return saveCrateExport({
     ...input,

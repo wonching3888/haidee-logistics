@@ -55,7 +55,7 @@ export function TongExportReceipt({ data }: TongExportReceiptProps) {
         <div className="receipt-phone">โทร. 098 337 9070 / 092 270 1477</div>
       </div>
 
-      <div className="receipt-title">ใบรับคืนถังเปล่า Empty Crate Receipt</div>
+      <div className="receipt-title">ใบรับคืนลังเปล่า Empty Crate Receipt</div>
 
       <div className="receipt-meta">
         <div>

@@ -10,6 +10,8 @@ import { CrateExportListTable } from "@/components/tong/CrateExportListTable";
 import { CrateExportUpdatedBanner } from "@/components/tong/CrateExportUpdatedBanner";
 import { PageError } from "@/components/shared/PageError";
 import { resolveCrateExportListDate } from "@/lib/crate-export-list";
+import { getCurrentUser } from "@/lib/auth";
+import { t } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,8 @@ export default async function TongExportPage({
 }: TongExportPageProps) {
   const params = await searchParams;
   const listDate = resolveCrateExportListDate(params.date);
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
 
   try {
     const [shippers, tongTypes, exports] = await Promise.all([
@@ -34,10 +38,10 @@ export default async function TongExportPage({
       <div className="space-y-8">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            空桶归还 Empty Crate Export
+            {t("nav.crateExport", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            泰国车空桶归还录入及泰文收据 TH vehicle empty crate return
+            {t("crateExport.pageSubtitle", locale)}
           </p>
         </div>
 
@@ -46,10 +50,10 @@ export default async function TongExportPage({
         <section className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-haidee-text">
-              今日归还单 Today&apos;s Returns
+              {t("crateExport.todayReturns", locale)}
             </h3>
             <p className="text-sm text-haidee-muted">
-              按日期查看已录入归还单 View saved returns by date
+              {t("crateExport.listHint", locale)}
             </p>
           </div>
 
@@ -74,7 +78,7 @@ export default async function TongExportPage({
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            空桶归还 Empty Crate Export
+            {t("nav.crateExport", locale)}
           </h2>
         </div>
         <PageError error={error} />

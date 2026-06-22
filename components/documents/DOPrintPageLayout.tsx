@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { ArrowLeft, Download, Printer } from "lucide-react";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 
 interface DOPrintPageLayoutProps {
@@ -27,6 +28,7 @@ export function DOPrintPageLayout({
   onPrintContentMount,
 }: DOPrintPageLayoutProps) {
   const router = useRouter();
+  const { t } = useT();
 
   function handleBack() {
     if (backHref) {
@@ -62,7 +64,7 @@ export function DOPrintPageLayout({
             className="gap-1"
           >
             <ArrowLeft className="h-4 w-4" />
-            返回 Back
+            {t("common.back")}
           </Button>
           <Button
             type="button"
@@ -71,7 +73,7 @@ export function DOPrintPageLayout({
             className="gap-1"
           >
             <Printer className="h-4 w-4" />
-            打印 Print
+            {t("common.print")}
           </Button>
           <Button
             type="button"
@@ -80,7 +82,7 @@ export function DOPrintPageLayout({
             className="gap-1"
           >
             <Download className="h-4 w-4" />
-            下载 PDF
+            {t("common.downloadPdf")}
           </Button>
           {toolbarExtra}
         </div>

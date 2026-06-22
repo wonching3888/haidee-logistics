@@ -100,7 +100,7 @@ try {
   if (exportOk) {
     const receiptText = (await receipt.textContent()) ?? "";
     const thaiOk =
-      receiptText.includes("ใบรับคืนถังเปล่า") &&
+      receiptText.includes("ใบรับคืนลังเปล่า") &&
       receiptText.includes("บริษัท ไฮดี โลจิสติกส์") &&
       receiptText.includes(setup.shipperName) &&
       receiptText.includes(String(setup.exportQty));
