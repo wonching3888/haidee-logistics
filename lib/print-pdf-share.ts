@@ -58,6 +58,41 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_") || "document.pdf";
 }
 
+async function waitForDocumentFonts() {
+  if (typeof document !== "undefined" && document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+}
+
+function addCanvasImageToPdfPages(
+  pdf: InstanceType<(typeof import("jspdf"))["jsPDF"]>,
+  imgData: string,
+  canvas: HTMLCanvasElement,
+  pageWidth: number,
+  pageHeight: number
+) {
+  const renderWidth = pageWidth;
+  const renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+  if (renderHeight <= pageHeight + 0.5) {
+    pdf.addImage(imgData, "JPEG", 0, 0, renderWidth, renderHeight);
+    return;
+  }
+
+  let heightLeft = renderHeight;
+  let position = 0;
+
+  pdf.addImage(imgData, "JPEG", 0, position, renderWidth, renderHeight);
+  heightLeft -= pageHeight;
+
+  while (heightLeft > 0.5) {
+    position = heightLeft - renderHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, "JPEG", 0, position, renderWidth, renderHeight);
+    heightLeft -= pageHeight;
+  }
+}
+
 export function resolvePdfOrientation(
   options: PdfFromElementOptions | undefined,
   contentWidthPx: number
@@ -124,6 +159,8 @@ export async function renderElementToPdfBlob(
   element: HTMLElement,
   options?: PdfFromElementOptions
 ): Promise<{ blob: Blob; fileName: string }> {
+  await waitForDocumentFonts();
+
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
     import("jspdf"),
@@ -132,23 +169,22 @@ export async function renderElementToPdfBlob(
   const scale = options?.scale ?? 2;
   const wideTableSelector = options?.wideTableSelector ?? ".daily-summary-table";
 
-  const captureExtents = options?.captureFullContentWidth
-    ? measureElementCaptureExtents(element, { wideTableSelector })
-    : {
-        width: Math.max(element.scrollWidth, 1),
-        height: Math.max(element.scrollHeight, 1),
-      };
+  const captureExtents = measureElementCaptureExtents(
+    element,
+    options?.captureFullContentWidth ? { wideTableSelector } : undefined
+  );
 
   const orientation = resolvePdfOrientation(options, captureExtents.width);
-  const cloneOptions: Html2CanvasCloneOptions | undefined =
-    options?.captureFullContentWidth
+  const cloneOptions: Html2CanvasCloneOptions = {
+    contentWidth: captureExtents.width,
+    contentHeight: captureExtents.height,
+    ...(options?.captureFullContentWidth
       ? {
-          contentWidth: captureExtents.width,
-          contentHeight: captureExtents.height,
           wideTableSelector,
           minPdfFontPt: options.minPdfFontPt ?? DEFAULT_MIN_PDF_FONT_PT,
         }
-      : undefined;
+      : {}),
+  };
 
   const canvas = await runWithHtml2CanvasCompat(() =>
     html2canvas(element, {
@@ -163,6 +199,7 @@ export async function renderElementToPdfBlob(
       onclone: (clonedDoc, clonedElement) => {
         const clonedRoot =
           clonedElement instanceof HTMLElement ? clonedElement : element;
+        clonedRoot.setAttribute("data-pdf-capture-root", "true");
         prepareHtml2CanvasClone(clonedDoc, element, clonedRoot, cloneOptions);
       },
     })
@@ -177,21 +214,7 @@ export async function renderElementToPdfBlob(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  let offsetY = 0;
-  let remaining = imgHeight;
-
-  pdf.addImage(imgData, "JPEG", 0, offsetY, imgWidth, imgHeight);
-  remaining -= pageHeight;
-
-  while (remaining > 0) {
-    offsetY = remaining - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, "JPEG", 0, offsetY, imgWidth, imgHeight);
-    remaining -= pageHeight;
-  }
+  addCanvasImageToPdfPages(pdf, imgData, canvas, pageWidth, pageHeight);
 
   const blob = pdf.output("blob");
   const fileName = sanitizeFileName(options?.fileName ?? "document.pdf");
@@ -233,8 +256,6 @@ export async function sharePdfBlob(
       try {
         await navigator.share({
           files: [file],
-          title: payload?.title ?? fileName,
-          text: payload?.text,
         });
         return {
           method: "web-share-file",

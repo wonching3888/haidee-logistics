@@ -721,7 +721,7 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .wtl-tax-invoice-document {
@@ -730,7 +730,7 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .wtl-tax-invoice-document .monthly-invoice-meta {

@@ -192,6 +192,21 @@ function injectPdfCaptureTypography(doc: Document, minPdfFontPt: number) {
   doc.head.appendChild(style);
 }
 
+function injectInvoicePdfCaptureTypography(doc: Document) {
+  const style = doc.createElement("style");
+  style.setAttribute("data-html2canvas-invoice-typography", "true");
+  style.textContent = `
+    [data-pdf-capture-root] .document-print,
+    [data-pdf-capture-root] .monthly-invoice-bill-to-name,
+    [data-pdf-capture-root] .monthly-invoice-bill-to {
+      word-spacing: normal !important;
+      letter-spacing: normal !important;
+      white-space: normal !important;
+    }
+  `;
+  doc.head.appendChild(style);
+}
+
 export function prepareHtml2CanvasClone(
   clonedDoc: Document,
   sourceRoot: HTMLElement,
@@ -201,6 +216,7 @@ export function prepareHtml2CanvasClone(
   sanitizeClonedDocumentStyles(clonedDoc);
   inlineResolvedColorsForHtml2Canvas(sourceRoot, clonedRoot);
   expandOverflowContainersForCapture(clonedRoot, options);
+  injectInvoicePdfCaptureTypography(clonedDoc);
   if (options?.minPdfFontPt && options.minPdfFontPt > 0) {
     injectPdfCaptureTypography(clonedDoc, options.minPdfFontPt);
   }
