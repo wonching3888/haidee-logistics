@@ -10,6 +10,7 @@ import {
   saveTongImport,
 } from "@/app/actions/tong";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import type {
   CrateImportLoadedRow,
@@ -141,6 +142,7 @@ export function TongImportForm({
   initialInTransitDynamicColumns,
 }: TongImportFormProps) {
   const router = useRouter();
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
@@ -185,7 +187,7 @@ export function TongImportForm({
         setSuccess(false);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "加载失败 Load failed");
+          setError(e instanceof Error ? e.message : t("error.loadFailed"));
         }
       }
     });
@@ -193,7 +195,7 @@ export function TongImportForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate]);
+  }, [selectedDate, t]);
 
   const trucks = useMemo(
     () => sortTrucksForImport(allTrucks, dispatchedPlates),
@@ -253,12 +255,12 @@ export function TongImportForm({
       options.push({
         code: CRATE_IMPORT_OTHER_COLUMN,
         label: CRATE_IMPORT_OTHER_COLUMN,
-        hint: "备注，不计入库存 Notes only",
+        hint: t("crateImport.otherColumnHint"),
       });
     }
 
     return options;
-  }, [crateTypes, usedColumnCodes]);
+  }, [crateTypes, usedColumnCodes, t]);
 
   async function refreshInTransit() {
     const data = await loadInTransitCrateImports();
@@ -283,7 +285,7 @@ export function TongImportForm({
 
   function openAddColumnDialog() {
     if (addableColumnOptions.length === 0) {
-      setError("没有可添加的桶型 No more crate types to add");
+      setError(t("crateImport.error.noMoreTypes"));
       return;
     }
     setSelectedColumnCode(addableColumnOptions[0]?.code ?? "");
@@ -294,7 +296,9 @@ export function TongImportForm({
   function confirmAddColumn() {
     if (!selectedColumnCode) return;
     if (usedColumnCodes.has(selectedColumnCode)) {
-      setError(`列已存在 Column already exists: ${selectedColumnCode}`);
+      setError(
+        t("crateImport.error.columnExists", { code: selectedColumnCode })
+      );
       return;
     }
     setDynamicColumns((prev) => [...prev, selectedColumnCode]);
@@ -333,7 +337,7 @@ export function TongImportForm({
         setSuccess(true);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "保存失败");
+        setError(e instanceof Error ? e.message : t("error.saveFailed"));
       }
     });
   }
@@ -364,7 +368,9 @@ export function TongImportForm({
         );
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "更新失败 Update failed");
+        setError(
+          e instanceof Error ? e.message : t("crateImport.error.updateFailed")
+        );
       }
     });
   }
@@ -380,7 +386,7 @@ export function TongImportForm({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h3 className="text-lg font-semibold text-haidee-text">
-            当日记录 Today
+            {t("crateImport.todaySection")}
           </h3>
           <DateInputField
             value={selectedDate}
@@ -393,8 +399,10 @@ export function TongImportForm({
           <table className="w-full min-w-[900px] text-xs">
             <thead>
               <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>车牌 Plate</th>
-                  <th className="px-2 py-2 text-left">来源市场 Market</th>
+                <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>
+                  {t("dispatch.plateField")}
+                </th>
+                  <th className="px-2 py-2 text-left">{t("crateImport.sourceMarket")}</th>
                   {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                     <th key={c.key} className="px-1 py-2 font-mono">
                       {c.label}
@@ -408,7 +416,7 @@ export function TongImportForm({
                           type="button"
                           onClick={() => removeDynamicColumn(name)}
                           className="rounded p-0.5 text-haidee-muted hover:text-haidee-red"
-                          aria-label={`删除列 ${name}`}
+                          aria-label={t("crateImport.removeColumnAria", { name })}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -423,12 +431,12 @@ export function TongImportForm({
                       className="inline-flex items-center gap-0.5 rounded border border-dashed border-haidee-border px-1.5 py-0.5 font-medium text-haidee-blue hover:bg-haidee-surface disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="h-3 w-3" />
-                      加列
+                      {t("crateImport.addColumn")}
                     </button>
                   </th>
-                  <th className="px-2 py-2">状态 Status</th>
-                  <th className="px-2 py-2">备注 Notes</th>
-                  <th className="px-2 py-2">总计 Total</th>
+                  <th className="px-2 py-2">{t("common.status")}</th>
+                  <th className="px-2 py-2">{t("common.notes")}</th>
+                  <th className="px-2 py-2">{t("common.total")}</th>
                   <th className="px-1 py-2 w-10"></th>
                 </tr>
               </thead>
@@ -509,8 +517,12 @@ export function TongImportForm({
                         }
                         className={`${selectClass} min-w-[90px]`}
                       >
-                        <option value="on_the_way">🟡 在途</option>
-                        <option value="arrived">🟢 已到</option>
+                        <option value="on_the_way">
+                          🟡 {t("crateImport.status.onTheWay")}
+                        </option>
+                        <option value="arrived">
+                          🟢 {t("crateImport.status.arrived")}
+                        </option>
                       </select>
                     </td>
                     <td className="px-1 py-1">
@@ -543,7 +555,7 @@ export function TongImportForm({
               <tfoot>
                 <tr className="border-t-2 border-haidee-border bg-haidee-surface font-semibold text-haidee-text">
                   <td className="px-2 py-2" colSpan={2}>
-                    总计 Total
+                    {t("common.total")}
                   </td>
                   {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
                     <td
@@ -576,7 +588,7 @@ export function TongImportForm({
           className="gap-2"
         >
           <Plus className="h-4 w-4" />
-          加一行 Add Row
+          {t("crateImport.addRow")}
         </Button>
 
         <Button
@@ -584,7 +596,7 @@ export function TongImportForm({
           disabled={isPending}
           className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
         >
-          {isPending ? "保存中…" : "确认保存 Confirm Save"}
+          {isPending ? t("common.saving") : t("crateImport.confirmSave")}
         </Button>
       </section>
 
@@ -593,10 +605,12 @@ export function TongImportForm({
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-lg font-semibold text-haidee-text">
-              仍在途中 In Transit
+              {t("crateImport.inTransitTitle")}
             </h3>
             <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-haidee-orange">
-              {inTransitTruckCount} 辆车仍在途中
+              {t("crateImport.inTransitCount", {
+                n: String(inTransitTruckCount),
+              })}
             </span>
           </div>
 
@@ -604,9 +618,13 @@ export function TongImportForm({
               <table className="w-full min-w-[960px] text-xs">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                    <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>车牌 Plate</th>
-                    <th className={cn(STICKY_HEAD_TOP, "px-2 py-2 text-left")}>日期 Date</th>
-                    <th className="px-2 py-2 text-left">来源市场 Market</th>
+                    <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>
+                      {t("dispatch.plateField")}
+                    </th>
+                    <th className={cn(STICKY_HEAD_TOP, "px-2 py-2 text-left")}>
+                      {t("common.date")}
+                    </th>
+                    <th className="px-2 py-2 text-left">{t("crateImport.sourceMarket")}</th>
                     {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                       <th key={c.key} className="px-1 py-2 font-mono">
                         {c.label}
@@ -617,9 +635,9 @@ export function TongImportForm({
                         {name}
                       </th>
                     ))}
-                    <th className="px-2 py-2">状态 Status</th>
-                    <th className="px-2 py-2">备注 Notes</th>
-                    <th className="px-2 py-2">总计 Total</th>
+                    <th className="px-2 py-2">{t("common.status")}</th>
+                    <th className="px-2 py-2">{t("common.notes")}</th>
+                    <th className="px-2 py-2">{t("common.total")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -659,8 +677,12 @@ export function TongImportForm({
                           disabled={isPending}
                           className={`${selectClass} min-w-[90px]`}
                         >
-                          <option value="on_the_way">🟡 在途</option>
-                          <option value="arrived">🟢 已到</option>
+                          <option value="on_the_way">
+                            🟡 {t("crateImport.status.onTheWay")}
+                          </option>
+                          <option value="arrived">
+                            🟢 {t("crateImport.status.arrived")}
+                          </option>
                         </select>
                       </td>
                       <td className="px-2 py-1 text-haidee-muted">
@@ -684,18 +706,18 @@ export function TongImportForm({
       )}
       {success && (
         <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-haidee-green">
-          保存成功，SADAO 库存已更新 Saved — SADAO stock updated
+          {t("crateImport.saveSuccess")}
         </p>
       )}
 
       <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>添加桶型列 Add Crate Column</DialogTitle>
+            <DialogTitle>{t("crateImport.addColumnTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <label className="text-sm font-medium text-haidee-text">
-              选择桶型 Select crate type
+              {t("crateImport.selectCrateType")}
             </label>
             <select
               value={selectedColumnCode}
@@ -716,7 +738,7 @@ export function TongImportForm({
               variant="outline"
               onClick={() => setAddColumnOpen(false)}
             >
-              取消 Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -724,7 +746,7 @@ export function TongImportForm({
               disabled={!selectedColumnCode}
               className="bg-haidee-blue text-white hover:bg-haidee-blue/90"
             >
-              确认添加 Add
+              {t("inbound.confirmAdd")}
             </Button>
           </DialogFooter>
         </DialogContent>

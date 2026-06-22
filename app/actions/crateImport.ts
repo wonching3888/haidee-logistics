@@ -13,6 +13,8 @@ import {
 } from "@/lib/constants/tong-import-columns";
 import { CRATE_IMPORT_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import { ensureCrateReturnMonthlyInvoicesForCrateTypes } from "@/lib/crate-return-billing";
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
 
 export interface CrateTypeOption {
   id: string;
@@ -222,7 +224,8 @@ export async function markCrateImportRowArrived(
   truckPlate: string,
   marketCode: string
 ) {
-  await requireWrite();
+  const user = await requireWrite();
+  const locale = user.language;
 
   const date = parseDateInput(dateStr);
   const [truck, market] = await Promise.all([
@@ -235,8 +238,16 @@ export async function markCrateImportRowArrived(
       select: { id: true },
     }),
   ]);
-  if (!truck) throw new Error(`车牌不存在 Unknown plate: ${truckPlate}`);
-  if (!market) throw new Error(`市场代码无效 Invalid market: ${marketCode}`);
+  if (!truck) {
+    throw new Error(
+      t("crateImport.error.plateNotFound", locale, { plate: truckPlate })
+    );
+  }
+  if (!market) {
+    throw new Error(
+      t("crateImport.error.invalidMarket", locale, { code: marketCode })
+    );
+  }
 
   await prisma.tongImport.updateMany({
     where: {
@@ -265,19 +276,28 @@ function buildTongImportRecords(
   truckMap: Record<string, string>,
   marketMap: Record<string, string>,
   tongMap: Record<string, string>,
-  otherTongTypeId: string | undefined
+  otherTongTypeId: string | undefined,
+  locale: UserLanguage
 ): Prisma.TongImportCreateManyInput[] {
   const records: Prisma.TongImportCreateManyInput[] = [];
 
   for (const row of rows) {
     if (!row.truckPlate) continue;
     const truckId = truckMap[row.truckPlate];
-    if (!truckId) throw new Error(`车牌不存在 Unknown plate: ${row.truckPlate}`);
+    if (!truckId) {
+      throw new Error(
+        t("crateImport.error.plateNotFound", locale, {
+          plate: row.truckPlate,
+        })
+      );
+    }
     if (!row.marketCode) continue;
 
     const marketId = marketMap[row.marketCode];
     if (!marketId) {
-      throw new Error(`市场代码无效 Invalid market: ${row.marketCode}`);
+      throw new Error(
+        t("crateImport.error.invalidMarket", locale, { code: row.marketCode })
+      );
     }
 
     const otherColsData: Record<string, number> = {};
@@ -341,6 +361,7 @@ export async function saveCrateImport(
   rows: CrateImportRowInput[]
 ) {
   const user = await requireWrite();
+  const locale = user.language;
 
   const date = parseDateInput(dateStr);
   const [trucks, markets, tongTypes] = await Promise.all([
@@ -361,7 +382,8 @@ export async function saveCrateImport(
     truckMap,
     marketMap,
     tongMap,
-    otherTongTypeId
+    otherTongTypeId,
+    locale
   );
 
   await prisma.$transaction(async (tx) => {

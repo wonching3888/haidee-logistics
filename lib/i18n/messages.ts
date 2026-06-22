@@ -156,6 +156,11 @@ export const MESSAGES = {
     en: "Status",
     th: "สถานะ",
   },
+  "common.notes": {
+    zh: "备注",
+    en: "Notes",
+    th: "หมายเหตุ",
+  },
   "common.search": {
     zh: "搜索",
     en: "Search",
@@ -1040,6 +1045,106 @@ export const MESSAGES = {
     zh: "归还单不存在",
     en: "Export not found",
     th: "ไม่พบใบคืนลัง",
+  },
+  "crateImport.pageSubtitle": {
+    zh: "马来西亚车回程空桶回收录入",
+    en: "MY truck return crate collection",
+    th: "บันทึกรับลังเปล่ารถมาเลเซียขากลับ",
+  },
+  "crateImport.todaySection": {
+    zh: "当日记录",
+    en: "Today",
+    th: "บันทึกวันนี้",
+  },
+  "crateImport.sourceMarket": {
+    zh: "来源市场",
+    en: "Market",
+    th: "ตลาดต้นทาง",
+  },
+  "crateImport.addColumn": {
+    zh: "加列",
+    en: "Add column",
+    th: "เพิ่มคอลัมน์",
+  },
+  "crateImport.otherColumnHint": {
+    zh: "备注，不计入库存",
+    en: "Notes only, not counted in stock",
+    th: "หมายเหตุ ไม่นับเข้าสต๊อก",
+  },
+  "crateImport.removeColumnAria": {
+    zh: "删除列 {name}",
+    en: "Remove column {name}",
+    th: "ลบคอลัมน์ {name}",
+  },
+  "crateImport.addRow": {
+    zh: "加一行",
+    en: "Add Row",
+    th: "เพิ่มแถว",
+  },
+  "crateImport.confirmSave": {
+    zh: "确认保存",
+    en: "Confirm Save",
+    th: "ยืนยันบันทึก",
+  },
+  "crateImport.status.onTheWay": {
+    zh: "在途",
+    en: "In transit",
+    th: "ระหว่างทาง",
+  },
+  "crateImport.status.arrived": {
+    zh: "已到",
+    en: "Arrived",
+    th: "มาถึงแล้ว",
+  },
+  "crateImport.inTransitTitle": {
+    zh: "仍在途中",
+    en: "In Transit",
+    th: "ยังอยู่ระหว่างทาง",
+  },
+  "crateImport.inTransitCount": {
+    zh: "{n} 辆车仍在途中",
+    en: "{n} trucks in transit",
+    th: "มี {n} คันยังอยู่ระหว่างทาง",
+  },
+  "crateImport.saveSuccess": {
+    zh: "保存成功，SADAO 库存已更新",
+    en: "Saved — SADAO stock updated",
+    th: "บันทึกแล้ว อัปเดตสต๊อก SADAO",
+  },
+  "crateImport.addColumnTitle": {
+    zh: "添加桶型列",
+    en: "Add Crate Column",
+    th: "เพิ่มคอลัมน์ประเภทลัง",
+  },
+  "crateImport.selectCrateType": {
+    zh: "选择桶型",
+    en: "Select crate type",
+    th: "เลือกประเภทลัง",
+  },
+  "crateImport.error.noMoreTypes": {
+    zh: "没有可添加的桶型",
+    en: "No more crate types to add",
+    th: "ไม่มีประเภทลังให้เพิ่มแล้ว",
+  },
+  "crateImport.error.columnExists": {
+    zh: "列已存在: {code}",
+    en: "Column already exists: {code}",
+    th: "มีคอลัมน์นี้แล้ว: {code}",
+  },
+  "crateImport.error.updateFailed": {
+    zh: "更新失败",
+    en: "Update failed",
+    th: "อัปเดตล้มเหลว",
+  },
+  "crateImport.error.plateNotFound": {
+    zh: "车牌不存在: {plate}",
+    en: "Unknown plate: {plate}",
+    th: "ไม่พบทะเบียนรถ: {plate}",
+  },
+  "crateImport.error.invalidMarket": {
+    zh: "市场代码无效: {code}",
+    en: "Invalid market: {code}",
+    th: "รหัสตลาดไม่ถูกต้อง: {code}",
   },
 } as const satisfies Record<
   string,
