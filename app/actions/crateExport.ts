@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
-import { addCustomerCratesBatch } from "@/app/actions/customerCrateStock";
+import { addCustomerCratesBatch, deductCustomerCratesBatch } from "@/app/actions/customerCrateStock";
 import type { ReceiptData } from "@/components/tong/TongExportReceipt";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -200,6 +200,83 @@ export async function saveCrateExport(input: {
     thVehiclePlate: input.thVehiclePlate,
     lines: receiptLines,
   };
+}
+
+async function resolveCrateExportStockLocation(
+  exportNo: string,
+  shipperId: string
+): Promise<string> {
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { code: true },
+  });
+  if (!shipper) return "";
+
+  const poolLoc = stockLocationForPoolShipperCode(shipper.code);
+  if (poolLoc) return poolLoc;
+
+  const ledger = await prisma.customerCrateLedger.findFirst({
+    where: {
+      shipperId,
+      changeType: "export",
+      notes: `归还 ${exportNo}`,
+    },
+    select: { location: true },
+  });
+
+  return ledger?.location ?? "";
+}
+
+export async function voidCrateExport(exportNo: string) {
+  await requireWrite();
+
+  const trimmed = exportNo.trim();
+  if (!trimmed) {
+    throw new Error("归还单号无效 Invalid export number");
+  }
+
+  const rows = await prisma.tongExport.findMany({
+    where: { exportNo: trimmed },
+    select: {
+      shipperId: true,
+      tongTypeId: true,
+      quantityActual: true,
+    },
+  });
+
+  if (rows.length === 0) {
+    throw new Error("归还单不存在 Export not found");
+  }
+
+  const shipperId = rows[0].shipperId;
+  const location = await resolveCrateExportStockLocation(trimmed, shipperId);
+
+  const deductions = rows
+    .filter((row) => row.quantityActual > 0)
+    .map((row) => ({
+      crateTypeId: row.tongTypeId,
+      quantity: row.quantityActual,
+    }));
+
+  if (deductions.length > 0) {
+    await deductCustomerCratesBatch(
+      shipperId,
+      deductions,
+      "export_void",
+      location,
+      `作废 ${trimmed}`
+    );
+  }
+
+  await prisma.tongExport.deleteMany({ where: { exportNo: trimmed } });
+
+  revalidatePath("/crate/export");
+  revalidatePath("/tong/export");
+  revalidatePath("/crate/stock");
+  revalidatePath("/tong/stock");
+  revalidatePath("/crate/customer-stock");
+
+  return { ok: true as const };
 }
 
 /** Load receipt data for print / reprint by export batch number. */
