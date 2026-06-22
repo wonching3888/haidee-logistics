@@ -7,6 +7,8 @@ import {
 } from "@/app/actions/inbound";
 import { InboundForm } from "@/components/inbound/InboundForm";
 import { PageError } from "@/components/shared/PageError";
+import { getCurrentUser } from "@/lib/auth";
+import { t } from "@/lib/i18n/translate";
 import {
   serializeInboundFormInitialSession,
   serializeInboundFreightLines,
@@ -23,6 +25,8 @@ interface EditInboundPageProps {
 
 export default async function EditInboundPage({ params }: EditInboundPageProps) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
 
   try {
     const [session, shippers, tongTypes, markets] = await Promise.all([
@@ -38,13 +42,13 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
     <div className="min-w-0 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-haidee-text">
-          编辑进货 Edit Inbound
+          {t("inbound.edit", locale)}
         </h2>
         <p className="text-sm text-haidee-muted">
           {session.sessionNo ? (
             <span className="font-mono">{session.sessionNo}</span>
           ) : (
-            "草稿 Draft"
+            t("common.draft", locale)
           )}
           {" · "}
           {session.shipperName}
@@ -69,7 +73,7 @@ export default async function EditInboundPage({ params }: EditInboundPageProps) 
       <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            编辑进货 Edit Inbound
+            {t("inbound.edit", locale)}
           </h2>
         </div>
         <PageError error={error} />

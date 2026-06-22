@@ -4,6 +4,8 @@ import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
+import { getMessageParts, t } from "@/lib/i18n/translate";
+import type { MessageKey } from "@/lib/i18n/messages";
 import type { InboundSessionListRow } from "@/lib/inbound-list";
 import {
   INBOUND_COLUMN_WIDTHS,
@@ -20,9 +22,11 @@ import {
 } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import type { UserLanguage } from "@/types";
 
 interface InboundListTableProps {
   sessions: InboundSessionListRow[];
+  locale: UserLanguage;
 }
 
 const W = INBOUND_COLUMN_WIDTHS;
@@ -69,33 +73,46 @@ function TruncatedCell({
   );
 }
 
-function NarrowHeader({
-  primary,
-  secondary,
+function I18nHeader({
+  messageKey,
+  locale,
   className,
+  align = "left",
 }: {
-  primary: string;
-  secondary: string;
+  messageKey: MessageKey;
+  locale: UserLanguage;
   className?: string;
+  align?: "left" | "right";
 }) {
+  const { local, en } = getMessageParts(messageKey, locale);
   return (
-    <th className={className}>
-      <div className="leading-tight">{primary}</div>
+    <th
+      className={cn(
+        className,
+        align === "right" && "text-right"
+      )}
+    >
+      <div className="leading-tight">{local}</div>
       <div className="text-[10px] font-normal leading-tight text-haidee-muted/90">
-        {secondary}
+        {en}
       </div>
     </th>
   );
 }
 
-export function InboundListTable({ sessions }: InboundListTableProps) {
+export function InboundListTable({ sessions, locale }: InboundListTableProps) {
   if (sessions.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
-        暂无进货记录 No inbound records found
+        {t("inbound.emptyList", locale)}
       </div>
     );
   }
+
+  const draftLabel = t("common.draft", locale);
+  const unassignedLabel = t("inbound.unassigned", locale);
+  const assignedLabel = t("inbound.statusAssigned", locale);
+  const editLabel = t("common.edit", locale);
 
   return (
     <ScrollMatrixTable fillParent className="h-full rounded-xl">
@@ -114,71 +131,74 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
         </colgroup>
         <thead>
           <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
-            <th
-              style={stickyLeft(INBOUND_STICKY_LEFT_PX.date)}
+            <I18nHeader
+              messageKey="common.date"
+              locale={locale}
               className={cn(
                 STICKY_HEAD_FIRST,
                 "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 font-medium"
               )}
-            >
-              日期 Date
-            </th>
-            <th
-              style={stickyLeft(INBOUND_STICKY_LEFT_PX.batch)}
+            />
+            <I18nHeader
+              messageKey="inbound.batchNo"
+              locale={locale}
               className={cn(
                 STICKY_HEAD_BATCH,
                 "overflow-hidden whitespace-nowrap border-b border-haidee-border px-3 py-3 font-medium"
               )}
-            >
-              批次号 Batch
-            </th>
-            <th
-              style={stickyLeft(INBOUND_STICKY_LEFT_PX.consignor)}
+            />
+            <I18nHeader
+              messageKey="common.consignor"
+              locale={locale}
               className={cn(
                 STICKY_HEAD_CONSIGNOR,
                 "overflow-hidden border-b border-haidee-border px-3 py-3 font-medium"
               )}
-            >
-              <div className="leading-tight">寄货人</div>
-              <div className="text-[10px] font-normal leading-tight text-haidee-muted/90">
-                Consignor
-              </div>
-            </th>
-            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}>
-              收货地点 Pickup
-            </th>
-            <NarrowHeader
-              primary="地区"
-              secondary="Area"
+            />
+            <I18nHeader
+              messageKey="inbound.pickup"
+              locale={locale}
+              className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}
+            />
+            <I18nHeader
+              messageKey="common.area"
+              locale={locale}
               className={cn(stickyHeadTopClass, "overflow-hidden px-2 py-3 font-medium")}
             />
-            <NarrowHeader
-              primary="车牌"
-              secondary="TH Plt"
+            <I18nHeader
+              messageKey="inbound.thPlate"
+              locale={locale}
               className={cn(stickyHeadTopClass, "overflow-hidden px-2 py-3 font-medium")}
             />
-            <th
+            <I18nHeader
+              messageKey="common.total"
+              locale={locale}
+              align="right"
               className={cn(
                 stickyHeadTopClass,
-                "whitespace-nowrap px-3 py-3 text-right font-medium"
+                "whitespace-nowrap px-3 py-3 font-medium"
               )}
-            >
-              总数量 Total
-            </th>
-            <th
+            />
+            <I18nHeader
+              messageKey="inbound.unassigned"
+              locale={locale}
+              align="right"
               className={cn(
                 stickyHeadTopClass,
-                "whitespace-nowrap px-3 py-3 text-right font-medium"
+                "whitespace-nowrap px-3 py-3 font-medium"
               )}
-            >
-              未分配 Unassigned
-            </th>
-            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}>
-              状态 Status
-            </th>
-            <th className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 text-right font-medium")}>
-              操作 Actions
-            </th>
+            />
+            <I18nHeader
+              messageKey="common.status"
+              locale={locale}
+              className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}
+            />
+            <I18nHeader
+              messageKey="common.actions"
+              locale={locale}
+              align="right"
+              className={cn(stickyHeadTopClass, "overflow-hidden whitespace-nowrap px-3 py-3 font-medium")}
+            />
           </tr>
         </thead>
         <tbody>
@@ -210,7 +230,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                   title={s.sessionNo ?? undefined}
                 >
                   {s.sessionNo ?? (
-                    <span className="text-haidee-muted">草稿 Draft</span>
+                    <span className="text-haidee-muted">{draftLabel}</span>
                   )}
                 </div>
               </td>
@@ -246,7 +266,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                 <TruncatedCell text={s.thVehiclePlate} maxWidth={innerWidth(W.plate, 8)} />
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right font-mono font-semibold">
-                {formatCrateBoxQty(s.crateQty, s.boxQty)}
+                {formatCrateBoxQty(s.crateQty, s.boxQty, locale)}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right font-mono">
                 {s.status === "draft" ? (
@@ -259,7 +279,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                         : "text-haidee-green"
                     }
                   >
-                    {formatCrateBoxQty(s.unassignedCrateQty, s.unassignedBoxQty)}
+                    {formatCrateBoxQty(s.unassignedCrateQty, s.unassignedBoxQty, locale)}
                   </span>
                 )}
               </td>
@@ -268,25 +288,25 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                   <Badge
                     variant="outline"
                     className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
-                    title="草稿 Draft"
+                    title={draftLabel}
                   >
-                    草稿 Draft
+                    {draftLabel}
                   </Badge>
                 ) : s.unassignedQty > 0 ? (
                   <Badge
                     variant="outline"
                     className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
-                    title="未分配 Unassigned"
+                    title={unassignedLabel}
                   >
-                    未分配 Unassigned
+                    {unassignedLabel}
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
                     className="max-w-full truncate border-haidee-green text-xs text-haidee-green"
-                    title="已分配 Assigned"
+                    title={assignedLabel}
                   >
-                    已分配 Assigned
+                    {assignedLabel}
                   </Badge>
                 )}
               </td>
@@ -296,7 +316,7 @@ export function InboundListTable({ sessions }: InboundListTableProps) {
                     href={`/inbound/${s.id}/edit`}
                     className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
                   >
-                    编辑 Edit
+                    {editLabel}
                   </Link>
                   <InboundDeleteButton sessionId={s.id} variant="icon" />
                 </div>

@@ -65,11 +65,20 @@ export function cellDisplay(crateQty: number, boxQty: number): string {
   return `${crateQty}+${boxQty}盒`;
 }
 
-/** Display crate + box counts, e.g. "33桶 + 2盒" */
-export function formatCrateBoxQty(crateQty: number, boxQty: number): string {
+import type { UserLanguage } from "@/types";
+import { MESSAGES } from "@/lib/i18n/messages";
+
+/** Display crate + box counts, e.g. "33桶 + 2盒" / "33ลัง + 2กล่อง" */
+export function formatCrateBoxQty(
+  crateQty: number,
+  boxQty: number,
+  locale: UserLanguage = "zh"
+): string {
+  const crateUnit = MESSAGES["common.crateUnit"][locale];
+  const boxUnit = MESSAGES["common.boxUnit"][locale];
   const parts: string[] = [];
-  if (crateQty > 0) parts.push(`${crateQty}桶`);
-  if (boxQty > 0) parts.push(`${boxQty}盒`);
+  if (crateQty > 0) parts.push(`${crateQty}${crateUnit}`);
+  if (boxQty > 0) parts.push(`${boxQty}${boxUnit}`);
   if (parts.length === 0) return "0";
   return parts.join(" + ");
 }

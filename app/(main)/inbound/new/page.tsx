@@ -1,8 +1,13 @@
 import { getMarkets, getShippers, getTongTypes } from "@/app/actions/inbound";
 import { InboundForm } from "@/components/inbound/InboundForm";
 import { PageError } from "@/components/shared/PageError";
+import { getCurrentUser } from "@/lib/auth";
+import { t } from "@/lib/i18n/translate";
 
 export default async function NewInboundPage() {
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
+
   try {
     const [shippers, tongTypes, markets] = await Promise.all([
       getShippers(),
@@ -14,10 +19,10 @@ export default async function NewInboundPage() {
       <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            新增进货 New Inbound
+            {t("inbound.new", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            选择寄货人后自动带出固定收货人列表 Select consignor to load default receivers
+            {t("inbound.newSubtitle", locale)}
           </p>
         </div>
 
@@ -29,7 +34,7 @@ export default async function NewInboundPage() {
       <div className="min-w-0 space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            新增进货 New Inbound
+            {t("inbound.new", locale)}
           </h2>
         </div>
         <PageError error={error} />
