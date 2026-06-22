@@ -636,6 +636,16 @@ export const MESSAGES = {
     en: "Market Totals",
     th: "รวมแต่ละตลาด",
   },
+  "dispatch.klMcPrintTitle": {
+    zh: "派车汇总 KL–MC",
+    en: "Dispatch summary KL–MC",
+    th: "Dispatch summary KL–MC",
+  },
+  "dispatch.printKlMc": {
+    zh: "打印 KL-MC",
+    en: "Print KL-MC",
+    th: "Print KL-MC",
+  },
   "dispatch.noUnassignedCargo": {
     zh: "暂无未分配货物",
     en: "No unassigned cargo",

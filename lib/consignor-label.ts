@@ -7,6 +7,61 @@ import { MESSAGES } from "@/lib/i18n/messages";
 import type { UserLanguage } from "@/types";
 
 const MOBILE_NAME_MAX_LEN = 15;
+const KL_MC_PRINT_CONSIGNOR_MAX_LEN = 48;
+
+const COMPANY_SUFFIX_PATTERNS = [
+  /\s+SDN\.?\s*BHD\.?/gi,
+  /\s+CO\.?,?\s*LTD\.?/gi,
+] as const;
+
+export interface KlMcPrintConsignorParts {
+  base: string;
+  suffix: string;
+}
+
+/** Strip pickup / company suffix; split trailing (…) branch for safe truncation. */
+export function formatConsignorForKlMcPrint(
+  shipperName: string,
+  maxBaseLen = KL_MC_PRINT_CONSIGNOR_MAX_LEN
+): KlMcPrintConsignorParts {
+  let name = shipperName.trim();
+  const pickupSplit = name.split(/\s+·\s+/);
+  if (pickupSplit.length > 1) {
+    name = pickupSplit[0]?.trim() ?? name;
+  }
+
+  for (const pattern of COMPANY_SUFFIX_PATTERNS) {
+    name = name.replace(pattern, "");
+  }
+  name = name.replace(/\s{2,}/g, " ").trim();
+
+  const lastOpen = name.lastIndexOf("(");
+  if (lastOpen === -1) {
+    return { base: truncateBase(name, maxBaseLen), suffix: "" };
+  }
+
+  const suffix = name.slice(lastOpen).trim();
+  const base = name.slice(0, lastOpen).trim();
+  if (!/^\(.+\)$/.test(suffix)) {
+    return { base: truncateBase(name, maxBaseLen), suffix: "" };
+  }
+
+  return { base: truncateBase(base, maxBaseLen), suffix };
+}
+
+function truncateBase(base: string, maxLen: number): string {
+  if (base.length <= maxLen) return base;
+  return `${base.slice(0, maxLen - 1)}…`;
+}
+
+/** @deprecated Use formatConsignorForKlMcPrint — kept for callers needing a single string. */
+export function shortenConsignorForKlMcPrint(
+  shipperName: string,
+  maxLen = KL_MC_PRINT_CONSIGNOR_MAX_LEN
+): string {
+  const { base, suffix } = formatConsignorForKlMcPrint(shipperName, maxLen);
+  return suffix ? `${base}${base.endsWith("…") ? "" : " "}${suffix}` : base;
+}
 
 /** Truncate consignor/customer names on mobile (full text via title attribute). */
 export function truncateNameForMobile(

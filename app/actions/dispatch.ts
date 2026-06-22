@@ -27,6 +27,7 @@ import { rateAsOfForSessionDate } from "@/lib/constants/rate-effective-date";
 import {
   compareDispatchPriority,
   DISPATCH_PRIORITY_ORDER,
+  KL_MC_MARKET_CODES,
   MARKET_ORDER,
   marketPriorityRank,
   sortMarkets,
@@ -213,6 +214,140 @@ function aggregateLines(
       { marketCode: b.marketCode, createdAtMs: b.createdAtMs }
     )
   );
+}
+
+export type KlMcMarketCode = (typeof KL_MC_MARKET_CODES)[number];
+
+export interface DispatchKlMcPrintRow {
+  sessionId: string;
+  shipperName: string;
+  areaNote: string;
+  cells: Record<string, CrateBoxQty>;
+  rowSubtotal: CrateBoxQty;
+}
+
+export interface DispatchKlMcPrintData {
+  date: string;
+  markets: readonly KlMcMarketCode[];
+  rows: DispatchKlMcPrintRow[];
+  colTotals: Record<string, CrateBoxQty>;
+  grandSubtotal: CrateBoxQty;
+}
+
+function addQty(a: CrateBoxQty, b: CrateBoxQty): CrateBoxQty {
+  return { crate: a.crate + b.crate, box: a.box + b.box };
+}
+
+function hasQty(q: CrateBoxQty): boolean {
+  return q.crate > 0 || q.box > 0;
+}
+
+function sumMarketsQty(
+  cells: Record<string, CrateBoxQty>,
+  markets: readonly string[]
+): CrateBoxQty {
+  return markets.reduce(
+    (sum, code) => addQty(sum, cells[code] ?? emptyQty()),
+    emptyQty()
+  );
+}
+
+export async function getDispatchKlMcPrintData(
+  dateStr: string
+): Promise<DispatchKlMcPrintData> {
+  const date = parseDateInput(dateStr);
+  const lines = await fetchUnassignedLines(date);
+  const markets = KL_MC_MARKET_CODES;
+
+  type SessionAgg = {
+    shipperName: string;
+    areaNote: string;
+    cells: Record<string, CrateBoxQty>;
+    createdAtMs: number;
+    bestRank: number;
+  };
+
+  const sessions = new Map<string, SessionAgg>();
+
+  for (const line of lines) {
+    const marketCode = line.stall.market?.code;
+    if (!marketCode) continue;
+
+    const sessionId = line.sessionId;
+    const createdAtMs = line.session.createdAt.getTime();
+    const rank = marketPriorityRank(marketCode);
+
+    let session = sessions.get(sessionId);
+    if (!session) {
+      session = {
+        shipperName: line.session.shipper.name,
+        areaNote: line.session.areaNote?.trim() ?? "",
+        cells: {},
+        createdAtMs,
+        bestRank: rank,
+      };
+      sessions.set(sessionId, session);
+    } else {
+      session.createdAtMs = Math.min(session.createdAtMs, createdAtMs);
+      session.bestRank = Math.min(session.bestRank, rank);
+      if (!session.areaNote && line.session.areaNote?.trim()) {
+        session.areaNote = line.session.areaNote.trim();
+      }
+    }
+
+    const cell = session.cells[marketCode] ?? emptyQty();
+    session.cells[marketCode] = addLineQty(cell, line.quantity, line.isBox);
+  }
+
+  const sortedRows = Array.from(sessions.entries())
+    .map(([sessionId, session]) => ({
+      sessionId,
+      shipperName: session.shipperName,
+      areaNote: session.areaNote,
+      cells: session.cells,
+      rowSubtotal: sumMarketsQty(session.cells, markets),
+      createdAtMs: session.createdAtMs,
+      bestRank: session.bestRank,
+    }))
+    .filter((row) => hasQty(row.rowSubtotal))
+    .sort((a, b) => {
+      if (a.bestRank !== b.bestRank) return a.bestRank - b.bestRank;
+      return a.createdAtMs - b.createdAtMs;
+    });
+
+  const rows: DispatchKlMcPrintRow[] = sortedRows.map(
+    ({ sessionId, shipperName, areaNote, cells, rowSubtotal }) => ({
+      sessionId,
+      shipperName,
+      areaNote,
+      cells,
+      rowSubtotal,
+    })
+  );
+
+  const colTotals: Record<string, CrateBoxQty> = {};
+  for (const code of markets) {
+    colTotals[code] = emptyQty();
+  }
+  let grandSubtotal = emptyQty();
+
+  for (const row of rows) {
+    for (const code of markets) {
+      const qty = row.cells[code] ?? emptyQty();
+      if (hasQty(qty)) {
+        colTotals[code] = addQty(colTotals[code], qty);
+      }
+    }
+    grandSubtotal = addQty(grandSubtotal, row.rowSubtotal);
+  }
+
+  return {
+    date: dateStr,
+    markets,
+    rows,
+    colTotals,
+    grandSubtotal,
+  };
 }
 
 export async function getUnassignedMatrix(

@@ -16,6 +16,15 @@ export const MARKET_ORDER = [
   "OTHER",
 ] as const;
 
+/** First five markets on the dispatch matrix (KL depot group + MC). */
+export const KL_MC_MARKET_CODES = [
+  "KL",
+  "BP",
+  "MP",
+  "SL",
+  "MC",
+] as const satisfies readonly (typeof MARKET_ORDER)[number][];
+
 /** Dispatch scheduling priority (JB first, then KL, …). */
 export const DISPATCH_PRIORITY_ORDER = [
   "JB",

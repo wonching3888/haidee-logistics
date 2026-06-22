@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Printer } from "lucide-react";
 import {
   getDispatchOrders,
   getTrucks,
@@ -52,6 +52,16 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
             >
               <DispatchDateFilter />
             </Suspense>
+            <Link
+              href={`/dispatch/print?${new URLSearchParams({
+                date,
+                returnTo: `/dispatch?date=${date}`,
+              }).toString()}`}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-haidee-border bg-white px-4 py-2 text-sm font-medium text-haidee-text transition-colors hover:bg-haidee-surface"
+            >
+              <Printer className="h-4 w-4" />
+              {t("dispatch.printKlMc", locale)}
+            </Link>
             {userCanWrite ? (
               <Link
                 href={`/dispatch/new?${new URLSearchParams({ date }).toString()}`}
