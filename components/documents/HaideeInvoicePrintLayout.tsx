@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import { cn } from "@/lib/utils";
 
 export function formatHaideeInvoiceMoney(value: number, currency: string) {
   return `${value.toFixed(2)} ${currency}`;
@@ -7,14 +8,22 @@ export function formatHaideeInvoiceMoney(value: number, currency: string) {
 
 interface HaideeInvoicePrintDocumentProps {
   children: ReactNode;
+  /** Charter HAIDEE only: full-page border (opt-in). */
+  framed?: boolean;
 }
 
 /** Shared root wrapper for HAIDEE market + charter invoices. */
 export function HaideeInvoicePrintDocument({
   children,
+  framed = false,
 }: HaideeInvoicePrintDocumentProps) {
   return (
-    <div className="document-print mode4-tax-invoice-print haidee-market-invoice-print">
+    <div
+      className={cn(
+        "document-print mode4-tax-invoice-print haidee-market-invoice-print",
+        framed && "haidee-charter-invoice-document"
+      )}
+    >
       {children}
     </div>
   );
@@ -24,16 +33,31 @@ interface HaideeInvoicePrintHeaderProps {
   nameZh: string;
   nameEn: string;
   subtitle: string;
+  nameTh?: string;
+  addressLines?: string[];
+  phone?: string;
+  taxId?: string;
 }
 
 export function HaideeInvoicePrintHeader({
   nameZh,
   nameEn,
   subtitle,
+  nameTh,
+  addressLines,
+  phone,
+  taxId,
 }: HaideeInvoicePrintHeaderProps) {
   return (
     <>
-      <PrintLetterhead nameZh={nameZh} nameEn={nameEn} />
+      <PrintLetterhead
+        nameZh={nameZh}
+        nameEn={nameEn}
+        nameTh={nameTh}
+        addressLines={addressLines}
+        phone={phone}
+        taxId={taxId}
+      />
       <div className="mode4-tax-invoice-title">INVOICE</div>
       <div className="header-sub">{subtitle}</div>
     </>

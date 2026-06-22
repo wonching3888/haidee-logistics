@@ -4,6 +4,7 @@ import type { CharterInvoiceData } from "@/lib/charter-invoice";
 import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { CharterHaideeInvoicePrint } from "@/components/charter/CharterHaideeInvoicePrint";
 import { CharterWtlInvoicePrint } from "@/components/charter/CharterWtlInvoicePrint";
+import "@/components/documents/document-print.css";
 
 interface CharterInvoicePrintClientProps {
   data: CharterInvoiceData;

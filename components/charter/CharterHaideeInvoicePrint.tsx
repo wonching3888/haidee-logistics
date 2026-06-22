@@ -9,6 +9,13 @@ import {
   HaideeInvoiceSignatureRow,
 } from "@/components/documents/HaideeInvoicePrintLayout";
 
+/** Charter HAIDEE invoice letterhead — matches TongExportReceipt company block. */
+const CHARTER_HAIDEE_LETTERHEAD = {
+  nameTh: "บริษัท ไฮดี โลจิสติกส์ จำกัด",
+  address: "38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320",
+  phone: "โทร. 098 337 9070 / 092 270 1477",
+} as const;
+
 interface CharterHaideeInvoicePrintProps {
   data: CharterInvoiceData;
 }
@@ -17,10 +24,13 @@ export function CharterHaideeInvoicePrint({ data }: CharterHaideeInvoicePrintPro
   const company = INVOICE_COMPANY_HEADERS.haidee;
 
   return (
-    <HaideeInvoicePrintDocument>
+    <HaideeInvoicePrintDocument framed>
       <HaideeInvoicePrintHeader
         nameZh={company.nameZh}
         nameEn={company.nameEn}
+        nameTh={CHARTER_HAIDEE_LETTERHEAD.nameTh}
+        addressLines={[CHARTER_HAIDEE_LETTERHEAD.address]}
+        phone={CHARTER_HAIDEE_LETTERHEAD.phone}
         subtitle={`${data.billToDisplayLabel} · ${data.dateLabel} · ${data.currency}`}
       />
 

@@ -118,7 +118,7 @@ export function buildCharterInvoiceFromTrip(trip: {
 
   const lines: CharterInvoiceLine[] = [
     {
-      description: `Charter service 包车服务 — ${dateStr} · ${trip.truck.plate}`,
+      description: `包车服务 Charter service · ${formatDisplayDate(trip.date)} · ${trip.truck.plate}`,
       amountMyr: revenue,
     },
     ...extraRevenue.map((item) => ({

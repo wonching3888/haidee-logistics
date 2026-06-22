@@ -9,12 +9,68 @@ export const DEFAULT_PRINT_LETTERHEAD = {
 export function PrintLetterhead({
   nameZh = DEFAULT_PRINT_LETTERHEAD.nameZh,
   nameEn = DEFAULT_PRINT_LETTERHEAD.nameEn,
+  nameTh,
+  addressLines,
+  phone,
+  taxId,
   className,
 }: {
   nameZh?: string;
   nameEn?: string;
+  nameTh?: string;
+  addressLines?: string[];
+  phone?: string;
+  taxId?: string;
   className?: string;
 }) {
+  const useExtendedLetterhead = Boolean(
+    nameTh ||
+      (addressLines && addressLines.length > 0) ||
+      phone ||
+      taxId
+  );
+
+  if (useExtendedLetterhead) {
+    return (
+      <div
+        className={
+          className
+            ? `haidee-invoice-letterhead ${className}`
+            : "haidee-invoice-letterhead"
+        }
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt="Logo"
+          className="haidee-invoice-letterhead-logo"
+        />
+        <div className="haidee-invoice-letterhead-text">
+          {nameTh ? (
+            <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-th">
+              {nameTh}
+            </div>
+          ) : null}
+          <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name">
+            {nameZh}
+          </div>
+          <div className="haidee-invoice-letterhead-line">{nameEn}</div>
+          {addressLines?.map((line) => (
+            <div key={line} className="haidee-invoice-letterhead-line">
+              {line}
+            </div>
+          ))}
+          {phone ? (
+            <div className="haidee-invoice-letterhead-line">{phone}</div>
+          ) : null}
+          {taxId ? (
+            <div className="haidee-invoice-letterhead-line">{taxId}</div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={className}
