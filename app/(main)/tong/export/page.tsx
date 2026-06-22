@@ -7,13 +7,14 @@ import { listCrateExportsForDate } from "@/app/actions/crateExport";
 import { TongExportForm } from "@/components/tong/TongExportForm";
 import { CrateExportDateFilter } from "@/components/tong/CrateExportDateFilter";
 import { CrateExportListTable } from "@/components/tong/CrateExportListTable";
+import { CrateExportUpdatedBanner } from "@/components/tong/CrateExportUpdatedBanner";
 import { PageError } from "@/components/shared/PageError";
 import { resolveCrateExportListDate } from "@/lib/crate-export-list";
 
 export const dynamic = "force-dynamic";
 
 interface TongExportPageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; updated?: string }>;
 }
 
 export default async function TongExportPage({
@@ -58,6 +59,10 @@ export default async function TongExportPage({
             }
           >
             <CrateExportDateFilter />
+          </Suspense>
+
+          <Suspense fallback={null}>
+            <CrateExportUpdatedBanner />
           </Suspense>
 
           <CrateExportListTable rows={exports} listDate={listDate} />

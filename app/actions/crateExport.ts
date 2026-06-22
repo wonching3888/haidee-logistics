@@ -22,7 +22,69 @@ export interface CrateExportLineInput {
   quantityActual: number;
 }
 
+export interface CrateExportSaveInput {
+  date: string;
+  shipperId: string;
+  thVehiclePlate: string;
+  areaNote?: string;
+  location?: string;
+  lines: CrateExportLineInput[];
+  forceExportNo?: string;
+}
+
+export interface CrateExportEditData {
+  exportNo: string;
+  date: string;
+  shipperId: string;
+  shipperName: string;
+  thVehiclePlate: string;
+  areaNote: string;
+  location: string;
+  lines: CrateExportLineInput[];
+}
+
 export type { CrateExportListRow };
+
+function getActiveCrateExportLines(
+  lines: CrateExportLineInput[]
+): CrateExportLineInput[] {
+  return lines.filter(
+    (l) => l.quantityActual > 0 || l.quantitySuggested > 0
+  );
+}
+
+const CRATE_EXPORT_MIN_LINES_ERROR =
+  "请至少填写一行归还数据 Please enter at least one line";
+
+/** At least one non-box line with quantityActual>0 or quantitySuggested>0. */
+async function assertCrateExportHasActiveLines(
+  lines: CrateExportLineInput[]
+): Promise<CrateExportLineInput[]> {
+  const activeLines = getActiveCrateExportLines(lines);
+  if (activeLines.length === 0) {
+    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
+  }
+
+  const tongTypeIds = Array.from(
+    new Set(activeLines.map((line) => line.tongTypeId))
+  );
+  const tongTypes = await prisma.tongType.findMany({
+    where: { id: { in: tongTypeIds } },
+    select: { id: true, isBox: true },
+  });
+  const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
+
+  const hasSavableLine = activeLines.some((line) => {
+    const tongType = tongTypeMap.get(line.tongTypeId);
+    return tongType && !tongType.isBox;
+  });
+
+  if (!hasSavableLine) {
+    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
+  }
+
+  return activeLines;
+}
 
 /** List crate export batches for a calendar day (grouped by exportNo). */
 export async function listCrateExportsForDate(
@@ -84,31 +146,23 @@ export async function listCrateExportsForDate(
  * Save crate export (return empty crates to shipper).
  * SADAO stock -quantity via tong_exports; customer stock +quantity.
  */
-export async function saveCrateExport(input: {
-  date: string;
-  shipperId: string;
-  thVehiclePlate: string;
-  areaNote?: string;
-  location?: string;
-  lines: CrateExportLineInput[];
-}) {
+export async function saveCrateExport(input: CrateExportSaveInput) {
   const user = await requireWrite();
 
   const date = parseDateInput(input.date);
-  const activeLines = input.lines.filter(
-    (l) => l.quantityActual > 0 || l.quantitySuggested > 0
-  );
-  if (activeLines.length === 0) {
-    throw new Error("请至少填写一行归还数据 Please enter at least one line");
-  }
+  const activeLines = await assertCrateExportHasActiveLines(input.lines);
 
   const tongTypeIds = Array.from(
     new Set(activeLines.map((line) => line.tongTypeId))
   );
 
+  const exportNoPromise = input.forceExportNo
+    ? Promise.resolve(input.forceExportNo.trim())
+    : generateExportNo(date);
+
   const [stock, exportNo, shipper, tongTypes] = await Promise.all([
     getSadaoStockByTongType(),
-    generateExportNo(date),
+    exportNoPromise,
     prisma.shipper.findUnique({
       where: { id: input.shipperId },
       select: { name: true, code: true },
@@ -171,7 +225,7 @@ export async function saveCrateExport(input: {
   }
 
   if (exportRows.length === 0) {
-    throw new Error("请至少填写一行归还数据 Please enter at least one line");
+    throw new Error(CRATE_EXPORT_MIN_LINES_ERROR);
   }
 
   await prisma.tongExport.createMany({ data: exportRows });
@@ -227,9 +281,7 @@ async function resolveCrateExportStockLocation(
   return ledger?.location ?? "";
 }
 
-export async function voidCrateExport(exportNo: string) {
-  await requireWrite();
-
+async function reverseCrateExportInternal(exportNo: string) {
   const trimmed = exportNo.trim();
   if (!trimmed) {
     throw new Error("归还单号无效 Invalid export number");
@@ -269,6 +321,17 @@ export async function voidCrateExport(exportNo: string) {
   }
 
   await prisma.tongExport.deleteMany({ where: { exportNo: trimmed } });
+}
+
+export async function voidCrateExport(exportNo: string) {
+  await requireWrite();
+
+  const trimmed = exportNo.trim();
+  if (!trimmed) {
+    throw new Error("归还单号无效 Invalid export number");
+  }
+
+  await reverseCrateExportInternal(trimmed);
 
   revalidatePath("/crate/export");
   revalidatePath("/tong/export");
@@ -277,6 +340,66 @@ export async function voidCrateExport(exportNo: string) {
   revalidatePath("/crate/customer-stock");
 
   return { ok: true as const };
+}
+
+export async function getCrateExportForEdit(
+  exportNo: string
+): Promise<CrateExportEditData | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const trimmed = exportNo.trim();
+  if (!trimmed) return null;
+
+  const rows = await prisma.tongExport.findMany({
+    where: { exportNo: trimmed },
+    include: {
+      shipper: { select: { id: true, name: true } },
+      tongType: { select: { displayOrder: true } },
+    },
+    orderBy: { tongType: { displayOrder: "asc" } },
+  });
+
+  if (rows.length === 0) return null;
+
+  const first = rows[0];
+  const location = await resolveCrateExportStockLocation(trimmed, first.shipperId);
+
+  return {
+    exportNo: trimmed,
+    date: toDateInputValue(first.date),
+    shipperId: first.shipperId,
+    shipperName: first.shipper.name,
+    thVehiclePlate: first.thVehiclePlate,
+    areaNote: first.areaNote ?? "",
+    location,
+    lines: rows.map((row) => ({
+      tongTypeId: row.tongTypeId,
+      quantitySuggested: row.quantitySuggested ?? 0,
+      quantityActual: row.quantityActual,
+    })),
+  };
+}
+
+export async function editCrateExport(
+  exportNo: string,
+  input: Omit<CrateExportSaveInput, "forceExportNo">
+) {
+  await requireWrite();
+
+  const trimmed = exportNo.trim();
+  if (!trimmed) {
+    throw new Error("归还单号无效 Invalid export number");
+  }
+
+  await assertCrateExportHasActiveLines(input.lines);
+
+  await reverseCrateExportInternal(trimmed);
+
+  return saveCrateExport({
+    ...input,
+    forceExportNo: trimmed,
+  });
 }
 
 /** Load receipt data for print / reprint by export batch number. */

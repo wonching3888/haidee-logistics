@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { editCrateExport } from "@/app/actions/crateExport";
 import {
   getTodayInboundByShipper,
   getTodayInboundByPickupLocation,
@@ -9,6 +10,7 @@ import {
   getThVehiclesForShipper,
   saveTongExport,
 } from "@/app/actions/tong";
+import type { CrateExportEditData } from "@/app/actions/crateExport";
 import {
   isLocationPoolShipperCode,
   stockLocationForPoolShipperCode,
@@ -16,6 +18,7 @@ import {
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDisplay } from "@/lib/date-utils";
 import { toDateInputValue } from "@/lib/inbound-utils";
 
 interface ShipperOption {
@@ -43,16 +46,28 @@ interface ExportLineState {
 interface TongExportFormProps {
   shippers: ShipperOption[];
   tongTypes: TongTypeOption[];
+  mode?: "create" | "edit";
+  exportNo?: string;
+  initialData?: CrateExportEditData;
 }
 
-export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
+export function TongExportForm({
+  shippers,
+  tongTypes,
+  mode = "create",
+  exportNo,
+  initialData,
+}: TongExportFormProps) {
   const router = useRouter();
+  const isEdit = mode === "edit" && Boolean(initialData && exportNo);
   const [isPending, startTransition] = useTransition();
-  const [date, setDate] = useState(toDateInputValue(new Date()));
-  const [shipperId, setShipperId] = useState("");
-  const [areaNote, setAreaNote] = useState("");
-  const [location, setLocation] = useState("");
-  const [thPlate, setThPlate] = useState("");
+  const [date, setDate] = useState(
+    initialData?.date ?? toDateInputValue(new Date())
+  );
+  const [shipperId, setShipperId] = useState(initialData?.shipperId ?? "");
+  const [areaNote, setAreaNote] = useState(initialData?.areaNote ?? "");
+  const [location, setLocation] = useState(initialData?.location ?? "");
+  const [thPlate, setThPlate] = useState(initialData?.thVehiclePlate ?? "");
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<ExportLineState[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -64,26 +79,65 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
   const isLocationPoolShipper = selectedShipper
     ? isLocationPoolShipperCode(selectedShipper.code)
     : false;
+  const lockedShipperName =
+    initialData?.shipperName ??
+    selectedShipper?.name ??
+    "";
 
   useEffect(() => {
     if (!shipperId || !selectedShipper) {
-      setLines([]);
-      setVehicleSuggestions([]);
-      setLocation("");
+      if (!isEdit) {
+        setLines([]);
+        setVehicleSuggestions([]);
+        setLocation("");
+      }
       return;
     }
 
-    if (poolStockLocation) {
+    if (!isEdit && poolStockLocation) {
       setLocation(poolStockLocation);
+    }
+
+    const vehiclePromise = isLocationPoolShipper
+      ? Promise.resolve([])
+      : getThVehiclesForShipper(shipperId);
+
+    if (isEdit && initialData) {
+      Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
+        setVehicleSuggestions(vehicles.map((v) => v.plate));
+
+        const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
+        const existingByTong = new Map(
+          initialData.lines.map((line) => [line.tongTypeId, line])
+        );
+
+        setLines(
+          tongTypes.map((t) => {
+            const existing = existingByTong.get(t.id);
+            const suggested = existing?.quantitySuggested ?? 0;
+            const currentSadao = stockMap[t.code] ?? 0;
+            const oldActual = existing?.quantityActual ?? 0;
+            const stockQty = currentSadao + oldActual;
+            const actualNum = existing ? oldActual : 0;
+            const capped = Math.min(actualNum, stockQty);
+            return {
+              tongTypeId: t.id,
+              code: t.code,
+              name: t.name,
+              suggested,
+              stock: stockQty,
+              actual: existing ? String(actualNum) : "0",
+              shortage: Math.max(0, suggested - capped),
+            };
+          })
+        );
+      });
+      return;
     }
 
     const inboundPromise = poolStockLocation
       ? getTodayInboundByPickupLocation(date, poolStockLocation)
       : getTodayInboundByShipper(date, shipperId);
-
-    const vehiclePromise = isLocationPoolShipper
-      ? Promise.resolve([])
-      : getThVehiclesForShipper(shipperId);
 
     Promise.all([inboundPromise, getSadaoStock(), vehiclePromise]).then(
       ([inbound, stock, vehicles]) => {
@@ -114,7 +168,16 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
         );
       }
     );
-  }, [shipperId, date, tongTypes, selectedShipper, poolStockLocation, isLocationPoolShipper]);
+  }, [
+    shipperId,
+    date,
+    tongTypes,
+    selectedShipper,
+    poolStockLocation,
+    isLocationPoolShipper,
+    isEdit,
+    initialData,
+  ]);
 
   function updateActual(tongTypeId: string, value: string) {
     if (value !== "" && !/^\d+$/.test(value)) return;
@@ -143,20 +206,30 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
       return;
     }
 
+    const payload = {
+      date,
+      shipperId,
+      thVehiclePlate: thPlate,
+      areaNote,
+      location,
+      lines: lines.map((l) => ({
+        tongTypeId: l.tongTypeId,
+        quantitySuggested: l.suggested,
+        quantityActual: parseInt(l.actual, 10) || 0,
+      })),
+    };
+
     startTransition(async () => {
       try {
-        const result = await saveTongExport({
-          date,
-          shipperId,
-          thVehiclePlate: thPlate,
-          areaNote,
-          location,
-          lines: lines.map((l) => ({
-            tongTypeId: l.tongTypeId,
-            quantitySuggested: l.suggested,
-            quantityActual: parseInt(l.actual, 10) || 0,
-          })),
-        });
+        if (isEdit && exportNo) {
+          await editCrateExport(exportNo, payload);
+          router.push(
+            `/crate/export?date=${encodeURIComponent(date)}&updated=${encodeURIComponent(exportNo)}`
+          );
+          return;
+        }
+
+        const result = await saveTongExport(payload);
         const returnTo = `/crate/export?date=${encodeURIComponent(date)}`;
         router.push(
           `/crate/export/print?exportNo=${encodeURIComponent(result.exportNo)}&returnTo=${encodeURIComponent(returnTo)}`
@@ -172,27 +245,39 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">日期 Date</label>
-          <DateInputField value={date} onChange={setDate} />
+          {isEdit ? (
+            <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
+              {formatDisplay(date)}
+            </div>
+          ) : (
+            <DateInputField value={date} onChange={setDate} />
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
             寄货人 Consignor
           </label>
-          <select
-            value={shipperId}
-            onChange={(e) => {
-              setShipperId(e.target.value);
-              setLocation("");
-            }}
-            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
-          >
-            <option value="">— 选择 Select —</option>
-            {shippers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          {isEdit ? (
+            <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
+              {lockedShipperName}
+            </div>
+          ) : (
+            <select
+              value={shipperId}
+              onChange={(e) => {
+                setShipperId(e.target.value);
+                setLocation("");
+              }}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+            >
+              <option value="">— 选择 Select —</option>
+              {shippers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
@@ -299,7 +384,11 @@ export function TongExportForm({ shippers, tongTypes }: TongExportFormProps) {
         disabled={isPending || !shipperId}
         className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
       >
-        {isPending ? "处理中…" : "确认归还 Confirm Export"}
+        {isPending
+          ? "处理中…"
+          : isEdit
+            ? "保存修改 Save Changes"
+            : "确认归还 Confirm Export"}
       </Button>
     </div>
   );

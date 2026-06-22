@@ -24,6 +24,10 @@ interface CrateExportListTableProps {
   listDate: string;
 }
 
+function buildEditHref(exportNo: string): string {
+  return `/crate/export/edit?exportNo=${encodeURIComponent(exportNo)}`;
+}
+
 function buildReprintHref(exportNo: string, listDate: string): string {
   const returnTo = `/crate/export?date=${encodeURIComponent(listDate)}`;
   return `/crate/export/print?exportNo=${encodeURIComponent(exportNo)}&returnTo=${encodeURIComponent(returnTo)}`;
@@ -128,18 +132,26 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                       重打 Reprint
                     </Link>
                     {userCanWrite ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => {
-                          setError(null);
-                          setVoidTarget(row);
-                        }}
-                        className="min-h-[36px] border-haidee-red text-haidee-red hover:bg-haidee-red/10"
-                      >
-                        作废 Void
-                      </Button>
+                      <>
+                        <Link
+                          href={buildEditHref(row.exportNo)}
+                          className="inline-flex min-h-[36px] items-center rounded-lg border border-haidee-border px-3 text-sm text-haidee-text transition-colors hover:bg-haidee-surface"
+                        >
+                          编辑 Edit
+                        </Link>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() => {
+                            setError(null);
+                            setVoidTarget(row);
+                          }}
+                          className="min-h-[36px] border-haidee-red text-haidee-red hover:bg-haidee-red/10"
+                        >
+                          作废 Void
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </td>
