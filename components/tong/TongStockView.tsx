@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
@@ -58,6 +59,13 @@ export function TongStockView({
 }: TongStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, parts } = useT();
+
+  function ledgerTypeLabel(type: "IN" | "OUT") {
+    return type === "IN"
+      ? t("crateStock.ledger.in")
+      : t("crateStock.ledger.out");
+  }
 
   return (
     <div className="space-y-8">
@@ -65,18 +73,18 @@ export function TongStockView({
       <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
         <div className="border-b border-haidee-border px-4 py-3">
           <h3 className="font-semibold text-haidee-text">
-            SADAO 实时库存 SADAO Stock
+            {t("crateStock.sadaoStockTitle")}
           </h3>
           <p className="text-sm text-haidee-muted">{displayDate}</p>
         </div>
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>桶型 Crate Type</TableHead>
-              <TableHead className="text-right">SADAO库存 Stock</TableHead>
-              <TableHead className="text-right">今日 IN</TableHead>
-              <TableHead className="text-right">今日 OUT</TableHead>
-              <TableHead className="text-right">欠桶 Shortage</TableHead>
+              <TableHead>{t("common.crateType")}</TableHead>
+              <TableHead className="text-right">{t("crateStock.stock")}</TableHead>
+              <TableHead className="text-right">{t("crateStock.todayIn")}</TableHead>
+              <TableHead className="text-right">{t("crateStock.todayOut")}</TableHead>
+              <TableHead className="text-right">{t("crateExport.shortage")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -98,7 +106,8 @@ export function TongStockView({
                 <TableCell className="text-right font-mono">
                   {row.shortage > 0 ? (
                     <span className="font-semibold text-haidee-red">
-                      {row.shortage}桶
+                      {row.shortage}
+                      {parts("common.crateUnit").local}
                     </span>
                   ) : (
                     "0"
@@ -115,17 +124,17 @@ export function TongStockView({
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
           <div className="border-b border-haidee-border px-4 py-3">
             <h3 className="font-semibold text-haidee-text">
-              欠桶记录 Shortage Records
+              {t("crateStock.shortageTitle")}
             </h3>
           </div>
           <Table>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                <TableHead>寄货人 Consignor</TableHead>
-                <TableHead>桶型 Crate Type</TableHead>
-                <TableHead className="text-right">欠桶数 Qty</TableHead>
-                <TableHead>日期 Date</TableHead>
-                <TableHead>收据 No.</TableHead>
+                <TableHead>{t("common.consignor")}</TableHead>
+                <TableHead>{t("common.crateType")}</TableHead>
+                <TableHead className="text-right">{t("crateStock.shortageQty")}</TableHead>
+                <TableHead>{t("common.date")}</TableHead>
+                <TableHead>{t("crateStock.receiptNo")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,11 +166,11 @@ export function TongStockView({
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-4">
           <h3 className="font-semibold text-haidee-text">
-            每日流水 Ledger
+            {t("crateStock.ledgerTitle")}
           </h3>
           <div className="space-y-1">
             <label className="text-xs text-haidee-muted">
-              筛选日期 Filter
+              {t("common.date")}
             </label>
             <DateInputField
               value={filterDate}
@@ -177,18 +186,20 @@ export function TongStockView({
         </div>
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
           {ledger.length === 0 ? (
-            <p className="p-8 text-center text-haidee-muted">暂无流水记录</p>
+            <p className="p-8 text-center text-haidee-muted">
+              {t("crateStock.emptyLedger")}
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                  <TableHead>日期 Date</TableHead>
-                  <TableHead>类型 Type</TableHead>
-                  <TableHead>车牌 Plate</TableHead>
-                  <TableHead>市场/寄货人 Party</TableHead>
-                  <TableHead>桶型 Crate Type</TableHead>
-                  <TableHead className="text-right">数量 Qty</TableHead>
-                  <TableHead className="text-right">余额 Balance</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>{t("crateStock.type")}</TableHead>
+                  <TableHead>{t("dispatch.plateField")}</TableHead>
+                  <TableHead>{t("crateStock.party")}</TableHead>
+                  <TableHead>{t("common.crateType")}</TableHead>
+                  <TableHead className="text-right">{t("common.qty")}</TableHead>
+                  <TableHead className="text-right">{t("crateStock.balance")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -203,7 +214,7 @@ export function TongStockView({
                             : "font-semibold text-haidee-red"
                         }
                       >
-                        {e.type}
+                        {ledgerTypeLabel(e.type)}
                       </span>
                     </TableCell>
                     <TableCell className="font-mono">{e.plate}</TableCell>

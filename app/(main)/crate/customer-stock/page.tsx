@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { getCustomerCrateStock } from "@/app/actions/customerCrateStock";
 import { CustomerCrateStockView } from "@/components/crate/CustomerCrateStockView";
 import { PageError } from "@/components/shared/PageError";
+import { getCurrentUser } from "@/lib/auth";
+import { t } from "@/lib/i18n/translate";
 
 interface CustomerCrateStockPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -12,6 +14,8 @@ export default async function CustomerCrateStockPage({
 }: CustomerCrateStockPageProps) {
   const params = await searchParams;
   const search = params.q?.trim() ?? "";
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
 
   try {
     const { crateTypes, rows, pickupLocationSummaries } =
@@ -21,10 +25,10 @@ export default async function CustomerCrateStockPage({
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            顾客桶库存 Customer Crate Stock
+            {t("nav.customerCrateStock", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            各寄货人桶型库存管理 Per-shipper crate inventory
+            {t("customerCrateStock.pageSubtitle", locale)}
           </p>
         </div>
 
@@ -47,7 +51,7 @@ export default async function CustomerCrateStockPage({
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            顾客桶库存 Customer Crate Stock
+            {t("nav.customerCrateStock", locale)}
           </h2>
         </div>
         <PageError error={error} />

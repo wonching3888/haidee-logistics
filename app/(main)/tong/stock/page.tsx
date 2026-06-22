@@ -6,6 +6,8 @@ import {
   parseDateInput,
   resolveDateParam,
 } from "@/lib/date-utils";
+import { getCurrentUser } from "@/lib/auth";
+import { t } from "@/lib/i18n/translate";
 
 interface TongStockPageProps {
   searchParams: Promise<{ date?: string }>;
@@ -15,6 +17,8 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
   const params = await searchParams;
   const filterDate = resolveDateParam(params.date);
   const displayDate = formatDisplayDate(parseDateInput(filterDate));
+  const user = await getCurrentUser();
+  const locale = user?.language ?? "zh";
 
   try {
     const [overview, ledger] = await Promise.all([
@@ -26,10 +30,10 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            桶库存 Crate Stock
+            {t("nav.crateStock", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            SADAO 实时库存、欠桶记录及流水
+            {t("crateStock.pageSubtitle", locale)}
           </p>
         </div>
 
@@ -47,10 +51,10 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold text-haidee-text">
-            桶库存 Crate Stock
+            {t("nav.crateStock", locale)}
           </h2>
           <p className="text-sm text-haidee-muted">
-            SADAO 实时库存、欠桶记录及流水
+            {t("crateStock.pageSubtitle", locale)}
           </p>
         </div>
         <PageError error={error} />

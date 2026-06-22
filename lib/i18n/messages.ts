@@ -311,6 +311,11 @@ export const MESSAGES = {
     en: "Saving…",
     th: "กำลังบันทึก…",
   },
+  "common.save": {
+    zh: "保存",
+    en: "Save",
+    th: "บันทึก",
+  },
   "common.deleting": {
     zh: "删除中…",
     en: "Deleting…",
@@ -1145,6 +1150,126 @@ export const MESSAGES = {
     zh: "市场代码无效: {code}",
     en: "Invalid market: {code}",
     th: "รหัสตลาดไม่ถูกต้อง: {code}",
+  },
+  "crateStock.pageSubtitle": {
+    zh: "SADAO实时库存、欠桶记录及流水",
+    en: "SADAO live stock, shortages & ledger",
+    th: "สต๊อก SADAO แบบเรียลไทม์ รายการค้างลัง และความเคลื่อนไหว",
+  },
+  "crateStock.sadaoStockTitle": {
+    zh: "SADAO 实时库存",
+    en: "SADAO Stock",
+    th: "สต๊อก SADAO ปัจจุบัน",
+  },
+  "crateStock.stock": {
+    zh: "SADAO库存",
+    en: "Stock",
+    th: "สต๊อก",
+  },
+  "crateStock.todayIn": {
+    zh: "今日 IN",
+    en: "Today IN",
+    th: "เข้าวันนี้",
+  },
+  "crateStock.todayOut": {
+    zh: "今日 OUT",
+    en: "Today OUT",
+    th: "ออกวันนี้",
+  },
+  "crateStock.shortageTitle": {
+    zh: "欠桶记录",
+    en: "Shortage Records",
+    th: "รายการค้างลัง",
+  },
+  "crateStock.shortageQty": {
+    zh: "欠桶数",
+    en: "Qty",
+    th: "จำนวนค้าง",
+  },
+  "crateStock.receiptNo": {
+    zh: "收据 No.",
+    en: "Receipt No.",
+    th: "เลขที่ใบรับ",
+  },
+  "crateStock.ledgerTitle": {
+    zh: "每日流水",
+    en: "Ledger",
+    th: "ความเคลื่อนไหวรายวัน",
+  },
+  "crateStock.emptyLedger": {
+    zh: "暂无流水记录",
+    en: "No ledger records",
+    th: "ไม่มีรายการเคลื่อนไหว",
+  },
+  "crateStock.type": {
+    zh: "类型",
+    en: "Type",
+    th: "ประเภท",
+  },
+  "crateStock.party": {
+    zh: "市场/寄货人",
+    en: "Party",
+    th: "ตลาด/ผู้ส่ง",
+  },
+  "crateStock.balance": {
+    zh: "余额",
+    en: "Balance",
+    th: "คงเหลือ",
+  },
+  "crateStock.ledger.in": {
+    zh: "IN",
+    en: "IN",
+    th: "เข้า",
+  },
+  "crateStock.ledger.out": {
+    zh: "OUT",
+    en: "OUT",
+    th: "ออก",
+  },
+  "customerCrateStock.pageSubtitle": {
+    zh: "各寄货人桶型库存管理",
+    en: "Per-shipper crate inventory",
+    th: "จัดการสต๊อกลังแยกตามผู้ส่ง",
+  },
+  "customerCrateStock.searchShipper": {
+    zh: "搜索寄货人",
+    en: "Search shipper",
+    th: "ค้นหาผู้ส่ง",
+  },
+  "customerCrateStock.hint": {
+    zh: "欠桶（负数）以红色显示 · 点击行首展开各产地明细",
+    en: "Shortage (negative) shown in red · click row to expand by location",
+    th: "ค้างลัง (ติดลบ) แสดงเป็นสีแดง · คลิกแถวเพื่อดูรายละเอียดแยกแหล่งที่มา",
+  },
+  "customerCrateStock.emptySearch": {
+    zh: "无匹配寄货人",
+    en: "No shippers found",
+    th: "ไม่พบผู้ส่งที่ตรงกัน",
+  },
+  "customerCrateStock.expandAria": {
+    zh: "展开产地明细",
+    en: "Expand by location",
+    th: "ดูรายละเอียดแยกแหล่งที่มา",
+  },
+  "customerCrateStock.noLocationBreakdown": {
+    zh: "暂无产地明细",
+    en: "No location breakdown",
+    th: "ไม่มีรายละเอียดแหล่งที่มา",
+  },
+  "customerCrateStock.unspecifiedLocation": {
+    zh: "未注明",
+    en: "Unspecified",
+    th: "ไม่ระบุ",
+  },
+  "customerCrateStock.editTitle": {
+    zh: "编辑库存 — {shipperName}",
+    en: "Edit Stock — {shipperName}",
+    th: "แก้ไขสต๊อก — {shipperName}",
+  },
+  "customerCrateStock.error.invalidQty": {
+    zh: "桶型 {code} 数量无效",
+    en: "Invalid quantity for {code}",
+    th: "จำนวนประเภทลัง {code} ไม่ถูกต้อง",
   },
 } as const satisfies Record<
   string,

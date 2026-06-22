@@ -10,6 +10,7 @@ import {
   type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { useT } from "@/components/shared/locale-context";
 import { formatPickupLocationLabel } from "@/lib/constants/pickup-locations";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,11 +47,11 @@ function qtyClass(qty: number) {
   return qty < 0 ? "font-mono text-red-600" : "font-mono";
 }
 
-function formatLocationLabel(location: string) {
+function formatLocationLabel(location: string, unspecified: string) {
   if (location === "SONGKHLA" || location === "PATTANI") {
     return formatPickupLocationLabel(location);
   }
-  return location || "未注明";
+  return location || unspecified;
 }
 
 function rowGrandTotal(
@@ -68,6 +69,7 @@ export function CustomerCrateStockView({
 }: CustomerCrateStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, parts } = useT();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(initialSearch);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -134,7 +136,9 @@ export function CustomerCrateStockView({
         for (const crateType of crateTypes) {
           const nextQty = parseInt(editQty[crateType.id] ?? "0", 10);
           if (Number.isNaN(nextQty)) {
-            throw new Error(`桶型 ${crateType.code} 数量无效 Invalid quantity`);
+            throw new Error(
+              t("customerCrateStock.error.invalidQty", { code: crateType.code })
+            );
           }
           const prevQty = locRow?.quantities[crateType.id] ?? 0;
           if (nextQty !== prevQty) {
@@ -150,7 +154,7 @@ export function CustomerCrateStockView({
         setEditRow(null);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "保存失败 Save failed");
+        setError(e instanceof Error ? e.message : t("error.saveFailed"));
       }
     });
   }
@@ -160,13 +164,13 @@ export function CustomerCrateStockView({
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
         <div className="min-w-[240px] flex-1 space-y-1">
           <label className="text-xs font-medium text-haidee-muted">
-            搜索寄货人 Search shipper
+            {t("customerCrateStock.searchShipper")}
           </label>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applySearch()}
-            placeholder="名称或编号…"
+            placeholder={parts("inbound.searchPlaceholder").local}
             className="min-h-[44px]"
           />
         </div>
@@ -175,12 +179,12 @@ export function CustomerCrateStockView({
           disabled={isPending}
           className="min-h-[44px]"
         >
-          搜索 Search
+          {t("inbound.searchButton")}
         </Button>
       </div>
 
       <p className="text-xs text-haidee-muted">
-        欠桶（负数）以红色显示 · 点击行首展开各产地明细
+        {t("customerCrateStock.hint")}
       </p>
 
       <ScrollMatrixTable heightOffset={280}>
@@ -191,13 +195,13 @@ export function CustomerCrateStockView({
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead className="w-8" />
-              <TableHead>寄货人 Shipper</TableHead>
+              <TableHead>{t("common.consignor")}</TableHead>
               {crateTypes.map((ct) => (
                 <TableHead key={ct.id} className="text-right font-mono text-xs">
                   {ct.code}
                 </TableHead>
               ))}
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -227,7 +231,7 @@ export function CustomerCrateStockView({
                   colSpan={crateTypes.length + 3}
                   className="py-8 text-center text-haidee-muted"
                 >
-                  无匹配寄货人 No shippers found
+                  {t("customerCrateStock.emptySearch")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -246,7 +250,7 @@ export function CustomerCrateStockView({
                           type="button"
                           onClick={() => toggleExpand(row.shipperId)}
                           className="flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-muted hover:text-haidee-text"
-                          aria-label="展开产地明细 Expand by location"
+                          aria-label={t("customerCrateStock.expandAria")}
                         >
                           {isExpanded ? (
                             <ChevronDown className="h-4 w-4" />
@@ -274,7 +278,7 @@ export function CustomerCrateStockView({
                           type="button"
                           onClick={() => openEdit(row)}
                           className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
-                          aria-label="编辑 Edit"
+                          aria-label={t("common.edit")}
                           disabled={isPending}
                         >
                           <Pencil className="h-4 w-4" />
@@ -291,7 +295,7 @@ export function CustomerCrateStockView({
                             <p className="mb-2 text-xs font-semibold text-haidee-muted">
                               <MobileTruncatedName text={row.shipperName} />
                               <span className="ml-3">
-                                总 Total:{" "}
+                                {t("common.total")}:{" "}
                                 <span className={qtyClass(grandTotal)}>
                                   {grandTotal}
                                 </span>
@@ -299,7 +303,7 @@ export function CustomerCrateStockView({
                             </p>
                             {visibleLocations.length === 0 ? (
                               <p className="text-haidee-muted">
-                                暂无产地明细 No location breakdown
+                                {t("customerCrateStock.noLocationBreakdown")}
                               </p>
                             ) : (
                               <div className="space-y-1">
@@ -325,7 +329,11 @@ export function CustomerCrateStockView({
                                         {prefix}
                                       </span>
                                       <span className="min-w-[88px] font-medium">
-                                        {formatLocationLabel(loc.location)}
+                                        {formatLocationLabel(
+                                          loc.location,
+                                          parts("customerCrateStock.unspecifiedLocation")
+                                            .local
+                                        )}
                                       </span>
                                       {crateParts.map((part) => (
                                         <span
@@ -363,14 +371,18 @@ export function CustomerCrateStockView({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              编辑库存 Edit Stock — {editRow?.shipperName}
+              {editRow
+                ? t("customerCrateStock.editTitle", {
+                    shipperName: editRow.shipperName,
+                  })
+                : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {editRow && editRow.locations.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-haidee-muted">
-                  产地 Location
+                  {t("crateExport.location")}
                 </label>
                 <select
                   value={editLocation}
@@ -379,7 +391,10 @@ export function CustomerCrateStockView({
                 >
                   {editRow.locations.map((loc) => (
                     <option key={loc.location || "__empty__"} value={loc.location}>
-                      {formatLocationLabel(loc.location)}
+                      {formatLocationLabel(
+                        loc.location,
+                        parts("customerCrateStock.unspecifiedLocation").local
+                      )}
                     </option>
                   ))}
                 </select>
@@ -406,12 +421,12 @@ export function CustomerCrateStockView({
             ))}
             <div className="space-y-1">
               <label className="text-xs font-medium text-haidee-muted">
-                备注 Notes
+                {t("common.notes")}
               </label>
               <Input
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="可选 Optional"
+                placeholder={parts("common.optional").local}
               />
             </div>
           </div>
@@ -426,10 +441,10 @@ export function CustomerCrateStockView({
               onClick={() => setEditRow(null)}
               disabled={isPending}
             >
-              取消 Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleSaveEdit} disabled={isPending}>
-              {isPending ? "保存中…" : "保存 Save"}
+              {isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
