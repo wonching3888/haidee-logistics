@@ -2,6 +2,7 @@
 
 import { Copy, Trash2 } from "lucide-react";
 import { MarketBadge } from "@/components/shared/MarketBadge";
+import { useT } from "@/components/shared/locale-context";
 import { STICKY_BODY_FIRST } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,8 @@ export function InboundLineRow({
   onDelete,
   disabled,
 }: InboundLineRowProps) {
+  const { tLocal } = useT();
+
   return (
     <tr className="border-b border-haidee-border/60 hover:bg-haidee-surface/50">
       <td
@@ -90,7 +93,7 @@ export function InboundLineRow({
                 type="button"
                 onClick={onDuplicate}
                 className="rounded p-2 text-haidee-muted hover:text-haidee-blue"
-                title="同收货人加一行 Add line (same receiver)"
+                title={tLocal("inbound.addLineSameReceiver")}
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -100,7 +103,7 @@ export function InboundLineRow({
                 type="button"
                 onClick={onDelete}
                 className="rounded p-2 text-haidee-muted hover:text-haidee-red"
-                title="删除 Delete"
+                title={tLocal("common.delete")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>

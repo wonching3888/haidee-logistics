@@ -4,11 +4,8 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { deleteInboundSession } from "@/app/actions/inbound";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
-
-const CONFIRM_MESSAGE =
-  "确定要删除这张进货单吗？此操作无法撤销。\nAre you sure you want to delete this inbound session? This cannot be undone.";
-
 import { getNextRedirectUrl } from "@/lib/next-redirect";
 
 interface InboundDeleteButtonProps {
@@ -22,9 +19,10 @@ export function InboundDeleteButton({
 }: InboundDeleteButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { t, tLocal } = useT();
 
   function handleDelete() {
-    if (!confirm(CONFIRM_MESSAGE)) return;
+    if (!confirm(tLocal("inbound.deleteSessionConfirm"))) return;
 
     startTransition(async () => {
       try {
@@ -50,7 +48,7 @@ export function InboundDeleteButton({
         onClick={handleDelete}
         disabled={isPending}
         className="text-haidee-red hover:text-haidee-red"
-        aria-label="删除进货单 Delete inbound session"
+        aria-label={tLocal("inbound.deleteSession")}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -65,7 +63,7 @@ export function InboundDeleteButton({
       disabled={isPending}
       className="min-h-[44px] min-w-[100px] bg-haidee-red text-white hover:bg-haidee-red/90"
     >
-      {isPending ? "删除中…" : "删除 Delete"}
+      {isPending ? t("common.deleting") : t("common.delete")}
     </Button>
   );
 }

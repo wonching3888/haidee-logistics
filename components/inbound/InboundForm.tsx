@@ -7,6 +7,7 @@ import { InboundDeleteButton } from "@/components/inbound/InboundDeleteButton";
 import { InboundFreightPanel, type InboundFreightLine } from "@/components/inbound/InboundFreightPanel";
 import { InboundLineRow } from "@/components/inbound/InboundLineRow";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { isOtherMarket } from "@/lib/markets";
 import {
@@ -94,6 +95,7 @@ export function InboundForm({
 }: InboundFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { t, parts, tLocal } = useT();
   const [error, setError] = useState<string | null>(null);
 
   const [date, setDate] = useState(
@@ -397,14 +399,14 @@ export function InboundForm({
       <div className="grid gap-4 rounded-xl border border-haidee-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            日期 Date
+            {t("common.date")}
           </label>
           <DateInputField value={date} onChange={setDate} />
         </div>
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            寄货人 Consignor
+            {t("common.consignor")}
           </label>
           <select
             value={shipperId}
@@ -416,7 +418,7 @@ export function InboundForm({
             }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
           >
-            <option value="">— 选择寄货人 Select —</option>
+            <option value="">{t("inbound.selectConsignor")}</option>
             {shippers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name} ({s.code})
@@ -427,7 +429,7 @@ export function InboundForm({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            本趟收货地点 Trip Pickup
+            {t("inbound.tripPickup")}
           </label>
           <select
             value={sessionPickupLocation}
@@ -436,7 +438,7 @@ export function InboundForm({
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30 disabled:cursor-not-allowed disabled:bg-haidee-surface/60"
           >
             {!shipperId && (
-              <option value="">— 选择寄货人 Select —</option>
+              <option value="">{t("inbound.selectConsignor")}</option>
             )}
             {PICKUP_LOCATIONS.map((code) => (
               <option key={code} value={code}>
@@ -448,7 +450,10 @@ export function InboundForm({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            地区/备注 Area/Note <span className="text-haidee-muted">(选填)</span>
+            {t("inbound.areaNote")}{" "}
+            <span className="text-haidee-muted">
+              ({parts("common.optional").local})
+            </span>
           </label>
           <Input
             value={areaNote}
@@ -460,7 +465,10 @@ export function InboundForm({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">
-            泰国车牌 TH Plate <span className="text-haidee-muted">(选填)</span>
+            {t("inbound.thPlateField")}{" "}
+            <span className="text-haidee-muted">
+              ({parts("common.optional").local})
+            </span>
           </label>
           <Input
             list="th-vehicles"
@@ -481,12 +489,12 @@ export function InboundForm({
       {shipperId && (
         <div className="min-w-0 max-w-full rounded-xl border border-haidee-border bg-white">
           {loadingStalls ? (
-            <p className="p-8 text-center text-haidee-muted">加载收货人… Loading receivers…</p>
+            <p className="p-8 text-center text-haidee-muted">
+              {t("inbound.loadingReceivers")}
+            </p>
           ) : rows.length === 0 ? (
             <p className="p-8 text-center text-haidee-muted">
-              此寄货人暂无固定收货人，请先在系统设置中添加。
-              <br />
-              No default receivers for this consignor.
+              {t("inbound.noDefaultReceivers")}
             </p>
           ) : (
             <ScrollMatrixTable heightOffset={340} className="rounded-xl border-0">
@@ -494,16 +502,16 @@ export function InboundForm({
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-left text-haidee-muted">
                     <th className={cn(STICKY_HEAD_FIRST, "whitespace-nowrap px-3 py-3 font-medium")}>
-                      收货人 Receiver
+                      {t("common.receiver")}
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
-                      地区 Area
+                      {t("common.area")}
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium")}>
-                      桶型 Crate Type
+                      {t("common.crateType")}
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "whitespace-nowrap px-3 py-3 font-medium text-right")}>
-                      桶数 Crates
+                      {t("common.crateCount")}
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "w-10 whitespace-nowrap px-2 py-3")}></th>
                   </tr>
@@ -536,7 +544,9 @@ export function InboundForm({
                         }
                         if (
                           !confirm(
-                            `确定要永久删除收货人 ${row.stallCode} 吗？\nAre you sure to permanently delete receiver ${row.stallCode}?`
+                            tLocal("inbound.deleteReceiverConfirm", {
+                              code: row.stallCode,
+                            })
                           )
                         )
                           return;
@@ -567,7 +577,7 @@ export function InboundForm({
             className="gap-2"
           >
             <Plus className="h-4 w-4" />
-            新增收货人 Add Receiver
+            {t("inbound.addReceiver")}
           </Button>
           {showAddStall && (() => {
             const selectedMarket = markets.find((m) => m.id === newStall.marketId);
@@ -575,7 +585,9 @@ export function InboundForm({
             return (
             <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
               <div className="space-y-1">
-                <label className="text-xs text-haidee-muted">地区 Market</label>
+                <label className="text-xs text-haidee-muted">
+                  {t("inbound.marketField")}
+                </label>
                 <select
                   value={newStall.marketId}
                   onChange={(e) =>
@@ -598,7 +610,7 @@ export function InboundForm({
               {otherSelected ? (
                 <div className="space-y-1">
                   <label className="text-xs text-haidee-muted">
-                    目的地 Destination
+                    {t("common.destination")}
                   </label>
                   <Input
                     value={newStall.destination}
@@ -611,7 +623,9 @@ export function InboundForm({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <label className="text-xs text-haidee-muted">收货人代码 Code</label>
+                  <label className="text-xs text-haidee-muted">
+                    {t("inbound.receiverCode")}
+                  </label>
                   <Input
                     value={newStall.code}
                     onChange={(e) =>
@@ -622,7 +636,9 @@ export function InboundForm({
                 </div>
               )}
               <div className="space-y-1">
-                <label className="text-xs text-haidee-muted">桶型 Type</label>
+                <label className="text-xs text-haidee-muted">
+                  {t("common.crateType")}
+                </label>
                 <select
                   value={newStall.tongTypeId}
                   onChange={(e) =>
@@ -682,7 +698,7 @@ export function InboundForm({
                 }}
                 className="bg-haidee-blue text-white"
               >
-                确认添加 Add
+                {t("inbound.confirmAdd")}
               </Button>
             </div>
             );
@@ -694,7 +710,7 @@ export function InboundForm({
       {grandTotal > 0 && (
         <div className="rounded-xl border border-haidee-border bg-white p-4">
           <h3 className="mb-3 text-sm font-semibold text-haidee-text">
-            各市场小计 Market Subtotals
+            {t("inbound.marketSubtotals")}
           </h3>
           <div className="flex flex-wrap gap-3">
             {Object.entries(marketTotals)
@@ -710,11 +726,13 @@ export function InboundForm({
                   <span className="font-mono text-lg font-semibold text-haidee-text">
                     {qty}
                   </span>
-                  <span className="text-xs text-haidee-muted">桶</span>
+                  <span className="text-xs text-haidee-muted">
+                    {parts("common.crateUnit").local}
+                  </span>
                 </div>
               ))}
             <div className="flex items-center gap-2 rounded-lg bg-haidee-navy px-4 py-2 text-white">
-              <span className="text-sm">合计 Total</span>
+              <span className="text-sm">{t("common.total")}</span>
               <span className="font-mono text-lg font-bold">{grandTotal}</span>
             </div>
           </div>
@@ -743,7 +761,7 @@ export function InboundForm({
           disabled={isPending}
           className="min-h-[44px] min-w-[100px]"
         >
-          取消 Cancel
+          {t("common.cancel")}
         </Button>
         <Button
           type="button"
@@ -752,7 +770,7 @@ export function InboundForm({
           disabled={isPending || !shipperId}
           className="min-h-[44px] min-w-[120px]"
         >
-          保存草稿 Save Draft
+          {t("inbound.saveDraft")}
         </Button>
         <Button
           type="button"
@@ -760,7 +778,7 @@ export function InboundForm({
           disabled={isPending || !shipperId}
           className="min-h-[44px] min-w-[120px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
         >
-          {isPending ? "保存中…" : "确认保存 Confirm"}
+          {isPending ? t("common.saving") : t("inbound.confirmSave")}
         </Button>
       </div>
     </div>

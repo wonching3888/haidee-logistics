@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo } from "react";
-import { getMessageParts, t as translate } from "@/lib/i18n/translate";
+import { getMessageParts, t as translate, tLocal as translateLocal } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { UserLanguage } from "@/types";
 
@@ -36,5 +36,11 @@ export function useT() {
     [locale]
   );
 
-  return useMemo(() => ({ t, parts, locale }), [t, parts, locale]);
+  const tLocal = useCallback(
+    (key: MessageKey, vars?: Record<string, string>) =>
+      translateLocal(key, locale, vars),
+    [locale]
+  );
+
+  return useMemo(() => ({ t, parts, tLocal, locale }), [t, parts, tLocal, locale]);
 }

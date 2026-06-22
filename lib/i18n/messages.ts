@@ -261,6 +261,141 @@ export const MESSAGES = {
     en: "Go",
     th: "ค้น",
   },
+  "common.cancel": {
+    zh: "取消",
+    en: "Cancel",
+    th: "ยกเลิก",
+  },
+  "common.delete": {
+    zh: "删除",
+    en: "Delete",
+    th: "ลบ",
+  },
+  "common.receiver": {
+    zh: "收货人",
+    en: "Receiver",
+    th: "ผู้รับ",
+  },
+  "common.crateType": {
+    zh: "桶型",
+    en: "Crate Type",
+    th: "ประเภทลัง",
+  },
+  "common.crateCount": {
+    zh: "桶数",
+    en: "Crates",
+    th: "จำนวนลัง",
+  },
+  "common.qty": {
+    zh: "数量",
+    en: "Qty",
+    th: "จำนวน",
+  },
+  "common.destination": {
+    zh: "目的地",
+    en: "Destination",
+    th: "ปลายทาง",
+  },
+  "common.optional": {
+    zh: "选填",
+    en: "(optional)",
+    th: "(ไม่บังคับ)",
+  },
+  "common.saving": {
+    zh: "保存中…",
+    en: "Saving…",
+    th: "กำลังบันทึก…",
+  },
+  "common.deleting": {
+    zh: "删除中…",
+    en: "Deleting…",
+    th: "กำลังลบ…",
+  },
+  "inbound.selectConsignor": {
+    zh: "— 选择寄货人",
+    en: "Select —",
+    th: "— เลือกผู้ส่ง —",
+  },
+  "inbound.tripPickup": {
+    zh: "本趟收货地点",
+    en: "Trip Pickup",
+    th: "จุดรับสินค้าเที่ยวนี้",
+  },
+  "inbound.areaNote": {
+    zh: "地区/备注",
+    en: "Area/Note",
+    th: "เขต/หมายเหตุ",
+  },
+  "inbound.thPlateField": {
+    zh: "泰国车牌",
+    en: "TH Plate",
+    th: "ทะเบียนรถไทย",
+  },
+  "inbound.loadingReceivers": {
+    zh: "加载收货人…",
+    en: "Loading receivers…",
+    th: "กำลังโหลดผู้รับ…",
+  },
+  "inbound.noDefaultReceivers": {
+    zh: "此寄货人暂无固定收货人，请先在系统设置中添加。",
+    en: "No default receivers for this consignor.",
+    th: "ผู้ส่งรายนี้ยังไม่มีผู้รับประจำ กรุณาเพิ่มในการตั้งค่าระบบก่อน",
+  },
+  "inbound.addReceiver": {
+    zh: "新增收货人",
+    en: "Add Receiver",
+    th: "เพิ่มผู้รับ",
+  },
+  "inbound.marketField": {
+    zh: "地区",
+    en: "Market",
+    th: "ตลาด",
+  },
+  "inbound.receiverCode": {
+    zh: "收货人代码",
+    en: "Code",
+    th: "รหัสผู้รับ",
+  },
+  "inbound.confirmAdd": {
+    zh: "确认添加",
+    en: "Add",
+    th: "ยืนยันเพิ่ม",
+  },
+  "inbound.marketSubtotals": {
+    zh: "各市场小计",
+    en: "Market Subtotals",
+    th: "ยอดรวมแต่ละตลาด",
+  },
+  "inbound.saveDraft": {
+    zh: "保存草稿",
+    en: "Save Draft",
+    th: "บันทึกฉบับร่าง",
+  },
+  "inbound.confirmSave": {
+    zh: "确认保存",
+    en: "Confirm",
+    th: "ยืนยันบันทึก",
+  },
+  "inbound.addLineSameReceiver": {
+    zh: "同收货人加一行",
+    en: "Add line (same receiver)",
+    th: "เพิ่มแถว (ผู้รับเดิม)",
+  },
+  "inbound.deleteReceiverConfirm": {
+    zh: "确定要永久删除收货人 {code} 吗？",
+    en: "Are you sure to permanently delete receiver {code}?",
+    th: "ต้องการลบผู้รับ {code} อย่างถาวรหรือไม่?",
+  },
+  "inbound.deleteSessionConfirm": {
+    zh: "确定要删除这张进货单吗？此操作无法撤销。",
+    en: "Are you sure you want to delete this inbound session? This cannot be undone.",
+    th: "ต้องการลบรายการนำเข้านี้หรือไม่? การกระทำนี้ย้อนกลับไม่ได้",
+  },
+  "inbound.deleteSession": {
+    zh: "删除进货单",
+    en: "Delete inbound session",
+    th: "ลบรายการนำเข้า",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }
