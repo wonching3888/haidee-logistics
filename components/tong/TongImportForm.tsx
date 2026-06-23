@@ -118,6 +118,382 @@ function mergeDynamicColumns(...lists: string[][]): string[] {
   return merged;
 }
 
+function formatCompactQuantities(
+  quantities: Record<string, string>,
+  dynamicColumns: string[]
+): string {
+  const parts: string[] = [];
+  for (const col of TONG_IMPORT_DEFAULT_COLUMNS) {
+    const qty = parseQty(quantities[col.key]);
+    if (qty > 0) parts.push(`${col.label} ${qty}`);
+  }
+  for (const name of dynamicColumns) {
+    const qty = parseQty(quantities[name]);
+    if (qty > 0) parts.push(`${name} ${qty}`);
+  }
+  return parts.join(" · ");
+}
+
+const MOBILE_INPUT_CLASS =
+  "min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-right font-mono text-base";
+const MOBILE_SELECT_CLASS =
+  "min-h-[44px] w-full rounded-lg border border-haidee-border px-2 font-mono text-sm";
+
+interface ImportRowEditorProps {
+  row: ImportRow;
+  trucks: TruckOption[];
+  markets: MarketOption[];
+  dynamicColumns: string[];
+  onUpdate: (patch: Partial<ImportRow>) => void;
+  onUpdateQty: (key: string, value: string) => void;
+  onRemove: () => void;
+  onRemoveDynamicColumn: (name: string) => void;
+  variant: "table-row" | "card";
+  inputClass: string;
+  selectClass: string;
+}
+
+function ImportRowEditor({
+  row,
+  trucks,
+  markets,
+  dynamicColumns,
+  onUpdate,
+  onUpdateQty,
+  onRemove,
+  onRemoveDynamicColumn,
+  variant,
+  inputClass,
+  selectClass,
+}: ImportRowEditorProps) {
+  const { t } = useT();
+  const total = rowTotal(row.quantities, dynamicColumns);
+
+  const plateSelect = (
+    <select
+      value={row.truckPlate}
+      onChange={(e) => onUpdate({ truckPlate: e.target.value })}
+      className={
+        variant === "card"
+          ? `${MOBILE_SELECT_CLASS} min-w-0 flex-1`
+          : `${selectClass} min-w-[100px]`
+      }
+      aria-label={t("dispatch.plateField")}
+    >
+      <option value="">—</option>
+      {trucks.map((truck) => (
+        <option key={truck.id} value={truck.plate}>
+          {truck.plate}
+        </option>
+      ))}
+    </select>
+  );
+
+  const marketSelect = (
+    <select
+      value={row.marketCode}
+      onChange={(e) => onUpdate({ marketCode: e.target.value })}
+      className={
+        variant === "card"
+          ? `${MOBILE_SELECT_CLASS} min-w-0 flex-1`
+          : `${selectClass} min-w-[72px]`
+      }
+      aria-label={t("crateImport.sourceMarket")}
+    >
+      <option value="">—</option>
+      {markets.map((m) => (
+        <option key={m.id} value={m.code}>
+          {m.code} — {m.displayName ?? m.name}
+        </option>
+      ))}
+    </select>
+  );
+
+  const statusSelect = (
+    <select
+      value={row.status}
+      onChange={(e) =>
+        onUpdate({ status: e.target.value as ImportRow["status"] })
+      }
+      className={
+        variant === "card"
+          ? `${MOBILE_SELECT_CLASS} min-w-[7.5rem] shrink-0`
+          : `${selectClass} min-w-[90px]`
+      }
+      aria-label={t("common.status")}
+    >
+      <option value="on_the_way">
+        🟡 {t("crateImport.status.onTheWay")}
+      </option>
+      <option value="arrived">
+        🟢 {t("crateImport.status.arrived")}
+      </option>
+    </select>
+  );
+
+  const removeButton = (
+    <button
+      type="button"
+      onClick={onRemove}
+      className={cn(
+        "rounded-lg text-haidee-muted hover:text-haidee-red",
+        variant === "card"
+          ? "flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center"
+          : "p-1"
+      )}
+      aria-label={t("common.delete")}
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  );
+
+  if (variant === "card") {
+    return (
+      <article
+        className={cn(
+          "rounded-xl border border-haidee-border bg-white p-4",
+          row.status === "on_the_way" && "bg-yellow-50/80"
+        )}
+      >
+        <div className="flex flex-wrap items-start gap-2">
+          {plateSelect}
+          {marketSelect}
+          {statusSelect}
+          {removeButton}
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
+            <div key={col.key} className="flex items-center gap-3">
+              <label
+                htmlFor={`${row.id}-qty-${col.key}`}
+                className="w-14 shrink-0 font-mono text-sm font-semibold text-haidee-text"
+              >
+                {col.label}
+              </label>
+              <input
+                id={`${row.id}-qty-${col.key}`}
+                type="text"
+                inputMode="numeric"
+                value={row.quantities[col.key] ?? ""}
+                onChange={(e) => onUpdateQty(col.key, e.target.value)}
+                className={MOBILE_INPUT_CLASS}
+              />
+            </div>
+          ))}
+          {dynamicColumns.map((name) => (
+            <div key={name} className="flex items-center gap-3">
+              <span className="inline-flex w-14 shrink-0 items-center gap-0.5 font-mono text-sm font-semibold text-haidee-text">
+                {name}
+                <button
+                  type="button"
+                  onClick={() => onRemoveDynamicColumn(name)}
+                  className="rounded p-0.5 text-haidee-muted hover:text-haidee-red"
+                  aria-label={t("crateImport.removeColumnAria", { name })}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={row.quantities[name] ?? ""}
+                onChange={(e) => onUpdateQty(name, e.target.value)}
+                className={MOBILE_INPUT_CLASS}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 space-y-1">
+          <label
+            htmlFor={`${row.id}-notes`}
+            className="text-sm font-medium text-haidee-text"
+          >
+            {t("common.notes")}
+          </label>
+          <input
+            id={`${row.id}-notes`}
+            type="text"
+            value={row.notes}
+            onChange={(e) => onUpdate({ notes: e.target.value })}
+            className={`${MOBILE_INPUT_CLASS} text-left`}
+          />
+        </div>
+
+        <div className="mt-3 text-right font-mono text-base font-semibold text-haidee-text">
+          {t("common.total")}: {total || 0}
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <tr
+      className={cn(
+        "border-b border-haidee-border/60",
+        row.status === "on_the_way" && "bg-yellow-50/80"
+      )}
+    >
+      <td className={cn(STICKY_BODY_FIRST, "px-1 py-1")}>{plateSelect}</td>
+      <td className="px-1 py-1">{marketSelect}</td>
+      {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
+        <td key={col.key} className="px-1 py-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={row.quantities[col.key] ?? ""}
+            onChange={(e) => onUpdateQty(col.key, e.target.value)}
+            className={`${inputClass} w-12`}
+          />
+        </td>
+      ))}
+      {dynamicColumns.map((name) => (
+        <td key={name} className="px-1 py-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={row.quantities[name] ?? ""}
+            onChange={(e) => onUpdateQty(name, e.target.value)}
+            className={`${inputClass} w-12`}
+          />
+        </td>
+      ))}
+      <td className="px-1 py-1" />
+      <td className="px-1 py-1">{statusSelect}</td>
+      <td className="px-1 py-1">
+        <input
+          type="text"
+          value={row.notes}
+          onChange={(e) => onUpdate({ notes: e.target.value })}
+          className={`${inputClass} w-full min-w-[80px] text-left`}
+        />
+      </td>
+      <td className="px-2 py-1 text-center font-mono font-semibold">
+        {total || ""}
+      </td>
+      <td className="px-1 py-1">{removeButton}</td>
+    </tr>
+  );
+}
+
+interface ImportTodaySummaryBarProps {
+  columnTotals: Record<string, number>;
+  grandTotal: number;
+  dynamicColumns: string[];
+  onAddColumn: () => void;
+  addColumnDisabled: boolean;
+}
+
+function ImportTodaySummaryBar({
+  columnTotals,
+  grandTotal,
+  dynamicColumns,
+  onAddColumn,
+  addColumnDisabled,
+}: ImportTodaySummaryBarProps) {
+  const { t } = useT();
+
+  const parts: string[] = [];
+  for (const col of TONG_IMPORT_DEFAULT_COLUMNS) {
+    const qty = columnTotals[col.key] ?? 0;
+    if (qty > 0) parts.push(`${col.label} ${qty}`);
+  }
+  for (const name of dynamicColumns) {
+    const qty = columnTotals[name] ?? 0;
+    if (qty > 0) parts.push(`${name} ${qty}`);
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-haidee-border bg-haidee-surface p-4">
+      <div className="font-semibold text-haidee-text">{t("common.total")}</div>
+      {parts.length > 0 ? (
+        <p className="font-mono text-sm leading-relaxed text-haidee-text">
+          {parts.join(" · ")}
+        </p>
+      ) : (
+        <p className="text-sm text-haidee-muted">—</p>
+      )}
+      <p className="font-mono text-base font-bold text-haidee-text">
+        {t("common.total")}: {grandTotal || 0}
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onAddColumn}
+        disabled={addColumnDisabled}
+        className="gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        {t("crateImport.addColumn")}
+      </Button>
+    </div>
+  );
+}
+
+interface InTransitMobileCardProps {
+  row: InTransitImportRow;
+  allDynamicColumns: string[];
+  isPending: boolean;
+  onStatusChange: (
+    row: InTransitImportRow,
+    status: "on_the_way" | "arrived"
+  ) => void;
+}
+
+function InTransitMobileCard({
+  row,
+  allDynamicColumns,
+  isPending,
+  onStatusChange,
+}: InTransitMobileCardProps) {
+  const { t } = useT();
+  const compactQty = formatCompactQuantities(row.quantities, allDynamicColumns);
+  const total = rowTotal(row.quantities, allDynamicColumns);
+
+  return (
+    <article className="rounded-xl border border-haidee-border bg-yellow-50/80 p-4">
+      <div className="font-mono text-base font-semibold text-haidee-text">
+        {row.truckPlate}
+      </div>
+      <div className="mt-1 text-sm text-haidee-muted">
+        {row.dateStr} · {row.marketCode}
+      </div>
+      {compactQty ? (
+        <p className="mt-2 font-mono text-sm leading-relaxed text-haidee-text">
+          {compactQty}
+        </p>
+      ) : null}
+      {row.notes ? (
+        <p className="mt-2 text-sm text-haidee-muted">
+          {t("common.notes")}: {row.notes}
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <select
+          value={row.status}
+          onChange={(e) =>
+            onStatusChange(row, e.target.value as "on_the_way" | "arrived")
+          }
+          disabled={isPending}
+          className={`${MOBILE_SELECT_CLASS} min-w-[10rem] flex-1`}
+          aria-label={t("common.status")}
+        >
+          <option value="on_the_way">
+            🟡 {t("crateImport.status.onTheWay")}
+          </option>
+          <option value="arrived">
+            🟢 {t("crateImport.status.arrived")}
+          </option>
+        </select>
+        <span className="font-mono text-sm font-semibold text-haidee-text">
+          {t("common.total")}: {total || 0}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 interface TongImportFormProps {
   allTrucks: TruckOption[];
   markets: MarketOption[];
@@ -383,7 +759,7 @@ export function TongImportForm({
   return (
     <div className="space-y-8">
       {/* Daily records section */}
-      <section className="space-y-4">
+      <section className="space-y-4 pb-24 md:pb-0">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h3 className="text-lg font-semibold text-haidee-text">
             {t("crateImport.todaySection")}
@@ -395,14 +771,58 @@ export function TongImportForm({
           />
         </div>
 
-        <ScrollMatrixTable heightOffset={320}>
-          <table className="w-full min-w-[900px] text-xs">
-            <thead>
-              <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>
-                  {t("dispatch.plateField")}
-                </th>
-                  <th className="px-2 py-2 text-left">{t("crateImport.sourceMarket")}</th>
+        {/* Mobile: per-truck cards */}
+        <div className="space-y-4 md:hidden">
+          <ImportTodaySummaryBar
+            columnTotals={columnTotals}
+            grandTotal={grandTotal}
+            dynamicColumns={dynamicColumns}
+            onAddColumn={openAddColumnDialog}
+            addColumnDisabled={addableColumnOptions.length === 0}
+          />
+          <div className="space-y-3">
+            {rows.map((row) => (
+              <ImportRowEditor
+                key={row.id}
+                row={row}
+                trucks={trucks}
+                markets={markets}
+                dynamicColumns={dynamicColumns}
+                onUpdate={(patch) => updateRow(row.id, patch)}
+                onUpdateQty={(key, value) => updateQty(row.id, key, value)}
+                onRemove={() =>
+                  setRows((prev) => prev.filter((r) => r.id !== row.id))
+                }
+                onRemoveDynamicColumn={removeDynamicColumn}
+                variant="card"
+                inputClass={inputClass}
+                selectClass={selectClass}
+              />
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setRows((prev) => [...prev, emptyRow()])}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("crateImport.addRow")}
+          </Button>
+        </div>
+
+        {/* Desktop: matrix table (unchanged) */}
+        <div className="hidden space-y-4 md:block">
+          <ScrollMatrixTable heightOffset={320}>
+            <table className="w-full min-w-[900px] text-xs">
+              <thead>
+                <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
+                  <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>
+                    {t("dispatch.plateField")}
+                  </th>
+                  <th className="px-2 py-2 text-left">
+                    {t("crateImport.sourceMarket")}
+                  </th>
                   {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                     <th key={c.key} className="px-1 py-2 font-mono">
                       {c.label}
@@ -416,7 +836,9 @@ export function TongImportForm({
                           type="button"
                           onClick={() => removeDynamicColumn(name)}
                           className="rounded p-0.5 text-haidee-muted hover:text-haidee-red"
-                          aria-label={t("crateImport.removeColumnAria", { name })}
+                          aria-label={t("crateImport.removeColumnAria", {
+                            name,
+                          })}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -442,114 +864,22 @@ export function TongImportForm({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr
+                  <ImportRowEditor
                     key={row.id}
-                    className={`border-b border-haidee-border/60 ${
-                      row.status === "on_the_way" ? "bg-yellow-50/80" : ""
-                    }`}
-                  >
-                    <td className={cn(STICKY_BODY_FIRST, "px-1 py-1")}>
-                      <select
-                        value={row.truckPlate}
-                        onChange={(e) =>
-                          updateRow(row.id, { truckPlate: e.target.value })
-                        }
-                        className={`${selectClass} min-w-[100px]`}
-                      >
-                        <option value="">—</option>
-                        {trucks.map((t) => (
-                          <option key={t.id} value={t.plate}>
-                            {t.plate}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-1 py-1">
-                      <select
-                        value={row.marketCode}
-                        onChange={(e) =>
-                          updateRow(row.id, { marketCode: e.target.value })
-                        }
-                        className={`${selectClass} min-w-[72px]`}
-                      >
-                        <option value="">—</option>
-                        {markets.map((m) => (
-                          <option key={m.id} value={m.code}>
-                            {m.code} — {m.displayName ?? m.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
-                      <td key={col.key} className="px-1 py-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={row.quantities[col.key] ?? ""}
-                          onChange={(e) =>
-                            updateQty(row.id, col.key, e.target.value)
-                          }
-                          className={`${inputClass} w-12`}
-                        />
-                      </td>
-                    ))}
-                    {dynamicColumns.map((name) => (
-                      <td key={name} className="px-1 py-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={row.quantities[name] ?? ""}
-                          onChange={(e) =>
-                            updateQty(row.id, name, e.target.value)
-                          }
-                          className={`${inputClass} w-12`}
-                        />
-                      </td>
-                    ))}
-                    <td className="px-1 py-1" />
-                    <td className="px-1 py-1">
-                      <select
-                        value={row.status}
-                        onChange={(e) =>
-                          updateRow(row.id, {
-                            status: e.target.value as ImportRow["status"],
-                          })
-                        }
-                        className={`${selectClass} min-w-[90px]`}
-                      >
-                        <option value="on_the_way">
-                          🟡 {t("crateImport.status.onTheWay")}
-                        </option>
-                        <option value="arrived">
-                          🟢 {t("crateImport.status.arrived")}
-                        </option>
-                      </select>
-                    </td>
-                    <td className="px-1 py-1">
-                      <input
-                        type="text"
-                        value={row.notes}
-                        onChange={(e) =>
-                          updateRow(row.id, { notes: e.target.value })
-                        }
-                        className={`${inputClass} w-full min-w-[80px] text-left`}
-                      />
-                    </td>
-                    <td className="px-2 py-1 text-center font-mono font-semibold">
-                      {rowTotal(row.quantities, dynamicColumns) || ""}
-                    </td>
-                    <td className="px-1 py-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRows((prev) => prev.filter((r) => r.id !== row.id))
-                        }
-                        className="rounded p-1 text-haidee-muted hover:text-haidee-red"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
+                    row={row}
+                    trucks={trucks}
+                    markets={markets}
+                    dynamicColumns={dynamicColumns}
+                    onUpdate={(patch) => updateRow(row.id, patch)}
+                    onUpdateQty={(key, value) => updateQty(row.id, key, value)}
+                    onRemove={() =>
+                      setRows((prev) => prev.filter((r) => r.id !== row.id))
+                    }
+                    onRemoveDynamicColumn={removeDynamicColumn}
+                    variant="table-row"
+                    inputClass={inputClass}
+                    selectClass={selectClass}
+                  />
                 ))}
               </tbody>
               <tfoot>
@@ -579,30 +909,42 @@ export function TongImportForm({
                 </tr>
               </tfoot>
             </table>
-        </ScrollMatrixTable>
+          </ScrollMatrixTable>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setRows((prev) => [...prev, emptyRow()])}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          {t("crateImport.addRow")}
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setRows((prev) => [...prev, emptyRow()])}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("crateImport.addRow")}
+          </Button>
 
+          <Button
+            onClick={handleSaveToday}
+            disabled={isPending}
+            className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
+          >
+            {isPending ? t("common.saving") : t("crateImport.confirmSave")}
+          </Button>
+        </div>
+      </section>
+
+      {/* Mobile sticky save */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-haidee-border bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.08)] md:hidden">
         <Button
           onClick={handleSaveToday}
           disabled={isPending}
-          className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
+          className="min-h-[48px] w-full bg-haidee-blue text-base text-white hover:bg-haidee-blue/90"
         >
           {isPending ? t("common.saving") : t("crateImport.confirmSave")}
         </Button>
-      </section>
+      </div>
 
       {/* In transit section */}
       {inTransitRows.length > 0 && (
-        <section className="space-y-4">
+        <section className="space-y-4 pb-24 md:pb-0">
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-lg font-semibold text-haidee-text">
               {t("crateImport.inTransitTitle")}
@@ -614,17 +956,34 @@ export function TongImportForm({
             </span>
           </div>
 
-          <ScrollMatrixTable heightOffset={320}>
+          <div className="space-y-3 md:hidden">
+            {inTransitRows.map((row) => (
+              <InTransitMobileCard
+                key={`${row.dateInput}-${row.truckPlate}-${row.marketCode}`}
+                row={row}
+                allDynamicColumns={allDynamicColumns}
+                isPending={isPending}
+                onStatusChange={handleInTransitStatusChange}
+              />
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <ScrollMatrixTable heightOffset={320}>
               <table className="w-full min-w-[960px] text-xs">
                 <thead>
                   <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                    <th className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}>
+                    <th
+                      className={cn(STICKY_HEAD_FIRST, "px-2 py-2 text-left")}
+                    >
                       {t("dispatch.plateField")}
                     </th>
                     <th className={cn(STICKY_HEAD_TOP, "px-2 py-2 text-left")}>
                       {t("common.date")}
                     </th>
-                    <th className="px-2 py-2 text-left">{t("crateImport.sourceMarket")}</th>
+                    <th className="px-2 py-2 text-left">
+                      {t("crateImport.sourceMarket")}
+                    </th>
                     {TONG_IMPORT_DEFAULT_COLUMNS.map((c) => (
                       <th key={c.key} className="px-1 py-2 font-mono">
                         {c.label}
@@ -646,7 +1005,14 @@ export function TongImportForm({
                       key={`${row.dateInput}-${row.truckPlate}-${row.marketCode}`}
                       className="border-b border-haidee-border/60 bg-yellow-50/80"
                     >
-                      <td className={cn(STICKY_BODY_FIRST, "px-2 py-1 font-mono")}>{row.truckPlate}</td>
+                      <td
+                        className={cn(
+                          STICKY_BODY_FIRST,
+                          "px-2 py-1 font-mono"
+                        )}
+                      >
+                        {row.truckPlate}
+                      </td>
                       <td className="px-2 py-1 font-mono">{row.dateStr}</td>
                       <td className="px-2 py-1 font-mono">{row.marketCode}</td>
                       {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
@@ -695,7 +1061,8 @@ export function TongImportForm({
                   ))}
                 </tbody>
               </table>
-          </ScrollMatrixTable>
+            </ScrollMatrixTable>
+          </div>
         </section>
       )}
 
