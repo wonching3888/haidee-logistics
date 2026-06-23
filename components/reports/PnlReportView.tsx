@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { STICKY_HEAD_TOP } from "@/lib/table-scroll";
 import {
   Table,
   TableBody,
@@ -44,6 +45,8 @@ const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 type PnlTab = "trip" | "period" | "customer";
 
 const PNL_TABLE_CLASS = "whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap";
+
+const PNL_TRIP_HEAD_STICKY = cn(STICKY_HEAD_TOP, "bg-haidee-surface");
 
 function getTodayDateInput() {
   const now = new Date();
@@ -476,81 +479,36 @@ export function PnlReportView({
               请选择筛选条件后点击「查询 Search」加载数据
             </p>
           ) : (
-            <ScrollMatrixTable heightOffset={300} naturalHeightOnMobile>
-              <Table className={PNL_TABLE_CLASS}>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead />
-                    <TableHead>日期 Date</TableHead>
-                    <TableHead>路线 Route</TableHead>
-                    <TableHead>司机 Driver</TableHead>
-                    <TableHead>车牌 Plate</TableHead>
-                    <TableHead className="text-right">总桶数</TableHead>
-                    <TableHead className="text-right">总盒子</TableHead>
-                    <TableHead className="text-right">总收入 MYR</TableHead>
-                    <TableHead className="text-right">直接成本</TableHead>
-                    <TableHead className="text-right">分摊成本</TableHead>
-                    <TableHead className="text-right">总成本</TableHead>
-                    <TableHead className="text-right">毛利 MYR</TableHead>
-                    <TableHead className="text-right">毛利率%</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trips.map((trip) => (
-                    <TripListRow
-                      key={trip.tripId}
-                      trip={trip}
-                      expanded={expandedTripIds.has(trip.tripId)}
-                      loading={loadingTripIds.has(trip.tripId)}
-                      detail={tripDetails[trip.tripId]}
-                      onToggle={() => void toggleTripExpand(trip.tripId)}
-                    />
-                  ))}
-                  {trips.length === 0 && !tripsLoading && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={13}
-                        className="py-8 text-center text-haidee-muted"
-                      >
-                        {emptyTripMessage}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {totals && trips.length > 0 && (
-                    <TableRow className="bg-slate-100 font-semibold">
-                      <TableCell />
-                      <TableCell colSpan={4}>
-                        {appliedTripDay ? "当日合计 Day Total" : "当月合计 Month Total"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {totals.totalBarrelQty}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {totals.totalBoxQty}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMyr(totals.revenueMyr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMyr(totals.directCostMyr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMyr(totals.allocatedCostMyr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMyr(totals.totalCostMyr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMyr(totals.grossProfitMyr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatPct(totals.marginPct)}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollMatrixTable>
+            <>
+              <div className="rounded-xl border border-haidee-border bg-white md:hidden">
+                  <TripPnlTripsTable
+                    trips={trips}
+                    totals={totals}
+                    tripsLoading={tripsLoading}
+                    emptyTripMessage={emptyTripMessage}
+                    appliedTripDay={appliedTripDay}
+                    expandedTripIds={expandedTripIds}
+                    loadingTripIds={loadingTripIds}
+                    tripDetails={tripDetails}
+                    onToggleTrip={(tripId) => void toggleTripExpand(tripId)}
+                  />
+              </div>
+              <div className="hidden md:block">
+                <ScrollMatrixTable heightOffset={300}>
+                  <TripPnlTripsTable
+                    trips={trips}
+                    totals={totals}
+                    tripsLoading={tripsLoading}
+                    emptyTripMessage={emptyTripMessage}
+                    appliedTripDay={appliedTripDay}
+                    expandedTripIds={expandedTripIds}
+                    loadingTripIds={loadingTripIds}
+                    tripDetails={tripDetails}
+                    onToggleTrip={(tripId) => void toggleTripExpand(tripId)}
+                  />
+                </ScrollMatrixTable>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -840,6 +798,116 @@ function VehicleCostRow({
       <TableCell>{label}</TableCell>
       <TableCell className="text-right">{formatMyr(value)}</TableCell>
     </TableRow>
+  );
+}
+
+function TripPnlTripsTable({
+  trips,
+  totals,
+  tripsLoading,
+  emptyTripMessage,
+  appliedTripDay,
+  expandedTripIds,
+  loadingTripIds,
+  tripDetails,
+  onToggleTrip,
+}: {
+  trips: PnlTripListItem[];
+  totals: PnlTripsListData["totals"] | undefined;
+  tripsLoading: boolean;
+  emptyTripMessage: string;
+  appliedTripDay: string;
+  expandedTripIds: Set<string>;
+  loadingTripIds: Set<string>;
+  tripDetails: Record<string, PnlTripRow>;
+  onToggleTrip: (tripId: string) => void;
+}) {
+  return (
+    <Table noScrollContainer className={PNL_TABLE_CLASS}>
+      <TableHeader>
+        <TableRow>
+          <TableHead className={PNL_TRIP_HEAD_STICKY} />
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>日期 Date</TableHead>
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>路线 Route</TableHead>
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>司机 Driver</TableHead>
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>车牌 Plate</TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总桶数
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总盒子
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总收入 MYR
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            直接成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            分摊成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            毛利 MYR
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            毛利率%
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {trips.map((trip) => (
+          <TripListRow
+            key={trip.tripId}
+            trip={trip}
+            expanded={expandedTripIds.has(trip.tripId)}
+            loading={loadingTripIds.has(trip.tripId)}
+            detail={tripDetails[trip.tripId]}
+            onToggle={() => onToggleTrip(trip.tripId)}
+          />
+        ))}
+        {trips.length === 0 && !tripsLoading && (
+          <TableRow>
+            <TableCell
+              colSpan={13}
+              className="py-8 text-center text-haidee-muted"
+            >
+              {emptyTripMessage}
+            </TableCell>
+          </TableRow>
+        )}
+        {totals && trips.length > 0 && (
+          <TableRow className="bg-slate-100 font-semibold">
+            <TableCell />
+            <TableCell colSpan={4}>
+              {appliedTripDay ? "当日合计 Day Total" : "当月合计 Month Total"}
+            </TableCell>
+            <TableCell className="text-right">{totals.totalBarrelQty}</TableCell>
+            <TableCell className="text-right">{totals.totalBoxQty}</TableCell>
+            <TableCell className="text-right">
+              {formatMyr(totals.revenueMyr)}
+            </TableCell>
+            <TableCell className="text-right">
+              {formatMyr(totals.directCostMyr)}
+            </TableCell>
+            <TableCell className="text-right">
+              {formatMyr(totals.allocatedCostMyr)}
+            </TableCell>
+            <TableCell className="text-right">
+              {formatMyr(totals.totalCostMyr)}
+            </TableCell>
+            <TableCell className="text-right">
+              {formatMyr(totals.grossProfitMyr)}
+            </TableCell>
+            <TableCell className="text-right">
+              {formatPct(totals.marginPct)}
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
