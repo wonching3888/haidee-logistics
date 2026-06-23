@@ -266,6 +266,16 @@ export const MESSAGES = {
     en: "Go",
     th: "ค้น",
   },
+  "inbound.filterToggle": {
+    zh: "筛选",
+    en: "Filter",
+    th: "กรอง",
+  },
+  "inbound.filtersActive": {
+    zh: "已筛选",
+    en: "Filtered",
+    th: "กรองแล้ว",
+  },
   "common.cancel": {
     zh: "取消",
     en: "Cancel",

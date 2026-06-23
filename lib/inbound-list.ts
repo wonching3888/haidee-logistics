@@ -70,6 +70,24 @@ export interface InboundSessionListSource {
   marketQtys: InboundMarketQtyPart[];
 }
 
+/** Whether inbound list filters differ from the default (today + all shippers/status/search). */
+export function hasActiveInboundListFilters(params: {
+  date?: string | null;
+  shipperId?: string | null;
+  status?: string | null;
+  search?: string | null;
+}): boolean {
+  if (params.shipperId?.trim()) return true;
+  if (params.status?.trim()) return true;
+  if (params.search?.trim()) return true;
+  if (params.date === INBOUND_LIST_ALL_DATES) return true;
+  if (params.date) {
+    const defaultDate = toDateInputValue(getDefaultInboundDate());
+    if (resolveDateParam(params.date) !== defaultDate) return true;
+  }
+  return false;
+}
+
 /** Per-market quantity totals for list/card display (non-OTHER markets only). */
 export function aggregateInboundMarketQtys(
   lines: Array<{

@@ -12,6 +12,11 @@ interface ScrollMatrixTableProps {
   heightOffset?: number;
   /** When true, height follows parent flex chain instead of calc(100vh - offset). */
   fillParent?: boolean;
+  /**
+   * Below md: drop calc(100vh) height so AppShell main scrolls vertically on phones.
+   * Desktop (md+) keeps viewport-tied height when heightOffset is set.
+   */
+  naturalHeightOnMobile?: boolean;
   className?: string;
   innerClassName?: string;
   style?: CSSProperties;
@@ -21,6 +26,7 @@ export function ScrollMatrixTable({
   children,
   heightOffset = 260,
   fillParent = false,
+  naturalHeightOnMobile = false,
   className,
   innerClassName,
   style,
@@ -34,6 +40,7 @@ export function ScrollMatrixTable({
       className={cn(
         "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white",
         fillParent && "h-full",
+        naturalHeightOnMobile && "scroll-matrix-natural-mobile",
         className
       )}
     >

@@ -38,7 +38,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     ]);
 
     return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 md:gap-6">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-haidee-text">

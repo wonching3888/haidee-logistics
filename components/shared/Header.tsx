@@ -48,16 +48,16 @@ export function Header({ user, onMenuToggle }: HeaderProps) {
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 md:gap-4">
         <LanguageSwitcher current={user.language} />
-        <div className="hidden items-center gap-2 text-sm text-haidee-muted sm:flex">
+        <div className="hidden items-center gap-2 text-sm text-haidee-muted lg:flex">
           <User className="h-4 w-4 shrink-0" />
-          <span className="max-w-[8rem] truncate md:max-w-none">
+          <span className="max-w-[12rem] truncate xl:max-w-none">
             {user.name ?? user.email}
           </span>
           <span className="rounded bg-haidee-navy2 px-2 py-0.5 text-xs text-white">
             {roleLabel}
           </span>
         </div>
-        <div className="flex items-center text-sm text-haidee-muted sm:hidden">
+        <div className="flex items-center text-sm text-haidee-muted lg:hidden">
           <User className="h-4 w-4 shrink-0" aria-hidden />
         </div>
         <Button

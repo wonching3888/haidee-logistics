@@ -453,7 +453,7 @@ export function PnlReportView({
       )}
 
       {activeTab === "trip" && (
-        <div className="space-y-4">
+        <div className="space-y-4 max-md:pb-4">
           <p className="text-sm text-haidee-muted">
             年份+月份 = 查整月趟次；加选日期 = 只看当日；路线/司机 = 进一步筛选
           </p>
@@ -476,7 +476,7 @@ export function PnlReportView({
               请选择筛选条件后点击「查询 Search」加载数据
             </p>
           ) : (
-            <ScrollMatrixTable heightOffset={300}>
+            <ScrollMatrixTable heightOffset={300} naturalHeightOnMobile>
               <Table className={PNL_TABLE_CLASS}>
                 <TableHeader>
                   <TableRow>

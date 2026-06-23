@@ -48,3 +48,22 @@ body,
 .numeric {
   font-variant-numeric: tabular-nums lining-nums;
 }
+
+/* ScrollMatrixTable: on phones let AppShell <main> scroll vertically (no calc(100vh) trap). */
+@media (max-width: 767px) {
+  .scroll-matrix-natural-mobile {
+    overflow: visible !important;
+  }
+
+  .scroll-matrix-natural-mobile > div {
+    overflow: visible !important;
+  }
+
+  .scroll-matrix-natural-mobile .scroll-matrix-table {
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
