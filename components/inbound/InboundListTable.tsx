@@ -208,7 +208,7 @@ function InboundListMobileCards({
   editLabel: string;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pt-1 pb-2 md:hidden">
+    <div className="flex flex-col gap-3 pt-1 pb-2 md:hidden">
       {sessions.map((s) => {
         const batchText =
           s.sessionNo?.trim() || draftLabel;
@@ -300,7 +300,7 @@ function InboundListDesktopTable({
   editLabel: string;
 }) {
   return (
-    <ScrollMatrixTable fillParent className="hidden h-full rounded-xl md:block">
+    <ScrollMatrixTable fillParent className="max-md:hidden h-full rounded-xl md:flex">
       <table data-inbound-table-scroll style={tableStyle} className="text-sm">
         <colgroup>
           <col style={{ width: W.date }} />

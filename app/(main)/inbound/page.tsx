@@ -38,7 +38,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
     ]);
 
     return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 md:gap-6">
+      <div className="flex min-h-0 min-w-0 flex-col gap-4 md:h-full md:gap-6">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-haidee-text">
@@ -67,7 +67,7 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
           </div>
         </Suspense>
 
-        <div className="min-h-0 min-w-0 flex-1">
+        <div className="min-w-0 md:min-h-0 md:flex-1">
           <InboundListTable
             sessions={serializeInboundSessionListRows(sessions)}
             locale={locale}
