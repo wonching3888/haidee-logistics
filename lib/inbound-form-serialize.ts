@@ -116,6 +116,7 @@ export function serializeShipperOptions(
     code: string;
     name: string;
     pickupLocation: string;
+    defaultTongTypeId: string | null;
   }[]
 ) {
   return shippers.map((shipper) => ({
@@ -123,6 +124,7 @@ export function serializeShipperOptions(
     code: shipper.code,
     name: shipper.name,
     pickupLocation: shipper.pickupLocation,
+    defaultTongTypeId: shipper.defaultTongTypeId,
   }));
 }
 

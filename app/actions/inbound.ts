@@ -350,6 +350,12 @@ async function processNewStalls(
       })
   );
 
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { defaultTongTypeId: true },
+  });
+  const pairingTongTypeId = shipper?.defaultTongTypeId;
+
   await Promise.all(
     newStalls.map((ns) => {
       const stall = stallMap.get(`${ns.code}:${ns.marketId}`)!;
@@ -357,11 +363,11 @@ async function processNewStalls(
         where: {
           shipperId_stallId: { shipperId, stallId: stall.id },
         },
-        update: { tongTypeId: ns.tongTypeId },
+        update: {},
         create: {
           shipperId,
           stallId: stall.id,
-          tongTypeId: ns.tongTypeId,
+          tongTypeId: pairingTongTypeId ?? ns.tongTypeId,
         },
       });
     })
@@ -379,25 +385,6 @@ async function processNewStalls(
   }
 
   return createdLines;
-}
-
-async function syncShipperStallDefaults(
-  shipperId: string,
-  lines: InboundLineInput[]
-) {
-  const defaultsByStall = new Map<string, string>();
-  for (const line of lines) {
-    defaultsByStall.set(line.stallId, line.tongTypeId);
-  }
-
-  await Promise.all(
-    Array.from(defaultsByStall.entries()).map(([stallId, tongTypeId]) =>
-      prisma.shipperStallDefault.updateMany({
-        where: { shipperId, stallId },
-        data: { tongTypeId },
-      })
-    )
-  );
 }
 
 interface ExistingInboundLine {
@@ -594,6 +581,7 @@ export async function getShippers() {
       code: true,
       name: true,
       pickupLocation: true,
+      defaultTongTypeId: true,
     },
   });
 }
@@ -607,14 +595,29 @@ export async function getTongTypes() {
 }
 
 export async function getShipperStalls(shipperId: string) {
-  const defaults = await prisma.shipperStallDefault.findMany({
-    where: { shipperId },
-    include: {
-      stall: { include: { market: true } },
-      tongType: true,
-    },
-    orderBy: [{ stall: { market: { code: "asc" } } }, { stall: { code: "asc" } }],
-  });
+  const [shipper, defaults] = await Promise.all([
+    prisma.shipper.findUnique({
+      where: { id: shipperId },
+      select: {
+        defaultTongTypeId: true,
+        defaultTongType: { select: { id: true, code: true, name: true } },
+      },
+    }),
+    prisma.shipperStallDefault.findMany({
+      where: { shipperId },
+      include: {
+        stall: { include: { market: true } },
+      },
+      orderBy: [
+        { stall: { market: { code: "asc" } } },
+        { stall: { code: "asc" } },
+      ],
+    }),
+  ]);
+
+  const defaultTongTypeId = shipper?.defaultTongTypeId ?? "";
+  const defaultTongTypeCode = shipper?.defaultTongType?.code ?? "";
+  const defaultTongTypeName = shipper?.defaultTongType?.name ?? "";
 
   return defaults.map((d) => ({
     stallId: d.stallId,
@@ -628,9 +631,9 @@ export async function getShipperStalls(shipperId: string) {
     marketName: d.stall?.market?.code
       ? getMarketDisplayName(d.stall.market.code)
       : "",
-    defaultTongTypeId: d.tongTypeId,
-    defaultTongTypeCode: d.tongType?.code ?? "",
-    defaultTongTypeName: d.tongType?.name ?? "",
+    defaultTongTypeId,
+    defaultTongTypeCode,
+    defaultTongTypeName,
   }));
 }
 
@@ -1004,8 +1007,6 @@ export async function saveInboundSession(input: SaveInboundInput) {
     ])
   );
   const typeMap = await loadTongTypeMap(tongTypeIds);
-
-  await syncShipperStallDefaults(input.shipperId, allLines);
 
   const freightRateDate = input.freightRateAsOfDate
     ? parseDateInput(input.freightRateAsOfDate)

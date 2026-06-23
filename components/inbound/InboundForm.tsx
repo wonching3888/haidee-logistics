@@ -43,12 +43,21 @@ interface ShipperOption {
   code: string;
   name: string;
   pickupLocation: string;
+  defaultTongTypeId: string | null;
 }
 
 function shipperDefaultPickup(
   shipper: ShipperOption | undefined
 ): typeof DEFAULT_PICKUP_LOCATION {
   return resolveSessionPickupLocation(null, shipper?.pickupLocation);
+}
+
+function resolveInboundDefaultTongTypeId(
+  shipper: ShipperOption | undefined,
+  tongTypes: TongTypeOption[]
+): string {
+  if (shipper?.defaultTongTypeId) return shipper.defaultTongTypeId;
+  return tongTypes[0]?.id ?? "";
 }
 
 interface TongTypeOption {
@@ -123,7 +132,7 @@ export function InboundForm({
     code: "",
     destination: "",
     marketId: markets[0]?.id ?? "",
-    tongTypeId: tongTypes[0]?.id ?? "",
+    tongTypeId: "",
   });
   const [pendingNewStalls, setPendingNewStalls] = useState<
     {
@@ -207,6 +216,15 @@ export function InboundForm({
   useEffect(() => {
     if (shipperId) loadStalls(shipperId);
   }, [shipperId, loadStalls]);
+
+  useEffect(() => {
+    if (!shipperId) return;
+    const shipper = shippers.find((s) => s.id === shipperId);
+    setNewStall((prev) => ({
+      ...prev,
+      tongTypeId: resolveInboundDefaultTongTypeId(shipper, tongTypes),
+    }));
+  }, [shipperId, shippers, tongTypes]);
 
   useEffect(() => {
     if (freightLines) {
@@ -695,7 +713,10 @@ export function InboundForm({
                     code: "",
                     destination: "",
                     marketId: markets[0]?.id ?? "",
-                    tongTypeId: tongTypes[0]?.id ?? "",
+                    tongTypeId: resolveInboundDefaultTongTypeId(
+                      shippers.find((s) => s.id === shipperId),
+                      tongTypes
+                    ),
                   });
                   setShowAddStall(false);
                 }}
