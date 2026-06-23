@@ -360,6 +360,7 @@ export async function getTongLedger(dateStr?: string) {
     quantity: number;
     createdAt: Date;
     balanceAfter?: number | null;
+    notes: string | null;
   };
 
   const entries: LedgerEntry[] = [
@@ -371,6 +372,7 @@ export async function getTongLedger(dateStr?: string) {
       tongCode: i.tongType.code,
       quantity: i.quantity,
       createdAt: i.createdAt,
+      notes: i.notes?.trim() || null,
     })),
     ...exports.map((e) => ({
       date: e.date,
@@ -380,6 +382,7 @@ export async function getTongLedger(dateStr?: string) {
       tongCode: e.tongType.code,
       quantity: e.quantityActual,
       createdAt: e.createdAt,
+      notes: e.notes?.trim() || null,
     })),
     ...adjustments.map((a) => ({
       date: a.date,
@@ -390,6 +393,7 @@ export async function getTongLedger(dateStr?: string) {
       quantity: a.quantity,
       createdAt: a.createdAt,
       balanceAfter: a.balanceAfter,
+      notes: a.notes?.trim() || null,
     })),
   ];
 

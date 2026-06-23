@@ -56,6 +56,7 @@ interface LedgerRow {
   quantity: number;
   signedQty: string;
   balance: number;
+  notes: string | null;
 }
 
 interface TongStockViewProps {
@@ -259,6 +260,7 @@ export function TongStockView({
               {t("crateStock.emptyLedger")}
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
@@ -269,6 +271,7 @@ export function TongStockView({
                   <TableHead>{t("common.crateType")}</TableHead>
                   <TableHead className="text-right">{t("common.qty")}</TableHead>
                   <TableHead className="text-right">{t("crateStock.balance")}</TableHead>
+                  <TableHead className="min-w-[88px]">{t("common.notes")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -299,10 +302,18 @@ export function TongStockView({
                     <TableCell className="text-right font-mono text-haidee-muted">
                       {e.balance}
                     </TableCell>
+                    <TableCell className="max-w-[160px] text-sm text-haidee-muted">
+                      {e.notes ? (
+                        <MobileTruncatedName text={e.notes} />
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
       </div>
