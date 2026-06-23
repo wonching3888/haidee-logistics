@@ -22,6 +22,7 @@ model User {
   charterTrips    CharterTrip[]
   tongImports     TongImport[]
   tongExports     TongExport[]
+  tongStockAdjustments TongStockAdjustment[]
   inboundChangeLogs InboundChangeLog[]
 
   @@map("users")
@@ -99,6 +100,7 @@ model TongType {
   inboundLinesOriginal  InboundLine[]         @relation("OriginalTongType")
   tongImports           TongImport[]
   tongExports           TongExport[]
+  tongStockAdjustments  TongStockAdjustment[]
   customerCrateStock    CustomerCrateStock[]
   customerCrateLedger   CustomerCrateLedger[]
   charterTripLines      CharterTripLine[]
@@ -704,6 +706,24 @@ model TongExport {
 
   @@index([exportNo])
   @@map("tong_exports")
+}
+
+model TongStockAdjustment {
+  id           String   @id @default(uuid()) @db.Uuid
+  date         DateTime @db.Date
+  tongTypeId   String   @map("tong_type_id") @db.Uuid
+  quantity     Int
+  balanceAfter Int?     @map("balance_after")
+  notes        String?
+  createdById  String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tongType  TongType @relation(fields: [tongTypeId], references: [id])
+  createdBy User?    @relation(fields: [createdById], references: [id])
+
+  @@index([tongTypeId])
+  @@index([date])
+  @@map("tong_stock_adjustments")
 }
 
 // ─── Partner freight (logistics partner per-trip invoices, e.g. TAWAKAR SKTN) ─

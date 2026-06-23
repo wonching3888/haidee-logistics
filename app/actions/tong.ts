@@ -1,9 +1,11 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { parseDateInput } from "@/lib/inbound-utils";
+import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import { getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
+import { computeTongStockDeltaForTarget } from "@/lib/sadao-stock";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   confirmCrateImportArrived,
@@ -288,6 +290,7 @@ export async function getStockOverview(dateStr?: string) {
 
   const stockRows = Object.values(stock)
     .map((s) => ({
+      tongTypeId: s.tongTypeId,
       code: s.code,
       name: s.name,
       stock: s.stock,
@@ -320,33 +323,43 @@ export async function getStockOverview(dateStr?: string) {
 export async function getTongLedger(dateStr?: string) {
   const where = dateStr ? { date: parseDateInput(dateStr) } : {};
 
-  const imports = await prisma.tongImport.findMany({
-    where,
-    include: {
-      truck: true,
-      market: true,
-      tongType: true,
-    },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-  });
-
-  const exports = await prisma.tongExport.findMany({
-    where,
-    include: {
-      shipper: true,
-      tongType: true,
-    },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-  });
+  const [imports, exports, adjustments] = await Promise.all([
+    prisma.tongImport.findMany({
+      where,
+      include: {
+        truck: true,
+        market: true,
+        tongType: true,
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.tongExport.findMany({
+      where,
+      include: {
+        shipper: true,
+        tongType: true,
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.tongStockAdjustment.findMany({
+      where,
+      include: {
+        tongType: true,
+        createdBy: { select: { name: true } },
+      },
+      orderBy: [{ createdAt: "desc" }],
+    }),
+  ]);
 
   type LedgerEntry = {
     date: Date;
-    type: "IN" | "OUT";
+    type: "IN" | "OUT" | "ADJ";
     plate: string;
     party: string;
     tongCode: string;
     quantity: number;
     createdAt: Date;
+    balanceAfter?: number | null;
   };
 
   const entries: LedgerEntry[] = [
@@ -368,6 +381,16 @@ export async function getTongLedger(dateStr?: string) {
       quantity: e.quantityActual,
       createdAt: e.createdAt,
     })),
+    ...adjustments.map((a) => ({
+      date: a.date,
+      type: "ADJ" as const,
+      plate: "—",
+      party: a.createdBy?.name?.trim() || "Adjustment",
+      tongCode: a.tongType.code,
+      quantity: a.quantity,
+      createdAt: a.createdAt,
+      balanceAfter: a.balanceAfter,
+    })),
   ];
 
   entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -380,7 +403,68 @@ export async function getTongLedger(dateStr?: string) {
   return entries.map((e) => ({
     ...e,
     date: formatDisplayDate(e.date),
-    signedQty: e.type === "IN" ? `+${e.quantity}` : `-${e.quantity}`,
-    balance: balanceMap[e.tongCode] ?? 0,
+    signedQty:
+      e.type === "IN"
+        ? `+${e.quantity}`
+        : e.type === "OUT"
+          ? `-${e.quantity}`
+          : e.quantity >= 0
+            ? `+${e.quantity}`
+            : `${e.quantity}`,
+    balance:
+      e.type === "ADJ" && e.balanceAfter != null
+        ? e.balanceAfter
+        : balanceMap[e.tongCode] ?? 0,
   }));
+}
+
+export async function setSadaoTongStockAbsolute(input: {
+  tongTypeId: string;
+  targetQuantity: number;
+  date?: string;
+  notes?: string;
+}) {
+  const user = await requireWrite();
+
+  if (!Number.isInteger(input.targetQuantity)) {
+    throw new Error("Invalid quantity");
+  }
+
+  const tongType = await prisma.tongType.findUnique({
+    where: { id: input.tongTypeId },
+    select: { id: true, trackInventory: true, isBox: true },
+  });
+  if (!tongType?.trackInventory || tongType.isBox) {
+    throw new Error("Invalid crate type");
+  }
+
+  const date = input.date
+    ? parseDateInput(input.date)
+    : parseDateInput(toDateInputValue(new Date()));
+
+  const stock = await getSadaoStockByTongType();
+  const current =
+    Object.values(stock).find((row) => row.tongTypeId === input.tongTypeId)
+      ?.stock ?? 0;
+  const delta = computeTongStockDeltaForTarget(current, input.targetQuantity);
+
+  if (delta === 0) {
+    return { ok: true as const, unchanged: true as const };
+  }
+
+  await prisma.tongStockAdjustment.create({
+    data: {
+      date,
+      tongTypeId: input.tongTypeId,
+      quantity: delta,
+      balanceAfter: input.targetQuantity,
+      notes: input.notes?.trim() || null,
+      createdById: user.id,
+    },
+  });
+
+  revalidatePath("/tong/stock");
+  revalidatePath("/crate/stock");
+
+  return { ok: true as const, unchanged: false as const };
 }

@@ -7,6 +7,7 @@ export default defineConfig({
     include: [
       "lib/inbound-crate-stock-account.test.ts",
       "lib/parse-year-month-params.test.ts",
+      "lib/sadao-stock.test.ts",
     ],
   },
   resolve: {

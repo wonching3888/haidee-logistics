@@ -1246,6 +1246,36 @@ export const MESSAGES = {
     en: "OUT",
     th: "ออก",
   },
+  "crateStock.ledger.adj": {
+    zh: "调整",
+    en: "ADJ",
+    th: "ปรับ",
+  },
+  "crateStock.editTitle": {
+    zh: "编辑关口库存 — {code}",
+    en: "Edit SADAO Stock — {code}",
+    th: "แก้ไขสต๊อกด่าน — {code}",
+  },
+  "crateStock.adjustmentDefaultNotes": {
+    zh: "期初盘点 / 桶库存创立于24/6/26",
+    en: "Opening stocktake / crate stock established 24/6/26",
+    th: "นับสต๊อกตั้งต้น / เริ่มบันทึกสต๊อกลัง 24/6/26",
+  },
+  "crateStock.adjustmentParty": {
+    zh: "盘点",
+    en: "Adjustment",
+    th: "ปรับสต๊อก",
+  },
+  "crateStock.targetQty": {
+    zh: "目标库存",
+    en: "Target stock",
+    th: "สต๊อกเป้าหมาย",
+  },
+  "crateStock.error.invalidQty": {
+    zh: "数量无效",
+    en: "Invalid quantity",
+    th: "จำนวนไม่ถูกต้อง",
+  },
   "customerCrateStock.pageSubtitle": {
     zh: "各寄货人桶型库存管理",
     en: "Per-shipper crate inventory",
