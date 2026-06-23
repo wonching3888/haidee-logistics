@@ -18,9 +18,10 @@ import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   formatPickupLocationLabel,
   normalizeSessionPickupInput,
-  resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
+import { loadLocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
+import { resolveInboundCrateStockAccount } from "@/lib/inbound-crate-stock-account";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   getStallDisplayLabel,
@@ -968,10 +969,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
     sessionPickupLocation,
     shipper?.pickupLocation
   );
-  const crateStockLocation = resolveInboundCrateStockLocation(
-    effectivePickup,
-    input.areaNote
-  );
+  const poolIds = await loadLocationPoolShipperIds();
   const activeLines = input.lines.filter(
     (l) => l.quantity > 0 && !l.stallId.startsWith("new-")
   );
@@ -1078,16 +1076,20 @@ export async function saveInboundSession(input: SaveInboundInput) {
     };
 
     const beforeBucket = resolveCrateStockBucket(
+      existing.date,
       existing.shipperId,
       existing.shipper.pickupLocation,
       existing.pickupLocation,
-      existing.areaNote
+      existing.areaNote,
+      poolIds
     );
     const afterBucket = resolveCrateStockBucket(
+      date,
       input.shipperId,
       afterShipper.pickupLocation,
       sessionPickupLocation,
-      input.areaNote
+      input.areaNote,
+      poolIds
     );
 
     const beforeLinesForCrate =
@@ -1198,14 +1200,14 @@ export async function saveInboundSession(input: SaveInboundInput) {
       await applyCrateStockAdjustments(adjustments, editNote);
     } else if (existing.status === "confirmed" && status === "draft") {
       await reverseInboundCrateDeduction(
-        existing.shipperId,
+        beforeBucket.shipperId,
         beforeBucket.location,
         beforeLinesForCrate,
         typeMap
       );
     } else if (existing.status === "draft" && status === "confirmed") {
       await applyInboundCrateDeduction(
-        input.shipperId,
+        afterBucket.shipperId,
         afterBucket.location,
         allLines,
         typeMap
@@ -1331,9 +1333,17 @@ export async function saveInboundSession(input: SaveInboundInput) {
   }
 
   if (status === "confirmed") {
+    const crateStockAccount = resolveInboundCrateStockAccount({
+      sessionDate: date,
+      operationalShipperId: input.shipperId,
+      sessionPickupLocation,
+      shipperPickupLocation: shipper?.pickupLocation,
+      areaNote: input.areaNote,
+      poolIds,
+    });
     await applyInboundCrateDeduction(
-      input.shipperId,
-      crateStockLocation,
+      crateStockAccount.shipperId,
+      crateStockAccount.location,
       allLines,
       typeMap
     );
@@ -1381,16 +1391,18 @@ export async function deleteInboundSession(sessionId: string) {
   );
 
   if (session.status === "confirmed") {
-    const crateStockLocation = resolveInboundCrateStockLocation(
-      resolveSessionPickupLocation(
-        session.pickupLocation,
-        session.shipper.pickupLocation
-      ),
-      session.areaNote
-    );
+    const poolIds = await loadLocationPoolShipperIds();
+    const crateStockAccount = resolveInboundCrateStockAccount({
+      sessionDate: session.date,
+      operationalShipperId: session.shipperId,
+      sessionPickupLocation: session.pickupLocation,
+      shipperPickupLocation: session.shipper.pickupLocation,
+      areaNote: session.areaNote,
+      poolIds,
+    });
     await reverseInboundCrateDeduction(
-      session.shipperId,
-      crateStockLocation,
+      crateStockAccount.shipperId,
+      crateStockAccount.location,
       session.lines
     );
   }

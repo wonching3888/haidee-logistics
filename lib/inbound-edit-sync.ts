@@ -1,9 +1,13 @@
 import type { InboundLineInput } from "@/lib/inbound-utils";
 import {
   formatPickupLocationLabel,
-  resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
+import {
+  resolveInboundCrateStockAccount,
+  type InboundCrateStockAccount,
+} from "@/lib/inbound-crate-stock-account";
+import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 
 type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
 
@@ -193,19 +197,21 @@ export function buildInboundChangeLogs(input: {
 }
 
 export function resolveCrateStockBucket(
-  shipperId: string,
+  sessionDate: Date,
+  operationalShipperId: string,
   shipperPickupLocation: string | null | undefined,
   sessionPickupLocation: string | null | undefined,
-  areaNote: string | null | undefined
-) {
-  const effectivePickup = resolveSessionPickupLocation(
+  areaNote: string | null | undefined,
+  poolIds: LocationPoolShipperIds
+): InboundCrateStockAccount {
+  return resolveInboundCrateStockAccount({
+    sessionDate,
+    operationalShipperId,
     sessionPickupLocation,
-    shipperPickupLocation
-  );
-  return {
-    shipperId,
-    location: resolveInboundCrateStockLocation(effectivePickup, areaNote),
-  };
+    shipperPickupLocation,
+    areaNote,
+    poolIds,
+  });
 }
 
 export interface CrateStockAdjustment {

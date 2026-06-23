@@ -7,13 +7,11 @@ import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
-  LOCATION_POOL_SHIPPER_LIST,
-  stockLocationForPoolShipperCode,
-} from "@/lib/constants/location-pool-shippers";
-import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
 } from "@/lib/constants/pickup-locations";
+import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
+import { ensureLocationPoolShippersForStock } from "@/lib/location-pool-shippers-service";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 
 export interface CrateTypeColumn {
@@ -86,29 +84,6 @@ async function getTrackedCrateTypes(): Promise<CrateTypeColumn[]> {
   return crateTypes.sort(
     (a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999)
   );
-}
-
-async function ensureLocationPoolShippersForStock() {
-  const shippers = [];
-  for (const spec of LOCATION_POOL_SHIPPER_LIST) {
-    const shipper = await prisma.shipper.upsert({
-      where: { code: spec.code },
-      create: {
-        code: spec.code,
-        name: spec.name,
-        pickupLocation: spec.pickupLocation,
-        active: true,
-      },
-      update: {
-        name: spec.name,
-        pickupLocation: spec.pickupLocation,
-        active: true,
-      },
-      select: { id: true, code: true, name: true },
-    });
-    shippers.push(shipper);
-  }
-  return shippers;
 }
 
 async function getPickupLocationStockSummaries(
