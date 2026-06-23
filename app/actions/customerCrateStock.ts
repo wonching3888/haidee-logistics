@@ -7,6 +7,10 @@ import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
+  LOCATION_POOL_SHIPPER_LIST,
+  stockLocationForPoolShipperCode,
+} from "@/lib/constants/location-pool-shippers";
+import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
 } from "@/lib/constants/pickup-locations";
@@ -34,6 +38,8 @@ export interface CustomerCrateStockRow {
 export interface PickupLocationStockSummary {
   location: (typeof PICKUP_CRATE_STOCK_LOCATIONS)[number];
   title: string;
+  shipperId: string;
+  shipperName: string;
   quantities: Record<string, number>;
 }
 
@@ -82,31 +88,81 @@ async function getTrackedCrateTypes(): Promise<CrateTypeColumn[]> {
   );
 }
 
+async function ensureLocationPoolShippersForStock() {
+  const shippers = [];
+  for (const spec of LOCATION_POOL_SHIPPER_LIST) {
+    const shipper = await prisma.shipper.upsert({
+      where: { code: spec.code },
+      create: {
+        code: spec.code,
+        name: spec.name,
+        pickupLocation: spec.pickupLocation,
+        active: true,
+      },
+      update: {
+        name: spec.name,
+        pickupLocation: spec.pickupLocation,
+        active: true,
+      },
+      select: { id: true, code: true, name: true },
+    });
+    shippers.push(shipper);
+  }
+  return shippers;
+}
+
 async function getPickupLocationStockSummaries(
   crateTypes: CrateTypeColumn[]
 ): Promise<PickupLocationStockSummary[]> {
-  const stockRows = await prisma.customerCrateStock.findMany({
-    where: {
-      location: { in: [...PICKUP_CRATE_STOCK_LOCATIONS] },
-      shipper: { active: true },
-    },
-    select: { crateTypeId: true, location: true, quantity: true },
-  });
+  const poolShippers = await ensureLocationPoolShippersForStock();
+  const poolByLocation = new Map<
+    (typeof PICKUP_CRATE_STOCK_LOCATIONS)[number],
+    { id: string; name: string }
+  >();
 
-  const summaries = PICKUP_CRATE_STOCK_LOCATIONS.map((location) => ({
-    location,
-    title: formatPickupLocationLabel(location),
-    quantities: initQuantities(crateTypes),
-  }));
-
-  for (const row of stockRows) {
-    const summary = summaries.find((item) => item.location === row.location);
-    if (!summary) continue;
-    summary.quantities[row.crateTypeId] =
-      (summary.quantities[row.crateTypeId] ?? 0) + row.quantity;
+  for (const shipper of poolShippers) {
+    const location = stockLocationForPoolShipperCode(shipper.code);
+    if (location) {
+      poolByLocation.set(location, { id: shipper.id, name: shipper.name });
+    }
   }
 
-  return summaries;
+  const poolShipperIds = poolShippers.map((shipper) => shipper.id);
+  const stockRows =
+    poolShipperIds.length === 0
+      ? []
+      : await prisma.customerCrateStock.findMany({
+          where: {
+            shipperId: { in: poolShipperIds },
+            location: { in: [...PICKUP_CRATE_STOCK_LOCATIONS] },
+          },
+          select: {
+            shipperId: true,
+            crateTypeId: true,
+            location: true,
+            quantity: true,
+          },
+        });
+
+  return PICKUP_CRATE_STOCK_LOCATIONS.map((location) => {
+    const pool = poolByLocation.get(location);
+    const quantities = initQuantities(crateTypes);
+
+    for (const row of stockRows) {
+      if (row.location !== location) continue;
+      if (pool && row.shipperId !== pool.id) continue;
+      quantities[row.crateTypeId] =
+        (quantities[row.crateTypeId] ?? 0) + row.quantity;
+    }
+
+    return {
+      location,
+      title: formatPickupLocationLabel(location),
+      shipperId: pool?.id ?? "",
+      shipperName: pool?.name ?? formatPickupLocationLabel(location),
+      quantities,
+    };
+  });
 }
 
 function initQuantities(crateTypes: CrateTypeColumn[]): Record<string, number> {

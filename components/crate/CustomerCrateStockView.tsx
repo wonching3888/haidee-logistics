@@ -114,6 +114,19 @@ export function CustomerCrateStockView({
     setEditNotes("");
   }
 
+  function openEditSummary(summary: PickupLocationStockSummary) {
+    if (!summary.shipperId) return;
+    openEdit({
+      shipperId: summary.shipperId,
+      shipperCode: "",
+      shipperName: summary.shipperName,
+      quantities: summary.quantities,
+      locations: [
+        { location: summary.location, quantities: summary.quantities },
+      ],
+    });
+  }
+
   function handleEditLocationChange(location: string) {
     if (!editRow) return;
     setEditLocation(location);
@@ -222,7 +235,19 @@ export function CustomerCrateStockView({
                     </TableCell>
                   );
                 })}
-                <TableCell />
+                <TableCell className="text-right">
+                  {summary.shipperId ? (
+                    <button
+                      type="button"
+                      onClick={() => openEditSummary(summary)}
+                      className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
+                      aria-label={t("common.edit")}
+                      disabled={isPending}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </TableCell>
               </TableRow>
             ))}
             {rows.length === 0 ? (
