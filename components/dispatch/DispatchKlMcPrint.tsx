@@ -9,6 +9,8 @@ interface DispatchKlMcPrintProps {
   locale: UserLanguage;
 }
 
+const MOBILE_CONSIGNOR_MAX_LEN = 9999;
+
 function QtyCell({
   crate,
   box,
@@ -23,6 +25,23 @@ function QtyCell({
   return <span className="dispatch-klmc-qty">{label}</span>;
 }
 
+function QtyOrDash({
+  crate,
+  box,
+  locale,
+  className,
+}: {
+  crate: number;
+  box: number;
+  locale: UserLanguage;
+  className?: string;
+}) {
+  const label = cellDisplay(crate, box, locale);
+  return (
+    <span className={className}>{label || "—"}</span>
+  );
+}
+
 function ConsignorCell({ shipperName }: { shipperName: string }) {
   const { base, suffix } = formatConsignorForKlMcPrint(shipperName);
   return (
@@ -35,11 +54,123 @@ function ConsignorCell({ shipperName }: { shipperName: string }) {
   );
 }
 
-export function DispatchKlMcPrint({ data, locale }: DispatchKlMcPrintProps) {
+function MobileConsignorName({ shipperName }: { shipperName: string }) {
+  const { base, suffix } = formatConsignorForKlMcPrint(
+    shipperName,
+    MOBILE_CONSIGNOR_MAX_LEN
+  );
+  return (
+    <div className="dispatch-klmc-mobile-consignor">
+      <span>{base}</span>
+      {suffix ? (
+        <span className="dispatch-klmc-mobile-consignor-suffix">{suffix}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function DispatchKlMcPrintMobile({
+  data,
+  locale,
+}: DispatchKlMcPrintProps) {
   const { markets, rows, colTotals, grandSubtotal } = data;
 
   return (
-    <div className="document-print dispatch-klmc-print">
+    <div className="dispatch-klmc-mobile md:hidden print:hidden">
+      <div className="dispatch-klmc-mobile-title">
+        {t("dispatch.klMcPrintTitle", locale)} · {data.date}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="dispatch-klmc-mobile-empty">
+          {t("dispatch.noUnassignedCargo", locale)}
+        </p>
+      ) : (
+        <div className="dispatch-klmc-mobile-cards">
+          {rows.map((row) => (
+            <article key={row.sessionId} className="dispatch-klmc-mobile-card">
+              <MobileConsignorName shipperName={row.shipperName} />
+              {row.areaNote ? (
+                <div className="dispatch-klmc-mobile-notes">
+                  <span className="dispatch-klmc-mobile-notes-label">
+                    {t("common.notes", locale)}:
+                  </span>
+                  <span>{row.areaNote}</span>
+                </div>
+              ) : null}
+              <div className="dispatch-klmc-mobile-markets">
+                {markets.map((code) => {
+                  const qty = row.cells[code] ?? { crate: 0, box: 0 };
+                  return (
+                    <div key={code} className="dispatch-klmc-mobile-market">
+                      <span className="dispatch-klmc-mobile-market-code">
+                        {code}
+                      </span>
+                      <QtyOrDash
+                        crate={qty.crate}
+                        box={qty.box}
+                        locale={locale}
+                        className="dispatch-klmc-mobile-market-qty"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="dispatch-klmc-mobile-row-total">
+                <span>{t("common.total", locale)}</span>
+                <QtyOrDash
+                  crate={row.rowSubtotal.crate}
+                  box={row.rowSubtotal.box}
+                  locale={locale}
+                  className="dispatch-klmc-mobile-market-qty"
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {rows.length > 0 ? (
+        <div className="dispatch-klmc-mobile-totals">
+          <div className="dispatch-klmc-mobile-totals-title">
+            {t("dispatch.marketTotals", locale)}
+          </div>
+          <div className="dispatch-klmc-mobile-markets">
+            {markets.map((code) => {
+              const qty = colTotals[code] ?? { crate: 0, box: 0 };
+              return (
+                <div key={code} className="dispatch-klmc-mobile-market">
+                  <span className="dispatch-klmc-mobile-market-code">{code}</span>
+                  <QtyOrDash
+                    crate={qty.crate}
+                    box={qty.box}
+                    locale={locale}
+                    className="dispatch-klmc-mobile-market-qty"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="dispatch-klmc-mobile-row-total dispatch-klmc-mobile-grand-total">
+            <span>{t("common.total", locale)}</span>
+            <QtyOrDash
+              crate={grandSubtotal.crate}
+              box={grandSubtotal.box}
+              locale={locale}
+              className="dispatch-klmc-mobile-market-qty"
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DispatchKlMcPrintA4({ data, locale }: DispatchKlMcPrintProps) {
+  const { markets, rows, colTotals, grandSubtotal } = data;
+
+  return (
+    <div className="document-print dispatch-klmc-print dispatch-klmc-print-a4">
       <div className="dispatch-klmc-title">
         {t("dispatch.klMcPrintTitle", locale)} · {data.date}
       </div>
@@ -128,5 +259,14 @@ export function DispatchKlMcPrint({ data, locale }: DispatchKlMcPrintProps) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+export function DispatchKlMcPrint({ data, locale }: DispatchKlMcPrintProps) {
+  return (
+    <>
+      <DispatchKlMcPrintMobile data={data} locale={locale} />
+      <DispatchKlMcPrintA4 data={data} locale={locale} />
+    </>
   );
 }

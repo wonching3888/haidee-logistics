@@ -909,7 +909,196 @@
   color: #6b7280;
 }
 
+/* KL–MC dispatch: mobile screen view (cards; PDF/print use A4 block below) */
+.dispatch-klmc-mobile {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #111827;
+}
+
+.dispatch-klmc-mobile-title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.dispatch-klmc-mobile-empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+.dispatch-klmc-mobile-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dispatch-klmc-mobile-card {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.dispatch-klmc-mobile-consignor {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.dispatch-klmc-mobile-consignor-suffix {
+  display: inline;
+  margin-left: 0.2em;
+  font-weight: 700;
+}
+
+.dispatch-klmc-mobile-notes {
+  margin-top: 8px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.dispatch-klmc-mobile-notes-label {
+  font-weight: 600;
+  margin-right: 0.35em;
+}
+
+.dispatch-klmc-mobile-markets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin-top: 10px;
+}
+
+.dispatch-klmc-mobile-market {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dispatch-klmc-mobile-market-code {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #4b5563;
+  letter-spacing: 0.02em;
+}
+
+.dispatch-klmc-mobile-market-qty {
+  font-family: ui-monospace, monospace;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.dispatch-klmc-mobile-row-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.dispatch-klmc-mobile-totals {
+  margin-top: 14px;
+  padding: 12px;
+  border: 2px solid #111827;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.dispatch-klmc-mobile-totals-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.dispatch-klmc-mobile-grand-total {
+  border-top-color: #9ca3af;
+  font-size: 1.0625rem;
+}
+
+/* Screen <768px: hide A4 from view but keep in DOM for PDF capture */
+@media (max-width: 767px) {
+  .dispatch-klmc-print-a4 {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 210mm;
+    max-width: 210mm;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-surface > div {
+    max-width: 100% !important;
+    padding: 12px !important;
+    box-shadow: none !important;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-surface {
+    padding: 8px !important;
+    background: #f3f4f6 !important;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-toolbar h2 {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: 1.125rem;
+    min-width: 0;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-toolbar > div:last-child {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .do-print-page:has(.dispatch-klmc-mobile) .do-print-toolbar .space-y-2 {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 @media print {
+  .dispatch-klmc-mobile {
+    display: none !important;
+  }
+
+  .dispatch-klmc-print-a4 {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+  }
+
   .do-print-page:has(.dispatch-klmc-print) .do-print-surface {
     padding: 0 !important;
     border: none !important;

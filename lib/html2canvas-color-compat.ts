@@ -207,6 +207,65 @@ function injectInvoicePdfCaptureTypography(doc: Document) {
   doc.head.appendChild(style);
 }
 
+function injectDispatchKlMcPdfCaptureLayout(doc: Document) {
+  const style = doc.createElement("style");
+  style.setAttribute("data-html2canvas-klmc-layout", "true");
+  style.textContent = `
+    [data-pdf-capture-root] .dispatch-klmc-mobile {
+      display: none !important;
+    }
+    [data-pdf-capture-root] .dispatch-klmc-print-a4 {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      width: 100% !important;
+      max-width: none !important;
+      pointer-events: auto !important;
+      overflow: visible !important;
+    }
+  `;
+  doc.head.appendChild(style);
+}
+
+/** Before KL–MC PDF capture: hide mobile cards and show A4 table in normal flow. */
+export async function withKlMcPrintPdfCaptureLayout<T>(
+  root: HTMLElement,
+  run: () => Promise<T>
+): Promise<T> {
+  const mobile = root.querySelector<HTMLElement>(".dispatch-klmc-mobile");
+  const a4 = root.querySelector<HTMLElement>(".dispatch-klmc-print-a4");
+  if (!a4) {
+    return run();
+  }
+
+  const mobileDisplay = mobile?.style.display ?? null;
+  const a4CssText = a4.style.cssText;
+
+  if (mobile) {
+    mobile.style.setProperty("display", "none", "important");
+  }
+  a4.style.setProperty("position", "static", "important");
+  a4.style.setProperty("left", "auto", "important");
+  a4.style.setProperty("top", "auto", "important");
+  a4.style.setProperty("width", "100%", "important");
+  a4.style.setProperty("max-width", "none", "important");
+  a4.style.setProperty("pointer-events", "auto", "important");
+  a4.style.setProperty("overflow", "visible", "important");
+
+  try {
+    return await run();
+  } finally {
+    if (mobile) {
+      if (mobileDisplay) {
+        mobile.style.display = mobileDisplay;
+      } else {
+        mobile.style.removeProperty("display");
+      }
+    }
+    a4.style.cssText = a4CssText;
+  }
+}
+
 export function prepareHtml2CanvasClone(
   clonedDoc: Document,
   sourceRoot: HTMLElement,
@@ -217,6 +276,9 @@ export function prepareHtml2CanvasClone(
   inlineResolvedColorsForHtml2Canvas(sourceRoot, clonedRoot);
   expandOverflowContainersForCapture(clonedRoot, options);
   injectInvoicePdfCaptureTypography(clonedDoc);
+  if (sourceRoot.querySelector(".dispatch-klmc-print-a4")) {
+    injectDispatchKlMcPdfCaptureLayout(clonedDoc);
+  }
   if (options?.minPdfFontPt && options.minPdfFontPt > 0) {
     injectPdfCaptureTypography(clonedDoc, options.minPdfFontPt);
   }

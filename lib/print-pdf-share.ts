@@ -7,6 +7,7 @@ import {
   measureElementCaptureExtents,
   prepareHtml2CanvasClone,
   runWithHtml2CanvasCompat,
+  withKlMcPrintPdfCaptureLayout,
   type Html2CanvasCloneOptions,
 } from "@/lib/html2canvas-color-compat";
 
@@ -155,12 +156,10 @@ export function probeShareCapability(): ShareCapabilityProbe {
   };
 }
 
-export async function renderElementToPdfBlob(
+async function renderElementToPdfBlobCore(
   element: HTMLElement,
   options?: PdfFromElementOptions
 ): Promise<{ blob: Blob; fileName: string }> {
-  await waitForDocumentFonts();
-
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
     import("jspdf"),
@@ -220,6 +219,21 @@ export async function renderElementToPdfBlob(
   const fileName = sanitizeFileName(options?.fileName ?? "document.pdf");
 
   return { blob, fileName };
+}
+
+export async function renderElementToPdfBlob(
+  element: HTMLElement,
+  options?: PdfFromElementOptions
+): Promise<{ blob: Blob; fileName: string }> {
+  await waitForDocumentFonts();
+
+  if (element.querySelector(".dispatch-klmc-print-a4")) {
+    return withKlMcPrintPdfCaptureLayout(element, () =>
+      renderElementToPdfBlobCore(element, options)
+    );
+  }
+
+  return renderElementToPdfBlobCore(element, options);
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string): boolean {
