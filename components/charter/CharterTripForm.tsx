@@ -5,10 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import {
+  deleteCharterTrip,
   previewCharterCosts,
   saveCharterTrip,
 } from "@/app/actions/charter";
+import { useCanWrite } from "@/components/shared/can-write-context";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DateInputField } from "@/components/shared/DateInputField";
 import type { CharterCostPreview } from "@/lib/charter-costs";
@@ -133,8 +142,11 @@ export function CharterTripForm({
   initial = null,
 }: CharterTripFormProps) {
   const router = useRouter();
+  const userCanWrite = useCanWrite();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [date, setDate] = useState(initial?.date ?? initialDate);
   const [cargoType, setCargoType] = useState<CharterCargoType>(
@@ -316,6 +328,27 @@ export function CharterTripForm({
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败 Save failed");
+      }
+    });
+  }
+
+  function handleDeleteConfirm() {
+    if (!initial?.id) return;
+    setDeleteError(null);
+    startTransition(async () => {
+      try {
+        await deleteCharterTrip(initial.id);
+        const label = initial.charterNo ?? initial.id;
+        const params = new URLSearchParams({
+          date: initial.date,
+          deleted: label,
+        });
+        router.push(`/charter?${params.toString()}`);
+        router.refresh();
+      } catch (e) {
+        setDeleteError(
+          e instanceof Error ? e.message : "删除失败 Delete failed"
+        );
       }
     });
   }
@@ -866,7 +899,75 @@ export function CharterTripForm({
               ? "保存修改 Save changes"
               : "保存包车记录 Save charter"}
         </Button>
+        {mode === "edit" && initial?.id && userCanWrite ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => {
+              setDeleteError(null);
+              setDeleteDialogOpen(true);
+            }}
+            className="min-h-[44px] border-haidee-red text-haidee-red hover:bg-haidee-red/10"
+          >
+            删除 Delete
+          </Button>
+        ) : null}
       </div>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !isPending) {
+            setDeleteDialogOpen(false);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>删除包车单 Delete Charter</DialogTitle>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>此操作不可恢复，包车记录将从系统中永久删除。</p>
+              <p>This cannot be undone; the charter trip will be permanently removed.</p>
+              <p>若为海产包车且曾扣减租桶库存，删除时将自动退回库存。</p>
+              <p>
+                For seafood charters with rental crate deductions, stock will be
+                restored automatically.
+              </p>
+              <p>已分享或下载的发票 PDF 不会自动收回，请自行处理外部文件。</p>
+              <p>
+                Shared or downloaded invoice PDFs are not recalled automatically.
+              </p>
+            </div>
+          </DialogHeader>
+          {deleteError ? (
+            <p className="text-sm text-haidee-red" role="alert">
+              {deleteError}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteError(null);
+              }}
+              disabled={isPending}
+            >
+              取消 Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isPending}
+              className="bg-haidee-red hover:bg-haidee-red/90"
+            >
+              {isPending ? "处理中… Processing…" : "确认删除 Confirm delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

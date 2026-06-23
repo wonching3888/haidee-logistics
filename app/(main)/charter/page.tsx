@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { getCharterTrips } from "@/app/actions/charter";
 import { CharterDateFilter } from "@/components/charter/CharterDateFilter";
+import { CharterDeletedBanner } from "@/components/charter/CharterDeletedBanner";
 import { CharterTripList } from "@/components/charter/CharterTripList";
 import { PageError } from "@/components/shared/PageError";
 import { resolveDateParam } from "@/lib/date-utils";
@@ -44,6 +45,10 @@ export default async function CharterPage({ searchParams }: CharterPageProps) {
             </Link>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <CharterDeletedBanner />
+        </Suspense>
 
         <CharterTripList trips={trips} />
       </div>

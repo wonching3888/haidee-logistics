@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import {
   addCustomerCratesBatch,
   deductCustomerCratesBatch,
@@ -50,6 +51,7 @@ export async function applyCharterCrateDeduction(input: {
   stockLocation: string;
   lines: CharterCrateStockLine[];
   charterNo?: string | null;
+  tx?: Prisma.TransactionClient;
 }) {
   const rentalByCode = await loadRentalByCode();
   const byCrateType = aggregateRentalCrateQuantities(input.lines, rentalByCode);
@@ -67,7 +69,8 @@ export async function applyCharterCrateDeduction(input: {
     deductions,
     "charter",
     input.stockLocation,
-    note
+    note,
+    input.tx
   );
 }
 
@@ -76,6 +79,7 @@ export async function reverseCharterCrateDeduction(input: {
   stockLocation: string;
   lines: CharterCrateStockLine[];
   charterNo?: string | null;
+  tx?: Prisma.TransactionClient;
 }) {
   const rentalByCode = await loadRentalByCode();
   const byCrateType = aggregateRentalCrateQuantities(input.lines, rentalByCode);
@@ -93,7 +97,8 @@ export async function reverseCharterCrateDeduction(input: {
     additions,
     "charter-reverse",
     input.stockLocation,
-    note
+    note,
+    input.tx
   );
 }
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
@@ -413,6 +414,7 @@ type CharterStockSnapshot = {
 async function syncCharterCrateStock(input: {
   before: CharterStockSnapshot | null;
   after: CharterStockSnapshot;
+  tx?: Prisma.TransactionClient;
 }) {
   if (
     input.before?.cargoType === "seafood" &&
@@ -429,6 +431,7 @@ async function syncCharterCrateStock(input: {
       stockLocation,
       lines: stockLines,
       charterNo: input.before.charterNo,
+      tx: input.tx,
     });
   }
 
@@ -447,6 +450,7 @@ async function syncCharterCrateStock(input: {
       stockLocation,
       lines: stockLines,
       charterNo: input.after.charterNo,
+      tx: input.tx,
     });
   }
 }
@@ -650,24 +654,28 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
   });
   if (!existing) throw new Error("包车记录不存在 Charter trip not found");
 
-  await syncCharterCrateStock({
-    before: {
-      cargoType: existing.cargoType,
-      shipperId: existing.shipperId,
-      stockAreaNote: existing.stockAreaNote,
-      charterNo: existing.charterNo,
-      lines: existing.lines,
-    },
-    after: {
-      cargoType: "general",
-      shipperId: null,
-      stockAreaNote: null,
-      charterNo: existing.charterNo,
-      lines: [],
-    },
+  await prisma.$transaction(async (tx) => {
+    await syncCharterCrateStock({
+      before: {
+        cargoType: existing.cargoType,
+        shipperId: existing.shipperId,
+        stockAreaNote: existing.stockAreaNote,
+        charterNo: existing.charterNo,
+        lines: existing.lines,
+      },
+      after: {
+        cargoType: "general",
+        shipperId: null,
+        stockAreaNote: null,
+        charterNo: existing.charterNo,
+        lines: [],
+      },
+      tx,
+    });
+
+    await tx.charterTrip.delete({ where: { id } });
   });
 
-  await prisma.charterTrip.delete({ where: { id } });
   revalidateCharterPaths();
   return { ok: true };
 }

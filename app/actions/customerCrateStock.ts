@@ -255,16 +255,14 @@ interface CrateStockChange {
   quantity: number;
 }
 
-/** Batch increase customer crate stock in a single transaction. */
-export async function addCustomerCratesBatch(
+async function addCustomerCratesBatchInTx(
+  tx: Prisma.TransactionClient,
   shipperId: string,
   items: CrateStockChange[],
   changeType: string,
   location: string,
   notes?: string
 ) {
-  await requireWrite();
-
   const additions = items.filter((item) => item.quantity > 0);
   if (additions.length === 0) return;
 
@@ -272,44 +270,130 @@ export async function addCustomerCratesBatch(
   const note = notes?.trim() || null;
   const crateTypeIds = additions.map((item) => item.crateTypeId);
 
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.customerCrateStock.findMany({
-      where: {
-        shipperId,
-        location: loc,
-        crateTypeId: { in: crateTypeIds },
-      },
-      select: { crateTypeId: true, quantity: true },
-    });
-    const stockByType = new Map(
-      existing.map((row) => [row.crateTypeId, row.quantity])
-    );
-
-    const ledgerEntries: Prisma.CustomerCrateLedgerCreateManyInput[] = [];
-
-    for (const { crateTypeId, quantity } of additions) {
-      const previousQty = stockByType.get(crateTypeId) ?? 0;
-      const newQty = previousQty + quantity;
-
-      await tx.customerCrateStock.upsert({
-        where: stockWhere(shipperId, crateTypeId, loc),
-        create: { shipperId, crateTypeId, location: loc, quantity: newQty },
-        update: { quantity: newQty },
-      });
-
-      ledgerEntries.push({
-        shipperId,
-        crateTypeId,
-        location: loc,
-        changeType,
-        quantity,
-        balance: newQty,
-        notes: note,
-      });
-    }
-
-    await tx.customerCrateLedger.createMany({ data: ledgerEntries });
+  const existing = await tx.customerCrateStock.findMany({
+    where: {
+      shipperId,
+      location: loc,
+      crateTypeId: { in: crateTypeIds },
+    },
+    select: { crateTypeId: true, quantity: true },
   });
+  const stockByType = new Map(
+    existing.map((row) => [row.crateTypeId, row.quantity])
+  );
+
+  const ledgerEntries: Prisma.CustomerCrateLedgerCreateManyInput[] = [];
+
+  for (const { crateTypeId, quantity } of additions) {
+    const previousQty = stockByType.get(crateTypeId) ?? 0;
+    const newQty = previousQty + quantity;
+
+    await tx.customerCrateStock.upsert({
+      where: stockWhere(shipperId, crateTypeId, loc),
+      create: { shipperId, crateTypeId, location: loc, quantity: newQty },
+      update: { quantity: newQty },
+    });
+
+    ledgerEntries.push({
+      shipperId,
+      crateTypeId,
+      location: loc,
+      changeType,
+      quantity,
+      balance: newQty,
+      notes: note,
+    });
+  }
+
+  await tx.customerCrateLedger.createMany({ data: ledgerEntries });
+}
+
+/** Batch increase customer crate stock in a single transaction. */
+export async function addCustomerCratesBatch(
+  shipperId: string,
+  items: CrateStockChange[],
+  changeType: string,
+  location: string,
+  notes?: string,
+  tx?: Prisma.TransactionClient
+) {
+  await requireWrite();
+
+  if (tx) {
+    await addCustomerCratesBatchInTx(
+      tx,
+      shipperId,
+      items,
+      changeType,
+      location,
+      notes
+    );
+    return;
+  }
+
+  await prisma.$transaction(async (innerTx) => {
+    await addCustomerCratesBatchInTx(
+      innerTx,
+      shipperId,
+      items,
+      changeType,
+      location,
+      notes
+    );
+  });
+}
+
+async function deductCustomerCratesBatchInTx(
+  tx: Prisma.TransactionClient,
+  shipperId: string,
+  items: CrateStockChange[],
+  changeType: string,
+  location: string,
+  notes?: string
+) {
+  const deductions = items.filter((item) => item.quantity > 0);
+  if (deductions.length === 0) return;
+
+  const loc = normalizeLocation(location);
+  const note = notes?.trim() || null;
+  const crateTypeIds = deductions.map((item) => item.crateTypeId);
+
+  const existing = await tx.customerCrateStock.findMany({
+    where: {
+      shipperId,
+      location: loc,
+      crateTypeId: { in: crateTypeIds },
+    },
+    select: { crateTypeId: true, quantity: true },
+  });
+  const stockByType = new Map(
+    existing.map((row) => [row.crateTypeId, row.quantity])
+  );
+
+  const ledgerEntries: Prisma.CustomerCrateLedgerCreateManyInput[] = [];
+
+  for (const { crateTypeId, quantity } of deductions) {
+    const previousQty = stockByType.get(crateTypeId) ?? 0;
+    const newQty = previousQty - quantity;
+
+    await tx.customerCrateStock.upsert({
+      where: stockWhere(shipperId, crateTypeId, loc),
+      create: { shipperId, crateTypeId, location: loc, quantity: -quantity },
+      update: { quantity: newQty },
+    });
+
+    ledgerEntries.push({
+      shipperId,
+      crateTypeId,
+      location: loc,
+      changeType,
+      quantity: -quantity,
+      balance: newQty,
+      notes: note,
+    });
+  }
+
+  await tx.customerCrateLedger.createMany({ data: ledgerEntries });
 }
 
 /** Batch decrease customer crate stock in a single transaction. */
@@ -318,54 +402,32 @@ export async function deductCustomerCratesBatch(
   items: CrateStockChange[],
   changeType: string,
   location: string,
-  notes?: string
+  notes?: string,
+  tx?: Prisma.TransactionClient
 ) {
   await requireWrite();
 
-  const deductions = items.filter((item) => item.quantity > 0);
-  if (deductions.length === 0) return;
-
-  const loc = normalizeLocation(location);
-  const note = notes?.trim() || null;
-  const crateTypeIds = deductions.map((item) => item.crateTypeId);
-
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.customerCrateStock.findMany({
-      where: {
-        shipperId,
-        location: loc,
-        crateTypeId: { in: crateTypeIds },
-      },
-      select: { crateTypeId: true, quantity: true },
-    });
-    const stockByType = new Map(
-      existing.map((row) => [row.crateTypeId, row.quantity])
+  if (tx) {
+    await deductCustomerCratesBatchInTx(
+      tx,
+      shipperId,
+      items,
+      changeType,
+      location,
+      notes
     );
+    return;
+  }
 
-    const ledgerEntries: Prisma.CustomerCrateLedgerCreateManyInput[] = [];
-
-    for (const { crateTypeId, quantity } of deductions) {
-      const previousQty = stockByType.get(crateTypeId) ?? 0;
-      const newQty = previousQty - quantity;
-
-      await tx.customerCrateStock.upsert({
-        where: stockWhere(shipperId, crateTypeId, loc),
-        create: { shipperId, crateTypeId, location: loc, quantity: -quantity },
-        update: { quantity: newQty },
-      });
-
-      ledgerEntries.push({
-        shipperId,
-        crateTypeId,
-        location: loc,
-        changeType,
-        quantity: -quantity,
-        balance: newQty,
-        notes: note,
-      });
-    }
-
-    await tx.customerCrateLedger.createMany({ data: ledgerEntries });
+  await prisma.$transaction(async (innerTx) => {
+    await deductCustomerCratesBatchInTx(
+      innerTx,
+      shipperId,
+      items,
+      changeType,
+      location,
+      notes
+    );
   });
 }
 
