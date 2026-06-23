@@ -1,8 +1,8 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { MARKET_ORDER, getActiveMarkets } from "@/lib/markets";
+import { requirePnlAccess } from "@/lib/require-auth";
 import {
   fetchCharterMarketEntries,
   fetchDispatchBoxQuantity,
@@ -31,8 +31,7 @@ export async function getMarketReport(input: {
   year: number;
   month?: number;
 }): Promise<PeriodReportData> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requirePnlAccess();
 
   const { mode, year } = input;
   const month = input.month ?? new Date().getMonth() + 1;

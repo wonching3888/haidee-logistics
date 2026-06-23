@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { getDONumber } from "@/lib/documents";
 import { formatDODate } from "@/lib/document-utils";
@@ -119,6 +120,7 @@ export interface CrateTypeRecordData {
 }
 
 export async function getDocumentDispatchOrders(dateStr: string) {
+  await requireWrite();
   const date = parseDateInput(dateStr);
   const orders = await prisma.dispatchOrder.findMany({
     where: { date, status: { notIn: ["draft", "cancelled"] } },
@@ -150,6 +152,7 @@ export async function getDeliveryOrderData(
   dispatchOrderId: string,
   options?: { mergeMode?: DOMergeMode }
 ): Promise<DeliveryOrderData | null> {
+  await requireWrite();
   const mergeMode = options?.mergeMode ?? "bySession";
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
@@ -275,6 +278,7 @@ export async function getMultiMarketDOData(
   dateStr: string,
   marketCodes: string[]
 ): Promise<MarketDOData | null> {
+  await requireWrite();
   if (marketCodes.length === 0) return null;
 
   const date = parseDateInput(dateStr);
@@ -304,6 +308,7 @@ export async function getCrateByTypeData(
   marketCode: string,
   tongTypeCode: string
 ): Promise<CrateByTypeData | null> {
+  await requireWrite();
   const date = parseDateInput(dateStr);
   const tongType = await prisma.tongType.findUnique({
     where: { code: tongTypeCode },
@@ -353,6 +358,7 @@ export async function getMultiCrateByTypeData(
   dateStr: string,
   selections: { marketCode: string; tongCode: string }[]
 ): Promise<CrateByTypeMergedData | null> {
+  await requireWrite();
   if (selections.length === 0) return null;
 
   const sections: CrateByTypeSection[] = [];
@@ -381,6 +387,7 @@ export async function getMultiCrateByTypeData(
 export async function getMarketTongCombos(
   dateStr: string
 ): Promise<MarketTongCombo[]> {
+  await requireWrite();
   const date = parseDateInput(dateStr);
   const lines = await fetchAssignedLinesForDate(date);
 
@@ -416,6 +423,7 @@ export async function getMarketTongCombos(
 export async function getCrateTypeRecordOptions(
   dateStr: string
 ): Promise<CrateTypeRecordOptions> {
+  await requireWrite();
   const date = parseDateInput(dateStr);
   const lines = await fetchAssignedLinesForDate(date);
 
@@ -456,6 +464,7 @@ export async function getCrateTypeRecordData(
   dateStr: string,
   filters: CrateTypeRecordFilters
 ): Promise<CrateTypeRecordData | null> {
+  await requireWrite();
   const date = parseDateInput(dateStr);
   const lines = await fetchAssignedLinesForDate(date);
   if (lines.length === 0) return null;

@@ -2,7 +2,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import {
   formatPickupLocationLabel,
@@ -38,8 +38,7 @@ export async function searchInbound(input: {
   toDate: string;
   query?: string;
 }): Promise<SearchResult> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requireWrite();
 
   const fromDate = parseDateInput(input.fromDate);
   const toDate = parseDateInput(input.toDate);

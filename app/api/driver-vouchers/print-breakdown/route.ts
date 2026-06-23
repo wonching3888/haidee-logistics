@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireDriverExpensesApi } from "@/lib/require-auth";
 import { getVoucherPrintBreakdown } from "@/lib/driver-expense-service";
 
 export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await requireDriverExpensesApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

@@ -123,6 +123,23 @@ export function canViewPnlOperations(role: StoredUserRole): boolean {
   }
 }
 
+/** Driver expense vouchers (开单给司机): admin/clerk/my_acct/legacy accounting ✓ */
+export function canAccessDriverExpenses(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "clerk":
+    case "my_accounting":
+    case "accounting":
+      return true;
+    case "thai_accounting":
+    case "viewer":
+    case "owner":
+      return false;
+    default:
+      return false;
+  }
+}
+
 /** admin/my ✓ · all others ✗ · legacy accounting ✓ */
 export function canViewDriverPayroll(role: StoredUserRole): boolean {
   switch (role) {

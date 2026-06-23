@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requirePnlAccess } from "@/lib/require-auth";
 import {
   DEPOT_GROUPS,
   emptyDepotQty,
@@ -75,6 +76,7 @@ function sumDepotQty(a: DepotQty, b: DepotQty): DepotQty {
 export async function getDailyDispatchSummary(
   dateStr?: string
 ): Promise<DailyDispatchSummaryData> {
+  await requirePnlAccess();
   const date = parseDateInput(dateStr ?? toDateInputValue(new Date()));
 
   const orders = await prisma.dispatchOrder.findMany({
@@ -176,6 +178,7 @@ export async function getDailyDispatchSummary(
 }
 
 export async function getDashboardData(dateStr?: string): Promise<DashboardData> {
+  await requirePnlAccess();
   const date = parseDateInput(dateStr ?? toDateInputValue(new Date()));
   const dateInput = toDateInputValue(date);
 

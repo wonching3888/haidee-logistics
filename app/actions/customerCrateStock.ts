@@ -118,6 +118,7 @@ function initQuantities(crateTypes: CrateTypeColumn[]): Record<string, number> {
 }
 
 export async function getCustomerCrateStock(search?: string) {
+  await requireWrite();
   const crateTypes = await getTrackedCrateTypes();
   const pickupLocationSummaries =
     await getPickupLocationStockSummaries(crateTypes);
@@ -226,6 +227,7 @@ export async function getCustomerCrateLedger(
   shipperId: string,
   limit = 10
 ): Promise<CustomerCrateLedgerEntry[]> {
+  await requireWrite();
   const entries = await prisma.customerCrateLedger.findMany({
     where: { shipperId },
     include: {

@@ -1,10 +1,10 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
 import {
   mapTongToColumn,
   orderActiveTongColumns,
 } from "@/lib/constants/tong-columns";
+import { requirePnlAccess } from "@/lib/require-auth";
 import {
   fetchCharterCrateEntries,
   fetchCrateDispatchEntries,
@@ -32,8 +32,7 @@ export async function getCrateReport(input: {
   year: number;
   month?: number;
 }): Promise<PeriodReportData> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("未登录 Unauthorized");
+  await requirePnlAccess();
 
   const { mode, year } = input;
   const month = input.month ?? new Date().getMonth() + 1;

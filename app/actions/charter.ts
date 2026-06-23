@@ -91,6 +91,9 @@ export async function getCharterTrip(id: string): Promise<CharterTripRecord | nu
 export async function getCharterInvoiceData(
   id: string
 ): Promise<CharterInvoiceData> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("未登录 Unauthorized");
+
   const row = await prisma.charterTrip.findUnique({
     where: { id },
     include: {

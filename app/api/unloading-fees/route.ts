@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { requireWriteApi } from "@/lib/require-auth";
+import { requireDriverExpensesApi, requireDriverExpensesWriteApi } from "@/lib/require-auth";
 import {
   syncUnloadingFeeEstimatesForTrip,
   listUnloadingFees,
@@ -8,9 +7,7 @@ import {
 } from "@/lib/driver-expense-service";
 
 async function requireAuth() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  return user;
+  return requireDriverExpensesApi();
 }
 
 export async function GET(request: Request) {
@@ -36,7 +33,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireWriteApi();
+    const user = await requireDriverExpensesWriteApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

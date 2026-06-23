@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { requireWriteApi } from "@/lib/require-auth";
+import { requireDriverExpensesApi, requireDriverExpensesWriteApi } from "@/lib/require-auth";
 import {
   getDriverVoucher,
   updateDriverVoucher,
@@ -11,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
+    const user = await requireDriverExpensesApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }
@@ -37,7 +36,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireWriteApi();
+    const user = await requireDriverExpensesWriteApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

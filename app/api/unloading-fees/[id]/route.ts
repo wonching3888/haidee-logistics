@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireWriteApi } from "@/lib/require-auth";
+import { requireDriverExpensesWriteApi } from "@/lib/require-auth";
 import { patchUnloadingFee } from "@/lib/driver-expense-service";
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireWriteApi();
+    const user = await requireDriverExpensesWriteApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { requireDriverExpensesApi } from "@/lib/require-auth";
 import {
   listCrateLoadingRateConfigs,
   upsertCrateLoadingRateConfig,
@@ -7,7 +8,7 @@ import {
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const user = await requireDriverExpensesApi();
     if (!user) {
       return NextResponse.json({ error: "无权限 Unauthorized" }, { status: 403 });
     }

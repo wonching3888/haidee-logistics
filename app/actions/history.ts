@@ -2,6 +2,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireHistoryAccess } from "@/lib/require-auth";
 import { parseDateInput } from "@/lib/inbound-utils";
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
@@ -24,6 +25,7 @@ export interface InboundModificationRecord {
 export async function getInboundModifications(
   dateStr?: string
 ): Promise<InboundModificationRecord[]> {
+  await requireHistoryAccess();
   const dateFilter = dateStr ? parseDateInput(dateStr) : undefined;
   const sessionDateWhere = dateFilter ? { date: dateFilter } : undefined;
 

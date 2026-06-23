@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireDriverExpensesApi } from "@/lib/require-auth";
 import {
   listUnloadingRateConfigs,
   upsertUnloadingRateConfig,
 } from "@/lib/driver-expense-service";
 
 async function requireAuth() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  return user;
+  return requireDriverExpensesApi();
 }
 
 async function requireAdminApi() {

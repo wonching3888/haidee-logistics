@@ -1,4 +1,5 @@
 import {
+  canAccessDriverExpenses,
   canAccessSettings,
   canViewDriverPayroll,
   canViewInvoiceAmounts,
@@ -129,8 +130,9 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
     case "pnl":
       return canViewPnlOperations(role);
     case "payroll":
-    case "driver-expenses":
       return canViewDriverPayroll(role);
+    case "driver-expenses":
+      return canAccessDriverExpenses(role);
     case "settings":
       return canAccessSettings(role);
     case "history":
