@@ -6,7 +6,10 @@ import { formatCrateBoxQty } from "@/lib/consignor-label";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { getMessageParts, t } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/messages";
-import type { InboundSessionListRow } from "@/lib/inbound-list";
+import type {
+  InboundMarketQtyPart,
+  InboundSessionListRow,
+} from "@/lib/inbound-list";
 import {
   INBOUND_COLUMN_WIDTHS,
   INBOUND_STICKY_LEFT_PX,
@@ -50,6 +53,18 @@ function safeDisplayDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return formatDisplayDate(date);
+}
+
+function formatMarketQtySummary(
+  marketQtys: InboundMarketQtyPart[],
+  crateQty: number,
+  boxQty: number,
+  locale: UserLanguage
+) {
+  const marketParts = marketQtys.map((m) => `${m.code} ${m.qty}`);
+  const total = formatCrateBoxQty(crateQty, boxQty, locale);
+  if (marketParts.length === 0) return total;
+  return `${marketParts.join(" · ")} · ${total}`;
 }
 
 function TruncatedCell({
@@ -100,22 +115,192 @@ function I18nHeader({
   );
 }
 
-export function InboundListTable({ sessions, locale }: InboundListTableProps) {
-  if (sessions.length === 0) {
+function InboundSessionStatusBadge({
+  session,
+  draftLabel,
+  unassignedLabel,
+  assignedLabel,
+}: {
+  session: InboundSessionListRow;
+  draftLabel: string;
+  unassignedLabel: string;
+  assignedLabel: string;
+}) {
+  if (session.status === "draft") {
     return (
-      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
-        {t("inbound.emptyList", locale)}
+      <Badge
+        variant="outline"
+        className="shrink-0 border-haidee-orange text-xs text-haidee-orange"
+      >
+        {draftLabel}
+      </Badge>
+    );
+  }
+  if (session.unassignedQty > 0) {
+    return (
+      <Badge
+        variant="outline"
+        className="shrink-0 border-haidee-orange text-xs text-haidee-orange"
+      >
+        {unassignedLabel}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="shrink-0 border-haidee-green text-xs text-haidee-green"
+    >
+      {assignedLabel}
+    </Badge>
+  );
+}
+
+function InboundSessionActions({
+  sessionId,
+  editLabel,
+  layout,
+}: {
+  sessionId: string;
+  editLabel: string;
+  layout: "card" | "table";
+}) {
+  if (layout === "card") {
+    return (
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/inbound/${sessionId}/edit`}
+          className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-lg border border-haidee-blue px-3 text-sm font-medium text-haidee-blue transition-colors hover:bg-haidee-blue/10"
+        >
+          {editLabel}
+        </Link>
+        <InboundDeleteButton sessionId={sessionId} variant="icon" />
       </div>
     );
   }
 
-  const draftLabel = t("common.draft", locale);
-  const unassignedLabel = t("inbound.unassigned", locale);
-  const assignedLabel = t("inbound.statusAssigned", locale);
-  const editLabel = t("common.edit", locale);
-
   return (
-    <ScrollMatrixTable fillParent className="h-full rounded-xl">
+    <div className="flex items-center justify-end gap-1">
+      <Link
+        href={`/inbound/${sessionId}/edit`}
+        className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
+      >
+        {editLabel}
+      </Link>
+      <InboundDeleteButton sessionId={sessionId} variant="icon" />
+    </div>
+  );
+}
+
+function InboundListMobileCards({
+  sessions,
+  locale,
+  draftLabel,
+  unassignedLabel,
+  assignedLabel,
+  editLabel,
+}: {
+  sessions: InboundSessionListRow[];
+  locale: UserLanguage;
+  draftLabel: string;
+  unassignedLabel: string;
+  assignedLabel: string;
+  editLabel: string;
+}) {
+  return (
+    <div className="flex h-full flex-col gap-3 overflow-y-auto pb-1 md:hidden">
+      {sessions.map((s) => {
+        const batchText =
+          s.sessionNo?.trim() || draftLabel;
+        const plateText = s.thVehiclePlate?.trim() || "—";
+        const areaText = s.areaNote?.trim();
+        const metaParts = [
+          batchText,
+          safeDisplayDate(s.date),
+          s.pickupLocationLabel,
+          plateText,
+        ].filter((part) => part && part !== "—");
+
+        return (
+          <article
+            key={s.id}
+            className="rounded-xl border border-haidee-border bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="min-w-0 flex-1 break-words text-base font-semibold leading-snug text-haidee-text">
+                {s.shipperName}
+              </h3>
+              <InboundSessionStatusBadge
+                session={s}
+                draftLabel={draftLabel}
+                unassignedLabel={unassignedLabel}
+                assignedLabel={assignedLabel}
+              />
+            </div>
+
+            <p className="mt-2 text-sm leading-relaxed text-haidee-muted">
+              {metaParts.join(" · ")}
+              {areaText ? (
+                <>
+                  {" · "}
+                  <span className="font-mono">{areaText}</span>
+                </>
+              ) : null}
+            </p>
+
+            <p className="mt-2 font-mono text-sm font-medium text-haidee-text">
+              {formatMarketQtySummary(
+                s.marketQtys,
+                s.crateQty,
+                s.boxQty,
+                locale
+              )}
+            </p>
+
+            {s.status !== "draft" && s.unassignedQty > 0 ? (
+              <p className="mt-1 text-xs text-haidee-orange">
+                {unassignedLabel}:{" "}
+                <span className="font-mono font-semibold">
+                  {formatCrateBoxQty(
+                    s.unassignedCrateQty,
+                    s.unassignedBoxQty,
+                    locale
+                  )}
+                </span>
+              </p>
+            ) : null}
+
+            <div className="mt-3 border-t border-haidee-border/60 pt-3">
+              <InboundSessionActions
+                sessionId={s.id}
+                editLabel={editLabel}
+                layout="card"
+              />
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function InboundListDesktopTable({
+  sessions,
+  locale,
+  draftLabel,
+  unassignedLabel,
+  assignedLabel,
+  editLabel,
+}: {
+  sessions: InboundSessionListRow[];
+  locale: UserLanguage;
+  draftLabel: string;
+  unassignedLabel: string;
+  assignedLabel: string;
+  editLabel: string;
+}) {
+  return (
+    <ScrollMatrixTable fillParent className="hidden h-full rounded-xl md:block">
       <table data-inbound-table-scroll style={tableStyle} className="text-sm">
         <colgroup>
           <col style={{ width: W.date }} />
@@ -284,47 +469,60 @@ export function InboundListTable({ sessions, locale }: InboundListTableProps) {
                 )}
               </td>
               <td className="overflow-hidden whitespace-nowrap px-3 py-2">
-                {s.status === "draft" ? (
-                  <Badge
-                    variant="outline"
-                    className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
-                    title={draftLabel}
-                  >
-                    {draftLabel}
-                  </Badge>
-                ) : s.unassignedQty > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="max-w-full truncate border-haidee-orange text-xs text-haidee-orange"
-                    title={unassignedLabel}
-                  >
-                    {unassignedLabel}
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="max-w-full truncate border-haidee-green text-xs text-haidee-green"
-                    title={assignedLabel}
-                  >
-                    {assignedLabel}
-                  </Badge>
-                )}
+                <InboundSessionStatusBadge
+                  session={s}
+                  draftLabel={draftLabel}
+                  unassignedLabel={unassignedLabel}
+                  assignedLabel={assignedLabel}
+                />
               </td>
               <td className="overflow-hidden whitespace-nowrap px-3 py-2 text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <Link
-                    href={`/inbound/${s.id}/edit`}
-                    className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-haidee-blue px-3 text-sm text-haidee-blue transition-colors hover:bg-haidee-blue/10"
-                  >
-                    {editLabel}
-                  </Link>
-                  <InboundDeleteButton sessionId={s.id} variant="icon" />
-                </div>
+                <InboundSessionActions
+                  sessionId={s.id}
+                  editLabel={editLabel}
+                  layout="table"
+                />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </ScrollMatrixTable>
+  );
+}
+
+export function InboundListTable({ sessions, locale }: InboundListTableProps) {
+  if (sessions.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-12 text-center text-haidee-muted">
+        {t("inbound.emptyList", locale)}
+      </div>
+    );
+  }
+
+  const draftLabel = t("common.draft", locale);
+  const unassignedLabel = t("inbound.unassigned", locale);
+  const assignedLabel = t("inbound.statusAssigned", locale);
+  const editLabel = t("common.edit", locale);
+
+  return (
+    <>
+      <InboundListMobileCards
+        sessions={sessions}
+        locale={locale}
+        draftLabel={draftLabel}
+        unassignedLabel={unassignedLabel}
+        assignedLabel={assignedLabel}
+        editLabel={editLabel}
+      />
+      <InboundListDesktopTable
+        sessions={sessions}
+        locale={locale}
+        draftLabel={draftLabel}
+        unassignedLabel={unassignedLabel}
+        assignedLabel={assignedLabel}
+        editLabel={editLabel}
+      />
+    </>
   );
 }

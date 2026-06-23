@@ -3,6 +3,7 @@ import {
   resolveDateParam,
   toDateInputValue,
 } from "@/lib/inbound-utils";
+import { sortMarkets } from "@/lib/markets";
 
 /** URL sentinel when the user clears the date filter (recent sessions, not all history). */
 export const INBOUND_LIST_ALL_DATES = "all" as const;
@@ -28,6 +29,11 @@ export function resolveInboundListDateFieldValue(dateParam: string | null): stri
   return toDateInputValue(getDefaultInboundDate());
 }
 
+export interface InboundMarketQtyPart {
+  code: string;
+  qty: number;
+}
+
 export interface InboundSessionListRow {
   id: string;
   sessionNo: string | null;
@@ -43,6 +49,7 @@ export interface InboundSessionListRow {
   unassignedQty: number;
   unassignedCrateQty: number;
   unassignedBoxQty: number;
+  marketQtys: InboundMarketQtyPart[];
 }
 
 export interface InboundSessionListSource {
@@ -60,6 +67,28 @@ export interface InboundSessionListSource {
   unassignedQty: number;
   unassignedCrateQty: number;
   unassignedBoxQty: number;
+  marketQtys: InboundMarketQtyPart[];
+}
+
+/** Per-market quantity totals for list/card display (non-OTHER markets only). */
+export function aggregateInboundMarketQtys(
+  lines: Array<{
+    quantity: unknown;
+    stall?: { market?: { code: string } | null } | null;
+  }>
+): InboundMarketQtyPart[] {
+  const map = new Map<string, number>();
+  for (const line of lines) {
+    const qty = Number(line.quantity || 0);
+    if (qty <= 0) continue;
+    const code = line.stall?.market?.code;
+    if (!code || code === "OTHER") continue;
+    map.set(code, (map.get(code) ?? 0) + qty);
+  }
+  return sortMarkets(Array.from(map.keys())).map((code) => ({
+    code,
+    qty: map.get(code) ?? 0,
+  }));
 }
 
 /** Plain JSON-safe rows for the inbound list table (no Date / extra fields). */
@@ -81,5 +110,6 @@ export function serializeInboundSessionListRows(
     unassignedQty: Number(session.unassignedQty) || 0,
     unassignedCrateQty: Number(session.unassignedCrateQty) || 0,
     unassignedBoxQty: Number(session.unassignedBoxQty) || 0,
+    marketQtys: session.marketQtys ?? [],
   }));
 }

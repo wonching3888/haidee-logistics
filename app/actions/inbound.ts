@@ -28,7 +28,10 @@ import {
   MARKET_ORDER,
 } from "@/lib/markets";
 import { parseDateInput, type InboundLineInput } from "@/lib/inbound-utils";
-import { INBOUND_SESSIONS_LIST_LIMIT } from "@/lib/inbound-list";
+import {
+  aggregateInboundMarketQtys,
+  INBOUND_SESSIONS_LIST_LIMIT,
+} from "@/lib/inbound-list";
 import {
   buildInboundChangeLogs,
   computeCrateStockAdjustments,
@@ -669,7 +672,12 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
         select: { id: true, name: true, code: true, pickupLocation: true },
       },
       lines: {
-        select: { quantity: true, dispatchStatus: true, isBox: true },
+        select: {
+          quantity: true,
+          dispatchStatus: true,
+          isBox: true,
+          stall: { select: { market: { select: { code: true } } } },
+        },
       },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -722,6 +730,7 @@ export async function getInboundSessions(filters: InboundSessionFilters = {}) {
         unassignedCrateQty,
         unassignedBoxQty,
         allAssigned,
+        marketQtys: aggregateInboundMarketQtys(s.lines),
       };
     })
     .filter((s) => {

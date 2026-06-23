@@ -33,20 +33,21 @@ export function LanguageSwitcher({ current }: LanguageSwitcherProps) {
         disabled={isPending}
         onClick={() => selectLanguage("zh")}
         className={cn(
-          "min-h-[36px] rounded-md px-2.5 font-medium transition-colors",
+          "min-h-[32px] rounded-md px-1.5 font-medium transition-colors sm:min-h-[36px] sm:px-2.5",
           current === "zh"
             ? "bg-white text-haidee-text shadow-sm"
             : "text-haidee-muted hover:text-haidee-text"
         )}
       >
-        中文
+        <span className="sm:hidden">中</span>
+        <span className="hidden sm:inline">中文</span>
       </button>
       <button
         type="button"
         disabled={isPending}
         onClick={() => selectLanguage("th")}
         className={cn(
-          "min-h-[36px] rounded-md px-2.5 font-medium transition-colors",
+          "min-h-[32px] rounded-md px-1.5 font-medium transition-colors sm:min-h-[36px] sm:px-2.5",
           current === "th"
             ? "bg-white text-haidee-text shadow-sm"
             : "text-haidee-muted hover:text-haidee-text"
