@@ -696,59 +696,30 @@ export function PnlReportView({
           )}
           {customerData && !customerLoading && (
             <>
-              <ScrollMatrixTable heightOffset={300}>
-                <Table className={PNL_TABLE_CLASS}>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead />
-                      <TableHead>寄货人</TableHead>
-                      <TableHead className="text-right">总桶数</TableHead>
-                      <TableHead className="text-right">总盒子</TableHead>
-                      <TableHead className="text-right">总收入 MYR</TableHead>
-                      <TableHead className="text-right">直接成本</TableHead>
-                      <TableHead className="text-right">分摊成本</TableHead>
-                      <TableHead className="text-right">总成本</TableHead>
-                      <TableHead className="text-right">毛利 MYR</TableHead>
-                      <TableHead className="text-right">每桶毛利</TableHead>
-                      <TableHead className="text-right">毛利率%</TableHead>
-                      <TableHead>状态</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customerData.customers.map((customer) => (
-                      <CustomerListRow
-                        key={customer.shipperId}
-                        customer={customer}
-                        expanded={expandedCustomerIds.has(customer.shipperId)}
-                        loading={loadingCustomerIds.has(customer.shipperId)}
-                        markets={customerMarkets[customer.shipperId]}
-                        onToggle={() =>
-                          void toggleCustomerExpand(customer.shipperId)
-                        }
-                      />
-                    ))}
-                    {customerData.customers.length > 0 && (
-                      <TableRow className="bg-slate-100 font-semibold">
-                        <TableCell />
-                        <TableCell>当月合计 Month Total</TableCell>
-                        <TableCell className="text-right">
-                          {customerData.customers.reduce(
-                            (sum, row) => sum + row.totalBarrelQty,
-                            0
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {customerData.customers.reduce(
-                            (sum, row) => sum + row.totalBoxQty,
-                            0
-                          )}
-                        </TableCell>
-                        <TableCell colSpan={8} />
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollMatrixTable>
+              <div className="rounded-xl border border-haidee-border bg-white md:hidden">
+                <CustomerPnlTable
+                  customers={customerData.customers}
+                  expandedCustomerIds={expandedCustomerIds}
+                  loadingCustomerIds={loadingCustomerIds}
+                  customerMarkets={customerMarkets}
+                  onToggleCustomer={(shipperId) =>
+                    void toggleCustomerExpand(shipperId)
+                  }
+                />
+              </div>
+              <div className="hidden md:block">
+                <ScrollMatrixTable heightOffset={300}>
+                  <CustomerPnlTable
+                    customers={customerData.customers}
+                    expandedCustomerIds={expandedCustomerIds}
+                    loadingCustomerIds={loadingCustomerIds}
+                    customerMarkets={customerMarkets}
+                    onToggleCustomer={(shipperId) =>
+                      void toggleCustomerExpand(shipperId)
+                    }
+                  />
+                </ScrollMatrixTable>
+              </div>
 
               <div className="rounded-xl border border-haidee-border bg-white p-4">
                 <h3 className="text-lg font-semibold text-haidee-text">
@@ -1103,6 +1074,84 @@ function TripListRow({
   );
 }
 
+function CustomerPnlTable({
+  customers,
+  expandedCustomerIds,
+  loadingCustomerIds,
+  customerMarkets,
+  onToggleCustomer,
+}: {
+  customers: PnlCustomerData["customers"];
+  expandedCustomerIds: Set<string>;
+  loadingCustomerIds: Set<string>;
+  customerMarkets: Record<string, PnlCustomerMarketRow[]>;
+  onToggleCustomer: (shipperId: string) => void;
+}) {
+  return (
+    <Table noScrollContainer className={PNL_TABLE_CLASS}>
+      <TableHeader>
+        <TableRow>
+          <TableHead className={PNL_TRIP_HEAD_STICKY} />
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>寄货人</TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总桶数
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总盒子
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总收入 MYR
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            直接成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            分摊成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            总成本
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            毛利 MYR
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            每桶毛利
+          </TableHead>
+          <TableHead className={cn(PNL_TRIP_HEAD_STICKY, "text-right")}>
+            毛利率%
+          </TableHead>
+          <TableHead className={PNL_TRIP_HEAD_STICKY}>状态</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {customers.map((customer) => (
+          <CustomerListRow
+            key={customer.shipperId}
+            customer={customer}
+            expanded={expandedCustomerIds.has(customer.shipperId)}
+            loading={loadingCustomerIds.has(customer.shipperId)}
+            markets={customerMarkets[customer.shipperId]}
+            onToggle={() => onToggleCustomer(customer.shipperId)}
+          />
+        ))}
+        {customers.length > 0 && (
+          <TableRow className="bg-slate-100 font-semibold">
+            <TableCell />
+            <TableCell>当月合计 Month Total</TableCell>
+            <TableCell className="text-right">
+              {customers.reduce((sum, row) => sum + row.totalBarrelQty, 0)}
+            </TableCell>
+            <TableCell className="text-right">
+              {customers.reduce((sum, row) => sum + row.totalBoxQty, 0)}
+            </TableCell>
+            <TableCell colSpan={8} />
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+}
+
 function CustomerListRow({
   customer,
   expanded,
@@ -1183,8 +1232,8 @@ function CustomerListRow({
                 加载市场明细…
               </div>
             ) : markets && markets.length > 0 ? (
-              <div className="overflow-x-auto p-4">
-                <Table className={PNL_TABLE_CLASS}>
+              <div className="p-4">
+                <Table noScrollContainer className={PNL_TABLE_CLASS}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>市场</TableHead>
