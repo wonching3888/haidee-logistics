@@ -17,6 +17,10 @@ import {
   calcTotalCostPerKm,
 } from "@/lib/truck-cost";
 import { normalizeTripMarkets } from "@/lib/trip-allowance";
+import {
+  effectiveMarketsForTripCost,
+  mcAssignedLinesFromDispatchLines,
+} from "@/lib/mc-dispatch-delivery";
 
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -260,6 +264,7 @@ export async function aggregateOperationsCosts(
               select: {
                 dispatchStatus: true,
                 quantity: true,
+                mcDeliveryMode: true,
                 stall: {
                   select: {
                     code: true,
@@ -375,8 +380,13 @@ export async function aggregateOperationsCosts(
 
   for (const dispatch of dispatches) {
     const otherOnly = isOtherOnlyDispatch(dispatch.markets);
+    const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
+    const effectiveMarkets = effectiveMarketsForTripCost(
+      dispatch.markets,
+      mcAssignedLines
+    );
     const truck = truckById.get(dispatch.truckId);
-    const applicableRoutes = findApplicableRoutes(dispatch.markets, routes);
+    const applicableRoutes = findApplicableRoutes(effectiveMarkets, routes);
     const routeCosts = computeTripRouteCosts(
       applicableRoutes,
       globalCosts,

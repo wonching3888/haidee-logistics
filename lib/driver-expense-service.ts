@@ -23,7 +23,11 @@ import {
 } from "@/lib/unloading-calculator";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { MC_MARKET_CODE } from "@/lib/inbound-freight";
-import { tripMcAllThirdParty } from "@/lib/mc-dispatch-delivery";
+import {
+  effectiveMarketsForTripCost,
+  mcAssignedLinesFromDispatchLines,
+  tripMcAllThirdParty,
+} from "@/lib/mc-dispatch-delivery";
 import {
   computeTripRouteCosts,
   findApplicableRoutes,
@@ -852,7 +856,12 @@ export async function suggestVoucherAmounts(tripId: string) {
     parkingFee: decimalToNumber(route.parkingFee),
   }));
 
-  const applicableRoutes = findApplicableRoutes(dispatch.markets, routeRows);
+  const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
+  const effectiveMarkets = effectiveMarketsForTripCost(
+    dispatch.markets,
+    mcAssignedLines
+  );
+  const applicableRoutes = findApplicableRoutes(effectiveMarkets, routeRows);
   const routeCosts = computeTripRouteCosts(applicableRoutes, globalCosts);
 
   return {
@@ -1050,7 +1059,12 @@ export async function getVoucherPrintBreakdown(tripId: string) {
     parkingFee: decimalToNumber(route.parkingFee),
   }));
 
-  const tripMarkets = normalizeTripMarkets(dispatch.markets);
+  const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
+  const effectiveMarkets = effectiveMarketsForTripCost(
+    dispatch.markets,
+    mcAssignedLines
+  );
+  const tripMarkets = normalizeTripMarkets(effectiveMarkets);
 
   const KL_GROUP = ["KL", "BP", "MP", "SL"];
   const BM_PINDAH_GROUP = ["P", "TP", "KT", "NT", "SA"];

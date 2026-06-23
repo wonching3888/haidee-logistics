@@ -45,3 +45,52 @@ export function marketsForTripAllowance(
   }
   return dispatchMarkets.filter((code) => code !== MC_MARKET_CODE);
 }
+
+/** Route-cost markets: drop MC when the trip hauls MC only via third party. */
+export function effectiveMarketsForTripCost(
+  dispatchMarkets: string[],
+  assignedLines: McAssignedLineRef[]
+): string[] {
+  if (!tripMcAllThirdParty(assignedLines)) {
+    return dispatchMarkets;
+  }
+  return dispatchMarkets.filter((code) => code !== MC_MARKET_CODE);
+}
+
+/**
+ * P&L unload (Upah Turun) allocation only: MC barrels excluded when entire MC
+ * leg is third_party. Vehicle/trip costs always use full trip quantity.
+ */
+export function pnlUnloadAllocatableQuantity(
+  marketCode: string,
+  quantity: number,
+  excludeMcFromUnloadAllocation: boolean
+): number {
+  if (quantity <= 0) return 0;
+  if (excludeMcFromUnloadAllocation && marketCode === MC_MARKET_CODE) return 0;
+  return quantity;
+}
+
+/** @deprecated Use pnlUnloadAllocatableQuantity — unload-only, not vehicle costs. */
+export const pnlLineAllocatableQuantity = pnlUnloadAllocatableQuantity;
+
+export function mcAssignedLinesFromDispatchLines(
+  lines: Array<{
+    inboundLine: {
+      dispatchStatus: string;
+      mcDeliveryMode: string | null;
+      stall: { market?: { code: string } | null };
+    } | null;
+  }>
+): McAssignedLineRef[] {
+  const refs: McAssignedLineRef[] = [];
+  for (const row of lines) {
+    const line = row.inboundLine;
+    if (!line || line.dispatchStatus !== "assigned") continue;
+    refs.push({
+      marketCode: line.stall.market?.code ?? null,
+      mcDeliveryMode: line.mcDeliveryMode,
+    });
+  }
+  return refs;
+}

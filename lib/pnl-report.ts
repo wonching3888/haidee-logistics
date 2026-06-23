@@ -21,7 +21,13 @@ import {
 import {
   inboundLineStoredSnapshot,
 } from "@/lib/inbound-freight";
-import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
+import {
+  effectiveMarketsForTripCost,
+  lineMcThirdPartyHaulageMyr,
+  mcAssignedLinesFromDispatchLines,
+  pnlUnloadAllocatableQuantity,
+  tripMcAllThirdParty,
+} from "@/lib/mc-dispatch-delivery";
 import {
   buildRouteKey,
   computeTripRouteCosts,
@@ -1138,7 +1144,14 @@ async function computeTripPnlRow(
   const routeLabel = getRouteLabel(dispatch.markets);
   const routeKey = buildRouteKey(dispatch.markets);
 
-  const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
+  const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
+  const excludeMcFromUnloadAllocation = tripMcAllThirdParty(mcAssignedLines);
+  const effectiveMarkets = effectiveMarketsForTripCost(
+    dispatch.markets,
+    mcAssignedLines
+  );
+
+  const applicableRoutes = findApplicableRoutes(effectiveMarkets, ctx.routes);
   const truck = ctx.truckById.get(dispatch.truckId);
   const routeCosts = computeTripRouteCosts(
     applicableRoutes,
@@ -1196,6 +1209,7 @@ async function computeTripPnlRow(
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
       mcThirdPartyHaulageMyr: number;
+      unloadAllocatableQuantity: number;
     }
   >();
 
@@ -1203,6 +1217,7 @@ async function computeTripPnlRow(
   let tripBarrelQty = 0;
   let tripBoxQty = 0;
   let totalTripQuantity = 0;
+  let unloadTripQuantity = 0;
   let tripRevenue = 0;
 
   const lines = dispatch.lines
@@ -1257,10 +1272,21 @@ async function computeTripPnlRow(
       if (quantity <= 0) continue;
 
       totalTripQuantity += quantity;
+      unloadTripQuantity += pnlUnloadAllocatableQuantity(
+        marketCode,
+        quantity,
+        excludeMcFromUnloadAllocation
+      );
     }
   }
 
   if (totalTripQuantity <= 0) return null;
+
+  const vehicleAllocationDenominator = totalTripQuantity;
+  const unloadAllocationDenominator =
+    excludeMcFromUnloadAllocation && unloadTripQuantity > 0
+      ? unloadTripQuantity
+      : totalTripQuantity;
 
   for (const [shipperId, shipperLines] of Array.from(linesByShipper.entries())) {
     const first = shipperLines[0];
@@ -1338,9 +1364,14 @@ async function computeTripPnlRow(
         marketCode,
       });
       const mcThirdPartyHaulageMyr = lineMcThirdPartyHaulageMyr(inbound);
-      const unload = allocateShare(
+      const unloadAllocQty = pnlUnloadAllocatableQuantity(
+        marketCode,
         quantity,
-        totalTripQuantity,
+        excludeMcFromUnloadAllocation
+      );
+      const unload = allocateShare(
+        unloadAllocQty,
+        unloadAllocationDenominator,
         tripAllocated.loadUnloadMyr
       );
 
@@ -1357,6 +1388,7 @@ async function computeTripPnlRow(
         thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
         mcThirdPartyHaulageMyr: 0,
+        unloadAllocatableQuantity: 0,
       };
 
       existing.quantity += quantity;
@@ -1379,6 +1411,7 @@ async function computeTripPnlRow(
       existing.mcThirdPartyHaulageMyr = roundMoney(
         existing.mcThirdPartyHaulageMyr + mcThirdPartyHaulageMyr
       );
+      existing.unloadAllocatableQuantity += unloadAllocQty;
       shipperMap.set(shipperId, existing);
 
       tripQuantity += quantity;
@@ -1409,54 +1442,55 @@ async function computeTripPnlRow(
           row.thaiSegmentMyr +
           row.mcThirdPartyHaulageMyr
       );
+      const qtyForVehicleAllocation = row.quantity;
       const allocatedFuelMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.fuelMyr
       );
       const allocatedMaintenanceMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.maintenanceMyr
       );
       const allocatedTollMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.tollMyr
       );
       const allocatedBorderPassMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.borderPassMyr
       );
       const allocatedFishCheckingMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.fishCheckingMyr
       );
       const allocatedParkingMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.parkingMyr
       );
       const allocatedEpermitMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.epermitMyr
       );
       const allocatedDagangNetMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.dagangNetMyr
       );
       const allocatedForwardingMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.forwardingMyr
       );
       const allocatedDriverMyr = allocateShare(
-        row.quantity,
-        tripQuantity,
+        qtyForVehicleAllocation,
+        vehicleAllocationDenominator,
         tripAllocated.driverMyr
       );
       const allocatedCostMyr = roundMoney(
@@ -1695,7 +1729,14 @@ export async function buildPnlCustomerMarketBreakdown(input: {
   >();
 
   for (const dispatch of dispatches) {
-    const applicableRoutes = findApplicableRoutes(dispatch.markets, ctx.routes);
+    const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
+    const excludeMcFromUnloadAllocation = tripMcAllThirdParty(mcAssignedLines);
+    const effectiveMarkets = effectiveMarketsForTripCost(
+      dispatch.markets,
+      mcAssignedLines
+    );
+
+    const applicableRoutes = findApplicableRoutes(effectiveMarkets, ctx.routes);
     const truck = ctx.truckById.get(dispatch.truckId);
     const routeCosts = computeTripRouteCosts(
       applicableRoutes,
@@ -1755,6 +1796,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       .filter((line): line is NonNullable<typeof line> => line != null);
 
     let tripQuantity = 0;
+    let unloadTripQuantity = 0;
     const shipperLines = lines.filter(
       (line) =>
         line.dispatchStatus === "assigned" &&
@@ -1765,9 +1807,23 @@ export async function buildPnlCustomerMarketBreakdown(input: {
     for (const line of lines) {
       if (line.dispatchStatus !== "assigned") continue;
       const quantity = decimalToNumber(line.quantity) ?? 0;
-      if (quantity > 0) tripQuantity += quantity;
+      if (quantity <= 0) continue;
+      const marketCode = line.stall.market?.code ?? "";
+      if (!marketCode || isOtherMarket(marketCode)) continue;
+      tripQuantity += quantity;
+      unloadTripQuantity += pnlUnloadAllocatableQuantity(
+        marketCode,
+        quantity,
+        excludeMcFromUnloadAllocation
+      );
     }
     if (tripQuantity <= 0) continue;
+
+    const vehicleAllocationDenominator = tripQuantity;
+    const unloadAllocationDenominator =
+      excludeMcFromUnloadAllocation && unloadTripQuantity > 0
+        ? unloadTripQuantity
+        : tripQuantity;
 
     const first = shipperLines[0]!;
     const pickup = resolveSessionPickupLocation(
@@ -1834,14 +1890,19 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         marketCode,
       });
       const mcThirdPartyHaulageMyr = lineMcThirdPartyHaulageMyr(inbound);
-      const unload = allocateShare(
+      const unloadAllocQty = pnlUnloadAllocatableQuantity(
+        marketCode,
         quantity,
-        tripQuantity,
+        excludeMcFromUnloadAllocation
+      );
+      const unload = allocateShare(
+        unloadAllocQty,
+        unloadAllocationDenominator,
         tripAllocated.loadUnloadMyr
       );
       const allocatedCostMyr = allocateShare(
         quantity,
-        tripQuantity,
+        vehicleAllocationDenominator,
         tripAllocatedWithoutLoadUnload
       );
 
