@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { IBM_Plex_Sans, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
 const siteUrl =
@@ -14,10 +14,11 @@ const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-sans",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const robotoMono = Roboto_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -52,10 +53,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body
-        className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased`}
-      >
+    <html
+      lang="zh-CN"
+      className={`${ibmPlexSans.variable} ${robotoMono.variable}`}
+    >
+      <body className="min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased">
         {children}
       </body>
     </html>
