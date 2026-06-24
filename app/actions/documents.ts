@@ -24,12 +24,18 @@ import { partitionRowsByRouteGroup } from "@/lib/market-do-route-groups";
 
 export type { DORow, DOMergeMode } from "@/lib/do-row-merge";
 
+export interface DeliveryOrderSection {
+  routeGroup: string;
+  marketCodes: string[];
+  rows: DORow[];
+}
+
 export interface DeliveryOrderData {
   doNumber: string;
   lorryNo: string;
   driver: string;
   date: string;
-  rows: DORow[];
+  sections: DeliveryOrderSection[];
 }
 
 export interface MarketDORow {
@@ -197,13 +203,19 @@ export async function getDeliveryOrderData(
     }));
 
   const rows = mergeDORows(lorryNo, lineInputs, mergeMode);
+  const marketCodes = Array.from(
+    new Set(
+      rows.map((row) => row.area.trim().toUpperCase()).filter(Boolean)
+    )
+  );
+  const sections = partitionRowsByRouteGroup(rows, marketCodes);
 
   return {
     doNumber: await getDONumber(dispatchOrderId),
     lorryNo: order.truck.plate,
     driver: order.driverName ?? "",
     date: formatDODate(order.date),
-    rows,
+    sections,
   };
 }
 

@@ -78,4 +78,24 @@ describe("partitionRowsByRouteGroup", () => {
   it("returns no sections when there are no rows", () => {
     expect(partitionRowsByRouteGroup([], ["KL", "MC"])).toEqual([]);
   });
+
+  it("splits dispatch D/O rows into A and BM sections (A+BM+P)", () => {
+    const doRow = (area: string) => ({
+      area,
+      lorryNo: "PKS7679",
+      consignor: "Shipper",
+      store: "S1",
+      quantities: { WTL: 1 },
+      qty: 1,
+    });
+
+    const sections = partitionRowsByRouteGroup(
+      [doRow("A"), doRow("BM"), doRow("P")],
+      ["A", "BM", "P"]
+    );
+
+    expect(sections.map((s) => s.routeGroup)).toEqual(["BM", "A"]);
+    expect(sections.find((s) => s.routeGroup === "A")?.rows).toHaveLength(1);
+    expect(sections.find((s) => s.routeGroup === "BM")?.rows).toHaveLength(2);
+  });
 });

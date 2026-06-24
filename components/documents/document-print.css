@@ -427,6 +427,111 @@
   }
 }
 
+/* Internal / external delivery D/O — scoped print rules */
+@media print {
+  .delivery-order-document {
+    padding: 0;
+  }
+
+  .delivery-order-document > .page-break,
+  .delivery-order-document > div > .page-break {
+    page-break-after: always;
+    break-after: page;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    visibility: hidden;
+  }
+
+  .delivery-order-document:not(.delivery-order-landscape) {
+    page: delivery-order-portrait;
+  }
+
+  .delivery-order-document.delivery-order-landscape {
+    page: delivery-order-landscape;
+  }
+
+  @page delivery-order-portrait {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  @page delivery-order-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .delivery-order-document .delivery-order-print-section table.do-table {
+    table-layout: auto;
+    width: 100%;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-no-col {
+    width: auto;
+    min-width: 28px;
+    max-width: none;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-consignor-col {
+    width: auto;
+    min-width: 72px;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-store-col {
+    width: auto;
+    min-width: 48px;
+    max-width: none;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-area-col {
+    width: auto;
+    min-width: 36px;
+    max-width: none;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-crate-col {
+    width: auto;
+    min-width: 32px;
+    max-width: none;
+    overflow: visible;
+    white-space: nowrap;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-qty-col {
+    width: auto;
+    min-width: 36px;
+    max-width: none;
+  }
+
+  .delivery-order-document .delivery-order-print-section .do-remarks-col {
+    width: auto;
+    min-width: 80px;
+    max-width: none;
+  }
+
+  .delivery-order-document .delivery-order-print-section thead {
+    display: table-header-group;
+  }
+
+  .delivery-order-document .delivery-order-print-section tr.do-data-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .delivery-order-document .delivery-order-print-section tr.market-do-area-header {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .delivery-order-document .delivery-order-print-section tr.area-subtotal-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 .monthly-invoice-print .monthly-invoice-title,
 .haidee-market-invoice-print .monthly-invoice-title {
   text-align: center;
