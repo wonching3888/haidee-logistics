@@ -9,6 +9,7 @@ export default defineConfig({
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",
       "lib/sadao-stock.test.ts",
+      "lib/search-filters.test.ts",
     ],
   },
   resolve: {
