@@ -267,7 +267,7 @@ export function MonthlyInvoicePicker({
               查看明细 View details ({data.unpricedCount})
             </summary>
             <ScrollMatrixTable heightOffset={520} className="mt-3">
-              <Table>
+              <Table noScrollContainer>
                 <TableHeader>
                   <TableRow className="bg-amber-100/60 hover:bg-amber-100/60">
                     <TableHead>业务日 Date</TableHead>
@@ -314,7 +314,7 @@ export function MonthlyInvoicePicker({
             </p>
           ) : (
             <ScrollMatrixTable heightOffset={420}>
-              <Table>
+              <Table noScrollContainer>
                 <TableHeader>
                   <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                     <TableHead>顾客 Customer</TableHead>
