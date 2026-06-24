@@ -344,9 +344,15 @@ export function TongStockView({
                 {t("crateStock.targetQty")}
               </label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={editQty}
-                onChange={(e) => setEditQty(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (next === "" || /^\d*$/.test(next)) {
+                    setEditQty(next);
+                  }
+                }}
                 className="font-mono"
               />
             </div>

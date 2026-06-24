@@ -432,14 +432,18 @@ export function CustomerCrateStockView({
               >
                 <label className="min-w-[80px] font-mono text-sm">{ct.code}</label>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={editQty[ct.id] ?? "0"}
-                  onChange={(e) =>
-                    setEditQty((prev) => ({
-                      ...prev,
-                      [ct.id]: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next === "" || next === "-" || /^-?\d*$/.test(next)) {
+                      setEditQty((prev) => ({
+                        ...prev,
+                        [ct.id]: next,
+                      }));
+                    }
+                  }}
                   className="max-w-[140px] font-mono"
                 />
               </div>

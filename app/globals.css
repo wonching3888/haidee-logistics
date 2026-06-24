@@ -45,6 +45,12 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
+/* Unlayered + higher specificity than `*` so UI font-mono uses Roboto Mono (see document-print.css). */
+.font-mono {
+  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 .numeric {
   font-variant-numeric: tabular-nums lining-nums;
 }

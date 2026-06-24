@@ -111,14 +111,17 @@ export const stickyFirstColTableClass = cn(
 
 /** Sticky expand button + label columns (customer crate stock) */
 export const stickyFirstTwoColTableClass = cn(
-  "[&_thead_th:nth-child(1)]:sticky [&_thead_th:nth-child(1)]:left-0 [&_thead_th:nth-child(1)]:top-0 [&_thead_th:nth-child(1)]:z-30 [&_thead_th:nth-child(1)]:w-10 [&_thead_th:nth-child(1)]:min-w-10 [&_thead_th:nth-child(1)]:bg-haidee-surface",
-  "[&_thead_th:nth-child(2)]:sticky [&_thead_th:nth-child(2)]:left-10 [&_thead_th:nth-child(2)]:top-0 [&_thead_th:nth-child(2)]:z-30 [&_thead_th:nth-child(2)]:min-w-[160px] [&_thead_th:nth-child(2)]:bg-haidee-surface",
-  "[&_tbody_td:nth-child(1)]:sticky [&_tbody_td:nth-child(1)]:left-0 [&_tbody_td:nth-child(1)]:z-10 [&_tbody_td:nth-child(1)]:bg-white",
-  "[&_tbody_td:nth-child(2)]:sticky [&_tbody_td:nth-child(2)]:left-10 [&_tbody_td:nth-child(2)]:z-10 [&_tbody_td:nth-child(2)]:min-w-[160px] [&_tbody_td:nth-child(2)]:bg-white",
-  "[&_thead_th:nth-child(n+3)]:sticky [&_thead_th:nth-child(n+3)]:top-0 [&_thead_th:nth-child(n+3)]:z-20 [&_thead_th:nth-child(n+3)]:bg-haidee-surface"
+  "[&_thead_th:nth-child(1)]:sticky [&_thead_th:nth-child(1)]:left-0 [&_thead_th:nth-child(1)]:top-0 [&_thead_th:nth-child(1)]:z-40 [&_thead_th:nth-child(1)]:w-10 [&_thead_th:nth-child(1)]:min-w-10 [&_thead_th:nth-child(1)]:bg-haidee-surface [&_thead_th:nth-child(1)]:shadow-[1px_1px_0_0] [&_thead_th:nth-child(1)]:shadow-haidee-border",
+  "[&_thead_th:nth-child(2)]:sticky [&_thead_th:nth-child(2)]:left-10 [&_thead_th:nth-child(2)]:top-0 [&_thead_th:nth-child(2)]:z-40 [&_thead_th:nth-child(2)]:min-w-[160px] [&_thead_th:nth-child(2)]:bg-haidee-surface [&_thead_th:nth-child(2)]:shadow-[1px_1px_0_0] [&_thead_th:nth-child(2)]:shadow-haidee-border",
+  "[&_tbody_td:nth-child(1)]:sticky [&_tbody_td:nth-child(1)]:left-0 [&_tbody_td:nth-child(1)]:z-20 [&_tbody_td:nth-child(1)]:bg-white [&_tbody_td:nth-child(1)]:shadow-[1px_0_0_0] [&_tbody_td:nth-child(1)]:shadow-haidee-border",
+  "[&_tbody_tr:hover_td:nth-child(1)]:bg-white",
+  "[&_tbody_td:nth-child(2)]:sticky [&_tbody_td:nth-child(2)]:left-10 [&_tbody_td:nth-child(2)]:z-20 [&_tbody_td:nth-child(2)]:min-w-[160px] [&_tbody_td:nth-child(2)]:bg-white [&_tbody_td:nth-child(2)]:shadow-[1px_0_0_0] [&_tbody_td:nth-child(2)]:shadow-haidee-border",
+  "[&_tbody_tr:hover_td:nth-child(2)]:bg-white",
+  "[&_thead_th:nth-child(n+3):not(:last-child)]:sticky [&_thead_th:nth-child(n+3):not(:last-child)]:top-0 [&_thead_th:nth-child(n+3):not(:last-child)]:z-30 [&_thead_th:nth-child(n+3):not(:last-child)]:bg-haidee-surface [&_thead_th:nth-child(n+3):not(:last-child)]:shadow-[0_1px_0_0] [&_thead_th:nth-child(n+3):not(:last-child)]:shadow-haidee-border"
 );
 
 export const stickyActionsColTableClass = cn(
-  "[&_thead_th:last-child]:sticky [&_thead_th:last-child]:right-0 [&_thead_th:last-child]:top-0 [&_thead_th:last-child]:z-30 [&_thead_th:last-child]:bg-haidee-surface",
-  "[&_tbody_td:last-child]:sticky [&_tbody_td:last-child]:right-0 [&_tbody_td:last-child]:z-10 [&_tbody_td:last-child]:bg-white"
+  "[&_thead_th:last-child]:sticky [&_thead_th:last-child]:right-0 [&_thead_th:last-child]:top-0 [&_thead_th:last-child]:z-40 [&_thead_th:last-child]:bg-haidee-surface [&_thead_th:last-child]:shadow-[-1px_1px_0_0] [&_thead_th:last-child]:shadow-haidee-border",
+  "[&_tbody_td:last-child]:sticky [&_tbody_td:last-child]:right-0 [&_tbody_td:last-child]:z-20 [&_tbody_td:last-child]:bg-white [&_tbody_td:last-child]:shadow-[-1px_0_0_0] [&_tbody_td:last-child]:shadow-haidee-border",
+  "[&_tbody_tr:hover_td:last-child]:bg-white"
 );
