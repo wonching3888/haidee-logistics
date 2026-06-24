@@ -11,6 +11,14 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        fold: {
+          raw: "(min-width: 768px) and (max-width: 1024px) and (max-height: 850px)",
+        },
+        "fold-land": {
+          raw: "(min-width: 768px) and (max-height: 640px)",
+        },
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",
