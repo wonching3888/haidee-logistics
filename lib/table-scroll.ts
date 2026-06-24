@@ -126,7 +126,7 @@ export const stickyActionsColTableClass = cn(
   "[&_tbody_tr:hover_td:last-child]:bg-white"
 );
 
-/** Vehicle loading list (/summary): thead sticks vertically; corners stick horizontally */
+/** Vehicle loading list (/summary): thead sticks vertically; left column sticks horizontally */
 export const STICKY_SUMMARY_THEAD = "sticky top-0 z-30";
 
 export const STICKY_SUMMARY_HEAD_LEFT = cn(
@@ -138,11 +138,11 @@ export const STICKY_SUMMARY_HEAD_LEFT_ROW3 = cn(
 );
 
 export const STICKY_SUMMARY_HEAD_RIGHT = cn(
-  "sticky right-0 z-40 border border-haidee-border bg-haidee-surface shadow-[-1px_1px_0_0] shadow-haidee-border"
+  "border border-haidee-border bg-haidee-surface"
 );
 
 export const STICKY_SUMMARY_HEAD_RIGHT_ROW3 = cn(
-  "sticky right-0 z-40 border border-haidee-border bg-gray-50 shadow-[-1px_1px_0_0] shadow-haidee-border"
+  "border border-haidee-border bg-gray-50"
 );
 
 export const STICKY_SUMMARY_HEAD_MIDDLE = "border border-haidee-border bg-haidee-surface";
@@ -155,7 +155,7 @@ export const STICKY_SUMMARY_BODY_LEFT = cn(
 );
 
 export const STICKY_SUMMARY_BODY_RIGHT = cn(
-  "sticky right-0 z-20 border border-haidee-border bg-haidee-surface shadow-[-1px_0_0_0] shadow-haidee-border"
+  "border border-haidee-border bg-haidee-surface"
 );
 
 export const STICKY_SUMMARY_FOOTER_LEFT = cn(
@@ -163,5 +163,5 @@ export const STICKY_SUMMARY_FOOTER_LEFT = cn(
 );
 
 export const STICKY_SUMMARY_FOOTER_RIGHT = cn(
-  "sticky right-0 z-20 border border-haidee-border bg-[#e6e9f0] shadow-[-1px_0_0_0] shadow-haidee-border"
+  "border border-haidee-border bg-[#e6e9f0]"
 );

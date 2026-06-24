@@ -20,12 +20,12 @@ export default async function SummaryPage({ searchParams }: SummaryPageProps) {
     const data = await getDailySummary(date);
 
     return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
-        <div className="shrink-0">
-          <h2 className="text-2xl font-bold text-haidee-text">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 max-md:gap-2">
+        <div className="shrink-0 max-md:space-y-0">
+          <h2 className="text-2xl font-bold text-haidee-text max-md:text-lg max-md:leading-tight">
             装车清单 Vehicle Loading List
           </h2>
-          <p className="text-sm text-haidee-muted">
+          <p className="text-sm text-haidee-muted max-md:text-xs max-md:leading-snug">
             派车后每辆车装载明细 Post-dispatch loading by truck
           </p>
         </div>

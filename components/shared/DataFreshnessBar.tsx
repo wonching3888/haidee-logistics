@@ -7,10 +7,12 @@ import {
   useDataFreshness,
   type UseDataFreshnessOptions,
 } from "@/lib/hooks/use-data-freshness";
+import { cn } from "@/lib/utils";
 
 export type DataFreshnessBarProps = UseDataFreshnessOptions & {
   /** When enabled is false, render nothing (e.g. monthly invoice before query). */
   hideWhenDisabled?: boolean;
+  className?: string;
 };
 
 function formatTimeLabel(date: Date): string {
@@ -24,6 +26,7 @@ function formatTimeLabel(date: Date): string {
 export function DataFreshnessBar({
   hideWhenDisabled = false,
   enabled = true,
+  className,
   ...options
 }: DataFreshnessBarProps) {
   const { t } = useT();
@@ -40,7 +43,10 @@ export function DataFreshnessBar({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-haidee-border/80 bg-haidee-surface/50 px-3 py-2 text-xs text-haidee-muted"
+      className={cn(
+        "flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-haidee-border/80 bg-haidee-surface/50 px-3 py-2 text-xs text-haidee-muted",
+        className
+      )}
       aria-live="polite"
     >
       <span>{t("dataFreshness.updatedAt", { time: timeLabel })}</span>

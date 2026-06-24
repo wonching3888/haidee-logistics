@@ -141,10 +141,12 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
   const colSpan = columns.length + 2;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
-      <div className="flex shrink-0 flex-col gap-3 max-md:items-stretch md:flex-row md:flex-wrap md:items-end md:gap-4">
-        <div className="space-y-1 max-md:w-full">
-          <label className="text-sm font-medium">日期 Date</label>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 max-md:gap-1.5 md:gap-3">
+      <div className="flex shrink-0 flex-col gap-1.5 max-md:gap-1 md:flex-row md:flex-wrap md:items-end md:gap-3">
+        <div className="max-md:w-full max-md:space-y-0.5">
+          <label className="text-xs font-medium max-md:text-[11px] md:text-sm">
+            日期 Date
+          </label>
           <DateInputField
             value={date}
             onChange={(next) => {
@@ -154,20 +156,13 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             }}
           />
         </div>
-        <Button
-          onClick={handlePrint}
-          disabled={!data.hasDispatches}
-          className="gap-2 bg-haidee-blue text-white max-md:min-h-[44px] max-md:w-full md:w-auto"
-        >
-          <Printer className="h-4 w-4" />
-          打印装车清单 Print
-        </Button>
       </div>
 
       <DataFreshnessBar
         scope="daily-ops"
         params={{ date }}
         onRefresh={() => router.refresh()}
+        className="max-md:px-2 max-md:py-1"
       />
 
       <div
@@ -338,6 +333,15 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
           </table>
         </div>
       </div>
+
+      <Button
+        onClick={handlePrint}
+        disabled={!data.hasDispatches}
+        className="shrink-0 gap-2 bg-haidee-blue text-white max-md:min-h-[44px] max-md:w-full md:w-auto md:self-start"
+      >
+        <Printer className="h-4 w-4" />
+        打印装车清单 Print
+      </Button>
 
       <style jsx global>{`
         @media print {
