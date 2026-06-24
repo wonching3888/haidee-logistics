@@ -20,6 +20,7 @@ import {
   getCrateTypeRecordBlockTitle,
 } from "@/lib/crate-type-record-areas";
 import { mergeDORows, type DOMergeMode, type DORow } from "@/lib/do-row-merge";
+import { partitionRowsByRouteGroup } from "@/lib/market-do-route-groups";
 
 export type { DORow, DOMergeMode } from "@/lib/do-row-merge";
 
@@ -40,12 +41,18 @@ export interface MarketDORow {
   qty: number;
 }
 
+export interface MarketDOSection {
+  routeGroup: string;
+  marketCodes: string[];
+  rows: MarketDORow[];
+}
+
 export interface MarketDOData {
   marketCode: string;
   marketCodes: string[];
   marketName: string;
   date: string;
-  rows: MarketDORow[];
+  sections: MarketDOSection[];
 }
 
 export interface CrateByTypeRow {
@@ -291,6 +298,7 @@ export async function getMultiMarketDOData(
   ).flat();
 
   const rows = allLines.length > 0 ? buildMarketDORows(allLines) : [];
+  const sections = partitionRowsByRouteGroup(rows, uniqueCodes);
 
   const primaryCode = uniqueCodes[0];
 
@@ -299,7 +307,7 @@ export async function getMultiMarketDOData(
     marketCodes: uniqueCodes,
     marketName: getMarketDisplayName(primaryCode),
     date: formatDODate(date),
-    rows,
+    sections,
   };
 }
 

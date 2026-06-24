@@ -335,6 +335,98 @@
   }
 }
 
+/* Market D/O — scoped print rules (does not affect CrateByTypePrint / other docs) */
+@media print {
+  .market-do-document {
+    padding: 0;
+  }
+
+  .market-do-document > .page-break,
+  .market-do-document > div > .page-break {
+    page-break-after: always;
+    break-after: page;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    visibility: hidden;
+  }
+
+  .market-do-document:not(.market-do-landscape) {
+    page: market-do-portrait;
+  }
+
+  .market-do-document.market-do-landscape {
+    page: market-do-landscape;
+  }
+
+  @page market-do-portrait {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  @page market-do-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .market-do-document .market-do-print-section table.market-do-table {
+    table-layout: auto;
+    width: 100%;
+  }
+
+  .market-do-document .market-do-print-section .market-do-lorry-col {
+    width: auto;
+    min-width: 72px;
+    max-width: none;
+  }
+
+  .market-do-document .market-do-print-section .market-do-stall-col {
+    width: auto;
+    min-width: 48px;
+    max-width: none;
+  }
+
+  .market-do-document .market-do-print-section .market-do-area-col {
+    width: auto;
+    min-width: 36px;
+    max-width: none;
+  }
+
+  .market-do-document .market-do-print-section .market-do-crate-col {
+    width: auto;
+    min-width: 32px;
+    max-width: none;
+    overflow: visible;
+    white-space: nowrap;
+  }
+
+  .market-do-document .market-do-print-section .market-do-qty-col {
+    width: auto;
+    min-width: 40px;
+    max-width: none;
+  }
+
+  .market-do-document .market-do-print-section thead {
+    display: table-header-group;
+  }
+
+  .market-do-document .market-do-print-section tr.market-do-data-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .market-do-document .market-do-print-section tr.market-do-area-header {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .market-do-document .market-do-print-section tr.lorry-subtotal-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 .monthly-invoice-print .monthly-invoice-title,
 .haidee-market-invoice-print .monthly-invoice-title {
   text-align: center;

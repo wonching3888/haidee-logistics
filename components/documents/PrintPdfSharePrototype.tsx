@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD } from "@/lib/market-do-route-groups";
 import {
   probeShareCapability,
   shareElementAsPdf,
@@ -14,11 +15,16 @@ import {
 interface PrintPdfSharePrototypeProps {
   getContentElement: () => HTMLElement | null;
   payload: PdfSharePayload;
+  /** When set, capture each section separately and merge into one PDF. */
+  sectionSelector?: string;
+  activeColumnCount?: number;
 }
 
 export function PrintPdfSharePrototype({
   getContentElement,
   payload,
+  sectionSelector,
+  activeColumnCount,
 }: PrintPdfSharePrototypeProps) {
   const [busy, setBusy] = useState(false);
   const [probe, setProbe] = useState<ShareCapabilityProbe | null>(null);
@@ -41,7 +47,12 @@ export function PrintPdfSharePrototype({
     setLastResult(null);
 
     try {
-      const result = await shareElementAsPdf(element, payload);
+      const result = await shareElementAsPdf(element, payload, {
+        sectionSelector,
+        activeColumnCount,
+        autoLandscape: true,
+        minDepotCountForLandscape: MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD,
+      });
       setLastResult(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "生成或分享 PDF 失败");

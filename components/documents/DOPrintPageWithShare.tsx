@@ -10,6 +10,8 @@ interface DOPrintPageWithShareProps {
   documentTitle: string;
   backHref?: string;
   sharePayload: PdfSharePayload;
+  sectionSelector?: string;
+  activeColumnCount?: number;
   children: ReactNode;
 }
 
@@ -22,6 +24,8 @@ export function DOPrintPageWithShare({
   documentTitle,
   backHref,
   sharePayload,
+  sectionSelector,
+  activeColumnCount,
   children,
 }: DOPrintPageWithShareProps) {
   const [printContentEl, setPrintContentEl] = useState<HTMLDivElement | null>(
@@ -42,6 +46,8 @@ export function DOPrintPageWithShare({
         <PrintPdfSharePrototype
           getContentElement={() => printContentEl}
           payload={sharePayload}
+          sectionSelector={sectionSelector}
+          activeColumnCount={activeColumnCount}
         />
       }
     >

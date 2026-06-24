@@ -1,4 +1,4 @@
-const ROUTE_GROUP_MAP: Record<string, string> = {
+export const ROUTE_GROUP_MAP: Record<string, string> = {
   KL: "KL",
   BP: "KL",
   MP: "KL",
@@ -45,6 +45,11 @@ function parseMarketsForRouteLabel(
   }
 
   return codes;
+}
+
+export function getRouteGroupForMarket(marketCode: string): string {
+  const code = marketCode.trim().toUpperCase();
+  return ROUTE_GROUP_MAP[code] ?? code;
 }
 
 export function getRouteLabel(

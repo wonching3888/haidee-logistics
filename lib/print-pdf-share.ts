@@ -4,6 +4,9 @@
  */
 
 import {
+  MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD,
+} from "@/lib/market-do-route-groups";
+import {
   measureElementCaptureExtents,
   prepareHtml2CanvasClone,
   runWithHtml2CanvasCompat,
@@ -27,6 +30,10 @@ export interface PdfFromElementOptions {
   landscapeWidthThresholdPx?: number;
   minDepotCountForLandscape?: number;
   minPdfFontPt?: number;
+  /** Capture each matching section as its own PDF segment (Market D/O). */
+  sectionSelector?: string;
+  /** When set with autoLandscape, use this column count for landscape decision. */
+  activeColumnCount?: number;
   orientation?: "portrait" | "landscape";
 }
 
@@ -70,10 +77,15 @@ function addCanvasImageToPdfPages(
   imgData: string,
   canvas: HTMLCanvasElement,
   pageWidth: number,
-  pageHeight: number
+  pageHeight: number,
+  options?: { startOnNewPage?: boolean }
 ) {
   const renderWidth = pageWidth;
   const renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+  if (options?.startOnNewPage) {
+    pdf.addPage();
+  }
 
   if (renderHeight <= pageHeight + 0.5) {
     pdf.addImage(imgData, "JPEG", 0, 0, renderWidth, renderHeight);
@@ -82,15 +94,16 @@ function addCanvasImageToPdfPages(
 
   let heightLeft = renderHeight;
   let position = 0;
-
-  pdf.addImage(imgData, "JPEG", 0, position, renderWidth, renderHeight);
-  heightLeft -= pageHeight;
+  let isFirstSlice = true;
 
   while (heightLeft > 0.5) {
-    position = heightLeft - renderHeight;
-    pdf.addPage();
+    if (!isFirstSlice) {
+      pdf.addPage();
+    }
+    isFirstSlice = false;
     pdf.addImage(imgData, "JPEG", 0, position, renderWidth, renderHeight);
     heightLeft -= pageHeight;
+    position = heightLeft - renderHeight;
   }
 }
 
@@ -158,8 +171,16 @@ export function probeShareCapability(): ShareCapabilityProbe {
 
 async function renderElementToPdfBlobCore(
   element: HTMLElement,
-  options?: PdfFromElementOptions
-): Promise<{ blob: Blob; fileName: string }> {
+  options?: PdfFromElementOptions,
+  pdfContext?: {
+    pdf?: InstanceType<(typeof import("jspdf"))["jsPDF"]>;
+    startOnNewPage?: boolean;
+  }
+): Promise<{
+  blob?: Blob;
+  fileName: string;
+  pdf: InstanceType<(typeof import("jspdf"))["jsPDF"]>;
+}> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
     import("jspdf"),
@@ -205,20 +226,71 @@ async function renderElementToPdfBlobCore(
   );
 
   const imgData = canvas.toDataURL("image/jpeg", 0.92);
-  const pdf = new jsPDF({
-    orientation: orientation === "landscape" ? "l" : "p",
-    unit: "mm",
-    format: "a4",
-  });
+  const pdf =
+    pdfContext?.pdf ??
+    new jsPDF({
+      orientation: orientation === "landscape" ? "l" : "p",
+      unit: "mm",
+      format: "a4",
+    });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  addCanvasImageToPdfPages(pdf, imgData, canvas, pageWidth, pageHeight);
+  addCanvasImageToPdfPages(
+    pdf,
+    imgData,
+    canvas,
+    pageWidth,
+    pageHeight,
+    pdfContext?.pdf
+      ? { startOnNewPage: pdfContext.startOnNewPage ?? true }
+      : undefined
+  );
 
-  const blob = pdf.output("blob");
   const fileName = sanitizeFileName(options?.fileName ?? "document.pdf");
 
-  return { blob, fileName };
+  return { pdf, fileName };
+}
+
+async function renderSectionsToPdfBlob(
+  root: HTMLElement,
+  sections: HTMLElement[],
+  options?: PdfFromElementOptions
+): Promise<{ blob: Blob; fileName: string }> {
+  const activeColumnCount =
+    options?.activeColumnCount ??
+    Number(root.getAttribute("data-market-do-max-columns") ?? 0);
+
+  const sectionOptions: PdfFromElementOptions = {
+    ...options,
+    autoLandscape: options?.autoLandscape ?? true,
+    activeDepotCount: activeColumnCount,
+    orientation:
+      options?.orientation ??
+      (activeColumnCount >=
+        (options?.minDepotCountForLandscape ??
+          MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD)
+        ? "landscape"
+        : "portrait"),
+  };
+
+  let pdf: InstanceType<(typeof import("jspdf"))["jsPDF"]> | undefined;
+  let fileName = sanitizeFileName(options?.fileName ?? "document.pdf");
+
+  for (let index = 0; index < sections.length; index += 1) {
+    const result = await renderElementToPdfBlobCore(sections[index]!, sectionOptions, {
+      pdf,
+      startOnNewPage: index > 0,
+    });
+    pdf = result.pdf;
+    fileName = result.fileName;
+  }
+
+  if (!pdf) {
+    throw new Error("No PDF sections rendered");
+  }
+
+  return { blob: pdf.output("blob"), fileName };
 }
 
 export async function renderElementToPdfBlob(
@@ -227,13 +299,24 @@ export async function renderElementToPdfBlob(
 ): Promise<{ blob: Blob; fileName: string }> {
   await waitForDocumentFonts();
 
-  if (element.querySelector(".dispatch-klmc-print-a4")) {
-    return withKlMcPrintPdfCaptureLayout(element, () =>
-      renderElementToPdfBlobCore(element, options)
-    );
+  if (options?.sectionSelector) {
+    const sections = Array.from(
+      element.querySelectorAll(options.sectionSelector)
+    ).filter((node): node is HTMLElement => node instanceof HTMLElement);
+    if (sections.length > 0) {
+      return renderSectionsToPdfBlob(element, sections, options);
+    }
   }
 
-  return renderElementToPdfBlobCore(element, options);
+  if (element.querySelector(".dispatch-klmc-print-a4")) {
+    return withKlMcPrintPdfCaptureLayout(element, async () => {
+      const result = await renderElementToPdfBlobCore(element, options);
+      return { blob: result.pdf.output("blob"), fileName: result.fileName };
+    });
+  }
+
+  const result = await renderElementToPdfBlobCore(element, options);
+  return { blob: result.pdf.output("blob"), fileName: result.fileName };
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string): boolean {
