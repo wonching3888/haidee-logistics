@@ -14,7 +14,20 @@ import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
 import { MARKET_ORDER } from "@/lib/constants";
 import { toDateInputValue } from "@/lib/date-utils";
-import { getMatrixTableScrollStyle } from "@/lib/table-scroll";
+import {
+  getMatrixTableScrollStyle,
+  STICKY_SUMMARY_BODY_LEFT,
+  STICKY_SUMMARY_BODY_RIGHT,
+  STICKY_SUMMARY_FOOTER_LEFT,
+  STICKY_SUMMARY_FOOTER_RIGHT,
+  STICKY_SUMMARY_HEAD_LEFT,
+  STICKY_SUMMARY_HEAD_LEFT_ROW3,
+  STICKY_SUMMARY_HEAD_MIDDLE,
+  STICKY_SUMMARY_HEAD_MIDDLE_ROW3,
+  STICKY_SUMMARY_HEAD_RIGHT,
+  STICKY_SUMMARY_HEAD_RIGHT_ROW3,
+  STICKY_SUMMARY_THEAD,
+} from "@/lib/table-scroll";
 
 interface SummaryViewProps {
   date: string;
@@ -24,22 +37,11 @@ interface SummaryViewProps {
 
 const tableScrollStyle = getMatrixTableScrollStyle(220);
 
-const stickyHeadRow1 =
-  "sticky top-0 z-20 border border-haidee-border bg-haidee-surface";
-const stickyHeadRow2 =
-  "sticky top-[3.25rem] z-20 border border-haidee-border bg-haidee-surface";
-const stickyHeadRow3 =
-  "sticky top-[4.5rem] z-20 border border-haidee-border bg-gray-50";
 const marketColClass =
   "min-w-[2.75rem] w-[2.75rem] max-w-[2.75rem] px-1.5 text-center";
-const stickyHeadCorner =
-  "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface";
 const consignorColClass =
   "w-[168px] min-w-[168px] max-w-[168px] align-top";
-const stickyFirstColBody =
-  "sticky left-0 z-10 border border-haidee-border bg-white";
-const stickyFirstColFooter =
-  "sticky left-0 z-10 border border-haidee-border bg-haidee-navy/5";
+const subtotalColClass = "min-w-[72px] w-[72px] max-w-[72px]";
 
 function sumCellsAcrossColumns(
   columns: LoadingMatrixColumn[],
@@ -188,11 +190,10 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             style={{ minWidth: "max-content" }}
             className="border-collapse text-sm"
           >
-            <thead>
+            <thead className={STICKY_SUMMARY_THEAD}>
               <tr>
                 <th
-                  rowSpan={3}
-                  className={`${stickyHeadCorner} ${consignorColClass} px-3 py-2 text-left align-bottom font-medium text-haidee-muted`}
+                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} px-3 py-2 text-left font-medium text-haidee-muted`}
                 >
                   寄货人 / 地区
                   <br />
@@ -207,7 +208,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     <th
                       key={truck.orderId}
                       colSpan={truck.markets.length}
-                      className={`${stickyHeadRow1} px-2 py-2 text-center font-mono text-base font-bold text-haidee-text`}
+                      className={`${STICKY_SUMMARY_HEAD_MIDDLE} px-2 py-2 text-center font-mono text-base font-bold text-haidee-text`}
                     >
                       <div>{truck.truckPlate}</div>
                       {totalLabel && (
@@ -219,8 +220,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   );
                 })}
                 <th
-                  rowSpan={3}
-                  className={`${stickyHeadRow1} min-w-[72px] px-2 py-2 text-center align-middle font-medium text-haidee-muted`}
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} px-2 py-2 text-center align-middle font-medium text-haidee-muted`}
                 >
                   小计
                   <br />
@@ -228,27 +228,43 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 </th>
               </tr>
               <tr>
+                <th
+                  aria-hidden="true"
+                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} py-1.5`}
+                />
                 {columns.map((col) => (
                   <th
                     key={`m-${col.key}`}
-                    className={`${stickyHeadRow2} ${marketColClass} py-1.5 font-mono text-xs font-semibold text-haidee-text`}
+                    className={`${STICKY_SUMMARY_HEAD_MIDDLE} ${marketColClass} py-1.5 font-mono text-xs font-semibold text-haidee-text`}
                   >
                     {col.marketCode}
                   </th>
                 ))}
+                <th
+                  aria-hidden="true"
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} py-1.5`}
+                />
               </tr>
               <tr>
+                <th
+                  aria-hidden="true"
+                  className={`${STICKY_SUMMARY_HEAD_LEFT_ROW3} ${consignorColClass} py-1`}
+                />
                 {columns.map((col) => {
                   const subtotal = columnSubtotals[col.key];
                   return (
                     <th
                       key={`sub-${col.key}`}
-                      className={`${stickyHeadRow3} ${marketColClass} py-1 font-mono text-[11px] font-semibold text-haidee-muted`}
+                      className={`${STICKY_SUMMARY_HEAD_MIDDLE_ROW3} ${marketColClass} py-1 font-mono text-[11px] font-semibold text-haidee-muted`}
                     >
                       {cellDisplay(subtotal.crateQty, subtotal.boxQty)}
                     </th>
                   );
                 })}
+                <th
+                  aria-hidden="true"
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT_ROW3} ${subtotalColClass} py-1`}
+                />
               </tr>
             </thead>
             <tbody>
@@ -265,32 +281,34 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 data.rows.map((row) => {
                   const rowTotal = sumCellsAcrossColumns(columns, row.cells);
                   return (
-                  <tr key={row.id}>
-                    <td
-                      className={`px-3 py-2 font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
-                    >
-                      <LoadingListConsignorCell
-                        displayName={row.displayName}
-                        fullLabel={row.label}
-                      />
-                    </td>
-                    {columns.map((col) => {
-                      const cell = row.cells[col.key];
-                      const crateQty = cell?.crateQty ?? 0;
-                      const boxQty = cell?.boxQty ?? 0;
-                      return (
-                        <td
-                          key={col.key}
-                          className={`border border-haidee-border py-2 font-mono ${marketColClass}`}
-                        >
-                          {cellDisplay(crateQty, boxQty)}
-                        </td>
-                      );
-                    })}
-                    <td className="border border-haidee-border bg-haidee-surface/40 px-2 py-2 text-center font-mono font-semibold">
-                      {cellDisplay(rowTotal.crateQty, rowTotal.boxQty)}
-                    </td>
-                  </tr>
+                    <tr key={row.id}>
+                      <td
+                        className={`px-3 py-2 font-medium text-haidee-text ${consignorColClass} ${STICKY_SUMMARY_BODY_LEFT}`}
+                      >
+                        <LoadingListConsignorCell
+                          displayName={row.displayName}
+                          fullLabel={row.label}
+                        />
+                      </td>
+                      {columns.map((col) => {
+                        const cell = row.cells[col.key];
+                        const crateQty = cell?.crateQty ?? 0;
+                        const boxQty = cell?.boxQty ?? 0;
+                        return (
+                          <td
+                            key={col.key}
+                            className={`border border-haidee-border py-2 font-mono ${marketColClass}`}
+                          >
+                            {cellDisplay(crateQty, boxQty)}
+                          </td>
+                        );
+                      })}
+                      <td
+                        className={`px-2 py-2 text-center font-mono font-semibold ${subtotalColClass} ${STICKY_SUMMARY_BODY_RIGHT}`}
+                      >
+                        {cellDisplay(rowTotal.crateQty, rowTotal.boxQty)}
+                      </td>
+                    </tr>
                   );
                 })
               )}
@@ -299,7 +317,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               <tfoot>
                 <tr className="bg-haidee-navy/5 font-bold">
                   <td
-                    className={`px-3 py-2 text-haidee-text ${consignorColClass} ${stickyFirstColFooter}`}
+                    className={`px-3 py-2 text-haidee-text ${consignorColClass} ${STICKY_SUMMARY_FOOTER_LEFT}`}
                   >
                     总计 Total
                   </td>
@@ -309,7 +327,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                       className={`border border-haidee-border py-2 font-mono ${marketColClass}`}
                     />
                   ))}
-                  <td className="border border-haidee-border bg-haidee-navy/10 px-2 py-2 text-center font-mono font-bold">
+                  <td
+                    className={`px-2 py-2 text-center font-mono font-bold ${subtotalColClass} ${STICKY_SUMMARY_FOOTER_RIGHT}`}
+                  >
                     {cellDisplay(grandTotal.crateQty, grandTotal.boxQty)}
                   </td>
                 </tr>

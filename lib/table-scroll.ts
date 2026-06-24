@@ -125,3 +125,43 @@ export const stickyActionsColTableClass = cn(
   "[&_tbody_td:last-child]:sticky [&_tbody_td:last-child]:right-0 [&_tbody_td:last-child]:z-20 [&_tbody_td:last-child]:bg-white [&_tbody_td:last-child]:shadow-[-1px_0_0_0] [&_tbody_td:last-child]:shadow-haidee-border",
   "[&_tbody_tr:hover_td:last-child]:bg-white"
 );
+
+/** Vehicle loading list (/summary): thead sticks vertically; corners stick horizontally */
+export const STICKY_SUMMARY_THEAD = "sticky top-0 z-30";
+
+export const STICKY_SUMMARY_HEAD_LEFT = cn(
+  "sticky left-0 z-40 border border-haidee-border bg-haidee-surface shadow-[1px_1px_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_HEAD_LEFT_ROW3 = cn(
+  "sticky left-0 z-40 border border-haidee-border bg-gray-50 shadow-[1px_1px_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_HEAD_RIGHT = cn(
+  "sticky right-0 z-40 border border-haidee-border bg-haidee-surface shadow-[-1px_1px_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_HEAD_RIGHT_ROW3 = cn(
+  "sticky right-0 z-40 border border-haidee-border bg-gray-50 shadow-[-1px_1px_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_HEAD_MIDDLE = "border border-haidee-border bg-haidee-surface";
+
+export const STICKY_SUMMARY_HEAD_MIDDLE_ROW3 =
+  "border border-haidee-border bg-gray-50";
+
+export const STICKY_SUMMARY_BODY_LEFT = cn(
+  "sticky left-0 z-20 border border-haidee-border bg-white shadow-[1px_0_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_BODY_RIGHT = cn(
+  "sticky right-0 z-20 border border-haidee-border bg-haidee-surface shadow-[-1px_0_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_FOOTER_LEFT = cn(
+  "sticky left-0 z-20 border border-haidee-border bg-[#eef1f6] shadow-[1px_0_0_0] shadow-haidee-border"
+);
+
+export const STICKY_SUMMARY_FOOTER_RIGHT = cn(
+  "sticky right-0 z-20 border border-haidee-border bg-[#e6e9f0] shadow-[-1px_0_0_0] shadow-haidee-border"
+);
