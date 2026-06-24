@@ -1,4 +1,4 @@
-import { DISPATCH_MARKET_ORDER } from "@/lib/markets";
+import { MARKET_ORDER } from "@/lib/markets";
 
 export const SEARCH_RESULT_LIMIT = 3000;
 
@@ -6,8 +6,9 @@ export interface SearchFilters {
   fromDate: string;
   toDate: string;
   shipperId: string;
-  marketCodes: string[];
+  receiver: string;
   tongTypeId: string;
+  marketCodes: string[];
   plate: string;
   docNo: string;
   keyword: string;
@@ -23,6 +24,7 @@ type SearchParamsLike = {
   to?: string;
   date?: string;
   shipperId?: string;
+  receiver?: string;
   market?: string;
   tongTypeId?: string;
   plate?: string;
@@ -32,14 +34,26 @@ type SearchParamsLike = {
   q?: string;
 };
 
-const VALID_MARKET_CODES = new Set<string>(DISPATCH_MARKET_ORDER);
+const VALID_MARKET_CODES = new Set<string>(MARKET_ORDER);
+
+const marketOrderIndex = new Map<string, number>(
+  MARKET_ORDER.map((code, index) => [code, index])
+);
+
+export function sortMarketCodes(codes: string[]): string[] {
+  return [...codes].sort(
+    (a, b) =>
+      (marketOrderIndex.get(a) ?? 999) - (marketOrderIndex.get(b) ?? 999)
+  );
+}
 
 export function parseMarketCodesParam(marketParam?: string): string[] {
   if (!marketParam?.trim()) return [];
-  return marketParam
+  const codes = marketParam
     .split(",")
     .map((code) => code.trim().toUpperCase())
     .filter((code) => VALID_MARKET_CODES.has(code));
+  return sortMarketCodes(Array.from(new Set(codes)));
 }
 
 export function parseSearchFiltersFromParams(
@@ -50,8 +64,9 @@ export function parseSearchFiltersFromParams(
     fromDate: params.from?.trim() ?? "",
     toDate: params.to?.trim() ?? "",
     shipperId: params.shipperId?.trim() ?? "",
-    marketCodes: parseMarketCodesParam(params.market),
+    receiver: params.receiver?.trim() ?? "",
     tongTypeId: params.tongTypeId?.trim() ?? "",
+    marketCodes: parseMarketCodesParam(params.market),
     plate: params.plate?.trim() ?? "",
     docNo: params.docNo?.trim() ?? "",
     keyword,
@@ -62,6 +77,7 @@ export function hasStructuredSearchCriteria(
   filters: Pick<
     SearchFilters,
     | "shipperId"
+    | "receiver"
     | "marketCodes"
     | "tongTypeId"
     | "plate"
@@ -71,6 +87,7 @@ export function hasStructuredSearchCriteria(
 ): boolean {
   return !!(
     filters.shipperId ||
+    filters.receiver.trim() ||
     filters.marketCodes.length > 0 ||
     filters.tongTypeId ||
     filters.plate.trim() ||
@@ -92,12 +109,17 @@ export function buildSearchFilterSummaryLines(
   if (shipper) {
     lines.push(`寄货人 Consignor: ${shipper.name}`);
   }
-  if (filters.marketCodes.length > 0) {
-    lines.push(`市场 Market: ${filters.marketCodes.join(", ")}`);
+  if (filters.receiver.trim()) {
+    lines.push(`收货人 Receiver: ${filters.receiver.trim()}`);
   }
   const tongType = options.tongTypes.find((t) => t.id === filters.tongTypeId);
   if (tongType) {
     lines.push(`桶型 Crate: ${tongType.code}`);
+  }
+  if (filters.marketCodes.length > 0) {
+    lines.push(
+      `市场 Market: ${sortMarketCodes(filters.marketCodes).join(", ")}`
+    );
   }
   if (filters.plate.trim()) {
     lines.push(`车牌 Plate: ${filters.plate.trim()}`);
@@ -124,14 +146,17 @@ export function searchFiltersToUrlParams(
   if (filters.shipperId) params.set("shipperId", filters.shipperId);
   else params.delete("shipperId");
 
-  if (filters.marketCodes.length > 0) {
-    params.set("market", filters.marketCodes.join(","));
-  } else {
-    params.delete("market");
-  }
+  if (filters.receiver.trim()) params.set("receiver", filters.receiver.trim());
+  else params.delete("receiver");
 
   if (filters.tongTypeId) params.set("tongTypeId", filters.tongTypeId);
   else params.delete("tongTypeId");
+
+  if (filters.marketCodes.length > 0) {
+    params.set("market", sortMarketCodes(filters.marketCodes).join(","));
+  } else {
+    params.delete("market");
+  }
 
   if (filters.plate.trim()) params.set("plate", filters.plate.trim());
   else params.delete("plate");

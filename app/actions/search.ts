@@ -14,6 +14,7 @@ export interface SearchInboundInput {
   fromDate: string;
   toDate: string;
   shipperId?: string;
+  receiver?: string;
   marketCodes?: string[];
   tongTypeId?: string;
   plate?: string;
@@ -50,6 +51,7 @@ export interface SearchResult {
 function buildInboundLineSearchWhere(input: {
   sessionDateFilter: { gte: Date; lte: Date };
   shipperId?: string;
+  receiver?: string;
   marketCodes?: string[];
   tongTypeId?: string;
   plate?: string;
@@ -59,6 +61,7 @@ function buildInboundLineSearchWhere(input: {
   const {
     sessionDateFilter,
     shipperId,
+    receiver,
     marketCodes,
     tongTypeId,
     plate,
@@ -84,14 +87,23 @@ function buildInboundLineSearchWhere(input: {
     and.push({ session: { shipperId } });
   }
 
-  if (marketCodes && marketCodes.length > 0) {
+  if (receiver) {
     and.push({
-      stall: { market: { code: { in: marketCodes } } },
+      OR: [
+        { stall: { code: { contains: receiver, mode: "insensitive" } } },
+        { stall: { name: { contains: receiver, mode: "insensitive" } } },
+      ],
     });
   }
 
   if (tongTypeId) {
     and.push({ tongTypeId });
+  }
+
+  if (marketCodes && marketCodes.length > 0) {
+    and.push({
+      stall: { market: { code: { in: marketCodes } } },
+    });
   }
 
   if (plate) {
@@ -244,6 +256,7 @@ export async function searchInbound(
   const sessionDateFilter = { gte: rangeStart, lte: rangeEnd };
 
   const shipperId = input.shipperId?.trim() || undefined;
+  const receiver = input.receiver?.trim() || undefined;
   const marketCodes = input.marketCodes?.filter(Boolean);
   const tongTypeId = input.tongTypeId?.trim() || undefined;
   const plate = input.plate?.trim() || undefined;
@@ -253,6 +266,7 @@ export async function searchInbound(
   const where = buildInboundLineSearchWhere({
     sessionDateFilter,
     shipperId,
+    receiver,
     marketCodes,
     tongTypeId,
     plate,

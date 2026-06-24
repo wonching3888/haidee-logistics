@@ -6,13 +6,12 @@ import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { ChevronDown, Printer, Search } from "lucide-react";
 import type { SearchResult } from "@/app/actions/search";
-import { DispatchMarketLabel } from "@/components/dispatch/DispatchMarketLabel";
+import { MarketMultiSelect } from "@/components/search/MarketMultiSelect";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { formatDisplay, normalizeDateRange } from "@/lib/date-utils";
-import { DISPATCH_MARKET_ORDER } from "@/lib/markets";
 import {
   buildSearchFilterSummaryLines,
   hasActiveSearchFilters,
@@ -107,18 +106,6 @@ export function SearchView({
     setLocal((prev) => ({ ...prev, ...patch }));
   }
 
-  function toggleMarket(code: string) {
-    setLocal((prev) => {
-      const selected = prev.marketCodes.includes(code);
-      return {
-        ...prev,
-        marketCodes: selected
-          ? prev.marketCodes.filter((c) => c !== code)
-          : [...prev.marketCodes, code],
-      };
-    });
-  }
-
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!local.fromDate.trim() || !local.toDate.trim()) {
@@ -196,6 +183,17 @@ export function SearchView({
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">
+          收货人 Receiver
+        </label>
+        <Input
+          value={local.receiver}
+          onChange={(e) => updateLocal({ receiver: e.target.value })}
+          placeholder="档口代码 F40 / A02…"
+          className="min-h-[44px]"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-haidee-muted">
           桶型 Crate Type
         </label>
         <select
@@ -212,29 +210,14 @@ export function SearchView({
           ))}
         </select>
       </div>
-      <div className="space-y-1 sm:col-span-2 lg:col-span-4">
+      <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">
           市场 Market
         </label>
-        <div className="flex flex-wrap gap-2">
-          {DISPATCH_MARKET_ORDER.map((code) => {
-            const checked = local.marketCodes.includes(code);
-            return (
-              <label
-                key={code}
-                className="flex min-h-[40px] cursor-pointer items-center gap-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleMarket(code)}
-                  className="h-4 w-4 accent-haidee-navy"
-                />
-                <DispatchMarketLabel code={code} selected={checked} />
-              </label>
-            );
-          })}
-        </div>
+        <MarketMultiSelect
+          value={local.marketCodes}
+          onChange={(marketCodes) => updateLocal({ marketCodes })}
+        />
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">
@@ -258,7 +241,7 @@ export function SearchView({
           className="min-h-[44px]"
         />
       </div>
-      <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+      <div className="space-y-1 sm:col-span-2 lg:col-span-4">
         <button
           type="button"
           className="flex min-h-[44px] w-full items-center gap-2 text-left text-xs font-medium text-haidee-muted"
@@ -278,7 +261,7 @@ export function SearchView({
           <Input
             value={local.keyword}
             onChange={(e) => updateLocal({ keyword: e.target.value })}
-            placeholder="备注 / 收货地点 / 档口…"
+            placeholder="备注 / 收货地点…"
             className="min-h-[44px]"
           />
         ) : null}

@@ -12,6 +12,7 @@ interface SearchPageProps {
     to?: string;
     date?: string;
     shipperId?: string;
+    receiver?: string;
     market?: string;
     tongTypeId?: string;
     plate?: string;
@@ -38,6 +39,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         fromDate,
         toDate,
         shipperId: filters.shipperId || undefined,
+        receiver: filters.receiver || undefined,
         marketCodes:
           filters.marketCodes.length > 0 ? filters.marketCodes : undefined,
         tongTypeId: filters.tongTypeId || undefined,
