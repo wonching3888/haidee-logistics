@@ -141,6 +141,21 @@ export const MESSAGES = {
     en: "Date",
     th: "วันที่",
   },
+  "dataFreshness.updatedAt": {
+    zh: "数据更新于 {time}",
+    en: "Updated at {time}",
+    th: "อัปเดตเมื่อ {time}",
+  },
+  "dataFreshness.newData": {
+    zh: "有新数据",
+    en: "New data",
+    th: "มีข้อมูลใหม่",
+  },
+  "dataFreshness.refresh": {
+    zh: "刷新",
+    en: "Refresh",
+    th: "รีเฟรช",
+  },
   "common.consignor": {
     zh: "寄货人",
     en: "Consignor",

@@ -25,6 +25,7 @@ import {
 import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { ReportFilterBar } from "@/components/shared/ReportFilterBar";
+import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
@@ -225,6 +226,20 @@ export function MonthlyInvoicePicker({
           </button>
         ))}
       </div>
+
+      {hasQueried && applied ? (
+        <DataFreshnessBar
+          scope="monthly-invoice"
+          enabled={hasQueried}
+          hideWhenDisabled
+          params={{
+            year: String(applied.year),
+            month: String(applied.month),
+            mode: applied.mode,
+          }}
+          onRefresh={() => search()}
+        />
+      ) : null}
 
       {hasQueried && data && (
         <div className="rounded-lg border border-haidee-border bg-haidee-surface/40 px-4 py-3 text-sm">

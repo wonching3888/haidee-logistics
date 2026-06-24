@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { getInboundSessions, getShippers } from "@/app/actions/inbound";
 import { InboundFilters } from "@/components/inbound/InboundFilters";
+import { InboundListFreshnessBar } from "@/components/inbound/InboundListFreshnessBar";
 import { InboundListTable } from "@/components/inbound/InboundListTable";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
@@ -62,8 +63,9 @@ export default async function InboundPage({ searchParams }: InboundPageProps) {
             <div className="h-24 shrink-0 animate-pulse rounded-xl bg-haidee-border/30" />
           }
         >
-          <div className="shrink-0">
+          <div className="shrink-0 space-y-3">
             <InboundFilters shippers={shippers} />
+            <InboundListFreshnessBar />
           </div>
         </Suspense>
 

@@ -9,6 +9,7 @@ import {
 import { DispatchMatrix } from "@/components/dispatch/DispatchMatrix";
 import { DispatchOrderList } from "@/components/dispatch/DispatchOrderList";
 import { DispatchDateFilter } from "@/components/dispatch/DispatchDateFilter";
+import { DispatchListFreshnessBar } from "@/components/dispatch/DispatchListFreshnessBar";
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
 import { canWrite } from "@/lib/auth-roles";
@@ -74,6 +75,9 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
           </div>
         </div>
 
+        <Suspense fallback={null}>
+          <DispatchListFreshnessBar />
+        </Suspense>
         <DispatchMatrix data={matrix} locale={locale} />
         <DispatchOrderList orders={orders} trucks={trucks} />
       </div>

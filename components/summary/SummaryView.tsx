@@ -8,6 +8,7 @@ import type {
   LoadingMatrixColumn,
   VehicleLoadingListData,
 } from "@/app/actions/summary";
+import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
@@ -159,6 +160,12 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
           打印装车清单 Print
         </Button>
       </div>
+
+      <DataFreshnessBar
+        scope="daily-ops"
+        params={{ date }}
+        onRefresh={() => router.refresh()}
+      />
 
       <div
         ref={printRef}

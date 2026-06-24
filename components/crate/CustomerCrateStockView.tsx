@@ -10,6 +10,7 @@ import {
   type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
+import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { useT } from "@/components/shared/locale-context";
 import { formatPickupLocationLabel } from "@/lib/constants/pickup-locations";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,12 @@ export function CustomerCrateStockView({
           {t("inbound.searchButton")}
         </Button>
       </div>
+
+      <DataFreshnessBar
+        scope="customer-crate-stock"
+        params={{ q: searchParams.get("q") ?? undefined }}
+        onRefresh={() => router.refresh()}
+      />
 
       <p className="text-xs text-haidee-muted">
         {t("customerCrateStock.hint")}
