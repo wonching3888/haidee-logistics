@@ -1,6 +1,6 @@
-/* Print mono: next/font Roboto Mono on <html> (--font-mono); fallback stack for PDF/print. */
+/* Print mono: next/font Chivo Mono on <html> (--font-mono); fallback stack for PDF/print. */
 .document-print {
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-size: 10pt;
   font-weight: 700;
   color: #000000;
@@ -591,7 +591,7 @@
 
 .monthly-invoice-print .monthly-invoice-bill-to-code,
 .haidee-market-invoice-print .monthly-invoice-bill-to-code {
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-size: 10pt;
 }
 
@@ -963,7 +963,7 @@
 }
 
 .wtl-tax-invoice-document .monthly-invoice-bill-to-code {
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-size: 10pt;
 }
 
@@ -1052,7 +1052,7 @@
 .dispatch-klmc-col-market {
   width: 8%;
   text-align: center;
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-size: 12pt;
   font-weight: 600;
 }
@@ -1060,7 +1060,7 @@
 .dispatch-klmc-col-total {
   width: 10%;
   text-align: center;
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-weight: 700;
   font-size: 12pt;
 }
@@ -1197,7 +1197,7 @@
 }
 
 .dispatch-klmc-mobile-market-qty {
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-size: 1.0625rem;
   font-weight: 700;
   line-height: 1.3;

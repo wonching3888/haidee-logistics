@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, Roboto_Mono } from "next/font/google";
+import { Chivo_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 const siteUrl =
@@ -14,7 +14,7 @@ const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-sans",
 });
 
-const robotoMono = Roboto_Mono({
+const chivoMono = Chivo_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
@@ -55,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${ibmPlexSans.variable} ${robotoMono.variable}`}
+      className={`${ibmPlexSans.variable} ${chivoMono.variable}`}
     >
       <body className="min-h-screen bg-haidee-surface font-sans text-haidee-text antialiased">
         {children}

@@ -45,9 +45,9 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
-/* Unlayered + higher specificity than `*` so UI font-mono uses Roboto Mono (see document-print.css). */
+/* Unlayered + higher specificity than `*` so UI font-mono uses Chivo Mono (see document-print.css). */
 .font-mono {
-  font-family: var(--font-mono), "Roboto Mono", "Noto Sans Mono", monospace;
+  font-family: var(--font-mono), "Chivo Mono", monospace;
   font-variant-numeric: tabular-nums;
 }
 
