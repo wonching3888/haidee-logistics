@@ -114,9 +114,9 @@ type RateDialogState =
     }
   | null;
 
-/** Wide enough for 3–4 digit rates (e.g. 300) in font-mono without clipping. */
+/** Full card width; ~4 Chivo Mono digits fit without a fixed min-width that breaks the grid. */
 const RATE_DIALOG_INPUT_CLASS =
-  "min-h-[40px] w-full min-w-[5.5rem] font-mono tabular-nums text-right";
+  "min-h-[40px] w-full font-mono tabular-nums text-right";
 
 function RateCellDisplay({ cell }: { cell?: RateCell }) {
   if (!cell || (cell.rateTong == null && cell.rateBox == null)) {
@@ -582,7 +582,7 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
       )}
 
       <Dialog open={!!rateDialog} onOpenChange={() => setRateDialog(null)}>
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               编辑费率 Edit Rates — {rateDialog?.entityName} ({rateDialog?.entityCode})
@@ -594,11 +594,11 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
             {data.freightMarkets.map((market) => (
               <div
                 key={market.id}
-                className="min-w-[12.5rem] rounded-lg border border-haidee-border p-3"
+                className="min-w-0 rounded-lg border border-haidee-border p-3"
               >
                 <div className="mb-2 font-semibold">{market.code}</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="space-y-1 text-xs">
+                <div className="space-y-2">
+                  <label className="block space-y-1 text-xs">
                     <span className="text-haidee-muted">TONG</span>
                     <Input
                       type="text"
@@ -616,7 +616,7 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
                       className={RATE_DIALOG_INPUT_CLASS}
                     />
                   </label>
-                  <label className="space-y-1 text-xs">
+                  <label className="block space-y-1 text-xs">
                     <span className="text-haidee-muted">BOX</span>
                     <Input
                       type="text"
