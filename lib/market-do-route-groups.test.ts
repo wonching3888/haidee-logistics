@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPrimaryRouteGroupForMarkets,
   MARKET_DO_PRINT_ORDER,
   partitionRowsByRouteGroup,
 } from "@/lib/market-do-route-groups";
@@ -97,5 +98,14 @@ describe("partitionRowsByRouteGroup", () => {
     expect(sections.map((s) => s.routeGroup)).toEqual(["BM", "A"]);
     expect(sections.find((s) => s.routeGroup === "A")?.rows).toHaveLength(1);
     expect(sections.find((s) => s.routeGroup === "BM")?.rows).toHaveLength(2);
+  });
+});
+
+describe("getPrimaryRouteGroupForMarkets", () => {
+  it("picks earliest route group on MARKET_DO_PRINT_ORDER", () => {
+    expect(getPrimaryRouteGroupForMarkets(["A", "KD"])).toBe("A");
+    expect(getPrimaryRouteGroupForMarkets(["P", "TP", "KT", "KD"])).toBe("BM");
+    expect(getPrimaryRouteGroupForMarkets(["MC", "KL", "BP"])).toBe("KL");
+    expect(getPrimaryRouteGroupForMarkets(["BM", "P", "MC"])).toBe("MC");
   });
 });

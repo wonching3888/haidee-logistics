@@ -14,6 +14,34 @@ export const MARKET_DO_PRINT_ORDER = [
 
 export type MarketDORouteGroup = (typeof MARKET_DO_PRINT_ORDER)[number];
 
+export function routeGroupPrintRank(
+  routeGroup: string,
+  printOrder: readonly string[] = MARKET_DO_PRINT_ORDER
+): number {
+  const idx = printOrder.indexOf(routeGroup);
+  return idx === -1 ? printOrder.length : idx;
+}
+
+/** Earliest route group on MARKET_DO_PRINT_ORDER among the given market codes. */
+export function getPrimaryRouteGroupForMarkets(
+  marketCodes: string[],
+  printOrder: readonly string[] = MARKET_DO_PRINT_ORDER
+): string {
+  let bestGroup = "OTHER";
+  let bestRank = routeGroupPrintRank("OTHER", printOrder);
+
+  for (const code of marketCodes) {
+    const group = getRouteGroupForMarket(code);
+    const rank = routeGroupPrintRank(group, printOrder);
+    if (rank < bestRank) {
+      bestRank = rank;
+      bestGroup = group;
+    }
+  }
+
+  return bestGroup;
+}
+
 export interface MarketDORowLike {
   area: string;
 }

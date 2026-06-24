@@ -13,7 +13,6 @@ import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { cellDisplay } from "@/lib/consignor-label";
 import { MARKET_ORDER } from "@/lib/constants";
-import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { toDateInputValue } from "@/lib/date-utils";
 import { getMatrixTableScrollStyle } from "@/lib/table-scroll";
 
@@ -30,7 +29,9 @@ const stickyHeadRow1 =
 const stickyHeadRow2 =
   "sticky top-[3.25rem] z-20 border border-haidee-border bg-haidee-surface";
 const stickyHeadRow3 =
-  "sticky top-[5.25rem] z-20 border border-haidee-border bg-gray-50";
+  "sticky top-[4.5rem] z-20 border border-haidee-border bg-gray-50";
+const marketColClass =
+  "min-w-[2.75rem] w-[2.75rem] max-w-[2.75rem] px-1.5 text-center";
 const stickyHeadCorner =
   "sticky left-0 top-0 z-30 border border-haidee-border bg-haidee-surface";
 const consignorColClass =
@@ -230,12 +231,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 {columns.map((col) => (
                   <th
                     key={`m-${col.key}`}
-                    className={`${stickyHeadRow2} px-2 py-1.5 text-center font-mono text-xs font-semibold text-haidee-text`}
+                    className={`${stickyHeadRow2} ${marketColClass} py-1.5 font-mono text-xs font-semibold text-haidee-text`}
                   >
                     {col.marketCode}
-                    <span className="mt-0.5 block text-[10px] font-bold leading-tight text-haidee-text">
-                      {getMarketDisplayName(col.marketCode)}
-                    </span>
                   </th>
                 ))}
               </tr>
@@ -245,7 +243,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   return (
                     <th
                       key={`sub-${col.key}`}
-                      className={`${stickyHeadRow3} px-2 py-1 text-center font-mono text-[11px] font-semibold text-haidee-muted`}
+                      className={`${stickyHeadRow3} ${marketColClass} py-1 font-mono text-[11px] font-semibold text-haidee-muted`}
                     >
                       {cellDisplay(subtotal.crateQty, subtotal.boxQty)}
                     </th>
@@ -283,7 +281,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                       return (
                         <td
                           key={col.key}
-                          className="border border-haidee-border px-2 py-2 text-center font-mono"
+                          className={`border border-haidee-border py-2 font-mono ${marketColClass}`}
                         >
                           {cellDisplay(crateQty, boxQty)}
                         </td>
@@ -308,7 +306,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className="border border-haidee-border px-2 py-2 text-center font-mono"
+                      className={`border border-haidee-border py-2 font-mono ${marketColClass}`}
                     />
                   ))}
                   <td className="border border-haidee-border bg-haidee-navy/10 px-2 py-2 text-center font-mono font-bold">

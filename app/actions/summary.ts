@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { MARKET_ORDER } from "@/lib/constants";
 import { parseDateInput } from "@/lib/inbound-utils";
 import {
+  getPrimaryRouteGroupForMarkets,
+  routeGroupPrintRank,
+} from "@/lib/market-do-route-groups";
+import {
   formatLoadingListDisplayName,
   formatLoadingListRowLabel,
 } from "@/lib/consignor-label";
@@ -113,49 +117,22 @@ async function fetchDispatchOrders(date: Date) {
   });
 }
 
-function getTruckPrimaryMarket(order: DispatchOrderWithLines): string {
-  const orderMarkets = new Set(order.markets);
-  const marketCrates = new Map<string, number>();
-
-  for (const dl of order.lines) {
-    const line = dl.inboundLine;
-    const marketCode = line.stall.market?.code;
-    if (!marketCode || !orderMarkets.has(marketCode) || line.isBox) continue;
-    marketCrates.set(
-      marketCode,
-      (marketCrates.get(marketCode) ?? 0) + line.quantity
-    );
-  }
-
-  let bestMarket = order.markets[0] ?? "KL";
-  let bestQty = -1;
-  for (const [code, qty] of Array.from(marketCrates.entries())) {
-    if (qty > bestQty) {
-      bestQty = qty;
-      bestMarket = code;
-    }
-  }
-
-  if (bestQty <= 0) {
-    for (const m of MARKET_ORDER) {
-      if (order.markets.includes(m)) return m;
-    }
-  }
-
-  return bestMarket;
-}
-
 function sortDispatchOrders(
   orders: DispatchOrderWithLines[]
 ): DispatchOrderWithLines[] {
-  return [...orders].sort((a, b) => {
-    const aMarket = getTruckPrimaryMarket(a);
-    const bMarket = getTruckPrimaryMarket(b);
-    const aOrder = marketRank(aMarket);
-    const bOrder = marketRank(bMarket);
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
+  return orders
+    .map((order, index) => ({ order, index }))
+    .sort((a, b) => {
+      const aRank = routeGroupPrintRank(
+        getPrimaryRouteGroupForMarkets(a.order.markets)
+      );
+      const bRank = routeGroupPrintRank(
+        getPrimaryRouteGroupForMarkets(b.order.markets)
+      );
+      if (aRank !== bRank) return aRank - bRank;
+      return a.index - b.index;
+    })
+    .map(({ order }) => order);
 }
 
 function rowGroupKey(
