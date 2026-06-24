@@ -43,18 +43,6 @@ const consignorColClass =
   "w-[168px] min-w-[168px] max-w-[168px] align-top";
 const subtotalColClass = "min-w-[72px] w-[72px] max-w-[72px]";
 
-const foldConsignorHeadClass =
-  "fold:py-1 fold:text-[10px] fold:leading-tight fold-land:py-1 fold-land:text-[10px] fold-land:leading-tight";
-const foldTruckHeadClass =
-  "fold:px-1 fold:py-0.5 fold:leading-none fold-land:px-1 fold-land:py-0.5 fold-land:leading-none";
-const foldSubtotalHeadClass =
-  "fold:px-1 fold:py-1 fold:text-[10px] fold:leading-tight fold-land:px-1 fold-land:py-1 fold-land:text-[10px] fold-land:leading-tight";
-const foldMarketHeadClass =
-  "fold:py-0.5 fold:text-[10px] fold:leading-none fold-land:py-0.5 fold-land:text-[10px] fold-land:leading-none";
-const foldColumnQtyHeadClass =
-  "fold:py-0.5 fold:text-[10px] fold:leading-none fold-land:py-0.5 fold-land:text-[10px] fold-land:leading-none";
-const foldHeadPlaceholderClass = "fold:py-0.5 fold-land:py-0.5";
-
 function sumCellsAcrossColumns(
   columns: LoadingMatrixColumn[],
   cells: Record<string, { crateQty: number; boxQty: number }>
@@ -200,7 +188,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
             <thead className={STICKY_SUMMARY_THEAD}>
               <tr>
                 <th
-                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} ${foldConsignorHeadClass} px-3 py-2 text-left font-medium text-haidee-muted`}
+                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} px-3 py-2 text-left font-medium text-haidee-muted`}
                 >
                   寄货人 / 地区
                   <br />
@@ -215,23 +203,19 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     <th
                       key={truck.orderId}
                       colSpan={truck.markets.length}
-                      className={`${STICKY_SUMMARY_HEAD_MIDDLE} ${foldTruckHeadClass} px-2 py-2 text-center font-mono text-base font-bold text-haidee-text`}
+                      className={`${STICKY_SUMMARY_HEAD_MIDDLE} px-2 py-2 text-center font-mono text-base font-bold text-haidee-text`}
                     >
-                      <div className="flex flex-col items-center fold:flex-row fold:items-baseline fold:justify-center fold:gap-x-1 fold:whitespace-nowrap fold:leading-none fold-land:flex-row fold-land:items-baseline fold-land:justify-center fold-land:gap-x-1 fold-land:whitespace-nowrap fold-land:leading-none">
-                        <span className="fold:text-xs fold-land:text-xs">
-                          {truck.truckPlate}
-                        </span>
-                        {totalLabel ? (
-                          <span className="mt-0.5 text-xs font-normal text-haidee-muted fold:mt-0 fold:text-[10px] fold:leading-none fold-land:mt-0 fold-land:text-[10px] fold-land:leading-none">
-                            {totalLabel}
-                          </span>
-                        ) : null}
-                      </div>
+                      <div>{truck.truckPlate}</div>
+                      {totalLabel && (
+                        <div className="mt-0.5 text-xs font-normal text-haidee-muted">
+                          {totalLabel}
+                        </div>
+                      )}
                     </th>
                   );
                 })}
                 <th
-                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} ${foldSubtotalHeadClass} px-2 py-2 text-center align-middle font-medium text-haidee-muted`}
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} px-2 py-2 text-center align-middle font-medium text-haidee-muted`}
                 >
                   小计
                   <br />
@@ -241,32 +225,32 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
               <tr>
                 <th
                   aria-hidden="true"
-                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} ${foldHeadPlaceholderClass} py-1.5`}
+                  className={`${STICKY_SUMMARY_HEAD_LEFT} ${consignorColClass} py-1.5`}
                 />
                 {columns.map((col) => (
                   <th
                     key={`m-${col.key}`}
-                    className={`${STICKY_SUMMARY_HEAD_MIDDLE} ${marketColClass} ${foldMarketHeadClass} py-1.5 font-mono text-xs font-semibold text-haidee-text`}
+                    className={`${STICKY_SUMMARY_HEAD_MIDDLE} ${marketColClass} py-1.5 font-mono text-xs font-semibold text-haidee-text`}
                   >
                     {col.marketCode}
                   </th>
                 ))}
                 <th
                   aria-hidden="true"
-                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} ${foldHeadPlaceholderClass} py-1.5`}
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT} ${subtotalColClass} py-1.5`}
                 />
               </tr>
               <tr>
                 <th
                   aria-hidden="true"
-                  className={`${STICKY_SUMMARY_HEAD_LEFT_ROW3} ${consignorColClass} ${foldHeadPlaceholderClass} py-1`}
+                  className={`${STICKY_SUMMARY_HEAD_LEFT_ROW3} ${consignorColClass} py-1`}
                 />
                 {columns.map((col) => {
                   const subtotal = columnSubtotals[col.key];
                   return (
                     <th
                       key={`sub-${col.key}`}
-                      className={`${STICKY_SUMMARY_HEAD_MIDDLE_ROW3} ${marketColClass} ${foldColumnQtyHeadClass} py-1 font-mono text-[11px] font-semibold text-haidee-muted`}
+                      className={`${STICKY_SUMMARY_HEAD_MIDDLE_ROW3} ${marketColClass} py-1 font-mono text-[11px] font-semibold text-haidee-muted`}
                     >
                       {cellDisplay(subtotal.crateQty, subtotal.boxQty)}
                     </th>
@@ -274,7 +258,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                 })}
                 <th
                   aria-hidden="true"
-                  className={`${STICKY_SUMMARY_HEAD_RIGHT_ROW3} ${subtotalColClass} ${foldHeadPlaceholderClass} py-1`}
+                  className={`${STICKY_SUMMARY_HEAD_RIGHT_ROW3} ${subtotalColClass} py-1`}
                 />
               </tr>
             </thead>
