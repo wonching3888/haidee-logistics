@@ -39,6 +39,21 @@ const stickyFirstColBody =
 const stickyFirstColFooter =
   "sticky left-0 z-10 border border-haidee-border bg-haidee-navy/5";
 
+function sumCellsAcrossColumns(
+  columns: LoadingMatrixColumn[],
+  cells: Record<string, { crateQty: number; boxQty: number }>
+): { crateQty: number; boxQty: number } {
+  let crateQty = 0;
+  let boxQty = 0;
+  for (const col of columns) {
+    const cell = cells[col.key];
+    if (!cell) continue;
+    crateQty += cell.crateQty;
+    boxQty += cell.boxQty;
+  }
+  return { crateQty, boxQty };
+}
+
 function sortColumnsByMarketOrder(
   columns: LoadingMatrixColumn[],
   trucks: VehicleLoadingListData["trucks"]
@@ -99,6 +114,16 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
     return totals;
   }, [columns, columnSubtotals, data.trucks]);
 
+  const grandTotal = useMemo(() => {
+    let crateQty = 0;
+    let boxQty = 0;
+    for (const sub of Object.values(columnSubtotals)) {
+      crateQty += sub.crateQty;
+      boxQty += sub.boxQty;
+    }
+    return { crateQty, boxQty };
+  }, [columnSubtotals]);
+
   function truckTotalLabel(crateQty: number, boxQty: number): string {
     if (crateQty === 0 && boxQty === 0) return "";
     return `(${cellDisplay(crateQty, boxQty)})`;
@@ -109,7 +134,7 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
     documentTitle: `loading-list-${date}`,
   });
 
-  const colSpan = columns.length + 1;
+  const colSpan = columns.length + 2;
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
@@ -185,6 +210,14 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                     </th>
                   );
                 })}
+                <th
+                  rowSpan={3}
+                  className={`${stickyHeadRow1} min-w-[72px] px-2 py-2 text-center align-middle font-medium text-haidee-muted`}
+                >
+                  小计
+                  <br />
+                  Subtotal
+                </th>
               </tr>
               <tr>
                 {columns.map((col) => (
@@ -224,7 +257,9 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   </td>
                 </tr>
               ) : (
-                data.rows.map((row) => (
+                data.rows.map((row) => {
+                  const rowTotal = sumCellsAcrossColumns(columns, row.cells);
+                  return (
                   <tr key={row.id}>
                     <td
                       className={`px-3 py-2 font-medium text-haidee-text ${consignorColClass} ${stickyFirstColBody}`}
@@ -247,8 +282,12 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                         </td>
                       );
                     })}
+                    <td className="border border-haidee-border bg-haidee-surface/40 px-2 py-2 text-center font-mono font-semibold">
+                      {cellDisplay(rowTotal.crateQty, rowTotal.boxQty)}
+                    </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
             {data.hasDispatches && (
@@ -257,19 +296,17 @@ export function SummaryView({ date, displayDate, data }: SummaryViewProps) {
                   <td
                     className={`px-3 py-2 text-haidee-text ${consignorColClass} ${stickyFirstColFooter}`}
                   >
-                    各车总计 Truck Totals
+                    总计 Total
                   </td>
-                  {columns.map((col) => {
-                    const total = data.columnCrateTotals[col.key] ?? 0;
-                    return (
-                      <td
-                        key={col.key}
-                        className="border border-haidee-border px-2 py-2 text-center font-mono"
-                      >
-                        {total > 0 ? total : ""}
-                      </td>
-                    );
-                  })}
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className="border border-haidee-border px-2 py-2 text-center font-mono"
+                    />
+                  ))}
+                  <td className="border border-haidee-border bg-haidee-navy/10 px-2 py-2 text-center font-mono font-bold">
+                    {cellDisplay(grandTotal.crateQty, grandTotal.boxQty)}
+                  </td>
                 </tr>
               </tfoot>
             )}
