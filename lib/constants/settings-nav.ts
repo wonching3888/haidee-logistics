@@ -95,62 +95,110 @@ export function settingsSectionHref(section: SettingsSection) {
   return `/settings?section=${section}`;
 }
 
-/** Main sidebar menu tree for Settings */
-export const SETTINGS_SIDEBAR_MENU = [
-  { section: "shippers" as const, label: "寄货人", labelEn: "Shippers" },
-  { section: "receivers" as const, label: "收货人", labelEn: "Receivers" },
+export type SettingsSidebarLeaf = {
+  section: SettingsSection;
+  label: string;
+  labelEn: string;
+};
+
+export type SettingsFreightSubgroup = {
+  label: string;
+  labelEn: string;
+  children: SettingsSidebarLeaf[];
+};
+
+export type SettingsSidebarGroupItem = SettingsSidebarLeaf | SettingsFreightSubgroup;
+
+export function isSettingsFreightSubgroup(
+  item: SettingsSidebarGroupItem
+): item is SettingsFreightSubgroup {
+  return "children" in item;
+}
+
+export type SettingsSidebarGroup = {
+  id: "customer" | "fleet" | "system";
+  label: string;
+  labelEn: string;
+  items: SettingsSidebarGroupItem[];
+};
+
+/** Settings submenu: grouped Customer / Fleet / System (order only; hrefs unchanged). */
+export const SETTINGS_SIDEBAR_GROUPS: SettingsSidebarGroup[] = [
   {
-    section: "defaults" as const,
-    label: "收货人对应",
-    labelEn: "Receiver Defaults",
-  },
-  { section: "trucks" as const, label: "车辆", labelEn: "Trucks" },
-  { section: "users" as const, label: "用户", labelEn: "Users" },
-  {
-    section: "driver-payroll" as const,
-    label: "司机资料",
-    labelEn: "Driver Master Data",
-  },
-  { section: "routes" as const, label: "路线", labelEn: "Routes" },
-  {
-    section: "payroll-settings" as const,
-    label: "薪资设定",
-    labelEn: "Payroll Settings",
-  },
-  {
-    section: "crate-rental-rates" as const,
-    label: "租桶费率",
-    labelEn: "Crate Rental Rates",
-  },
-  {
-    section: "unload-settings" as const,
-    label: "下货费设定",
-    labelEn: "Unload Settings",
-  },
-  {
-    label: "车力费率",
-    labelEn: "Freight Rates",
-    children: [
+    id: "customer",
+    label: "客户",
+    labelEn: "Customer",
+    items: [
+      { section: "shippers", label: "寄货人", labelEn: "Shippers" },
+      { section: "receivers", label: "收货人", labelEn: "Receivers" },
       {
-        section: "shipper-rates" as const,
-        label: "寄货人费率",
-        labelEn: "Shipper Rates",
+        section: "defaults",
+        label: "收货人对应",
+        labelEn: "Receiver Defaults",
       },
       {
-        section: "consignee-rates" as const,
-        label: "收货人费率",
-        labelEn: "Consignee Rates",
+        label: "车力费率",
+        labelEn: "Freight Rates",
+        children: [
+          {
+            section: "shipper-rates",
+            label: "寄货人费率",
+            labelEn: "Shipper Rates",
+          },
+          {
+            section: "consignee-rates",
+            label: "收货人费率",
+            labelEn: "Consignee Rates",
+          },
+          {
+            section: "payment-relations",
+            label: "付款关系",
+            labelEn: "Payment Relations",
+          },
+        ],
       },
       {
-        section: "payment-relations" as const,
-        label: "付款关系",
-        labelEn: "Payment Relations",
+        section: "crate-rental-rates",
+        label: "租桶费率",
+        labelEn: "Crate Rental Rates",
       },
     ],
   },
   {
-    section: "operations-settings" as const,
-    label: "营运设定",
-    labelEn: "Operations Settings",
+    id: "fleet",
+    label: "车队",
+    labelEn: "Fleet",
+    items: [
+      { section: "trucks", label: "车辆", labelEn: "Trucks" },
+      {
+        section: "driver-payroll",
+        label: "司机资料",
+        labelEn: "Driver Master Data",
+      },
+      { section: "routes", label: "路线", labelEn: "Routes" },
+      {
+        section: "payroll-settings",
+        label: "薪资设定",
+        labelEn: "Payroll Settings",
+      },
+    ],
+  },
+  {
+    id: "system",
+    label: "系统/营运",
+    labelEn: "System",
+    items: [
+      { section: "users", label: "用户", labelEn: "Users" },
+      {
+        section: "unload-settings",
+        label: "下货费设定",
+        labelEn: "Unload Settings",
+      },
+      {
+        section: "operations-settings",
+        label: "营运设定",
+        labelEn: "Operations Settings",
+      },
+    ],
   },
 ];

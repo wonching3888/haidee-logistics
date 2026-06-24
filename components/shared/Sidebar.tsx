@@ -21,6 +21,7 @@ import {
   MAIN_NAV_OPERATIONS,
   MAIN_NAV_REPORTS,
   MAIN_NAV_SETTINGS,
+  MAIN_NAV_SUMMARY,
   isGroupActive,
   isPathActive,
   type MainNavGroup,
@@ -70,6 +71,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   const showDashboard = canAccessPage(role, MAIN_NAV_DASHBOARD.href);
+  const showSummary = canAccessPage(role, MAIN_NAV_SUMMARY.href);
   const showHistory = canAccessPage(role, MAIN_NAV_HISTORY.href);
   const showSettings = canAccessPage(role, "/settings");
 
@@ -142,6 +144,14 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
           {showDashboard && (
             <NavLink
               item={MAIN_NAV_DASHBOARD}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          )}
+
+          {showSummary && (
+            <NavLink
+              item={MAIN_NAV_SUMMARY}
               pathname={pathname}
               onNavigate={onNavigate}
             />

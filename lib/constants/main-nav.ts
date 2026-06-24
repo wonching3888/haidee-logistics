@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
+  ClipboardList,
   PackageSearch,
   FileText,
   Package,
@@ -28,6 +29,12 @@ export const MAIN_NAV_DASHBOARD: MainNavLink & { icon: LucideIcon } = {
   icon: LayoutDashboard,
 };
 
+export const MAIN_NAV_SUMMARY: MainNavLink & { icon: LucideIcon } = {
+  href: "/summary",
+  messageKey: "nav.summary",
+  icon: ClipboardList,
+};
+
 export const MAIN_NAV_OPERATIONS: MainNavGroup = {
   id: "operations",
   messageKey: "nav.operations",
@@ -36,7 +43,6 @@ export const MAIN_NAV_OPERATIONS: MainNavGroup = {
     { href: "/inbound", messageKey: "nav.inbound" },
     { href: "/dispatch", messageKey: "nav.dispatch" },
     { href: "/charter", messageKey: "nav.charter" },
-    { href: "/summary", messageKey: "nav.summary" },
     { href: "/search", messageKey: "nav.search" },
   ],
 };

@@ -27,7 +27,7 @@ export const MESSAGES = {
     th: "เหมารถ",
   },
   "nav.summary": {
-    zh: "每日总单",
+    zh: "总单",
     en: "Daily Summary",
     th: "สรุปประจำวัน",
   },
