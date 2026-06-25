@@ -99,3 +99,15 @@ export {
   type VoucherRouteCostEstimate,
   type VoucherTripCostSources,
 } from "@/lib/trip-cost-engine/voucher-cost-resolver";
+
+export {
+  allocateShipperVehicleCosts,
+  allocateShipperVehicleTotalMyr,
+  resolveOperationsTripCostSlice,
+  resolveTripAllocatedPool,
+  sumTripAllocatedWithoutLoadUnload,
+  type OperationsTripCostSlice,
+  type ResolveTripAllocatedPoolInput,
+  type ResolveTripAllocatedPoolResult,
+  type TripAllocatedPool,
+} from "@/lib/trip-cost-engine/trip-cost-facade";

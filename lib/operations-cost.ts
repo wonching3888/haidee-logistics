@@ -3,7 +3,6 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { prisma } from "@/lib/prisma";
 import { getUnloadingRatesByMarket } from "@/lib/driver-expense-service";
-import { resolveTripLoadUnloadCost } from "@/lib/unloading-trip-cost";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import {
   buildCrateRentalMyrRateMap,
@@ -21,11 +20,15 @@ import {
   type TripRouteCosts,
   type TripTruckCosts,
 } from "@/lib/trip-route-cost";
+import { getRouteGroups } from "@/lib/payroll-route-label";
 import { normalizeTripMarkets } from "@/lib/trip-allowance";
 import {
   effectiveMarketsForTripCost,
   mcAssignedLinesFromDispatchLines,
+  vehicleAllocatableQuantity,
 } from "@/lib/mc-dispatch-delivery";
+import { resolveOperationsTripCostSlice } from "@/lib/trip-cost-engine/trip-cost-facade";
+import type { TripCostLineInput } from "@/lib/trip-cost-engine/types";
 
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -220,12 +223,16 @@ export async function aggregateOperationsCosts(
       where: { tripDate: { gte: start, lte: end } },
       select: {
         tripId: true,
+        status: true,
+        costAppliedAt: true,
         chopBorderAmt: true,
         chopBorderActual: true,
         parkingAmt: true,
         parkingActual: true,
         fishCheckAmt: true,
         fishCheckActual: true,
+        kpbActual: true,
+        upahTurunActual: true,
       },
     }),
     loadExchangeRate(year, month),
@@ -284,57 +291,62 @@ export async function aggregateOperationsCosts(
       dispatch.markets,
       mcAssignedLines
     );
+    const routeGroups = getRouteGroups(dispatch.markets);
     const truck = truckById.get(dispatch.truckId);
-    const applicableRoutes = findApplicableRoutes(effectiveMarkets, routes);
-    const routeCosts = computeTripRouteCosts(
-      applicableRoutes,
-      globalCosts,
-      truck?.tollClass
-    );
-
-    totals.tollFee += routeCosts.tollFee;
     const tripVoucher = voucherByTrip.get(dispatch.id);
-    const tripFish =
-      tripVoucher?.fishCheckActual ??
-      tripVoucher?.fishCheckAmt ??
-      routeCosts.fishCheckingFee;
-    const tripParking =
-      tripVoucher?.parkingActual ??
-      tripVoucher?.parkingAmt ??
-      routeCosts.parkingFee;
-    const tripBorder =
-      tripVoucher?.chopBorderActual ??
-      tripVoucher?.chopBorderAmt ??
-      routeCosts.borderPass;
-    totals.fishCheckingFee += tripFish;
-    totals.parkingFee += tripParking;
-    if (!otherOnly) {
-      totals.borderPass += tripBorder;
-      totals.epermit += routeCosts.epermit;
-      totals.dagangNet += routeCosts.dagangNet;
-      totals.forwarding += routeCosts.forwarding;
-    }
-    totals.totalMileageKm += routeCosts.tripMileageKm;
-
-    if (truck) {
-      const truckCosts = computeTripTruckCosts(
-        routeCosts.tripMileageKm,
-        truck,
-        globalCosts.fuelPriceMyr
-      );
-      totals.fuelMyr += truckCosts.fuelMyr;
-      totals.maintenanceMyr += truckCosts.maintenanceMyr;
-    }
-
     const tripUnloadingRows = unloadingByTrip.get(dispatch.id) ?? [];
     const tripLoadingRows = loadingByTrip.get(dispatch.id) ?? [];
-    const tripLoadUnloadFee = resolveTripLoadUnloadCost({
+
+    const costLines: TripCostLineInput[] = [];
+    for (const row of dispatch.lines) {
+      const inbound = row.inboundLine;
+      if (!inbound || inbound.dispatchStatus !== "assigned") continue;
+      const marketCode = inbound.stall?.market?.code ?? "";
+      if (!marketCode || isOtherMarket(marketCode)) continue;
+      const quantity = decimalToNumber(inbound.quantity) ?? 0;
+      if (quantity <= 0) continue;
+      const vehicleQty = vehicleAllocatableQuantity(
+        marketCode,
+        quantity,
+        inbound.mcDeliveryMode
+      );
+      costLines.push({
+        lineId: `${dispatch.id}-${marketCode}-${costLines.length}`,
+        shipperId: "operations",
+        marketCode,
+        quantity,
+        excludeFromVehicleAllocation: vehicleQty <= 0,
+      });
+    }
+
+    const slice = resolveOperationsTripCostSlice({
+      effectiveMarkets,
+      routeGroups,
+      routes,
+      globalCosts,
+      tollClass: truck?.tollClass,
+      truck: truck ?? null,
+      voucher: tripVoucher ?? null,
       unloadingRows: tripUnloadingRows,
       loadingRows: tripLoadingRows,
       dispatchEstimate: dispatch,
       ratesByMarket: unloadingRatesByMarket,
+      driverMyr: 0,
+      costLines,
+      otherOnly,
     });
-    totals.loadUnloadFee += otherOnly ? 0 : tripLoadUnloadFee;
+
+    totals.tollFee += slice.routeCosts.tollFee;
+    totals.fishCheckingFee += slice.fishCheckingFee;
+    totals.parkingFee += slice.parkingFee;
+    totals.borderPass += slice.borderPass;
+    totals.epermit += slice.epermit;
+    totals.dagangNet += slice.dagangNet;
+    totals.forwarding += slice.forwarding;
+    totals.totalMileageKm += slice.tripMileageKm;
+    totals.fuelMyr += slice.fuelMyr;
+    totals.maintenanceMyr += slice.maintenanceMyr;
+    totals.loadUnloadFee += slice.loadUnloadFee;
 
     for (const line of dispatch.lines) {
       const inboundLine = line.inboundLine;

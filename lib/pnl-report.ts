@@ -27,20 +27,25 @@ import {
   mcAssignedLinesFromDispatchLines,
   pnlUnloadAllocatableQuantity,
   tripMcAllThirdParty,
+  vehicleAllocatableQuantity,
 } from "@/lib/mc-dispatch-delivery";
 import {
   buildRouteKey,
-  computeTripRouteCosts,
-  computeTripTruckCosts,
-  findApplicableRoutes,
   loadGlobalTripCostValues,
   type RouteMasterCostRow,
 } from "@/lib/operations-cost";
 import {
+  allocateShipperVehicleCosts,
+  allocateShipperVehicleTotalMyr,
+  resolveTripAllocatedPool,
+  sumTripAllocatedWithoutLoadUnload,
+} from "@/lib/trip-cost-engine/trip-cost-facade";
+import { legacyBuildTripAllocatedPool } from "@/lib/trip-cost-engine/legacy-adapter";
+import type { TripCostLineInput } from "@/lib/trip-cost-engine/types";
+import {
   getUnloadingRatesByMarket,
   type UnloadingDispatchEstimateInput,
 } from "@/lib/driver-expense-service";
-import { resolveTripLoadUnloadCost } from "@/lib/unloading-trip-cost";
 import type { UnloadingRateConfigInput } from "@/lib/unloading-calculator";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
@@ -181,17 +186,65 @@ function buildPnlDispatchUnloadingEstimate(
   };
 }
 
-function resolvePnlTripLoadUnloadTotal(
+function buildPnlTripCostLines(
   dispatch: DispatchPnlRow,
-  ctx: PnlComputationContext
+  excludeMcFromUnloadAllocation: boolean
+): TripCostLineInput[] {
+  const lines: TripCostLineInput[] = [];
+  for (const row of dispatch.lines) {
+    const inbound = row.inboundLine;
+    if (!inbound || inbound.dispatchStatus !== "assigned") continue;
+    const marketCode = inbound.stall.market?.code ?? "";
+    if (!marketCode || isOtherMarket(marketCode)) continue;
+    const quantity = decimalToNumber(inbound.quantity) ?? 0;
+    if (quantity <= 0) continue;
+    const vehicleQty = vehicleAllocatableQuantity(
+      marketCode,
+      quantity,
+      inbound.mcDeliveryMode
+    );
+    lines.push({
+      lineId: `${dispatch.id}-${inbound.stallId}-${lines.length}`,
+      shipperId: inbound.session.shipperId,
+      marketCode,
+      quantity,
+      excludeFromVehicleAllocation: vehicleQty <= 0,
+      unloadAllocatableQuantity: pnlUnloadAllocatableQuantity(
+        marketCode,
+        quantity,
+        excludeMcFromUnloadAllocation
+      ),
+    });
+  }
+  return lines;
+}
+
+function resolvePnlTripCostBasis(
+  dispatch: DispatchPnlRow,
+  ctx: PnlComputationContext,
+  effectiveMarkets: string[],
+  routeGroups: string[],
+  excludeMcFromUnloadAllocation: boolean
 ) {
+  const truck = ctx.truckById.get(dispatch.truckId);
+  const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
   const tripUnloadingRows = ctx.unloadingByTripId.get(dispatch.id) ?? [];
   const tripLoadingRows = ctx.loadingByTripId.get(dispatch.id) ?? [];
-  return resolveTripLoadUnloadCost({
+
+  return resolveTripAllocatedPool({
+    effectiveMarkets,
+    routeGroups,
+    routes: ctx.routes,
+    globalCosts: ctx.globalCosts,
+    tollClass: truck?.tollClass,
+    truck: truck ?? null,
+    voucher: tripVoucher ?? null,
     unloadingRows: tripUnloadingRows,
     loadingRows: tripLoadingRows,
     dispatchEstimate: buildPnlDispatchUnloadingEstimate(dispatch),
     ratesByMarket: ctx.unloadingRatesByMarket,
+    driverMyr: driverTripAllowance(dispatch),
+    costLines: buildPnlTripCostLines(dispatch, excludeMcFromUnloadAllocation),
   });
 }
 
@@ -944,12 +997,16 @@ interface PnlComputationContext {
   voucherByTripId: Map<
     string,
     {
+      status: string;
+      costAppliedAt: Date | null;
       chopBorderAmt: number | null;
       chopBorderActual: number | null;
       parkingAmt: number | null;
       parkingActual: number | null;
       fishCheckAmt: number | null;
       fishCheckActual: number | null;
+      kpbActual: number | null;
+      upahTurunActual: number | null;
     }
   >;
 }
@@ -1034,12 +1091,16 @@ async function loadPnlComputationContext(
         where: { tripDate: { gte: start, lte: end } },
         select: {
           tripId: true,
+          status: true,
+          costAppliedAt: true,
           chopBorderAmt: true,
           chopBorderActual: true,
           parkingAmt: true,
           parkingActual: true,
           fishCheckAmt: true,
           fishCheckActual: true,
+          kpbActual: true,
+          upahTurunActual: true,
         },
       })
       .catch((error) => {
@@ -1048,12 +1109,16 @@ async function loadPnlComputationContext(
       }) as Promise<
         {
           tripId: string;
+          status: string;
+          costAppliedAt: Date | null;
           chopBorderAmt: number | null;
           chopBorderActual: number | null;
           parkingAmt: number | null;
           parkingActual: number | null;
           fishCheckAmt: number | null;
           fishCheckActual: number | null;
+          kpbActual: number | null;
+          upahTurunActual: number | null;
         }[]
       >,
       getUnloadingRatesByMarket(),
@@ -1117,12 +1182,16 @@ async function loadPnlComputationContext(
     vouchers.map((v) => [
       v.tripId,
       {
+        status: v.status,
+        costAppliedAt: v.costAppliedAt,
         chopBorderAmt: decimalToNumber(v.chopBorderAmt),
         chopBorderActual: decimalToNumber(v.chopBorderActual),
         parkingAmt: decimalToNumber(v.parkingAmt),
         parkingActual: decimalToNumber(v.parkingActual),
         fishCheckAmt: decimalToNumber(v.fishCheckAmt),
         fishCheckActual: decimalToNumber(v.fishCheckActual),
+        kpbActual: decimalToNumber(v.kpbActual),
+        upahTurunActual: decimalToNumber(v.upahTurunActual),
       },
     ])
   );
@@ -1162,48 +1231,21 @@ async function computeTripPnlRow(
     mcAssignedLines
   );
 
-  const applicableRoutes = findApplicableRoutes(effectiveMarkets, ctx.routes);
-  const truck = ctx.truckById.get(dispatch.truckId);
-  const routeCosts = computeTripRouteCosts(
-    applicableRoutes,
-    ctx.globalCosts,
-    truck?.tollClass
+  const costBasis = resolvePnlTripCostBasis(
+    dispatch,
+    ctx,
+    effectiveMarkets,
+    routeGroups,
+    excludeMcFromUnloadAllocation
   );
-  const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
-  const tripLoadUnloadTotal = resolvePnlTripLoadUnloadTotal(dispatch, ctx);
-  const tripFishMyr =
-    tripVoucher?.fishCheckActual ??
-    tripVoucher?.fishCheckAmt ??
-    routeCosts.fishCheckingFee;
-  const tripParkingMyr =
-    tripVoucher?.parkingActual ??
-    tripVoucher?.parkingAmt ??
-    routeCosts.parkingFee;
-  const tripBorderMyr =
-    tripVoucher?.chopBorderActual ??
-    tripVoucher?.chopBorderAmt ??
-    routeCosts.borderPass;
-  const truckCosts = truck
-    ? computeTripTruckCosts(
-        routeCosts.tripMileageKm,
-        truck,
-        ctx.globalCosts.fuelPriceMyr
-      )
-    : { fuelMyr: 0, maintenanceMyr: 0 };
-
-  const tripAllocated = {
-    fuelMyr: truckCosts.fuelMyr,
-    maintenanceMyr: truckCosts.maintenanceMyr,
-    tollMyr: routeCosts.tollFee,
-    borderPassMyr: tripBorderMyr,
-    fishCheckingMyr: tripFishMyr,
-    parkingMyr: tripParkingMyr,
-    loadUnloadMyr: tripLoadUnloadTotal,
-    epermitMyr: routeCosts.epermit,
-    dagangNetMyr: routeCosts.dagangNet,
-    forwardingMyr: routeCosts.forwarding,
-    driverMyr: driverTripAllowance(dispatch),
-  };
+  const tripAllocated = costBasis.pool;
+  const legacyTripAllocated = legacyBuildTripAllocatedPool({
+    vehiclePool: costBasis.vehiclePool,
+    borderPassMyr: tripAllocated.borderPassMyr,
+    fishCheckingMyr: tripAllocated.fishCheckingMyr,
+    parkingMyr: tripAllocated.parkingMyr,
+    driverMyr: tripAllocated.driverMyr,
+  });
 
   const shipperMap = new Map<
     string,
@@ -1432,18 +1474,8 @@ async function computeTripPnlRow(
 
   if (tripQuantity <= 0) return null;
 
-  const tripAllocatedWithoutLoadUnload = roundMoney(
-    tripAllocated.fuelMyr +
-      tripAllocated.maintenanceMyr +
-      tripAllocated.tollMyr +
-      tripAllocated.borderPassMyr +
-      tripAllocated.fishCheckingMyr +
-      tripAllocated.parkingMyr +
-      tripAllocated.epermitMyr +
-      tripAllocated.dagangNetMyr +
-      tripAllocated.forwardingMyr +
-      tripAllocated.driverMyr
-  );
+  const tripAllocatedWithoutLoadUnload =
+    sumTripAllocatedWithoutLoadUnload(tripAllocated);
 
   const shippers: PnlShipperRow[] = Array.from(shipperMap.values()).map(
     (row) => {
@@ -1453,69 +1485,22 @@ async function computeTripPnlRow(
           row.thaiSegmentMyr +
           row.mcThirdPartyHaulageMyr
       );
-      const qtyForVehicleAllocation = row.quantity;
-      const allocatedFuelMyr = allocateShare(
-        qtyForVehicleAllocation,
+      const vehicleAlloc = allocateShipperVehicleCosts({
+        shipperId: row.shipperId,
+        quantity: row.quantity,
         vehicleAllocationDenominator,
-        tripAllocated.fuelMyr
-      );
-      const allocatedMaintenanceMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.maintenanceMyr
-      );
-      const allocatedTollMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.tollMyr
-      );
-      const allocatedBorderPassMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.borderPassMyr
-      );
-      const allocatedFishCheckingMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.fishCheckingMyr
-      );
-      const allocatedParkingMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.parkingMyr
-      );
-      const allocatedEpermitMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.epermitMyr
-      );
-      const allocatedDagangNetMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.dagangNetMyr
-      );
-      const allocatedForwardingMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.forwardingMyr
-      );
-      const allocatedDriverMyr = allocateShare(
-        qtyForVehicleAllocation,
-        vehicleAllocationDenominator,
-        tripAllocated.driverMyr
-      );
-      const allocatedCostMyr = roundMoney(
-        allocatedFuelMyr +
-          allocatedMaintenanceMyr +
-          allocatedTollMyr +
-          allocatedBorderPassMyr +
-          allocatedFishCheckingMyr +
-          allocatedParkingMyr +
-          allocatedEpermitMyr +
-          allocatedDagangNetMyr +
-          allocatedForwardingMyr +
-          allocatedDriverMyr
-      );
+        tripAllocated: legacyTripAllocated,
+        enforcedByShipper: costBasis.lineAllocationsByShipper,
+      });
+      const allocatedFuelMyr = vehicleAlloc.fuelMyr;
+      const allocatedMaintenanceMyr = vehicleAlloc.maintenanceMyr;
+      const allocatedTollMyr = vehicleAlloc.tollMyr;
+      const allocatedBorderPassMyr = vehicleAlloc.borderPassMyr;
+      const allocatedEpermitMyr = vehicleAlloc.epermitMyr;
+      const allocatedDagangNetMyr = vehicleAlloc.dagangNetMyr;
+      const allocatedForwardingMyr = vehicleAlloc.forwardingMyr;
+      const allocatedDriverMyr = vehicleAlloc.driverMyr;
+      const allocatedCostMyr = vehicleAlloc.allocatedCostMyr;
       const totalCostMyr = roundMoney(
         directCostMyr + row.unloadFeeMyr + allocatedCostMyr
       );
@@ -1740,6 +1725,7 @@ export async function buildPnlCustomerMarketBreakdown(input: {
   >();
 
   for (const dispatch of dispatches) {
+    const routeGroups = getRouteGroups(dispatch.markets);
     const mcAssignedLines = mcAssignedLinesFromDispatchLines(dispatch.lines);
     const excludeMcFromUnloadAllocation = tripMcAllThirdParty(mcAssignedLines);
     const effectiveMarkets = effectiveMarketsForTripCost(
@@ -1747,60 +1733,16 @@ export async function buildPnlCustomerMarketBreakdown(input: {
       mcAssignedLines
     );
 
-    const applicableRoutes = findApplicableRoutes(effectiveMarkets, ctx.routes);
-    const truck = ctx.truckById.get(dispatch.truckId);
-    const routeCosts = computeTripRouteCosts(
-      applicableRoutes,
-      ctx.globalCosts,
-      truck?.tollClass
+    const costBasis = resolvePnlTripCostBasis(
+      dispatch,
+      ctx,
+      effectiveMarkets,
+      routeGroups,
+      excludeMcFromUnloadAllocation
     );
-    const tripVoucher = ctx.voucherByTripId.get(dispatch.id);
-    const tripLoadUnloadTotal = resolvePnlTripLoadUnloadTotal(dispatch, ctx);
-    const tripFishMyr =
-      tripVoucher?.fishCheckActual ??
-      tripVoucher?.fishCheckAmt ??
-      routeCosts.fishCheckingFee;
-    const tripParkingMyr =
-      tripVoucher?.parkingActual ??
-      tripVoucher?.parkingAmt ??
-      routeCosts.parkingFee;
-    const tripBorderMyr =
-      tripVoucher?.chopBorderActual ??
-      tripVoucher?.chopBorderAmt ??
-      routeCosts.borderPass;
-    const truckCosts = truck
-      ? computeTripTruckCosts(
-          routeCosts.tripMileageKm,
-          truck,
-          ctx.globalCosts.fuelPriceMyr
-        )
-      : { fuelMyr: 0, maintenanceMyr: 0 };
-
-    const tripAllocated = {
-      fuelMyr: truckCosts.fuelMyr,
-      maintenanceMyr: truckCosts.maintenanceMyr,
-      tollMyr: routeCosts.tollFee,
-      borderPassMyr: tripBorderMyr,
-      fishCheckingMyr: tripFishMyr,
-      parkingMyr: tripParkingMyr,
-      loadUnloadMyr: tripLoadUnloadTotal,
-      epermitMyr: routeCosts.epermit,
-      dagangNetMyr: routeCosts.dagangNet,
-      forwardingMyr: routeCosts.forwarding,
-      driverMyr: driverTripAllowance(dispatch),
-    };
-    const tripAllocatedWithoutLoadUnload = roundMoney(
-      tripAllocated.fuelMyr +
-        tripAllocated.maintenanceMyr +
-        tripAllocated.tollMyr +
-        tripAllocated.borderPassMyr +
-        tripAllocated.fishCheckingMyr +
-        tripAllocated.parkingMyr +
-        tripAllocated.epermitMyr +
-        tripAllocated.dagangNetMyr +
-        tripAllocated.forwardingMyr +
-        tripAllocated.driverMyr
-    );
+    const tripAllocated = costBasis.pool;
+    const tripAllocatedWithoutLoadUnload =
+      sumTripAllocatedWithoutLoadUnload(tripAllocated);
 
     const lines = dispatch.lines
       .map((line) => line.inboundLine)
@@ -1911,11 +1853,13 @@ export async function buildPnlCustomerMarketBreakdown(input: {
         unloadAllocationDenominator,
         tripAllocated.loadUnloadMyr
       );
-      const allocatedCostMyr = allocateShare(
+      const allocatedCostMyr = allocateShipperVehicleTotalMyr({
+        shipperId: input.shipperId,
         quantity,
         vehicleAllocationDenominator,
-        tripAllocatedWithoutLoadUnload
-      );
+        tripAllocatedWithoutLoadUnload,
+        enforcedByShipper: costBasis.lineAllocationsByShipper,
+      });
 
       const existing = marketMap.get(marketCode) ?? {
         quantity: 0,
