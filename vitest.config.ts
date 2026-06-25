@@ -13,6 +13,8 @@ export default defineConfig({
       "lib/db-retry.test.ts",
       "lib/driver-voucher-status.test.ts",
       "lib/driver-voucher-audit.test.ts",
+      "lib/trip-cost-engine/config.test.ts",
+      "lib/trip-cost-engine/legacy-adapter.test.ts",
     ],
   },
   resolve: {
