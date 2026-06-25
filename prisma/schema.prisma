@@ -993,6 +993,7 @@ model DriverVoucher {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   changeLogs DriverVoucherChangeLog[]
+  marketActuals DriverVoucherMarketActual[]
 
   @@index([status, tripDate(sort: Desc)])
   @@index([tripDate, lorry])
@@ -1017,4 +1018,20 @@ model DriverVoucherChangeLog {
   @@index([voucherId])
   @@index([changedAt])
   @@map("driver_voucher_change_logs")
+}
+
+model DriverVoucherMarketActual {
+  id            String   @id @default(cuid())
+  voucherId     String   @map("voucher_id")
+  feeType       String   @map("fee_type")
+  displayMarket String   @map("display_market")
+  amount        Float?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  voucher DriverVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, feeType, displayMarket])
+  @@index([voucherId])
+  @@map("driver_voucher_market_actuals")
 }

@@ -15,6 +15,8 @@ export default defineConfig({
       "lib/driver-voucher-audit.test.ts",
       "lib/trip-cost-engine/config.test.ts",
       "lib/trip-cost-engine/legacy-adapter.test.ts",
+      "lib/trip-cost-engine/voucher-cost-resolver.test.ts",
+      "lib/driver-expense/market-actuals-service.test.ts",
     ],
   },
   resolve: {

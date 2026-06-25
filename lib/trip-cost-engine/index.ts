@@ -31,3 +31,14 @@ export {
   logTripCostShadowDiffs,
   type TripCostShadowDiff,
 } from "@/lib/trip-cost-engine/shadow-logger";
+
+export {
+  isCostEligible,
+  isCostEligibleFromVoucher,
+  resolveVoucherTripCosts,
+  type ResolveVoucherTripCostsInput,
+  type ResolvedVoucherTripCosts,
+  type VoucherCostSourceTag,
+  type VoucherRouteCostEstimate,
+  type VoucherTripCostSources,
+} from "@/lib/trip-cost-engine/voucher-cost-resolver";
