@@ -1,16 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import type { StoredUserRole } from "@/types";
+import {
+  isVoucherStatus,
+  type VoucherStatus,
+} from "@/lib/driver-voucher-status-types";
 
-export const VOUCHER_STATUSES = [
-  "draft",
-  "clerk_entered",
-  "confirmed",
-  "pending_review",
-  "approved",
-  "rejected",
-] as const;
-
-export type VoucherStatus = (typeof VOUCHER_STATUSES)[number];
+export {
+  isVoucherStatus,
+  VOUCHER_STATUSES,
+  type VoucherStatus,
+} from "@/lib/driver-voucher-status-types";
 
 export interface VoucherTransitionActor {
   id: string;
@@ -54,10 +53,6 @@ export class VoucherStatusTransitionError extends Error {
     this.name = "VoucherStatusTransitionError";
     this.code = code;
   }
-}
-
-export function isVoucherStatus(value: string): value is VoucherStatus {
-  return (VOUCHER_STATUSES as readonly string[]).includes(value);
 }
 
 export function isVoucherTransitionAllowed(

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
+import { parseDriverExpensesTab } from "@/lib/driver-expense/voucher-list-types";
 import { cn } from "@/lib/utils";
 import "./driver-expense-print.css";
 
@@ -174,6 +175,8 @@ export function DriverVoucherForm({
   initialTripId,
 }: DriverVoucherFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTab = parseDriverExpensesTab(searchParams.get("tab"));
   const [form, setForm] = useState<VoucherFormState | null>(null);
   const [dispatches, setDispatches] = useState<DispatchOption[]>([]);
   const [existingTripIds, setExistingTripIds] = useState<Set<string>>(new Set());
@@ -184,7 +187,7 @@ export function DriverVoucherForm({
   const [printBreakdown, setPrintBreakdown] =
     useState<VoucherPrintBreakdown | null>(null);
 
-  const backHref = `/documents/driver-expenses?date=${date}`;
+  const backHref = `/documents/driver-expenses?date=${date}&tab=${returnTab}&refresh=1`;
 
   useEffect(() => {
     let cancelled = false;

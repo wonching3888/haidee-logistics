@@ -18,6 +18,8 @@ export async function GET(request: Request) {
       tripId: searchParams.get("tripId") ?? undefined,
       startDate: searchParams.get("startDate") ?? undefined,
       endDate: searchParams.get("endDate") ?? undefined,
+      status: searchParams.get("status") ?? undefined,
+      q: searchParams.get("q") ?? undefined,
     });
     return NextResponse.json({ vouchers });
   } catch (error) {

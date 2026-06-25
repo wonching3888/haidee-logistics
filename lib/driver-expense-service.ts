@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/date-utils";
 import { calendarDateUTC } from "@/lib/reports/period-report-shared";
@@ -635,25 +636,46 @@ export async function listDriverVouchers(filters: {
   tripId?: string;
   startDate?: string;
   endDate?: string;
+  status?: string;
+  q?: string;
 }) {
-  const where: {
-    tripId?: string;
-    tripDate?: { gte?: Date; lte?: Date };
-  } = {};
+  const where: Prisma.DriverVoucherWhereInput = {};
 
   if (filters.tripId) where.tripId = filters.tripId;
-  if (!filters.tripId && !filters.startDate && !filters.endDate) {
-    return [];
-  }
+  if (filters.status) where.status = filters.status;
   if (filters.startDate || filters.endDate) {
     where.tripDate = {};
     if (filters.startDate) where.tripDate.gte = parseDateInput(filters.startDate);
     if (filters.endDate) where.tripDate.lte = parseDateInput(filters.endDate);
   }
+  const q = filters.q?.trim();
+  if (q) {
+    where.OR = [
+      { voucherNo: { contains: q, mode: "insensitive" } },
+      { lorry: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const hasScope =
+    filters.tripId ||
+    filters.startDate ||
+    filters.endDate ||
+    filters.status ||
+    Boolean(q);
+
+  if (!hasScope) {
+    return [];
+  }
 
   return prisma.driverVoucher.findMany({
     where,
     orderBy: [{ tripDate: "desc" }, { voucherNo: "desc" }],
+  });
+}
+
+export async function countPendingReviewVouchers(): Promise<number> {
+  return prisma.driverVoucher.count({
+    where: { status: "pending_review" },
   });
 }
 

@@ -123,15 +123,15 @@ export function canViewPnlOperations(role: StoredUserRole): boolean {
   }
 }
 
-/** Driver expense vouchers (开单给司机): admin/clerk/my_acct/legacy accounting ✓ */
+/** Driver expense vouchers (开单给司机): admin/clerk/thai_acct/my_acct/legacy accounting ✓ */
 export function canAccessDriverExpenses(role: StoredUserRole): boolean {
   switch (role) {
     case "admin":
     case "clerk":
+    case "thai_accounting":
     case "my_accounting":
     case "accounting":
       return true;
-    case "thai_accounting":
     case "viewer":
     case "owner":
       return false;

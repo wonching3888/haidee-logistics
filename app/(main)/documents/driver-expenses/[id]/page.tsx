@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { DriverVoucherForm } from "@/components/driver-expenses/DriverVoucherForm";
 import { getCurrentUser } from "@/lib/auth";
+import { canAccessDriverExpenses } from "@/lib/auth-roles";
 import { resolveDateParam } from "@/lib/date-utils";
+import { getDefaultRoute } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,9 @@ export default async function EditDriverVoucherPage({
 }: EditVoucherPageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!canAccessDriverExpenses(user.role)) {
+    redirect(getDefaultRoute(user.role));
+  }
 
   const { id } = await params;
   const sp = await searchParams;

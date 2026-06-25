@@ -9,8 +9,7 @@ import {
 
 async function requireVoucherTransitionApi() {
   const user = await getCurrentUser();
-  if (!user) return null;
-  if (!canAccessDriverExpenses(user.role) && user.role !== "thai_accounting") {
+  if (!user || !canAccessDriverExpenses(user.role)) {
     return null;
   }
   return user;

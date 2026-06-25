@@ -1,77 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Plus,
-  Printer,
-  RefreshCw,
-  Search,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { DateInputField } from "@/components/shared/DateInputField";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  effectiveKpbFee,
-  effectiveUnloadFee,
-  lineSubtotal,
-} from "@/lib/unloading-calculator";
-import { formatMyr } from "@/lib/driver-expense/voucher-utils";
+  defaultHistoryDateRange,
+  normalizeVoucherListItem,
+  parseDriverExpensesTab,
+  type DriverExpensesTab,
+  type DriverVoucherListItem,
+} from "@/lib/driver-expense/voucher-list-types";
+import type { StoredUserRole } from "@/types";
 import { cn } from "@/lib/utils";
-import { PrintLetterhead } from "@/components/shared/PrintLogo";
-import "./driver-expense-print.css";
+import {
+  UnloadingFeesCollapsible,
+  type UnloadingFeeRow,
+} from "./UnloadingFeesCollapsible";
+import { VoucherHistoryPanel, type HistoryFilters } from "./VoucherHistoryPanel";
+import { VoucherTodayPanel } from "./VoucherTodayPanel";
 
-interface DriverExpensesClientProps {
-  initialDate: string;
-}
-
-const DRIVER_EXPENSES_CACHE_KEY = "driver-expenses:search-state:v1";
-
-interface UnloadingFeeRow {
-  id: string;
-  tripId: string;
-  tripDate: string;
-  lorry: string;
-  driver: string;
-  route: string;
-  market: string;
-  storeCode: string | null;
-  smallCrateQty: number;
-  largeCrateQty: number;
-  boxQty: number;
-  unloadFee: number;
-  kpbFee: number;
-  unloadFeeOverride: number | null;
-  kpbFeeOverride: number | null;
-  isKpbExempt: boolean;
-  tripLevelNote: string | null;
-}
-
-interface DriverVoucherRow {
-  id: string;
-  voucherNo: string;
-  tripId: string;
-  lorry: string;
-  driverName: string;
-  route: string;
-  duitJalan: number | null;
-  belanja: number | null;
-  baki: number | null;
-}
+const DRIVER_EXPENSES_CACHE_KEY = "driver-expenses:search-state:v2";
 
 interface DispatchOption {
   id: string;
@@ -80,48 +30,16 @@ interface DispatchOption {
   route: string;
 }
 
-interface TripGroup<T> {
-  tripId: string;
-  lorry: string;
-  driver: string;
-  route: string;
-  rows: T[];
-  subtotal: number;
-}
-
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-function groupUnloadingFees(fees: UnloadingFeeRow[]): TripGroup<UnloadingFeeRow>[] {
-  const map = new Map<string, TripGroup<UnloadingFeeRow>>();
-  for (const fee of fees) {
-    const existing = map.get(fee.tripId);
-    const sub = lineSubtotal(fee);
-    if (existing) {
-      existing.rows.push(fee);
-      existing.subtotal = roundMoney(existing.subtotal + sub);
-    } else {
-      map.set(fee.tripId, {
-        tripId: fee.tripId,
-        lorry: fee.lorry,
-        driver: fee.driver,
-        route: fee.route,
-        rows: [fee],
-        subtotal: sub,
-      });
-    }
-  }
-  return Array.from(map.values());
+interface DriverExpensesClientProps {
+  initialDate: string;
+  userRole: StoredUserRole;
 }
 
 function ModuleCard({
   title,
-  compact,
   children,
 }: {
   title: string;
-  compact?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -129,93 +47,198 @@ function ModuleCard({
       <header className="border-b border-haidee-border bg-haidee-surface/40 px-4 py-3">
         <h3 className="font-semibold text-haidee-text">{title}</h3>
       </header>
-      <div className={compact ? "p-3" : "p-4"}>{children}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }
 
-export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps) {
+function parseHistoryFilters(
+  searchParams: URLSearchParams,
+  fallbackDate: string
+): HistoryFilters {
+  const defaults = defaultHistoryDateRange(fallbackDate);
+  return {
+    from: searchParams.get("from") ?? defaults.from,
+    to: searchParams.get("to") ?? defaults.to,
+    status: searchParams.get("status") ?? "",
+    q: searchParams.get("q") ?? "",
+    pendingOnly: searchParams.get("pending") === "1",
+  };
+}
+
+export function DriverExpensesClient({
+  initialDate,
+  userRole,
+}: DriverExpensesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isAdmin = userRole === "admin";
+  const canCreate = userRole !== "thai_accounting";
+
+  const [tab, setTab] = useState<DriverExpensesTab>(() =>
+    parseDriverExpensesTab(searchParams.get("tab"))
+  );
   const [date, setDate] = useState(initialDate);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [unloadingFees, setUnloadingFees] = useState<UnloadingFeeRow[]>([]);
-  const [vouchers, setVouchers] = useState<DriverVoucherRow[]>([]);
+  const [todayVouchers, setTodayVouchers] = useState<DriverVoucherListItem[]>([]);
+  const [historyVouchers, setHistoryVouchers] = useState<DriverVoucherListItem[]>(
+    []
+  );
+  const [historyFilters, setHistoryFilters] = useState<HistoryFilters>(() =>
+    parseHistoryFilters(searchParams, initialDate)
+  );
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [dispatches, setDispatches] = useState<DispatchOption[]>([]);
-  const [expandedTrips, setExpandedTrips] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [loadingToday, setLoadingToday] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [printTarget, setPrintTarget] = useState<
-    | { type: "unloading"; tripId: string }
-    | null
-  >(null);
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const historyInitialLoaded = useRef(false);
 
-  const hasLoaded = loadedDate === date;
-  const unloadingGroups = useMemo(
-    () => groupUnloadingFees(unloadingFees),
-    [unloadingFees]
+  const hasLoadedToday = loadedDate === date;
+
+  const syncUrl = useCallback(
+    (patch: Record<string, string | null | undefined>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(patch)) {
+        if (value == null || value === "") params.delete(key);
+        else params.set(key, value);
+      }
+      router.replace(`/documents/driver-expenses?${params.toString()}`);
+    },
+    [router, searchParams]
   );
 
-  const loadAll = useCallback(async (targetDate: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = new URLSearchParams({
-        startDate: targetDate,
-        endDate: targetDate,
-      });
-      const [unloadingRes, voucherRes, dispatchRes] =
-        await Promise.all([
+  const persistTodayCache = useCallback(
+    (targetDate: string, payload: {
+      unloadingFees: UnloadingFeeRow[];
+      vouchers: DriverVoucherListItem[];
+      dispatches: DispatchOption[];
+    }) => {
+      if (typeof window === "undefined") return;
+      window.sessionStorage.setItem(
+        DRIVER_EXPENSES_CACHE_KEY,
+        JSON.stringify({ date: targetDate, ...payload })
+      );
+    },
+    []
+  );
+
+  const loadToday = useCallback(
+    async (targetDate: string, options?: { skipCache?: boolean }) => {
+      setLoadingToday(true);
+      setError(null);
+      try {
+        const qs = new URLSearchParams({
+          startDate: targetDate,
+          endDate: targetDate,
+        });
+        const [unloadingRes, voucherRes, dispatchRes] = await Promise.all([
           fetch(`/api/unloading-fees?${qs}`),
           fetch(`/api/driver-vouchers?${qs}`),
           fetch(`/api/driver-expenses/dispatches?date=${targetDate}`),
         ]);
 
-      if (!unloadingRes.ok || !voucherRes.ok) {
-        throw new Error("加载失败 Failed to load data");
-      }
+        if (!unloadingRes.ok || !voucherRes.ok) {
+          throw new Error("加载失败 Failed to load data");
+        }
 
-      const [unloadingData, voucherData, dispatchData] =
-        await Promise.all([
+        const [unloadingData, voucherData, dispatchData] = await Promise.all([
           unloadingRes.json() as Promise<{ fees?: UnloadingFeeRow[] }>,
-          voucherRes.json() as Promise<{ vouchers?: DriverVoucherRow[] }>,
+          voucherRes.json() as Promise<{ vouchers?: DriverVoucherListItem[] }>,
           dispatchRes.ok
             ? (dispatchRes.json() as Promise<{ dispatches?: DispatchOption[] }>)
             : Promise.resolve({ dispatches: [] }),
         ]);
 
-      setUnloadingFees(unloadingData.fees ?? []);
-      setVouchers(voucherData.vouchers ?? []);
-      setDispatches(dispatchData.dispatches ?? []);
-      setLoadedDate(targetDate);
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(
-          DRIVER_EXPENSES_CACHE_KEY,
-          JSON.stringify({
-            date: targetDate,
-            unloadingFees: unloadingData.fees ?? [],
-            vouchers: voucherData.vouchers ?? [],
-            dispatches: dispatchData.dispatches ?? [],
-          })
-        );
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        const fees = unloadingData.fees ?? [];
+        const vouchers = (voucherData.vouchers ?? []).map(normalizeVoucherListItem);
+        const dispatchList = dispatchData.dispatches ?? [];
 
-  function updateDate(next: string) {
-    setDate(next);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("date", next);
-    router.push(`/documents/driver-expenses?${params.toString()}`);
-  }
+        setUnloadingFees(fees);
+        setTodayVouchers(vouchers);
+        setDispatches(dispatchList);
+        setLoadedDate(targetDate);
+        persistTodayCache(targetDate, {
+          unloadingFees: fees,
+          vouchers,
+          dispatches: dispatchList,
+        });
+
+        if (options?.skipCache) {
+          syncUrl({ refresh: null });
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "加载失败");
+      } finally {
+        setLoadingToday(false);
+      }
+    },
+    [persistTodayCache, syncUrl]
+  );
+
+  const loadHistory = useCallback(
+    async (filters: HistoryFilters) => {
+      setLoadingHistory(true);
+      setError(null);
+      try {
+        const qs = new URLSearchParams();
+        if (filters.pendingOnly) {
+          qs.set("status", "pending_review");
+        } else {
+          if (filters.from) qs.set("startDate", filters.from);
+          if (filters.to) qs.set("endDate", filters.to);
+          if (filters.status) qs.set("status", filters.status);
+        }
+        if (filters.q.trim()) qs.set("q", filters.q.trim());
+
+        const res = await fetch(`/api/driver-vouchers?${qs}`);
+        if (!res.ok) throw new Error("加载失败 Failed to load history");
+        const data = (await res.json()) as { vouchers?: DriverVoucherListItem[] };
+        setHistoryVouchers((data.vouchers ?? []).map(normalizeVoucherListItem));
+        setHistoryLoaded(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "加载失败");
+      } finally {
+        setLoadingHistory(false);
+      }
+    },
+    []
+  );
+
+  const loadPendingCount = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await fetch("/api/driver-vouchers/pending-count");
+      if (!res.ok) return;
+      const data = (await res.json()) as { count?: number };
+      setPendingCount(data.count ?? 0);
+    } catch {
+      // ignore
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
+    setDate(initialDate);
+  }, [initialDate]);
+
+  useEffect(() => {
+    const nextTab = parseDriverExpensesTab(searchParams.get("tab"));
+    setTab(nextTab);
+    setHistoryFilters(parseHistoryFilters(searchParams, date));
+  }, [searchParams, date]);
+
+  useEffect(() => {
+    if (searchParams.get("refresh") === "1") {
+      void loadToday(date, { skipCache: true });
+    }
+  }, [searchParams, date, loadToday]);
+
+  useEffect(() => {
+    if (searchParams.get("refresh") === "1") return;
     if (typeof window === "undefined") return;
     const raw = window.sessionStorage.getItem(DRIVER_EXPENSES_CACHE_KEY);
     if (!raw) return;
@@ -223,21 +246,76 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
       const cached = JSON.parse(raw) as {
         date?: string;
         unloadingFees?: UnloadingFeeRow[];
-        vouchers?: DriverVoucherRow[];
+        vouchers?: DriverVoucherListItem[];
         dispatches?: DispatchOption[];
       };
       if (cached.date !== date) return;
       setUnloadingFees(cached.unloadingFees ?? []);
-      setVouchers(cached.vouchers ?? []);
+      setTodayVouchers(cached.vouchers ?? []);
       setDispatches(cached.dispatches ?? []);
       setLoadedDate(cached.date ?? null);
     } catch {
-      // ignore parse errors
+      // ignore
     }
-  }, [date]);
+  }, [date, searchParams]);
 
-  function handleSearch() {
-    void loadAll(date);
+  useEffect(() => {
+    if (tab !== "history") {
+      historyInitialLoaded.current = false;
+      return;
+    }
+    if (historyInitialLoaded.current) return;
+    historyInitialLoaded.current = true;
+    const filters = parseHistoryFilters(searchParams, date);
+    setHistoryFilters(filters);
+    void loadHistory(filters);
+    void loadPendingCount();
+  }, [tab, searchParams, date, loadHistory, loadPendingCount]);
+
+  function updateDate(next: string) {
+    setDate(next);
+    setLoadedDate(null);
+    syncUrl({ date: next, tab: "today" });
+  }
+
+  function switchTab(next: DriverExpensesTab) {
+    setTab(next);
+    syncUrl({ tab: next });
+  }
+
+  function handleTodaySearch() {
+    void loadToday(date);
+  }
+
+  function handleHistorySearch() {
+    syncUrl({
+      tab: "history",
+      from: historyFilters.pendingOnly ? null : historyFilters.from,
+      to: historyFilters.pendingOnly ? null : historyFilters.to,
+      status: historyFilters.pendingOnly ? null : historyFilters.status || null,
+      q: historyFilters.q.trim() || null,
+      pending: historyFilters.pendingOnly ? "1" : null,
+    });
+    void loadHistory(historyFilters);
+    void loadPendingCount();
+  }
+
+  function handlePendingShortcut() {
+    const next: HistoryFilters = {
+      ...historyFilters,
+      pendingOnly: !historyFilters.pendingOnly,
+      status: "pending_review",
+    };
+    setHistoryFilters(next);
+    syncUrl({
+      tab: "history",
+      pending: next.pendingOnly ? "1" : null,
+      from: null,
+      to: null,
+      status: null,
+      q: historyFilters.q.trim() || null,
+    });
+    void loadHistory(next);
   }
 
   async function syncFees() {
@@ -267,28 +345,12 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
           })
         )
       );
-      await loadAll(date);
+      await loadToday(date);
     } catch (e) {
       setError(e instanceof Error ? e.message : "同步失败");
     } finally {
       setSyncing(false);
     }
-  }
-
-  function toggleTrip(tripId: string) {
-    setExpandedTrips((prev) => {
-      const next = new Set(prev);
-      if (next.has(tripId)) next.delete(tripId);
-      else next.add(tripId);
-      return next;
-    });
-  }
-
-  function triggerPrint(
-    target: { type: "unloading"; tripId: string }
-  ) {
-    setPrintTarget(target);
-    requestAnimationFrame(() => window.print());
   }
 
   async function patchUnloadingFee(
@@ -307,351 +369,121 @@ export function DriverExpensesClient({ initialDate }: DriverExpensesClientProps)
       if (!res.ok) throw new Error("保存失败");
       const data = (await res.json()) as { fee?: UnloadingFeeRow };
       if (data.fee) {
-        setUnloadingFees((prev) =>
-          prev.map((row) => (row.id === id ? { ...row, ...data.fee! } : row))
-        );
+        setUnloadingFees((prev) => {
+          const next = prev.map((row) =>
+            row.id === id ? { ...row, ...data.fee! } : row
+          );
+          if (loadedDate) {
+            persistTodayCache(loadedDate, {
+              unloadingFees: next,
+              vouchers: todayVouchers,
+              dispatches,
+            });
+          }
+          return next;
+        });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
     }
   }
 
-  const printUnloadingGroup =
-    printTarget?.type === "unloading"
-      ? unloadingGroups.find((g) => g.tripId === printTarget.tripId)
-      : null;
+  const tabClass = (active: boolean) =>
+    cn(
+      "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+      active
+        ? "border-haidee-blue text-haidee-blue"
+        : "border-transparent text-haidee-muted hover:text-haidee-text"
+    );
 
   return (
     <div className="space-y-6">
-      <div className="no-print flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">日期 Date</label>
-          <DateInputField value={date} onChange={updateDate} />
-        </div>
-        <Button
-          onClick={handleSearch}
-          disabled={loading}
-          className="gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Search className="h-4 w-4" />
-          )}
-          查询 Search
-        </Button>
-        <Button
-          onClick={() => startTransition(() => syncFees())}
-          disabled={syncing || isPending || !hasLoaded}
-          variant="outline"
-          className="gap-2"
-        >
-          {syncing || isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          重新同步估算
-        </Button>
-      </div>
-
       {error && (
         <p className="no-print rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      {!hasLoaded && !loading && (
-        <p className="text-sm text-haidee-muted">
-          请选择日期后点击「查询」加载数据
-        </p>
-      )}
-
-      {hasLoaded && (
-        <>
-          <ModuleCard title="Module 1 — Upah Turun（下货费）">
-            {unloadingGroups.length === 0 ? (
-              <p className="text-sm text-haidee-muted">
-                此日期暂无下货费记录（派车保存后会自动生成估算）
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {unloadingGroups.map((group) => {
-                  const expanded = expandedTrips.has(group.tripId);
-                  return (
-                    <div
-                      key={group.tripId}
-                      className="overflow-hidden rounded-lg border border-haidee-border"
-                    >
-                      <div className="no-print flex flex-wrap items-center gap-2 bg-haidee-surface/30 px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleTrip(group.tripId)}
-                          className="flex flex-1 flex-wrap items-center gap-2 text-left text-sm"
-                        >
-                          {expanded ? (
-                            <ChevronDown className="h-4 w-4 shrink-0" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          )}
-                          <span className="font-medium">{group.lorry}</span>
-                          <span className="text-haidee-muted">{group.driver}</span>
-                          <span className="text-haidee-muted">{group.route}</span>
-                          <span className="ml-auto font-mono font-semibold">
-                            {formatMyr(group.subtotal)}
-                          </span>
-                        </button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 gap-1"
-                          onClick={() =>
-                            triggerPrint({
-                              type: "unloading",
-                              tripId: group.tripId,
-                            })
-                          }
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                          打印
-                        </Button>
-                      </div>
-                      {expanded && (
-                        <ScrollMatrixTable
-                          heightOffset={360}
-                          className="border-0 rounded-none"
-                        >
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>市场</TableHead>
-                                <TableHead className="text-right">小桶</TableHead>
-                                <TableHead className="text-right">大桶</TableHead>
-                                <TableHead className="text-right">箱</TableHead>
-                                <TableHead className="text-right">下货费</TableHead>
-                                <TableHead className="text-right">KPB</TableHead>
-                                <TableHead className="text-right">小计</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {group.rows.map((row) => (
-                                <TableRow key={row.id}>
-                                  <TableCell>
-                                    <div>{row.market}</div>
-                                    {row.tripLevelNote && (
-                                      <div className="text-xs text-haidee-muted">
-                                        {row.tripLevelNote}
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {row.smallCrateQty}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {row.largeCrateQty}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {row.boxQty}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      className={cn(
-                                        "ml-auto h-8 w-24 text-right font-mono text-sm",
-                                        row.unloadFeeOverride != null &&
-                                          "text-orange-600"
-                                      )}
-                                      defaultValue={
-                                        row.unloadFeeOverride ?? row.unloadFee
-                                      }
-                                      key={`unload-${row.id}-${row.unloadFeeOverride}`}
-                                      onBlur={(e) =>
-                                        patchUnloadingFee(
-                                          row.id,
-                                          "unloadFeeOverride",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {row.isKpbExempt ? (
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-haidee-muted"
-                                      >
-                                        免收
-                                      </Badge>
-                                    ) : (
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        className={cn(
-                                          "ml-auto h-8 w-24 text-right font-mono text-sm",
-                                          row.kpbFeeOverride != null &&
-                                            "text-orange-600"
-                                        )}
-                                        defaultValue={
-                                          row.kpbFeeOverride ?? row.kpbFee
-                                        }
-                                        key={`kpb-${row.id}-${row.kpbFeeOverride}`}
-                                        onBlur={(e) =>
-                                          patchUnloadingFee(
-                                            row.id,
-                                            "kpbFeeOverride",
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono font-medium">
-                                    {formatMyr(lineSubtotal(row))}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </ScrollMatrixTable>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </ModuleCard>
-
-          <ModuleCard title="Module 2 — Driver Voucher（司机报销单）">
-            <div className="no-print mb-4">
-              <Link
-                href={`/documents/driver-expenses/new?date=${date}`}
-                className="inline-flex h-8 items-center gap-2 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground"
-              >
-                <Plus className="h-4 w-4" />
-                新增 Add New
-              </Link>
-            </div>
-            {vouchers.length === 0 ? (
-              <p className="text-sm text-haidee-muted">此日期暂无报销单</p>
-            ) : (
-              <ScrollMatrixTable heightOffset={320}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>单号</TableHead>
-                      <TableHead>罗里</TableHead>
-                      <TableHead>司机</TableHead>
-                      <TableHead>路线</TableHead>
-                      <TableHead className="text-right">路费</TableHead>
-                      <TableHead className="text-right">支出</TableHead>
-                      <TableHead className="text-right">余额</TableHead>
-                      <TableHead className="w-24" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {vouchers.map((v) => (
-                      <TableRow key={v.id}>
-                        <TableCell className="font-mono text-sm">
-                          {v.voucherNo}
-                        </TableCell>
-                        <TableCell>{v.lorry}</TableCell>
-                        <TableCell>{v.driverName}</TableCell>
-                        <TableCell>{v.route}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {v.duitJalan != null ? formatMyr(v.duitJalan) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {v.belanja != null ? formatMyr(v.belanja) : "—"}
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            "text-right font-mono font-medium",
-                            v.baki != null && v.baki >= 0 && "text-green-600",
-                            v.baki != null && v.baki < 0 && "text-red-600"
-                          )}
-                        >
-                          {v.baki != null ? formatMyr(v.baki) : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/documents/driver-expenses/${v.id}?date=${date}`}
-                            className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
-                          >
-                            编辑
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollMatrixTable>
-            )}
-          </ModuleCard>
-        </>
-      )}
-
-      {printUnloadingGroup && (
-        <div className="driver-expense-print-area hidden print:block">
-          <PrintLetterhead nameEn="Hai Dee Logistics Co.,Ltd" />
-          <div className="print-title">
-            Upah Turun — {printUnloadingGroup.lorry}
-          </div>
-          <p>
-            {printUnloadingGroup.driver} · {printUnloadingGroup.route} · {date}
-          </p>
-          <table className="mt-3">
-            <thead>
-              <tr>
-                <th>市场</th>
-                <th>小桶</th>
-                <th>大桶</th>
-                <th>箱</th>
-                <th>下货费</th>
-                <th>KPB</th>
-                <th>小计</th>
-              </tr>
-            </thead>
-            <tbody>
-              {printUnloadingGroup.rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    {row.market}
-                    {row.tripLevelNote && (
-                      <div style={{ fontSize: "10px", color: "#666" }}>
-                        {row.tripLevelNote}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-right">{row.smallCrateQty}</td>
-                  <td className="text-right">{row.largeCrateQty}</td>
-                  <td className="text-right">{row.boxQty}</td>
-                  <td className="text-right">
-                    {formatMyr(effectiveUnloadFee(row))}
-                  </td>
-                  <td className="text-right">
-                    {row.isKpbExempt
-                      ? "免收"
-                      : formatMyr(effectiveKpbFee(row))}
-                  </td>
-                  <td className="text-right">
-                    {formatMyr(lineSubtotal(row))}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={6} className="text-right font-bold">
-                  合计 Total
-                </td>
-                <td className="text-right font-bold">
-                  {formatMyr(printUnloadingGroup.subtotal)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <ModuleCard title="Module 2 — Driver Voucher（司机报销单）">
+        <div className="no-print mb-4 flex gap-1 border-b border-haidee-border">
+          <button
+            type="button"
+            className={tabClass(tab === "today")}
+            onClick={() => switchTab("today")}
+          >
+            当日 Today
+          </button>
+          <button
+            type="button"
+            className={tabClass(tab === "history")}
+            onClick={() => switchTab("history")}
+          >
+            历史 History
+          </button>
         </div>
-      )}
 
+        {tab === "today" && (
+          <div className="no-print mb-4 flex flex-wrap items-end gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">日期 Date</label>
+              <DateInputField value={date} onChange={updateDate} />
+            </div>
+            <Button
+              onClick={handleTodaySearch}
+              disabled={loadingToday}
+              className="gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
+            >
+              {loadingToday ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              查询 Search
+            </Button>
+            <Button
+              onClick={() => startTransition(() => syncFees())}
+              disabled={syncing || isPending || !hasLoadedToday}
+              variant="outline"
+              className="gap-2"
+            >
+              {syncing || isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              重新同步估算
+            </Button>
+          </div>
+        )}
+
+        {tab === "today" ? (
+          <VoucherTodayPanel
+            date={date}
+            vouchers={todayVouchers}
+            hasLoaded={hasLoadedToday}
+            canCreate={canCreate}
+          />
+        ) : (
+          <VoucherHistoryPanel
+            filters={historyFilters}
+            onFiltersChange={setHistoryFilters}
+            vouchers={historyVouchers}
+            loading={loadingHistory}
+            hasLoaded={historyLoaded}
+            isAdmin={isAdmin}
+            pendingCount={pendingCount}
+            onSearch={handleHistorySearch}
+            onPendingShortcut={handlePendingShortcut}
+          />
+        )}
+      </ModuleCard>
+
+      <UnloadingFeesCollapsible
+        date={date}
+        fees={unloadingFees}
+        hasLoaded={hasLoadedToday}
+        onPatchFee={patchUnloadingFee}
+      />
     </div>
   );
 }

@@ -57,6 +57,10 @@ export async function requireDriverExpensesWriteApi(): Promise<AppUser | null> {
   if (!user || !canWrite(user.role)) {
     return null;
   }
+  // Thai accounting: read-only on driver expenses until Step ④ wires save/transition UI.
+  if (user.role === "thai_accounting") {
+    return null;
+  }
   return user;
 }
 
