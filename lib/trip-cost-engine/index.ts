@@ -35,6 +35,28 @@ export {
 } from "@/lib/trip-cost-engine/shadow-logger";
 
 export {
+  buildVehicleLegPlan,
+  incrementalTollForLeg,
+  isLineEligibleForLeg,
+  routeGroupForLineMarket,
+  sortRouteGroupsByMileage,
+  type BuildVehicleLegPlanInput,
+  type RouteGroupCostPoint,
+  type VehicleLeg,
+  type VehicleLegPlan,
+} from "@/lib/trip-cost-engine/vehicle-leg-resolver";
+
+export {
+  allocateTripLineCosts,
+  assertTripVehicleAllocationConserved,
+  sumAllocationsByRouteGroup,
+  sumVariableLegAllocationsByRouteGroup,
+  type AllocateTripLineCostsInput,
+  type TripGlobalFeePool,
+  type TripLineCostAllocationResult,
+} from "@/lib/trip-cost-engine/line-cost-allocator";
+
+export {
   isCostEligible,
   isCostEligibleFromVoucher,
   resolveVoucherTripCosts,

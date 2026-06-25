@@ -58,8 +58,41 @@ export function effectiveMarketsForTripCost(
 }
 
 /**
+ * Vehicle/toll allocation quantity: MC third-party lines excluded (align unload rule).
+ * When the entire MC leg is third_party, every MC line should pass mcDeliveryMode
+ * third_party and receive 0 vehicle qty.
+ */
+export function vehicleAllocatableQuantity(
+  marketCode: string,
+  quantity: number,
+  mcDeliveryMode: string | null | undefined
+): number {
+  if (quantity <= 0) return 0;
+  if (marketCode === MC_MARKET_CODE && mcDeliveryMode === "third_party") {
+    return 0;
+  }
+  return quantity;
+}
+
+/**
+ * Build TripCostLineInput vehicle flags from dispatch line refs.
+ */
+export function vehicleAllocatableQuantityFromLine(line: {
+  marketCode: string | null | undefined;
+  quantity: number;
+  mcDeliveryMode: string | null | undefined;
+}): number {
+  if (!line.marketCode) return 0;
+  return vehicleAllocatableQuantity(
+    line.marketCode,
+    line.quantity,
+    line.mcDeliveryMode
+  );
+}
+
+/**
  * P&L unload (Upah Turun) allocation only: MC barrels excluded when entire MC
- * leg is third_party. Vehicle/trip costs always use full trip quantity.
+ * leg is third_party. Vehicle/trip costs use vehicleAllocatableQuantity per line.
  */
 export function pnlUnloadAllocatableQuantity(
   marketCode: string,

@@ -5,6 +5,7 @@ import {
   mcAssignedLinesFromDispatchLines,
   pnlUnloadAllocatableQuantity,
   tripMcAllThirdParty,
+  vehicleAllocatableQuantity,
 } from "@/lib/mc-dispatch-delivery";
 
 function roundMoney(value: number) {
@@ -100,7 +101,27 @@ describe("pnl allocation by cost type", () => {
     assert.equal(allocated, vehiclePool);
   });
 
-  it("MC third-party shipper: vehicle share > 0 and unload share = 0", () => {
+  it("vehicleAllocatableQuantity excludes MC third_party lines", () => {
+    assert.equal(vehicleAllocatableQuantity("MC", 42, "third_party"), 0);
+    assert.equal(vehicleAllocatableQuantity("MC", 42, "self"), 42);
+    assert.equal(vehicleAllocatableQuantity("KL", 10, null), 10);
+  });
+
+  it("MC third-party shipper: vehicle share = 0 with vehicleAllocatableQuantity", () => {
+    const mcQty = 8;
+    const vehicleQty = vehicleAllocatableQuantity("MC", mcQty, "third_party");
+    const vehicleShare = allocateShare(vehicleQty, totalBarrels, vehiclePool);
+    const unloadShare = allocateShare(
+      pnlUnloadAllocatableQuantity("MC", mcQty, excludeUnload),
+      unloadBarrels,
+      unloadPool
+    );
+    assert.equal(vehicleQty, 0);
+    assert.equal(vehicleShare, 0);
+    assert.equal(unloadShare, 0);
+  });
+
+  it("MC third-party shipper (legacy denominator): vehicle share > 0 and unload share = 0", () => {
     const mcQty = 8;
     const vehicleShare = allocateShare(mcQty, totalBarrels, vehiclePool);
     const unloadShare = allocateShare(
