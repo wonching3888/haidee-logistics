@@ -11,8 +11,10 @@ import {
 } from "@/lib/trip-cost-engine/config";
 import {
   allocateTripLineCosts,
+  assertTripVehicleAllocationConserved,
   type TripGlobalFeePool,
 } from "@/lib/trip-cost-engine/line-cost-allocator";
+import { getRouteGroups } from "@/lib/payroll-route-label";
 import {
   legacyAllocateTripVehicleCosts,
   legacyBuildTripAllocatedPool,
@@ -126,6 +128,8 @@ function resolveEnforcedVoucherCosts(
     routeEstimate,
     unloadingRows: input.unloadingRows,
     loadingRows: input.loadingRows,
+    dispatchEstimate: input.dispatchEstimate,
+    ratesByMarket: input.ratesByMarket,
   });
 }
 
@@ -251,8 +255,11 @@ export function resolveTripAllocatedPool(
   }
 
   if (useEnforcedVehicle && input.truck && input.costLines?.length) {
+    // Leg plan follows effectiveMarkets (shadow/legacy/allocator), not dispatch.markets.
+    // MC all-third-party trips drop MC from effectiveMarkets — avoids orphan MC legs in pool.
+    const vehicleRouteGroups = getRouteGroups(input.effectiveMarkets);
     const legPlan = buildVehicleLegPlan({
-      routeGroups: input.routeGroups,
+      routeGroups: vehicleRouteGroups,
       routes: input.routes,
       tollClass: input.tollClass,
       fuelPriceMyr: input.globalCosts.fuelPriceMyr,
@@ -270,12 +277,26 @@ export function resolveTripAllocatedPool(
       forwardingMyr: routeCosts.forwarding,
       driverMyr: input.driverMyr,
     };
-    const { allocations } = allocateTripLineCosts({
+    const allocationResult = allocateTripLineCosts({
       lines: input.costLines,
       legPlan,
       globalFees,
     });
-    lineAllocationsByShipper = aggregateShipperAllocations(allocations);
+    lineAllocationsByShipper = aggregateShipperAllocations(
+      allocationResult.allocations
+    );
+
+    assertTripVehicleAllocationConserved(allocationResult, {
+      fuelMyr,
+      maintenanceMyr,
+      tollMyr,
+      borderPassMyr,
+      fishCheckingMyr,
+      epermitMyr: routeCosts.epermit,
+      dagangNetMyr: routeCosts.dagangNet,
+      forwardingMyr: routeCosts.forwarding,
+      driverMyr: input.driverMyr,
+    });
   }
 
   const pool: TripAllocatedPool = {

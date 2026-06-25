@@ -338,6 +338,18 @@ export function estimateTripUnloadingFeesTotal(
   dispatch: UnloadingDispatchEstimateInput,
   ratesByMarket: Map<string, UnloadingRateConfigInput>
 ): number {
+  const { kpbMyr, upahTurunMyr } = estimateTripUnloadingFeesBreakdown(
+    dispatch,
+    ratesByMarket
+  );
+  return roundMoney(kpbMyr + upahTurunMyr);
+}
+
+/** Route/rate estimate split for voucher resolver (no stored unloading_fees rows). */
+export function estimateTripUnloadingFeesBreakdown(
+  dispatch: UnloadingDispatchEstimateInput,
+  ratesByMarket: Map<string, UnloadingRateConfigInput>
+): { kpbMyr: number; upahTurunMyr: number } {
   const truckSize = resolveTruckSize(dispatch.truck?.type);
   const marketLines = aggregateDispatchUnloadingLines(
     dispatch as Awaited<ReturnType<typeof loadDispatchForExpense>>
@@ -347,22 +359,23 @@ export function estimateTripUnloadingFeesTotal(
     ratesByMarket,
     truckSize,
   });
-  return roundMoney(
-    calculated.reduce(
-      (sum, row) =>
-        sum +
-        effectiveUnloadFee({
-          unloadFee: row.unloadFee,
-          unloadFeeOverride: null,
-        }) +
-        effectiveKpbFee({
-          kpbFee: row.kpbFee,
-          kpbFeeOverride: null,
-          isKpbExempt: row.isKpbExempt,
-        }),
-      0
-    )
-  );
+  let kpbMyr = 0;
+  let upahTurunMyr = 0;
+  for (const row of calculated) {
+    upahTurunMyr += effectiveUnloadFee({
+      unloadFee: row.unloadFee,
+      unloadFeeOverride: null,
+    });
+    kpbMyr += effectiveKpbFee({
+      kpbFee: row.kpbFee,
+      kpbFeeOverride: null,
+      isKpbExempt: row.isKpbExempt,
+    });
+  }
+  return {
+    kpbMyr: roundMoney(kpbMyr),
+    upahTurunMyr: roundMoney(upahTurunMyr),
+  };
 }
 
 async function loadDispatchForExpense(tripId: string) {

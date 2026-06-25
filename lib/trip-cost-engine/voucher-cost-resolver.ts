@@ -5,6 +5,11 @@ import {
 import type { CrateLoadingFeeCostRow } from "@/lib/unloading-trip-cost";
 import type { UnloadingFeeCostRow } from "@/lib/unloading-trip-cost";
 import type { VoucherCostContext } from "@/lib/trip-cost-engine/types";
+import {
+  estimateTripUnloadingFeesBreakdown,
+  type UnloadingDispatchEstimateInput,
+} from "@/lib/driver-expense-service";
+import type { UnloadingRateConfigInput } from "@/lib/unloading-calculator";
 
 export type VoucherCostSourceTag = "actual" | "estimate" | "override";
 
@@ -117,6 +122,29 @@ export interface ResolveVoucherTripCostsInput {
   routeEstimate: VoucherRouteCostEstimate;
   unloadingRows: UnloadingFeeCostRow[];
   loadingRows?: CrateLoadingFeeCostRow[];
+  /** When not cost-eligible and no stored unloading rows, fall back to route/rate estimate. */
+  dispatchEstimate?: UnloadingDispatchEstimateInput | null;
+  ratesByMarket?: Map<string, UnloadingRateConfigInput>;
+}
+
+function resolveIneligibleLoadUnloadEstimates(input: {
+  unloadingRows: UnloadingFeeCostRow[];
+  dispatchEstimate?: UnloadingDispatchEstimateInput | null;
+  ratesByMarket?: Map<string, UnloadingRateConfigInput>;
+}): { kpbMyr: number; upahTurunMyr: number } {
+  if (input.unloadingRows.length > 0) {
+    return {
+      kpbMyr: sumKpbEstimate(input.unloadingRows),
+      upahTurunMyr: sumUnloadEstimate(input.unloadingRows),
+    };
+  }
+  if (input.dispatchEstimate && input.ratesByMarket) {
+    return estimateTripUnloadingFeesBreakdown(
+      input.dispatchEstimate,
+      input.ratesByMarket
+    );
+  }
+  return { kpbMyr: 0, upahTurunMyr: 0 };
 }
 
 export function resolveVoucherTripCosts(
@@ -157,9 +185,14 @@ export function resolveVoucherTripCosts(
     loadingMyr = sumLoadingEffective(loadingRows);
     loadingSource = hasLoadingOverride(loadingRows) ? "override" : "estimate";
   } else {
-    kpbMyr = sumKpbEstimate(unloadingRows);
+    const loadUnloadEstimates = resolveIneligibleLoadUnloadEstimates({
+      unloadingRows,
+      dispatchEstimate: input.dispatchEstimate,
+      ratesByMarket: input.ratesByMarket,
+    });
+    kpbMyr = loadUnloadEstimates.kpbMyr;
     kpbSource = "estimate";
-    upahTurunMyr = sumUnloadEstimate(unloadingRows);
+    upahTurunMyr = loadUnloadEstimates.upahTurunMyr;
     upahTurunSource = "estimate";
     loadingMyr = sumLoadingEstimate(loadingRows);
     loadingSource = "estimate";

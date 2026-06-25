@@ -1,4 +1,5 @@
 import type { PnlTripRow, PnlTripTotals } from "@/lib/pnl-report-types";
+import { getTripCostEngineConfig } from "@/lib/trip-cost-engine/config";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -19,7 +20,8 @@ export function pnlMonthTripsCacheKey(input: {
   routeFilter?: string;
   driverFilter?: string;
 }) {
-  return `${input.year}-${input.month}|${input.day ?? "full"}|${input.routeFilter ?? "ALL"}|${input.driverFilter ?? "ALL"}`;
+  const { voucherCostMode, vehicleAllocMode } = getTripCostEngineConfig();
+  return `${input.year}-${input.month}|${input.day ?? "full"}|${input.routeFilter ?? "ALL"}|${input.driverFilter ?? "ALL"}|voucher:${voucherCostMode}|vehicle:${vehicleAllocMode}`;
 }
 
 export function getCachedPnlMonthTrips(

@@ -579,6 +579,8 @@ export function compareVoucherGateShadow(
     routeEstimate: input.routeEstimates,
     unloadingRows: input.unloadingRows,
     loadingRows: input.loadingRows,
+    dispatchEstimate: input.dispatchEstimate,
+    ratesByMarket: input.ratesByMarket,
   });
 
   const deltaMyr = roundMoney(enforced.loadUnloadMyr - legacyLoadUnloadMyr);

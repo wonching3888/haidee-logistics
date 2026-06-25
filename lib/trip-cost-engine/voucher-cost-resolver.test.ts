@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  estimateTripUnloadingFeesBreakdown,
+  type UnloadingDispatchEstimateInput,
+} from "@/lib/driver-expense-service";
+import type { UnloadingRateConfigInput } from "@/lib/unloading-calculator";
+import {
   isCostEligible,
   resolveVoucherTripCosts,
   type VoucherRouteCostEstimate,
@@ -35,6 +40,38 @@ const ESTIMATE_KPB = 30;
 const ESTIMATE_UNLOAD = 70;
 const EFFECTIVE_KPB = 32;
 const EFFECTIVE_UNLOAD = 75;
+
+const ROUTE_DISPATCH_ESTIMATE: UnloadingDispatchEstimateInput = {
+  truck: { type: "10-wheeler" },
+  lines: [
+    {
+      inboundLine: {
+        dispatchStatus: "assigned",
+        quantity: 80,
+        mcDeliveryMode: null,
+        stall: { code: "BM-01", market: { code: "BM" } },
+        tongType: { code: "A002", isBox: false },
+      },
+    },
+  ],
+};
+
+const ROUTE_RATES = new Map<string, UnloadingRateConfigInput>([
+  [
+    "BM",
+    {
+      market: "BM",
+      smallCrate: 0.55,
+      largeCrate: 0.65,
+      box: 0.45,
+      kpbSmall: 18,
+      kpbLarge: 22,
+      kpbBox: 12,
+      kpbMode: "per_trip",
+      unloadMode: "per_crate",
+    },
+  ],
+]);
 
 function voucher(
   overrides: Partial<VoucherCostContext> & { status: string }
@@ -234,6 +271,62 @@ describe("resolveVoucherTripCosts", () => {
     expect(result.costEligible).toBe(false);
     expect(result.chopBorderMyr).toBe(25);
     expect(result.kpbMyr).toBe(ESTIMATE_KPB);
+  });
+
+  it("null voucher with no stored rows uses route/rate estimate (not zero)", () => {
+    const routeBreakdown = estimateTripUnloadingFeesBreakdown(
+      ROUTE_DISPATCH_ESTIMATE,
+      ROUTE_RATES
+    );
+    expect(routeBreakdown.kpbMyr + routeBreakdown.upahTurunMyr).toBeGreaterThan(0);
+
+    const result = resolveVoucherTripCosts({
+      voucher: null,
+      routeEstimate: ROUTE_ESTIMATE,
+      unloadingRows: [],
+      dispatchEstimate: ROUTE_DISPATCH_ESTIMATE,
+      ratesByMarket: ROUTE_RATES,
+    });
+
+    expect(result.costEligible).toBe(false);
+    expect(result.kpbMyr).toBe(routeBreakdown.kpbMyr);
+    expect(result.upahTurunMyr).toBe(routeBreakdown.upahTurunMyr);
+    expect(result.loadUnloadMyr).toBe(
+      routeBreakdown.kpbMyr + routeBreakdown.upahTurunMyr
+    );
+    expect(result.sources.kpb).toBe("estimate");
+    expect(result.sources.upahTurun).toBe("estimate");
+  });
+
+  it("unreviewed voucher with no stored rows uses route estimate (matches legacy continuity)", () => {
+    const routeBreakdown = estimateTripUnloadingFeesBreakdown(
+      ROUTE_DISPATCH_ESTIMATE,
+      ROUTE_RATES
+    );
+
+    const result = resolveVoucherTripCosts({
+      voucher: voucher({ status: "pending_review" }),
+      routeEstimate: ROUTE_ESTIMATE,
+      unloadingRows: [],
+      dispatchEstimate: ROUTE_DISPATCH_ESTIMATE,
+      ratesByMarket: ROUTE_RATES,
+    });
+
+    expect(result.costEligible).toBe(false);
+    expect(result.loadUnloadMyr).toBe(
+      routeBreakdown.kpbMyr + routeBreakdown.upahTurunMyr
+    );
+    expect(result.loadUnloadMyr).toBeGreaterThan(0);
+  });
+
+  it("no voucher and no route estimate inputs still returns zero load/unload", () => {
+    const result = resolveVoucherTripCosts({
+      voucher: null,
+      routeEstimate: ROUTE_ESTIMATE,
+      unloadingRows: [],
+    });
+
+    expect(result.loadUnloadMyr).toBe(0);
   });
 
   describe("table: status × override × actual × cost_applied_at", () => {
