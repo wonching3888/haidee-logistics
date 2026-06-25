@@ -2500,3 +2500,12 @@ export async function buildPnlReport(input: {
     lossCustomers,
   };
 }
+
+/** Shadow/snapshot read-only: dispatch P&L rows with shipper vehicle breakdown. */
+export async function loadPnlDispatchTripRowsForPeriod(
+  year: number,
+  month: number
+): Promise<PnlTripRow[]> {
+  const computed = await computeFilteredPnlTrips({ year, month, day: null });
+  return computed.trips.filter((trip) => trip.tripSource === "dispatch");
+}

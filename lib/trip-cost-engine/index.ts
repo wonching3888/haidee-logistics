@@ -4,6 +4,9 @@ export {
   getVehicleAllocMode,
   getVoucherCostMode,
   isVoucherCostEnforced,
+  isVehicleAllocShadow,
+  isVehicleAllocEnforced,
+  shouldUseLegacyTripCostOutput,
   reloadTripCostEngineConfig,
   shouldWritebackVoucherActualsOnSave,
   type TripCostEngineConfig,
@@ -31,8 +34,38 @@ export {
 export {
   logTripCostShadowDiff,
   logTripCostShadowDiffs,
+  configureShadowLogger,
+  resetShadowLoggerBuffer,
+  getShadowLoggerBuffer,
+  flushShadowLoggerBuffer,
+  selectShadowOutput,
+  beginShadowSession,
+  endShadowSession,
+  isShadowSessionActive,
   type TripCostShadowDiff,
+  type ShadowLoggerOptions,
 } from "@/lib/trip-cost-engine/shadow-logger";
+
+export {
+  auditRouteMileageMaster,
+  buildVehicleShadowDiffs,
+  compareTripVehicleShadow,
+  compareVoucherGateShadow,
+  EXPECTED_ROUTE_GROUP_MILEAGE_ORDER,
+  type CompareTripShadowInput,
+  type MileageAuditIssue,
+  type TripVehicleShadowCompare,
+  type VoucherGateShadowCompare,
+} from "@/lib/trip-cost-engine/shadow-compare";
+
+export {
+  buildMonthShadowSummary,
+  classifyFeaturedRoute,
+  formatFeaturedTripMarkdown,
+  formatShadowMarkdownReport,
+  type MonthShadowSummary,
+  type TripShadowSnapshotRow,
+} from "@/lib/trip-cost-engine/shadow-snapshot-report";
 
 export {
   buildVehicleLegPlan,

@@ -46,6 +46,20 @@ export function getVehicleAllocMode(): TripCostMode {
   return cachedConfig.vehicleAllocMode;
 }
 
+/** Shadow: dual-compute legacy+next, log diffs; production output stays legacy. */
+export function isVehicleAllocShadow(): boolean {
+  return cachedConfig.vehicleAllocMode === "shadow";
+}
+
+export function isVehicleAllocEnforced(): boolean {
+  return cachedConfig.vehicleAllocMode === "enforced";
+}
+
+/** Until enforced, all report/API output uses legacy path. */
+export function shouldUseLegacyTripCostOutput(): boolean {
+  return cachedConfig.vehicleAllocMode !== "enforced";
+}
+
 /** Re-read env (or overrides). Intended for unit tests. */
 export function reloadTripCostEngineConfig(
   env: Partial<Record<"VOUCHER_COST_MODE" | "VEHICLE_ALLOC_MODE", string>> = {}
