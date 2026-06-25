@@ -11,6 +11,7 @@ export default defineConfig({
       "lib/sadao-stock.test.ts",
       "lib/search-filters.test.ts",
       "lib/db-retry.test.ts",
+      "lib/driver-voucher-status.test.ts",
     ],
   },
   resolve: {
