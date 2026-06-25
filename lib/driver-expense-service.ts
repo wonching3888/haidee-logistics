@@ -648,12 +648,23 @@ export async function listDriverVouchers(filters: {
   startDate?: string;
   endDate?: string;
   status?: string;
+  statusIn?: string;
   q?: string;
 }) {
   const where: Prisma.DriverVoucherWhereInput = {};
 
   if (filters.tripId) where.tripId = filters.tripId;
-  if (filters.status) where.status = filters.status;
+  if (filters.statusIn) {
+    const statuses = filters.statusIn
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (statuses.length > 0) {
+      where.status = { in: statuses };
+    }
+  } else if (filters.status) {
+    where.status = filters.status;
+  }
   if (filters.startDate || filters.endDate) {
     where.tripDate = {};
     if (filters.startDate) where.tripDate.gte = parseDateInput(filters.startDate);
@@ -672,6 +683,7 @@ export async function listDriverVouchers(filters: {
     filters.startDate ||
     filters.endDate ||
     filters.status ||
+    filters.statusIn ||
     Boolean(q);
 
   if (!hasScope) {

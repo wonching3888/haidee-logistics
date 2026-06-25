@@ -1336,6 +1336,271 @@ export const MESSAGES = {
     en: "Invalid quantity for {code}",
     th: "จำนวนประเภทลัง {code} ไม่ถูกต้อง",
   },
+  "driverExpenses.page.title": {
+    zh: "司机费用",
+    en: "Driver Expenses",
+    th: "ค่าใช้จ่ายคนขับ",
+  },
+  "driverExpenses.page.subtitle": {
+    zh: "下货费 · 上桶费 · 司机报销单",
+    en: "Unloading fees · Loading fees · Driver vouchers",
+    th: "ค่าขนถ่าย · ค่าขึ้นลัง · ใบเบิกคนขับ",
+  },
+  "driverExpenses.module.voucher": {
+    zh: "Module 2 — 司机报销单",
+    en: "Module 2 — Driver Voucher",
+    th: "โมดูล 2 — ใบเบิกคนขับ",
+  },
+  "driverExpenses.module.unloading": {
+    zh: "Module 1 — 下货费",
+    en: "Module 1 — Unloading Fees",
+    th: "โมดูล 1 — ค่าขนถ่าย",
+  },
+  "driverExpenses.zone.today": {
+    zh: "当日派车趟次",
+    en: "Today's dispatch trips",
+    th: "เที่ยวรถวันนี้",
+  },
+  "driverExpenses.zone.todo": {
+    zh: "待办",
+    en: "To-do",
+    th: "รายการค้าง",
+  },
+  "driverExpenses.zone.history": {
+    zh: "历史",
+    en: "History",
+    th: "ประวัติ",
+  },
+  "driverExpenses.col.date": {
+    zh: "日期",
+    en: "Date",
+    th: "วันที่",
+  },
+  "driverExpenses.col.plate": {
+    zh: "车牌",
+    en: "Plate",
+    th: "ทะเบียน",
+  },
+  "driverExpenses.col.driver": {
+    zh: "司机",
+    en: "Driver",
+    th: "คนขับ",
+  },
+  "driverExpenses.col.route": {
+    zh: "市场",
+    en: "Route",
+    th: "เส้นทาง",
+  },
+  "driverExpenses.col.voucherNo": {
+    zh: "单号",
+    en: "Voucher No",
+    th: "เลขที่ใบเบิก",
+  },
+  "driverExpenses.col.expense": {
+    zh: "支出",
+    en: "Expense",
+    th: "ค่าใช้จ่าย",
+  },
+  "driverExpenses.search": {
+    zh: "查询",
+    en: "Search",
+    th: "ค้นหา",
+  },
+  "driverExpenses.syncEstimates": {
+    zh: "重新同步估算",
+    en: "Re-sync estimates",
+    th: "ซิงก์ประมาณการใหม่",
+  },
+  "driverExpenses.from": {
+    zh: "从",
+    en: "From",
+    th: "ตั้งแต่",
+  },
+  "driverExpenses.to": {
+    zh: "至",
+    en: "To",
+    th: "ถึง",
+  },
+  "driverExpenses.searchPlaceholder": {
+    zh: "单号 / 车牌",
+    en: "Voucher no / plate",
+    th: "เลขใบเบิก / ทะเบียน",
+  },
+  "driverExpenses.pendingReviewCount": {
+    zh: "待审核 ({count})",
+    en: "Pending review ({count})",
+    th: "รอตรวจ ({count})",
+  },
+  "driverExpenses.status.all": {
+    zh: "全部状态",
+    en: "All statuses",
+    th: "ทุกสถานะ",
+  },
+  "driverExpenses.status.draft": {
+    zh: "估算",
+    en: "Draft",
+    th: "ประมาณการ",
+  },
+  "driverExpenses.status.clerk_entered": {
+    zh: "已录待确认",
+    en: "Entered",
+    th: "บันทึกแล้วรอยืนยัน",
+  },
+  "driverExpenses.status.confirmed": {
+    zh: "已确认",
+    en: "Confirmed",
+    th: "ยืนยันแล้ว",
+  },
+  "driverExpenses.status.pending_review": {
+    zh: "待审核",
+    en: "Pending review",
+    th: "รอตรวจ",
+  },
+  "driverExpenses.status.approved": {
+    zh: "已审",
+    en: "Approved",
+    th: "อนุมัติแล้ว",
+  },
+  "driverExpenses.status.rejected": {
+    zh: "已打回",
+    en: "Rejected",
+    th: "ตีกลับ",
+  },
+  "driverExpenses.status.notEntered": {
+    zh: "未录",
+    en: "Not entered",
+    th: "ยังไม่บันทึก",
+  },
+  "driverExpenses.action.enter": {
+    zh: "录入",
+    en: "Enter",
+    th: "บันทึก",
+  },
+  "driverExpenses.action.continue": {
+    zh: "继续录入",
+    en: "Continue",
+    th: "บันทึกต่อ",
+  },
+  "driverExpenses.action.view": {
+    zh: "查看",
+    en: "View",
+    th: "ดู",
+  },
+  "driverExpenses.action.review": {
+    zh: "审核",
+    en: "Review",
+    th: "ตรวจ",
+  },
+  "driverExpenses.empty.queryFirst": {
+    zh: "请选择日期后点击「查询」加载当日趟次",
+    en: "Select a date and click Search to load today's trips",
+    th: "เลือกวันที่แล้วกดค้นหาเพื่อโหลดเที่ยววันนี้",
+  },
+  "driverExpenses.empty.noDispatch": {
+    zh: "此日期无派车趟次",
+    en: "No dispatch trips on this date",
+    th: "ไม่มีเที่ยวรถในวันนี้",
+  },
+  "driverExpenses.empty.noTodo": {
+    zh: "暂无待办报销单",
+    en: "No vouchers in to-do",
+    th: "ไม่มีใบเบิกค้าง",
+  },
+  "driverExpenses.empty.historyQuery": {
+    zh: "请点击「查询」加载历史列表",
+    en: "Click Search to load history",
+    th: "กดค้นหาเพื่อโหลดประวัติ",
+  },
+  "driverExpenses.empty.noHistory": {
+    zh: "暂无符合条件的报销单",
+    en: "No vouchers match your filters",
+    th: "ไม่พบใบเบิกตามเงื่อนไข",
+  },
+  "driverExpenses.loading": {
+    zh: "加载中…",
+    en: "Loading…",
+    th: "กำลังโหลด…",
+  },
+  "driverExpenses.loadFailed": {
+    zh: "加载失败",
+    en: "Failed to load",
+    th: "โหลดไม่สำเร็จ",
+  },
+  "driverExpenses.syncFailed": {
+    zh: "同步失败",
+    en: "Sync failed",
+    th: "ซิงก์ไม่สำเร็จ",
+  },
+  "driverExpenses.saveFailed": {
+    zh: "保存失败",
+    en: "Save failed",
+    th: "บันทึกไม่สำเร็จ",
+  },
+  "driverExpenses.form.saveConfirm": {
+    zh: "保存并确认",
+    en: "Save & confirm",
+    th: "บันทึกและยืนยัน",
+  },
+  "driverExpenses.form.saveFlag": {
+    zh: "保存并标记需审核",
+    en: "Save & flag for review",
+    th: "บันทึกและส่งตรวจ",
+  },
+  "driverExpenses.form.flagNote": {
+    zh: "标记需审核原因",
+    en: "Reason for review",
+    th: "เหตุผลที่ส่งตรวจ",
+  },
+  "driverExpenses.form.flagNoteRequired": {
+    zh: "请填写标记需审核的原因",
+    en: "Clerk note is required when flagging for review",
+    th: "กรุณาระบุเหตุผลที่ส่งตรวจ",
+  },
+  "driverExpenses.form.flagNotePlaceholder": {
+    zh: "说明为何需要审核…",
+    en: "Explain why review is needed…",
+    th: "อธิบายเหตุผลที่ต้องตรวจ…",
+  },
+  "driverExpenses.form.submitFlag": {
+    zh: "提交标记",
+    en: "Submit flag",
+    th: "ส่งตรวจ",
+  },
+  "driverExpenses.form.rejectionBanner": {
+    zh: "ADMIN 打回原因",
+    en: "Rejection reason",
+    th: "เหตุผลที่ตีกลับ",
+  },
+  "driverExpenses.form.transitionFailed": {
+    zh: "状态变更失败，请重试确认或标记",
+    en: "Status change failed — retry confirm or flag",
+    th: "เปลี่ยนสถานะไม่สำเร็จ — ลองยืนยันหรือส่งตรวจอีกครั้ง",
+  },
+  "driverExpenses.unloading.queryHint": {
+    zh: "查询当日数据后可查看下货费摘要",
+    en: "Search today's data to view unloading fee summary",
+    th: "ค้นหาข้อมูลวันนี้เพื่อดูสรุปค่าขนถ่าย",
+  },
+  "driverExpenses.unloading.empty": {
+    zh: "此日期暂无下货费记录（派车保存后会自动生成估算）",
+    en: "No unloading fees for this date (estimates appear after dispatch is saved)",
+    th: "ไม่มีค่าขนถ่ายวันนี้ (ประมาณการจะสร้างหลังบันทึกจัดรถ)",
+  },
+  "driverExpenses.unloading.expand": {
+    zh: "展开下货费明细",
+    en: "Show unloading fee details",
+    th: "แสดงรายละเอียดค่าขนถ่าย",
+  },
+  "driverExpenses.unloading.collapse": {
+    zh: "收起",
+    en: "Collapse",
+    th: "ย่อ",
+  },
+  "driverExpenses.unloading.total": {
+    zh: "合计",
+    en: "Total",
+    th: "รวม",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

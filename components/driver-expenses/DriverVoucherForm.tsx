@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,8 @@ import {
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
+import { useT } from "@/components/shared/locale-context";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
-import { parseDriverExpensesTab } from "@/lib/driver-expense/voucher-list-types";
 import {
   isVoucherStatus,
   type VoucherStatus,
@@ -106,16 +106,6 @@ function canEditVoucherFields(
   return (
     status === "draft" || status === "clerk_entered" || status === "rejected"
   );
-}
-
-function saveButtonLabel(status: VoucherStatus, mode: "new" | "edit"): string {
-  if (mode === "new" || status === "draft") {
-    return "保存录入 / Save entry";
-  }
-  if (status === "rejected") {
-    return "保存并重新提交 / Resubmit";
-  }
-  return "保存修改 / Save changes";
 }
 
 const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
@@ -229,8 +219,7 @@ export function DriverVoucherForm({
   userRole,
 }: DriverVoucherFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnTab = parseDriverExpensesTab(searchParams.get("tab"));
+  const { t } = useT();
   const [form, setForm] = useState<VoucherFormState | null>(null);
   const [workflow, setWorkflow] = useState<VoucherWorkflowMeta>(defaultWorkflowMeta);
   const [changeLogs, setChangeLogs] = useState<VoucherChangeLogEntry[]>([]);
@@ -241,13 +230,20 @@ export function DriverVoucherForm({
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workflowBusy, setWorkflowBusy] = useState(false);
+  const [showFlagForm, setShowFlagForm] = useState(false);
+  const [clerkNote, setClerkNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [printBreakdown, setPrintBreakdown] =
     useState<VoucherPrintBreakdown | null>(null);
 
-  const backHref = `/documents/driver-expenses?date=${date}&tab=${returnTab}&refresh=1`;
+  const backHref = `/documents/driver-expenses?date=${date}&refresh=1`;
   const formEditable = canEditVoucherFields(workflow.status, userRole, mode);
-  const showSaveButton = formEditable && Boolean(form);
+  const showFinalizeButtons =
+    formEditable &&
+    Boolean(form) &&
+    (mode === "new" ||
+      workflow.status === "draft" ||
+      workflow.status === "rejected");
   const showDecisionPanel =
     workflow.status === "clerk_entered" && canWriteDriverVoucher(userRole);
   const showReviewPanel =
@@ -452,16 +448,65 @@ export function DriverVoucherForm({
     return id;
   }
 
-  async function transitionVoucher(toStatus: VoucherStatus, note?: string) {
-    if (!voucherId) throw new Error("Voucher ID required");
-    const res = await fetch(`/api/driver-vouchers/${voucherId}/transition`, {
+  async function transitionVoucherById(
+    id: string,
+    toStatus: VoucherStatus,
+    note?: string
+  ) {
+    const res = await fetch(`/api/driver-vouchers/${id}/transition`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toStatus, note }),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
-      throw new Error(data.error ?? "状态变更失败 / Transition failed");
+      throw new Error(data.error ?? t("driverExpenses.form.transitionFailed"));
+    }
+  }
+
+  async function transitionVoucher(toStatus: VoucherStatus, note?: string) {
+    if (!voucherId) throw new Error("Voucher ID required");
+    await transitionVoucherById(voucherId, toStatus, note);
+  }
+
+  async function submitAndFinalize(
+    toStatus: "confirmed" | "pending_review",
+    note?: string
+  ) {
+    if (!form) return;
+    if (toStatus === "pending_review" && (!note || !note.trim())) {
+      setError(t("driverExpenses.form.flagNoteRequired"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const id = await persistVoucher({ submitEntry: true, stayOnPage: false });
+      try {
+        await transitionVoucherById(id, toStatus, note?.trim());
+      } catch (transitionError) {
+        router.replace(`/documents/driver-expenses/${id}?date=${date}`);
+        setError(
+          transitionError instanceof Error
+            ? transitionError.message
+            : t("driverExpenses.form.transitionFailed")
+        );
+        throw transitionError;
+      }
+      setShowFlagForm(false);
+      setClerkNote("");
+      router.push(backHref);
+      router.refresh();
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        e.message !== t("driverExpenses.form.transitionFailed") &&
+        !error
+      ) {
+        setError(e.message);
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -609,30 +654,6 @@ export function DriverVoucherForm({
   const baki =
     duitJalan != null ? roundMoney(duitJalan - belanja) : null;
 
-  async function saveVoucher() {
-    if (!form) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const submitEntry =
-        mode === "new" ||
-        workflow.status === "draft" ||
-        workflow.status === "rejected";
-      const stayOnPage = workflow.status === "clerk_entered";
-
-      await persistVoucher({ submitEntry, stayOnPage });
-
-      if (!stayOnPage) {
-        router.push(backHref);
-        router.refresh();
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menyimpan / Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const printData = form ? formToPrintData(form, belanja, baki) : null;
   const availableTrips = dispatches.filter((d) => !existingTripIds.has(d.id));
 
@@ -677,7 +698,7 @@ export function DriverVoucherForm({
 
       {workflow.status === "rejected" && workflow.reviewNote && (
         <div className="no-print rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">ADMIN 打回原因 / Rejection reason</p>
+          <p className="font-semibold">{t("driverExpenses.form.rejectionBanner")}</p>
           <p className="mt-1 whitespace-pre-wrap">{workflow.reviewNote}</p>
         </div>
       )}
@@ -1137,14 +1158,30 @@ export function DriverVoucherForm({
             )}
 
             <div className="flex flex-wrap gap-2">
-              {showSaveButton && (
-                <Button onClick={saveVoucher} disabled={workflowBusyAny}>
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    saveButtonLabel(workflow.status, mode)
-                  )}
-                </Button>
+              {showFinalizeButtons && (
+                <>
+                  <Button
+                    type="button"
+                    disabled={workflowBusyAny}
+                    className="bg-emerald-600 hover:bg-emerald-600/90"
+                    onClick={() => void submitAndFinalize("confirmed")}
+                  >
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      t("driverExpenses.form.saveConfirm")
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={workflowBusyAny}
+                    className="border-orange-300 text-orange-900 hover:bg-orange-50"
+                    onClick={() => setShowFlagForm((v) => !v)}
+                  >
+                    {t("driverExpenses.form.saveFlag")}
+                  </Button>
+                </>
               )}
               <Button
                 type="button"
@@ -1162,6 +1199,37 @@ export function DriverVoucherForm({
                 {VOUCHER_LABELS.batal}
               </Link>
             </div>
+
+            {showFinalizeButtons && showFlagForm && (
+              <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50/50 p-3">
+                <label className="text-sm font-medium">
+                  {t("driverExpenses.form.flagNote")}{" "}
+                  <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  value={clerkNote}
+                  onChange={(e) => setClerkNote(e.target.value)}
+                  placeholder={t("driverExpenses.form.flagNotePlaceholder")}
+                  rows={3}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={workflowBusyAny}
+                  className="border-orange-300 text-orange-900 hover:bg-orange-50"
+                  onClick={() =>
+                    void submitAndFinalize("pending_review", clerkNote)
+                  }
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("driverExpenses.form.submitFlag")
+                  )}
+                </Button>
+              </div>
+            )}
           </section>
 
           {mode === "edit" && voucherId && (

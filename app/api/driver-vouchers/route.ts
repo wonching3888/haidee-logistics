@@ -19,6 +19,7 @@ export async function GET(request: Request) {
       startDate: searchParams.get("startDate") ?? undefined,
       endDate: searchParams.get("endDate") ?? undefined,
       status: searchParams.get("status") ?? undefined,
+      statusIn: searchParams.get("statusIn") ?? undefined,
       q: searchParams.get("q") ?? undefined,
     });
     return NextResponse.json({ vouchers });

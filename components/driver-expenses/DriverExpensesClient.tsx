@@ -1,35 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
+import { useT } from "@/components/shared/locale-context";
 import {
+  buildDispatchTripRows,
   defaultHistoryDateRange,
   normalizeVoucherListItem,
-  parseDriverExpensesTab,
-  type DriverExpensesTab,
+  sortTodoVouchers,
+  TODO_STATUS_IN,
+  type DispatchOption,
   type DriverVoucherListItem,
 } from "@/lib/driver-expense/voucher-list-types";
 import type { StoredUserRole } from "@/types";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
-import { cn } from "@/lib/utils";
 import {
   UnloadingFeesCollapsible,
   type UnloadingFeeRow,
 } from "./UnloadingFeesCollapsible";
 import { VoucherHistoryPanel, type HistoryFilters } from "./VoucherHistoryPanel";
 import { VoucherTodayPanel } from "./VoucherTodayPanel";
+import { VoucherTodoPanel } from "./VoucherTodoPanel";
 
-const DRIVER_EXPENSES_CACHE_KEY = "driver-expenses:search-state:v2";
-
-interface DispatchOption {
-  id: string;
-  lorry: string;
-  driver: string;
-  route: string;
-}
+const DRIVER_EXPENSES_CACHE_KEY = "driver-expenses:search-state:v3";
 
 interface DriverExpensesClientProps {
   initialDate: string;
@@ -53,6 +49,21 @@ function ModuleCard({
   );
 }
 
+function ZoneSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 border-b border-haidee-border pb-6 last:border-b-0 last:pb-0">
+      <h4 className="text-sm font-semibold text-haidee-text">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
 function parseHistoryFilters(
   searchParams: URLSearchParams,
   fallbackDate: string
@@ -63,7 +74,6 @@ function parseHistoryFilters(
     to: searchParams.get("to") ?? defaults.to,
     status: searchParams.get("status") ?? "",
     q: searchParams.get("q") ?? "",
-    pendingOnly: searchParams.get("pending") === "1",
   };
 }
 
@@ -73,16 +83,15 @@ export function DriverExpensesClient({
 }: DriverExpensesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useT();
   const isAdmin = userRole === "admin";
-  const canCreate = canWriteDriverVoucher(userRole);
+  const canWrite = canWriteDriverVoucher(userRole);
 
-  const [tab, setTab] = useState<DriverExpensesTab>(() =>
-    parseDriverExpensesTab(searchParams.get("tab"))
-  );
   const [date, setDate] = useState(initialDate);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [unloadingFees, setUnloadingFees] = useState<UnloadingFeeRow[]>([]);
   const [todayVouchers, setTodayVouchers] = useState<DriverVoucherListItem[]>([]);
+  const [todoVouchers, setTodoVouchers] = useState<DriverVoucherListItem[]>([]);
   const [historyVouchers, setHistoryVouchers] = useState<DriverVoucherListItem[]>(
     []
   );
@@ -90,16 +99,26 @@ export function DriverExpensesClient({
     parseHistoryFilters(searchParams, initialDate)
   );
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [todoLoaded, setTodoLoaded] = useState(false);
   const [dispatches, setDispatches] = useState<DispatchOption[]>([]);
   const [loadingToday, setLoadingToday] = useState(false);
+  const [loadingTodo, setLoadingTodo] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
-  const historyInitialLoaded = useRef(false);
+  const initialLoadsDone = useRef(false);
 
   const hasLoadedToday = loadedDate === date;
+  const dispatchTrips = useMemo(
+    () => buildDispatchTripRows(date, dispatches, todayVouchers),
+    [date, dispatches, todayVouchers]
+  );
+  const sortedTodo = useMemo(
+    () => sortTodoVouchers(todoVouchers),
+    [todoVouchers]
+  );
 
   const syncUrl = useCallback(
     (patch: Record<string, string | null | undefined>) => {
@@ -108,6 +127,7 @@ export function DriverExpensesClient({
         if (value == null || value === "") params.delete(key);
         else params.set(key, value);
       }
+      params.delete("tab");
       router.replace(`/documents/driver-expenses?${params.toString()}`);
     },
     [router, searchParams]
@@ -144,7 +164,7 @@ export function DriverExpensesClient({
         ]);
 
         if (!unloadingRes.ok || !voucherRes.ok) {
-          throw new Error("加载失败 Failed to load data");
+          throw new Error(t("driverExpenses.loadFailed"));
         }
 
         const [unloadingData, voucherData, dispatchData] = await Promise.all([
@@ -173,13 +193,30 @@ export function DriverExpensesClient({
           syncUrl({ refresh: null });
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "加载失败");
+        setError(e instanceof Error ? e.message : t("driverExpenses.loadFailed"));
       } finally {
         setLoadingToday(false);
       }
     },
-    [persistTodayCache, syncUrl]
+    [persistTodayCache, syncUrl, t]
   );
+
+  const loadTodo = useCallback(async () => {
+    setLoadingTodo(true);
+    setError(null);
+    try {
+      const qs = new URLSearchParams({ statusIn: TODO_STATUS_IN });
+      const res = await fetch(`/api/driver-vouchers?${qs}`);
+      if (!res.ok) throw new Error(t("driverExpenses.loadFailed"));
+      const data = (await res.json()) as { vouchers?: DriverVoucherListItem[] };
+      setTodoVouchers((data.vouchers ?? []).map(normalizeVoucherListItem));
+      setTodoLoaded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("driverExpenses.loadFailed"));
+    } finally {
+      setLoadingTodo(false);
+    }
+  }, [t]);
 
   const loadHistory = useCallback(
     async (filters: HistoryFilters) => {
@@ -187,27 +224,23 @@ export function DriverExpensesClient({
       setError(null);
       try {
         const qs = new URLSearchParams();
-        if (filters.pendingOnly) {
-          qs.set("status", "pending_review");
-        } else {
-          if (filters.from) qs.set("startDate", filters.from);
-          if (filters.to) qs.set("endDate", filters.to);
-          if (filters.status) qs.set("status", filters.status);
-        }
+        if (filters.from) qs.set("startDate", filters.from);
+        if (filters.to) qs.set("endDate", filters.to);
+        if (filters.status) qs.set("status", filters.status);
         if (filters.q.trim()) qs.set("q", filters.q.trim());
 
         const res = await fetch(`/api/driver-vouchers?${qs}`);
-        if (!res.ok) throw new Error("加载失败 Failed to load history");
+        if (!res.ok) throw new Error(t("driverExpenses.loadFailed"));
         const data = (await res.json()) as { vouchers?: DriverVoucherListItem[] };
         setHistoryVouchers((data.vouchers ?? []).map(normalizeVoucherListItem));
         setHistoryLoaded(true);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "加载失败");
+        setError(e instanceof Error ? e.message : t("driverExpenses.loadFailed"));
       } finally {
         setLoadingHistory(false);
       }
     },
-    []
+    [t]
   );
 
   const loadPendingCount = useCallback(async () => {
@@ -222,21 +255,45 @@ export function DriverExpensesClient({
     }
   }, [isAdmin]);
 
+  const refreshAll = useCallback(async () => {
+    const filters = parseHistoryFilters(searchParams, date);
+    await Promise.all([
+      loadToday(date, { skipCache: true }),
+      loadTodo(),
+      loadPendingCount(),
+      historyLoaded ? loadHistory(filters) : Promise.resolve(),
+    ]);
+  }, [
+    date,
+    historyLoaded,
+    loadHistory,
+    loadPendingCount,
+    loadToday,
+    loadTodo,
+    searchParams,
+  ]);
+
   useEffect(() => {
     setDate(initialDate);
   }, [initialDate]);
 
   useEffect(() => {
-    const nextTab = parseDriverExpensesTab(searchParams.get("tab"));
-    setTab(nextTab);
     setHistoryFilters(parseHistoryFilters(searchParams, date));
   }, [searchParams, date]);
 
   useEffect(() => {
     if (searchParams.get("refresh") === "1") {
-      void loadToday(date, { skipCache: true });
+      initialLoadsDone.current = true;
+      void refreshAll();
+      return;
     }
-  }, [searchParams, date, loadToday]);
+    if (initialLoadsDone.current) return;
+    initialLoadsDone.current = true;
+    const filters = parseHistoryFilters(searchParams, date);
+    void loadTodo();
+    void loadPendingCount();
+    void loadHistory(filters);
+  }, [searchParams, date, refreshAll, loadTodo, loadPendingCount, loadHistory]);
 
   useEffect(() => {
     if (searchParams.get("refresh") === "1") return;
@@ -260,28 +317,10 @@ export function DriverExpensesClient({
     }
   }, [date, searchParams]);
 
-  useEffect(() => {
-    if (tab !== "history") {
-      historyInitialLoaded.current = false;
-      return;
-    }
-    if (historyInitialLoaded.current) return;
-    historyInitialLoaded.current = true;
-    const filters = parseHistoryFilters(searchParams, date);
-    setHistoryFilters(filters);
-    void loadHistory(filters);
-    void loadPendingCount();
-  }, [tab, searchParams, date, loadHistory, loadPendingCount]);
-
   function updateDate(next: string) {
     setDate(next);
     setLoadedDate(null);
-    syncUrl({ date: next, tab: "today" });
-  }
-
-  function switchTab(next: DriverExpensesTab) {
-    setTab(next);
-    syncUrl({ tab: next });
+    syncUrl({ date: next });
   }
 
   function handleTodaySearch() {
@@ -290,33 +329,12 @@ export function DriverExpensesClient({
 
   function handleHistorySearch() {
     syncUrl({
-      tab: "history",
-      from: historyFilters.pendingOnly ? null : historyFilters.from,
-      to: historyFilters.pendingOnly ? null : historyFilters.to,
-      status: historyFilters.pendingOnly ? null : historyFilters.status || null,
+      from: historyFilters.from,
+      to: historyFilters.to,
+      status: historyFilters.status || null,
       q: historyFilters.q.trim() || null,
-      pending: historyFilters.pendingOnly ? "1" : null,
     });
     void loadHistory(historyFilters);
-    void loadPendingCount();
-  }
-
-  function handlePendingShortcut() {
-    const next: HistoryFilters = {
-      ...historyFilters,
-      pendingOnly: !historyFilters.pendingOnly,
-      status: "pending_review",
-    };
-    setHistoryFilters(next);
-    syncUrl({
-      tab: "history",
-      pending: next.pendingOnly ? "1" : null,
-      from: null,
-      to: null,
-      status: null,
-      q: historyFilters.q.trim() || null,
-    });
-    void loadHistory(next);
   }
 
   async function syncFees() {
@@ -341,14 +359,14 @@ export function DriverExpensesClient({
           }).then(async (res) => {
             if (!res.ok) {
               const data = (await res.json()) as { error?: string };
-              throw new Error(data.error ?? "同步失败");
+              throw new Error(data.error ?? t("driverExpenses.syncFailed"));
             }
           })
         )
       );
       await loadToday(date);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "同步失败");
+      setError(e instanceof Error ? e.message : t("driverExpenses.syncFailed"));
     } finally {
       setSyncing(false);
     }
@@ -367,7 +385,7 @@ export function DriverExpensesClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),
       });
-      if (!res.ok) throw new Error("保存失败");
+      if (!res.ok) throw new Error(t("driverExpenses.saveFailed"));
       const data = (await res.json()) as { fee?: UnloadingFeeRow };
       if (data.fee) {
         setUnloadingFees((prev) => {
@@ -385,17 +403,9 @@ export function DriverExpensesClient({
         });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      setError(e instanceof Error ? e.message : t("driverExpenses.saveFailed"));
     }
   }
-
-  const tabClass = (active: boolean) =>
-    cn(
-      "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-      active
-        ? "border-haidee-blue text-haidee-blue"
-        : "border-transparent text-haidee-muted hover:text-haidee-text"
-    );
 
   return (
     <div className="space-y-6">
@@ -405,66 +415,61 @@ export function DriverExpensesClient({
         </p>
       )}
 
-      <ModuleCard title="Module 2 — Driver Voucher（司机报销单）">
-        <div className="no-print mb-4 flex gap-1 border-b border-haidee-border">
-          <button
-            type="button"
-            className={tabClass(tab === "today")}
-            onClick={() => switchTab("today")}
+      <ModuleCard title={t("driverExpenses.module.voucher")}>
+        <div className="no-print mb-6 flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">{t("common.date")}</label>
+            <DateInputField value={date} onChange={updateDate} />
+          </div>
+          <Button
+            onClick={handleTodaySearch}
+            disabled={loadingToday}
+            className="gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
           >
-            当日 Today
-          </button>
-          <button
-            type="button"
-            className={tabClass(tab === "history")}
-            onClick={() => switchTab("history")}
+            {loadingToday ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            {t("driverExpenses.search")}
+          </Button>
+          <Button
+            onClick={() => startTransition(() => syncFees())}
+            disabled={syncing || isPending || !hasLoadedToday}
+            variant="outline"
+            className="gap-2"
           >
-            历史 History
-          </button>
+            {syncing || isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {t("driverExpenses.syncEstimates")}
+          </Button>
         </div>
 
-        {tab === "today" && (
-          <div className="no-print mb-4 flex flex-wrap items-end gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">日期 Date</label>
-              <DateInputField value={date} onChange={updateDate} />
-            </div>
-            <Button
-              onClick={handleTodaySearch}
-              disabled={loadingToday}
-              className="gap-2 bg-haidee-blue text-white hover:bg-haidee-blue/90"
-            >
-              {loadingToday ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-              查询 Search
-            </Button>
-            <Button
-              onClick={() => startTransition(() => syncFees())}
-              disabled={syncing || isPending || !hasLoadedToday}
-              variant="outline"
-              className="gap-2"
-            >
-              {syncing || isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              重新同步估算
-            </Button>
-          </div>
-        )}
-
-        {tab === "today" ? (
+        <ZoneSection title={t("driverExpenses.zone.today")}>
           <VoucherTodayPanel
             date={date}
-            vouchers={todayVouchers}
+            trips={dispatchTrips}
             hasLoaded={hasLoadedToday}
-            canCreate={canCreate}
+            canWrite={canWrite}
+            isAdmin={isAdmin}
           />
-        ) : (
+        </ZoneSection>
+
+        <ZoneSection title={t("driverExpenses.zone.todo")}>
+          <VoucherTodoPanel
+            vouchers={sortedTodo}
+            loading={loadingTodo}
+            hasLoaded={todoLoaded}
+            canWrite={canWrite}
+            isAdmin={isAdmin}
+            pendingCount={pendingCount}
+          />
+        </ZoneSection>
+
+        <ZoneSection title={t("driverExpenses.zone.history")}>
           <VoucherHistoryPanel
             filters={historyFilters}
             onFiltersChange={setHistoryFilters}
@@ -472,11 +477,9 @@ export function DriverExpensesClient({
             loading={loadingHistory}
             hasLoaded={historyLoaded}
             isAdmin={isAdmin}
-            pendingCount={pendingCount}
             onSearch={handleHistorySearch}
-            onPendingShortcut={handlePendingShortcut}
           />
-        )}
+        </ZoneSection>
       </ModuleCard>
 
       <UnloadingFeesCollapsible

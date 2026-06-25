@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { useT } from "@/components/shared/locale-context";
 import {
   Table,
   TableBody,
@@ -96,6 +97,7 @@ export function UnloadingFeesCollapsible({
   hasLoaded,
   onPatchFee,
 }: UnloadingFeesCollapsibleProps) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState(false);
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(new Set());
   const [printTarget, setPrintTarget] = useState<string | null>(null);
@@ -128,17 +130,17 @@ export function UnloadingFeesCollapsible({
     <section className="overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
       <header className="border-b border-haidee-border bg-haidee-surface/40 px-4 py-3">
         <h3 className="font-semibold text-haidee-text">
-          Module 1 — Upah Turun（下货费）
+          {t("driverExpenses.module.unloading")}
         </h3>
       </header>
       <div className="p-4">
         {!hasLoaded ? (
           <p className="text-sm text-haidee-muted">
-            查询当日数据后可查看下货费摘要
+            {t("driverExpenses.unloading.queryHint")}
           </p>
         ) : groups.length === 0 ? (
           <p className="text-sm text-haidee-muted">
-            此日期暂无下货费记录（派车保存后会自动生成估算）
+            {t("driverExpenses.unloading.empty")}
           </p>
         ) : (
           <>
@@ -160,7 +162,9 @@ export function UnloadingFeesCollapsible({
                 <span className="text-haidee-muted"> · {groups.length} 趟</span>
               </span>
               <span className="ml-auto text-haidee-muted">
-                {expanded ? "收起" : "展开明细"}
+                {expanded
+                  ? t("driverExpenses.unloading.collapse")
+                  : t("driverExpenses.unloading.expand")}
               </span>
             </button>
 
