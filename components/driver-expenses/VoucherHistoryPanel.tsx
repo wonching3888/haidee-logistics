@@ -202,7 +202,9 @@ export function VoucherHistoryPanel({
                       href={buildViewHref(v, filters)}
                       className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
                     >
-                      查看
+                      {isAdmin && v.status === "pending_review"
+                        ? "审核 Review"
+                        : "查看"}
                     </Link>
                   </TableCell>
                 </TableRow>

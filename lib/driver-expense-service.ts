@@ -1,6 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/date-utils";
+import {
+  appendVoucherFieldChangeLogs,
+  diffVoucherFieldChanges,
+} from "@/lib/driver-voucher-audit";
+import {
+  applyVoucherStatusTransitionInTx,
+  assertActorCanTransition,
+  isVoucherStatus,
+  type VoucherTransitionActor,
+} from "@/lib/driver-voucher-status";
+import type { VoucherStatus } from "@/lib/driver-voucher-status-types";
 import { calendarDateUTC } from "@/lib/reports/period-report-shared";
 import { formatTripRouteLabel, normalizeTripMarkets } from "@/lib/trip-allowance";
 import {
@@ -683,6 +694,78 @@ export async function getDriverVoucher(id: string) {
   return prisma.driverVoucher.findUnique({ where: { id } });
 }
 
+const EDITABLE_VOUCHER_STATUSES = new Set<VoucherStatus>([
+  "draft",
+  "clerk_entered",
+  "rejected",
+]);
+
+export interface DriverVoucherWriteOptions {
+  actor?: VoucherTransitionActor;
+  submitEntry?: boolean;
+}
+
+type VoucherAmountPatch = Partial<{
+  chopBorderAmt: number | null;
+  chopBorderActual: number | null;
+  parkingAmt: number | null;
+  parkingActual: number | null;
+  kpbAmt: number | null;
+  kpbActual: number | null;
+  fishCheckAmt: number | null;
+  fishCheckActual: number | null;
+  upahTurunAmt: number | null;
+  upahTurunActual: number | null;
+  upahNaikTongAmt: number | null;
+  upahNaikTongActual: number | null;
+  minyakMotoEnabled: boolean;
+  minyakMotoAmt: number;
+  minyakMotoActual: number | null;
+  otherActual: number | null;
+  duitJalan: number | null;
+}>;
+
+function assertVoucherEditable(status: string) {
+  if (!isVoucherStatus(status) || !EDITABLE_VOUCHER_STATUSES.has(status)) {
+    throw new Error(
+      "当前状态不可编辑 / Voucher cannot be edited in this status"
+    );
+  }
+}
+
+export async function listDriverVoucherChangeLogs(voucherId: string) {
+  const logs = await prisma.driverVoucherChangeLog.findMany({
+    where: { voucherId },
+    orderBy: { changedAt: "desc" },
+  });
+
+  const userIds = Array.from(
+    new Set(logs.map((log) => log.changedBy).filter(Boolean) as string[])
+  );
+  const users =
+    userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const userNameById = new Map(users.map((user) => [user.id, user.name]));
+
+  return logs.map((log) => ({
+    id: log.id,
+    eventType: log.eventType,
+    field: log.field,
+    oldValue: log.oldValue,
+    newValue: log.newValue,
+    changedBy: log.changedBy,
+    changedByName: log.changedBy
+      ? (userNameById.get(log.changedBy) ?? null)
+      : null,
+    changedAt: log.changedAt.toISOString(),
+    reason: log.reason,
+  }));
+}
+
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -924,27 +1007,30 @@ export async function nextVoucherNo(tripDateInput?: string) {
   return `${prefix}${String(seq).padStart(3, "0")}`;
 }
 
-export async function createDriverVoucher(input: {
-  voucherNo?: string;
-  tripId: string;
-  chopBorderAmt?: number | null;
-  chopBorderActual?: number | null;
-  parkingAmt?: number | null;
-  parkingActual?: number | null;
-  kpbAmt?: number | null;
-  kpbActual?: number | null;
-  fishCheckAmt?: number | null;
-  fishCheckActual?: number | null;
-  upahTurunAmt?: number | null;
-  upahTurunActual?: number | null;
-  upahNaikTongAmt?: number | null;
-  upahNaikTongActual?: number | null;
-  minyakMotoEnabled?: boolean;
-  minyakMotoAmt?: number;
-  minyakMotoActual?: number | null;
-  otherActual?: number | null;
-  duitJalan?: number | null;
-}) {
+export async function createDriverVoucher(
+  input: {
+    voucherNo?: string;
+    tripId: string;
+    chopBorderAmt?: number | null;
+    chopBorderActual?: number | null;
+    parkingAmt?: number | null;
+    parkingActual?: number | null;
+    kpbAmt?: number | null;
+    kpbActual?: number | null;
+    fishCheckAmt?: number | null;
+    fishCheckActual?: number | null;
+    upahTurunAmt?: number | null;
+    upahTurunActual?: number | null;
+    upahNaikTongAmt?: number | null;
+    upahNaikTongActual?: number | null;
+    minyakMotoEnabled?: boolean;
+    minyakMotoAmt?: number;
+    minyakMotoActual?: number | null;
+    otherActual?: number | null;
+    duitJalan?: number | null;
+  },
+  options?: DriverVoucherWriteOptions
+) {
   const suggestion = await suggestVoucherAmounts(input.tripId);
   const voucherNo =
     input.voucherNo ?? (await nextVoucherNo(suggestion.tripDate));
@@ -983,7 +1069,25 @@ export async function createDriverVoucher(input: {
       ? roundMoney(draft.duitJalan - draft.belanja)
       : null;
 
-  const voucher = await prisma.driverVoucher.create({ data: draft });
+  const submitEntry = options?.submitEntry ?? true;
+  const actor = options?.actor;
+
+  const voucher = await prisma.$transaction(async (tx) => {
+    const created = await tx.driverVoucher.create({ data: draft });
+
+    if (submitEntry && actor) {
+      assertActorCanTransition(actor, "clerk_entered");
+      return applyVoucherStatusTransitionInTx(tx, {
+        voucherId: created.id,
+        fromStatus: "draft",
+        toStatus: "clerk_entered",
+        actor,
+      });
+    }
+
+    return created;
+  });
+
   await writebackVoucherActuals({
     tripId: voucher.tripId,
     kpbActual: voucher.kpbActual,
@@ -995,28 +1099,13 @@ export async function createDriverVoucher(input: {
 
 export async function updateDriverVoucher(
   id: string,
-  input: Partial<{
-    chopBorderAmt: number | null;
-    chopBorderActual: number | null;
-    parkingAmt: number | null;
-    parkingActual: number | null;
-    kpbAmt: number | null;
-    kpbActual: number | null;
-    fishCheckAmt: number | null;
-    fishCheckActual: number | null;
-    upahTurunAmt: number | null;
-    upahTurunActual: number | null;
-    upahNaikTongAmt: number | null;
-    upahNaikTongActual: number | null;
-    minyakMotoEnabled: boolean;
-    minyakMotoAmt: number;
-    minyakMotoActual: number | null;
-    otherActual: number | null;
-    duitJalan: number | null;
-  }>
+  input: VoucherAmountPatch,
+  options?: DriverVoucherWriteOptions
 ) {
   const existing = await prisma.driverVoucher.findUnique({ where: { id } });
   if (!existing) throw new Error("Voucher not found");
+
+  assertVoucherEditable(existing.status);
 
   const merged = { ...existing, ...input };
   const belanja = sumActualBelanja(merged);
@@ -1025,10 +1114,45 @@ export async function updateDriverVoucher(
       ? roundMoney(merged.duitJalan - belanja)
       : null;
 
-  const voucher = await prisma.driverVoucher.update({
-    where: { id },
-    data: { ...input, belanja, baki },
+  const actor = options?.actor;
+  const submitEntry =
+    options?.submitEntry ??
+    (existing.status === "draft" || existing.status === "rejected");
+
+  const fieldChanges = diffVoucherFieldChanges(existing, input);
+
+  const voucher = await prisma.$transaction(async (tx) => {
+    const updated = await tx.driverVoucher.update({
+      where: { id },
+      data: { ...input, belanja, baki },
+    });
+
+    if (actor && fieldChanges.length > 0) {
+      await appendVoucherFieldChangeLogs(tx, {
+        voucherId: id,
+        changes: fieldChanges,
+        changedBy: actor.id,
+      });
+    }
+
+    if (
+      submitEntry &&
+      actor &&
+      (existing.status === "draft" || existing.status === "rejected")
+    ) {
+      const fromStatus = existing.status as VoucherStatus;
+      assertActorCanTransition(actor, "clerk_entered");
+      return applyVoucherStatusTransitionInTx(tx, {
+        voucherId: id,
+        fromStatus,
+        toStatus: "clerk_entered",
+        actor,
+      });
+    }
+
+    return updated;
   });
+
   await writebackVoucherActuals({
     tripId: voucher.tripId,
     kpbActual: voucher.kpbActual,

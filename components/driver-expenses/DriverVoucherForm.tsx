@@ -20,8 +20,18 @@ import {
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
+import { canWriteDriverVoucher } from "@/lib/auth-roles";
 import { parseDriverExpensesTab } from "@/lib/driver-expense/voucher-list-types";
+import {
+  isVoucherStatus,
+  type VoucherStatus,
+} from "@/lib/driver-voucher-status-types";
+import type { StoredUserRole } from "@/types";
 import { cn } from "@/lib/utils";
+import { VoucherChangeLogTimeline, type VoucherChangeLogEntry } from "./VoucherChangeLogTimeline";
+import { VoucherDecisionPanel } from "./VoucherDecisionPanel";
+import { VoucherReviewPanel } from "./VoucherReviewPanel";
+import { VoucherStatusBadge } from "./VoucherStatusBadge";
 import "./driver-expense-print.css";
 
 interface VoucherFormState {
@@ -63,6 +73,49 @@ interface DriverVoucherFormProps {
   date: string;
   voucherId?: string;
   initialTripId?: string;
+  userRole: StoredUserRole;
+}
+
+interface VoucherWorkflowMeta {
+  status: VoucherStatus;
+  clerkNote: string | null;
+  reviewNote: string | null;
+}
+
+function defaultWorkflowMeta(): VoucherWorkflowMeta {
+  return { status: "draft", clerkNote: null, reviewNote: null };
+}
+
+function workflowFromVoucher(v: DriverVoucherData): VoucherWorkflowMeta {
+  const status =
+    v.status && isVoucherStatus(v.status) ? v.status : "draft";
+  return {
+    status,
+    clerkNote: v.clerkNote ?? null,
+    reviewNote: v.reviewNote ?? null,
+  };
+}
+
+function canEditVoucherFields(
+  status: VoucherStatus,
+  role: StoredUserRole,
+  mode: "new" | "edit"
+): boolean {
+  if (!canWriteDriverVoucher(role)) return false;
+  if (mode === "new") return true;
+  return (
+    status === "draft" || status === "clerk_entered" || status === "rejected"
+  );
+}
+
+function saveButtonLabel(status: VoucherStatus, mode: "new" | "edit"): string {
+  if (mode === "new" || status === "draft") {
+    return "保存录入 / Save entry";
+  }
+  if (status === "rejected") {
+    return "保存并重新提交 / Resubmit";
+  }
+  return "保存修改 / Save changes";
 }
 
 const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
@@ -173,21 +226,33 @@ export function DriverVoucherForm({
   date,
   voucherId,
   initialTripId,
+  userRole,
 }: DriverVoucherFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTab = parseDriverExpensesTab(searchParams.get("tab"));
   const [form, setForm] = useState<VoucherFormState | null>(null);
+  const [workflow, setWorkflow] = useState<VoucherWorkflowMeta>(defaultWorkflowMeta);
+  const [changeLogs, setChangeLogs] = useState<VoucherChangeLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [dispatches, setDispatches] = useState<DispatchOption[]>([]);
   const [existingTripIds, setExistingTripIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(mode === "edit" || Boolean(initialTripId));
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [workflowBusy, setWorkflowBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printBreakdown, setPrintBreakdown] =
     useState<VoucherPrintBreakdown | null>(null);
 
   const backHref = `/documents/driver-expenses?date=${date}&tab=${returnTab}&refresh=1`;
+  const formEditable = canEditVoucherFields(workflow.status, userRole, mode);
+  const showSaveButton = formEditable && Boolean(form);
+  const showDecisionPanel =
+    workflow.status === "clerk_entered" && canWriteDriverVoucher(userRole);
+  const showReviewPanel =
+    workflow.status === "pending_review" && userRole === "admin";
+  const workflowBusyAny = saving || workflowBusy;
 
   useEffect(() => {
     let cancelled = false;
@@ -202,15 +267,15 @@ export function DriverVoucherForm({
           const data = (await res.json()) as { voucher?: DriverVoucherData & { tripDate: string } };
           if (!data.voucher) throw new Error("Baucar tidak wujud / Voucher not found");
           if (!cancelled) {
-            setForm(
-              voucherToForm({
-                ...data.voucher,
-                tripDate:
-                  typeof data.voucher.tripDate === "string"
-                    ? data.voucher.tripDate.slice(0, 10)
-                    : date,
-              })
-            );
+            const voucher = {
+              ...data.voucher,
+              tripDate:
+                typeof data.voucher.tripDate === "string"
+                  ? data.voucher.tripDate.slice(0, 10)
+                  : date,
+            };
+            setForm(voucherToForm(voucher));
+            setWorkflow(workflowFromVoucher(voucher));
           }
           return;
         }
@@ -282,6 +347,193 @@ export function DriverVoucherForm({
       cancelled = true;
     };
   }, [mode, voucherId, initialTripId, date]);
+
+  useEffect(() => {
+    if (mode !== "edit" || !voucherId) return;
+    let cancelled = false;
+    async function loadLogs() {
+      setLogsLoading(true);
+      try {
+        const res = await fetch(`/api/driver-vouchers/${voucherId}/change-logs`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { logs?: VoucherChangeLogEntry[] };
+        if (!cancelled) setChangeLogs(data.logs ?? []);
+      } finally {
+        if (!cancelled) setLogsLoading(false);
+      }
+    }
+    void loadLogs();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, voucherId]);
+
+  async function reloadVoucher(id: string) {
+    const res = await fetch(`/api/driver-vouchers/${id}`);
+    if (!res.ok) throw new Error("Gagal memuatkan baucar / Failed to reload voucher");
+    const data = (await res.json()) as {
+      voucher?: DriverVoucherData & { tripDate: string };
+    };
+    if (!data.voucher) throw new Error("Baucar tidak wujud / Voucher not found");
+    const voucher = {
+      ...data.voucher,
+      tripDate:
+        typeof data.voucher.tripDate === "string"
+          ? data.voucher.tripDate.slice(0, 10)
+          : date,
+    };
+    setForm(voucherToForm(voucher));
+    setWorkflow(workflowFromVoucher(voucher));
+  }
+
+  async function reloadChangeLogs(id: string) {
+    const res = await fetch(`/api/driver-vouchers/${id}/change-logs`);
+    if (!res.ok) return;
+    const data = (await res.json()) as { logs?: VoucherChangeLogEntry[] };
+    setChangeLogs(data.logs ?? []);
+  }
+
+  function buildSavePayload(submitEntry?: boolean) {
+    if (!form) throw new Error("Form not ready");
+    return {
+      tripId: form.tripId,
+      voucherNo: form.voucherNo,
+      chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
+      chopBorderActual: parseOptionalNumber(form.chopBorderActual),
+      parkingAmt: parseOptionalNumber(form.parkingAmt),
+      parkingActual: parseOptionalNumber(form.parkingActual),
+      kpbAmt: parseOptionalNumber(form.kpbAmt),
+      kpbActual: parseOptionalNumber(form.kpbActual),
+      fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
+      fishCheckActual: parseOptionalNumber(form.fishCheckActual),
+      upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
+      upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+      upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
+      upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
+      minyakMotoEnabled: form.minyakMotoEnabled,
+      minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
+      minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+      otherActual: parseOptionalNumber(form.otherActual),
+      duitJalan: parseOptionalNumber(form.duitJalan),
+      submitEntry,
+    };
+  }
+
+  async function persistVoucher(options?: {
+    submitEntry?: boolean;
+    stayOnPage?: boolean;
+  }): Promise<string> {
+    if (!form) throw new Error("Form not ready");
+    const payload = buildSavePayload(options?.submitEntry);
+
+    const url =
+      mode === "edit" && voucherId
+        ? `/api/driver-vouchers/${voucherId}`
+        : "/api/driver-vouchers";
+    const res = await fetch(url, {
+      method: mode === "edit" ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      throw new Error(data.error ?? "Gagal menyimpan / Save failed");
+    }
+    const data = (await res.json()) as { voucher?: { id: string } };
+    const id = data.voucher?.id ?? voucherId;
+    if (!id) throw new Error("Gagal menyimpan / Save failed");
+
+    if (options?.stayOnPage) {
+      await reloadVoucher(id);
+      await reloadChangeLogs(id);
+      router.refresh();
+    }
+
+    return id;
+  }
+
+  async function transitionVoucher(toStatus: VoucherStatus, note?: string) {
+    if (!voucherId) throw new Error("Voucher ID required");
+    const res = await fetch(`/api/driver-vouchers/${voucherId}/transition`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toStatus, note }),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      throw new Error(data.error ?? "状态变更失败 / Transition failed");
+    }
+  }
+
+  async function handleConfirm() {
+    if (!voucherId) return;
+    setWorkflowBusy(true);
+    setError(null);
+    try {
+      await persistVoucher({ submitEntry: false, stayOnPage: false });
+      await transitionVoucher("confirmed");
+      await reloadVoucher(voucherId);
+      await reloadChangeLogs(voucherId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败 / Action failed");
+      throw e;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
+
+  async function handleFlagForReview(note: string) {
+    if (!voucherId) return;
+    setWorkflowBusy(true);
+    setError(null);
+    try {
+      await persistVoucher({ submitEntry: false, stayOnPage: false });
+      await transitionVoucher("pending_review", note);
+      await reloadVoucher(voucherId);
+      await reloadChangeLogs(voucherId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败 / Action failed");
+      throw e;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
+
+  async function handleApprove(note?: string) {
+    if (!voucherId) return;
+    setWorkflowBusy(true);
+    setError(null);
+    try {
+      await transitionVoucher("approved", note);
+      await reloadVoucher(voucherId);
+      await reloadChangeLogs(voucherId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败 / Action failed");
+      throw e;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
+
+  async function handleReject(note: string) {
+    if (!voucherId) return;
+    setWorkflowBusy(true);
+    setError(null);
+    try {
+      await transitionVoucher("rejected", note);
+      await reloadVoucher(voucherId);
+      await reloadChangeLogs(voucherId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败 / Action failed");
+      throw e;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
 
   async function prepareVoucherForTrip(tripId: string) {
     setPreparing(true);
@@ -362,43 +614,18 @@ export function DriverVoucherForm({
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        tripId: form.tripId,
-        voucherNo: form.voucherNo,
-        chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
-        chopBorderActual: parseOptionalNumber(form.chopBorderActual),
-        parkingAmt: parseOptionalNumber(form.parkingAmt),
-        parkingActual: parseOptionalNumber(form.parkingActual),
-        kpbAmt: parseOptionalNumber(form.kpbAmt),
-        kpbActual: parseOptionalNumber(form.kpbActual),
-        fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
-        fishCheckActual: parseOptionalNumber(form.fishCheckActual),
-        upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
-        upahTurunActual: parseOptionalNumber(form.upahTurunActual),
-        upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
-        upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
-        minyakMotoEnabled: form.minyakMotoEnabled,
-        minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
-        minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
-        otherActual: parseOptionalNumber(form.otherActual),
-        duitJalan: parseOptionalNumber(form.duitJalan),
-      };
+      const submitEntry =
+        mode === "new" ||
+        workflow.status === "draft" ||
+        workflow.status === "rejected";
+      const stayOnPage = workflow.status === "clerk_entered";
 
-      const url =
-        mode === "edit" && voucherId
-          ? `/api/driver-vouchers/${voucherId}`
-          : "/api/driver-vouchers";
-      const res = await fetch(url, {
-        method: mode === "edit" ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Gagal menyimpan / Save failed");
+      await persistVoucher({ submitEntry, stayOnPage });
+
+      if (!stayOnPage) {
+        router.push(backHref);
+        router.refresh();
       }
-      router.push(backHref);
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan / Save failed");
     } finally {
@@ -443,7 +670,17 @@ export function DriverVoucherForm({
             ? VOUCHER_LABELS.editVoucher
             : VOUCHER_LABELS.newVoucher}
         </h2>
+        {mode === "edit" && (
+          <VoucherStatusBadge status={workflow.status} />
+        )}
       </div>
+
+      {workflow.status === "rejected" && workflow.reviewNote && (
+        <div className="no-print rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p className="font-semibold">ADMIN 打回原因 / Rejection reason</p>
+          <p className="mt-1 whitespace-pre-wrap">{workflow.reviewNote}</p>
+        </div>
+      )}
 
       {error && (
         <p className="no-print rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -515,6 +752,13 @@ export function DriverVoucherForm({
               </div>
             </div>
 
+            <fieldset
+              disabled={!formEditable}
+              className={cn(
+                "space-y-4",
+                !formEditable && "opacity-90"
+              )}
+            >
             <div className="rounded-lg border border-haidee-border bg-haidee-surface/30 p-4">
               <label className="mb-2 block text-sm font-semibold">
                 {VOUCHER_LABELS.duitJalan}
@@ -870,15 +1114,38 @@ export function DriverVoucherForm({
                 </span>
               </span>
             </div>
+            </fieldset>
+
+            {showDecisionPanel && voucherId && (
+              <VoucherDecisionPanel
+                onConfirm={handleConfirm}
+                onFlagForReview={handleFlagForReview}
+                busy={workflowBusyAny}
+              />
+            )}
+
+            {showReviewPanel && form && voucherId && (
+              <VoucherReviewPanel
+                tripId={form.tripId}
+                suggestedTotal={suggestedSubtotal}
+                actualTotal={belanja}
+                clerkNote={workflow.clerkNote}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                busy={workflowBusyAny}
+              />
+            )}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={saveVoucher} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  VOUCHER_LABELS.simpan
-                )}
-              </Button>
+              {showSaveButton && (
+                <Button onClick={saveVoucher} disabled={workflowBusyAny}>
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    saveButtonLabel(workflow.status, mode)
+                  )}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -896,6 +1163,10 @@ export function DriverVoucherForm({
               </Link>
             </div>
           </section>
+
+          {mode === "edit" && voucherId && (
+            <VoucherChangeLogTimeline logs={changeLogs} loading={logsLoading} />
+          )}
 
         </>
       )}

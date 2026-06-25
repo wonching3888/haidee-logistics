@@ -22,7 +22,7 @@ export default async function NewDriverVoucherPage({
   const params = await searchParams;
   const date = resolveDateParam(params.date);
 
-  if (user.role === "thai_accounting") {
+  if (user.role === "my_accounting") {
     redirect(`/documents/driver-expenses?date=${date}&tab=today`);
   }
 
@@ -31,6 +31,7 @@ export default async function NewDriverVoucherPage({
       mode="new"
       date={date}
       initialTripId={params.tripId}
+      userRole={user.role}
     />
   );
 }

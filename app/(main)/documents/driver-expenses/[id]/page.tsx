@@ -26,5 +26,12 @@ export default async function EditDriverVoucherPage({
   const sp = await searchParams;
   const date = resolveDateParam(sp.date);
 
-  return <DriverVoucherForm mode="edit" date={date} voucherId={id} />;
+  return (
+    <DriverVoucherForm
+      mode="edit"
+      date={date}
+      voucherId={id}
+      userRole={user.role}
+    />
+  );
 }

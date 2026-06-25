@@ -13,6 +13,7 @@ import {
   type DriverVoucherListItem,
 } from "@/lib/driver-expense/voucher-list-types";
 import type { StoredUserRole } from "@/types";
+import { canWriteDriverVoucher } from "@/lib/auth-roles";
 import { cn } from "@/lib/utils";
 import {
   UnloadingFeesCollapsible,
@@ -73,7 +74,7 @@ export function DriverExpensesClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdmin = userRole === "admin";
-  const canCreate = userRole !== "thai_accounting";
+  const canCreate = canWriteDriverVoucher(userRole);
 
   const [tab, setTab] = useState<DriverExpensesTab>(() =>
     parseDriverExpensesTab(searchParams.get("tab"))

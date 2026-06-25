@@ -42,7 +42,11 @@ export async function PATCH(
     }
     const { id } = await params;
     const body = await request.json();
-    const voucher = await updateDriverVoucher(id, body);
+    const { submitEntry, ...patch } = body ?? {};
+    const voucher = await updateDriverVoucher(id, patch, {
+      actor: { id: user.id, role: user.role },
+      submitEntry,
+    });
     return NextResponse.json({ voucher });
   } catch (error) {
     return NextResponse.json(

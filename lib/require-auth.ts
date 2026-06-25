@@ -3,6 +3,7 @@ import {
   canAccessDriverExpenses,
   canViewPnlOperations,
   canWrite,
+  canWriteDriverVoucher,
 } from "@/lib/auth-roles";
 import { canAccessHistory } from "@/lib/page-access";
 import type { AppUser, UserRole } from "@/types";
@@ -51,14 +52,10 @@ export async function requireDriverExpensesApi(): Promise<AppUser | null> {
   return user;
 }
 
-/** Require driver-expenses access plus write for API mutations. */
+/** Require driver-expenses access plus voucher write for API mutations. */
 export async function requireDriverExpensesWriteApi(): Promise<AppUser | null> {
   const user = await requireDriverExpensesApi();
-  if (!user || !canWrite(user.role)) {
-    return null;
-  }
-  // Thai accounting: read-only on driver expenses until Step ④ wires save/transition UI.
-  if (user.role === "thai_accounting") {
+  if (!user || !canWrite(user.role) || !canWriteDriverVoucher(user.role)) {
     return null;
   }
   return user;

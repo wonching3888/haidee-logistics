@@ -123,6 +123,24 @@ export function canViewPnlOperations(role: StoredUserRole): boolean {
   }
 }
 
+/** Driver voucher mutations: admin/clerk/thai_acct · my_acct read-only on this module */
+export function canWriteDriverVoucher(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "clerk":
+    case "thai_accounting":
+      return true;
+    case "my_accounting":
+    case "viewer":
+    case "owner":
+      return false;
+    case "accounting":
+      return true;
+    default:
+      return false;
+  }
+}
+
 /** Driver expense vouchers (开单给司机): admin/clerk/thai_acct/my_acct/legacy accounting ✓ */
 export function canAccessDriverExpenses(role: StoredUserRole): boolean {
   switch (role) {

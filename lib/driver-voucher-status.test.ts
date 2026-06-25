@@ -240,6 +240,18 @@ describe("transitionVoucherStatus", () => {
     });
   });
 
+  it("requires note when flagging pending_review", async () => {
+    mockFindUnique.mockResolvedValue({ id: "v1", status: "clerk_entered" });
+
+    await expect(
+      transitionVoucherStatus({
+        voucherId: "v1",
+        toStatus: "pending_review",
+        actor: { id: "clerk-1", role: "clerk" },
+      })
+    ).rejects.toMatchObject({ code: "INVALID_TRANSITION" });
+  });
+
   it("requires note when rejecting", async () => {
     mockFindUnique.mockResolvedValue({ id: "v1", status: "pending_review" });
 

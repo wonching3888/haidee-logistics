@@ -25,6 +25,9 @@ export interface DriverVoucherData {
   duitJalan: number | null;
   belanja: number | null;
   baki: number | null;
+  status?: string;
+  clerkNote?: string | null;
+  reviewNote?: string | null;
 }
 
 export interface VoucherPrintMarketRow {

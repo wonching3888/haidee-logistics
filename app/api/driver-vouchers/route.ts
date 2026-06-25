@@ -42,7 +42,11 @@ export async function POST(request: Request) {
       const suggestion = await suggestVoucherAmounts(body.prepareTripId);
       return NextResponse.json({ suggestion });
     }
-    const voucher = await createDriverVoucher(body);
+    const { submitEntry, ...createInput } = body ?? {};
+    const voucher = await createDriverVoucher(createInput, {
+      actor: { id: user.id, role: user.role },
+      submitEntry,
+    });
     return NextResponse.json({ voucher });
   } catch (error) {
     return NextResponse.json(

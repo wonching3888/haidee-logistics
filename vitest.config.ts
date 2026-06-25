@@ -12,6 +12,7 @@ export default defineConfig({
       "lib/search-filters.test.ts",
       "lib/db-retry.test.ts",
       "lib/driver-voucher-status.test.ts",
+      "lib/driver-voucher-audit.test.ts",
     ],
   },
   resolve: {

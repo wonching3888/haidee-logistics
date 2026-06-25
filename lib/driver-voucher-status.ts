@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import type { StoredUserRole } from "@/types";
 import {
   isVoucherStatus,
@@ -139,6 +140,42 @@ export function buildVoucherStatusTransitionUpdate(
   return data;
 }
 
+export async function applyVoucherStatusTransitionInTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    voucherId: string;
+    fromStatus: VoucherStatus;
+    toStatus: VoucherStatus;
+    actor: VoucherTransitionActor;
+    note?: string | null;
+  }
+) {
+  const updateData = buildVoucherStatusTransitionUpdate(
+    input.toStatus,
+    input.actor,
+    input.note
+  );
+
+  const voucher = await tx.driverVoucher.update({
+    where: { id: input.voucherId },
+    data: updateData,
+  });
+
+  await tx.driverVoucherChangeLog.create({
+    data: {
+      voucherId: input.voucherId,
+      eventType: "status_change",
+      field: "status",
+      oldValue: input.fromStatus,
+      newValue: input.toStatus,
+      changedBy: input.actor.id,
+      reason: input.note?.trim() ? input.note.trim() : null,
+    },
+  });
+
+  return voucher;
+}
+
 export async function transitionVoucherStatus(input: {
   voucherId: string;
   toStatus: VoucherStatus;
@@ -181,28 +218,23 @@ export async function transitionVoucherStatus(input: {
     );
   }
 
-  const updateData = buildVoucherStatusTransitionUpdate(
-    input.toStatus,
-    input.actor,
-    input.note
-  );
+  if (
+    input.toStatus === "pending_review" &&
+    (!input.note || input.note.trim() === "")
+  ) {
+    throw new VoucherStatusTransitionError(
+      "INVALID_TRANSITION",
+      "标记需审核须填写备注 / Clerk note required when flagging for review"
+    );
+  }
 
   return prisma.$transaction(async (tx) => {
-    const voucher = await tx.driverVoucher.update({
-      where: { id: input.voucherId },
-      data: updateData,
-    });
-
-    await tx.driverVoucherChangeLog.create({
-      data: {
-        voucherId: input.voucherId,
-        eventType: "status_change",
-        field: "status",
-        oldValue: fromStatus,
-        newValue: input.toStatus,
-        changedBy: input.actor.id,
-        reason: input.note?.trim() ? input.note.trim() : null,
-      },
+    const voucher = await applyVoucherStatusTransitionInTx(tx, {
+      voucherId: input.voucherId,
+      fromStatus,
+      toStatus: input.toStatus,
+      actor: input.actor,
+      note: input.note,
     });
 
     return voucher;
