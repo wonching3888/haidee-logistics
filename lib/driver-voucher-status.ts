@@ -2,9 +2,14 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { StoredUserRole } from "@/types";
 import {
+  applyVoucherCostActuals,
+  clearVoucherCostActuals,
+} from "@/lib/driver-expense/voucher-cost-apply";
+import {
   isVoucherStatus,
   type VoucherStatus,
 } from "@/lib/driver-voucher-status-types";
+import { isVoucherCostEnforced } from "@/lib/trip-cost-engine/config";
 
 export {
   isVoucherStatus,
@@ -229,7 +234,7 @@ export async function transitionVoucherStatus(input: {
   }
 
   return prisma.$transaction(async (tx) => {
-    const voucher = await applyVoucherStatusTransitionInTx(tx, {
+    await applyVoucherStatusTransitionInTx(tx, {
       voucherId: input.voucherId,
       fromStatus,
       toStatus: input.toStatus,
@@ -237,6 +242,17 @@ export async function transitionVoucherStatus(input: {
       note: input.note,
     });
 
-    return voucher;
+    if (isVoucherCostEnforced()) {
+      if (input.toStatus === "confirmed" || input.toStatus === "approved") {
+        return applyVoucherCostActuals(input.voucherId, tx);
+      }
+      if (input.toStatus === "rejected") {
+        return clearVoucherCostActuals(input.voucherId, tx);
+      }
+    }
+
+    return tx.driverVoucher.findUniqueOrThrow({
+      where: { id: input.voucherId },
+    });
   });
 }

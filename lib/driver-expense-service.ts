@@ -46,6 +46,7 @@ import {
   loadGlobalTripCostValues,
   type RouteMasterCostRow,
 } from "@/lib/operations-cost";
+import { shouldWritebackVoucherActualsOnSave } from "@/lib/trip-cost-engine/config";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   {
@@ -1100,12 +1101,14 @@ export async function createDriverVoucher(
     return created;
   });
 
-  await writebackVoucherActuals({
-    tripId: voucher.tripId,
-    kpbActual: voucher.kpbActual,
-    upahTurunActual: voucher.upahTurunActual,
-    upahNaikTongActual: voucher.upahNaikTongActual,
-  });
+  if (shouldWritebackVoucherActualsOnSave()) {
+    await writebackVoucherActuals({
+      tripId: voucher.tripId,
+      kpbActual: voucher.kpbActual,
+      upahTurunActual: voucher.upahTurunActual,
+      upahNaikTongActual: voucher.upahNaikTongActual,
+    });
+  }
   return voucher;
 }
 
@@ -1165,12 +1168,14 @@ export async function updateDriverVoucher(
     return updated;
   });
 
-  await writebackVoucherActuals({
-    tripId: voucher.tripId,
-    kpbActual: voucher.kpbActual,
-    upahTurunActual: voucher.upahTurunActual,
-    upahNaikTongActual: voucher.upahNaikTongActual,
-  });
+  if (shouldWritebackVoucherActualsOnSave()) {
+    await writebackVoucherActuals({
+      tripId: voucher.tripId,
+      kpbActual: voucher.kpbActual,
+      upahTurunActual: voucher.upahTurunActual,
+      upahNaikTongActual: voucher.upahNaikTongActual,
+    });
+  }
   return voucher;
 }
 

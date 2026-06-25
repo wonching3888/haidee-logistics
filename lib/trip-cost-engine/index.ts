@@ -3,7 +3,9 @@ export {
   getTripCostEngineConfig,
   getVehicleAllocMode,
   getVoucherCostMode,
+  isVoucherCostEnforced,
   reloadTripCostEngineConfig,
+  shouldWritebackVoucherActualsOnSave,
   type TripCostEngineConfig,
   type TripCostMode,
 } from "@/lib/trip-cost-engine/config";

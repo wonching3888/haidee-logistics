@@ -8,14 +8,30 @@ import {
 } from "@/lib/driver-voucher-status";
 
 const mockFindUnique = vi.fn();
+const mockFindUniqueOrThrow = vi.fn();
 const mockUpdate = vi.fn();
 const mockChangeLogCreate = vi.fn();
 const mockTransaction = vi.fn();
+const mockApplyVoucherCostActuals = vi.fn();
+const mockClearVoucherCostActuals = vi.fn();
+const mockIsVoucherCostEnforced = vi.fn();
+
+vi.mock("@/lib/trip-cost-engine/config", () => ({
+  isVoucherCostEnforced: () => mockIsVoucherCostEnforced(),
+}));
+
+vi.mock("@/lib/driver-expense/voucher-cost-apply", () => ({
+  applyVoucherCostActuals: (...args: unknown[]) =>
+    mockApplyVoucherCostActuals(...args),
+  clearVoucherCostActuals: (...args: unknown[]) =>
+    mockClearVoucherCostActuals(...args),
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     driverVoucher: {
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
+      findUniqueOrThrow: (...args: unknown[]) => mockFindUniqueOrThrow(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
     },
     driverVoucherChangeLog: {
@@ -162,9 +178,17 @@ describe("buildVoucherStatusTransitionUpdate", () => {
 describe("transitionVoucherStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsVoucherCostEnforced.mockReturnValue(false);
+    mockFindUniqueOrThrow.mockImplementation(async ({ where }: { where: { id: string } }) => ({
+      id: where.id,
+      status: "approved",
+    }));
     mockTransaction.mockImplementation(async (fn) =>
       fn({
-        driverVoucher: { update: mockUpdate },
+        driverVoucher: {
+          update: mockUpdate,
+          findUniqueOrThrow: mockFindUniqueOrThrow,
+        },
         driverVoucherChangeLog: { create: mockChangeLogCreate },
       })
     );
@@ -173,6 +197,7 @@ describe("transitionVoucherStatus", () => {
   it("performs draft → clerk_entered with change log", async () => {
     mockFindUnique.mockResolvedValue({ id: "v1", status: "draft" });
     mockUpdate.mockResolvedValue({ id: "v1", status: "clerk_entered" });
+    mockFindUniqueOrThrow.mockResolvedValue({ id: "v1", status: "clerk_entered" });
 
     const result = await transitionVoucherStatus({
       voucherId: "v1",
@@ -222,6 +247,7 @@ describe("transitionVoucherStatus", () => {
   it("allows admin to approve pending_review", async () => {
     mockFindUnique.mockResolvedValue({ id: "v1", status: "pending_review" });
     mockUpdate.mockResolvedValue({ id: "v1", status: "approved" });
+    mockFindUniqueOrThrow.mockResolvedValue({ id: "v1", status: "approved" });
 
     await transitionVoucherStatus({
       voucherId: "v1",
@@ -262,5 +288,72 @@ describe("transitionVoucherStatus", () => {
         actor: { id: "admin-1", role: "admin" },
       })
     ).rejects.toMatchObject({ code: "INVALID_TRANSITION" });
+  });
+
+  it("legacy mode does not call apply/clear on confirm", async () => {
+    mockFindUnique.mockResolvedValue({ id: "v1", status: "clerk_entered" });
+    mockUpdate.mockResolvedValue({ id: "v1", status: "confirmed" });
+    mockIsVoucherCostEnforced.mockReturnValue(false);
+
+    await transitionVoucherStatus({
+      voucherId: "v1",
+      toStatus: "confirmed",
+      actor: { id: "clerk-1", role: "clerk" },
+      note: "ok",
+    });
+
+    expect(mockApplyVoucherCostActuals).not.toHaveBeenCalled();
+    expect(mockClearVoucherCostActuals).not.toHaveBeenCalled();
+    expect(mockFindUniqueOrThrow).toHaveBeenCalled();
+  });
+
+  it("enforced mode calls apply on confirm", async () => {
+    mockFindUnique.mockResolvedValue({ id: "v1", status: "clerk_entered" });
+    mockUpdate.mockResolvedValue({ id: "v1", status: "confirmed" });
+    mockIsVoucherCostEnforced.mockReturnValue(true);
+    mockApplyVoucherCostActuals.mockResolvedValue({
+      id: "v1",
+      status: "confirmed",
+    });
+
+    const result = await transitionVoucherStatus({
+      voucherId: "v1",
+      toStatus: "confirmed",
+      actor: { id: "clerk-1", role: "clerk" },
+      note: "ok",
+    });
+
+    expect(mockApplyVoucherCostActuals).toHaveBeenCalledWith(
+      "v1",
+      expect.objectContaining({
+        driverVoucher: expect.any(Object),
+      })
+    );
+    expect(result.status).toBe("confirmed");
+  });
+
+  it("enforced mode calls clear on reject", async () => {
+    mockFindUnique.mockResolvedValue({ id: "v1", status: "pending_review" });
+    mockUpdate.mockResolvedValue({ id: "v1", status: "rejected" });
+    mockIsVoucherCostEnforced.mockReturnValue(true);
+    mockClearVoucherCostActuals.mockResolvedValue({
+      id: "v1",
+      status: "rejected",
+      costAppliedAt: null,
+    });
+
+    const result = await transitionVoucherStatus({
+      voucherId: "v1",
+      toStatus: "rejected",
+      actor: { id: "admin-1", role: "admin" },
+      note: "fix amounts",
+    });
+
+    expect(mockClearVoucherCostActuals).toHaveBeenCalledWith(
+      "v1",
+      expect.any(Object)
+    );
+    expect(mockApplyVoucherCostActuals).not.toHaveBeenCalled();
+    expect(result.costAppliedAt).toBeNull();
   });
 });

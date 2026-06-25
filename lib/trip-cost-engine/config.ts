@@ -32,6 +32,16 @@ export function getVoucherCostMode(): TripCostMode {
   return cachedConfig.voucherCostMode;
 }
 
+/** Step 3+: new save/transition cost path (market_actuals apply on confirm). */
+export function isVoucherCostEnforced(): boolean {
+  return cachedConfig.voucherCostMode === "enforced";
+}
+
+/** Legacy save-time proportional writeback to unloading_fees overrides. */
+export function shouldWritebackVoucherActualsOnSave(): boolean {
+  return cachedConfig.voucherCostMode !== "enforced";
+}
+
 export function getVehicleAllocMode(): TripCostMode {
   return cachedConfig.vehicleAllocMode;
 }

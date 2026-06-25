@@ -3,7 +3,9 @@ import {
   getTripCostEngineConfig,
   getVehicleAllocMode,
   getVoucherCostMode,
+  isVoucherCostEnforced,
   reloadTripCostEngineConfig,
+  shouldWritebackVoucherActualsOnSave,
 } from "@/lib/trip-cost-engine/config";
 
 const ORIGINAL_VOUCHER = process.env.VOUCHER_COST_MODE;
@@ -52,5 +54,19 @@ describe("trip-cost-engine config", () => {
     });
     expect(getVoucherCostMode()).toBe("legacy");
     expect(getVehicleAllocMode()).toBe("enforced");
+  });
+
+  it("gates step-3 writeback and transition hooks", () => {
+    reloadTripCostEngineConfig({ VOUCHER_COST_MODE: "legacy" });
+    expect(shouldWritebackVoucherActualsOnSave()).toBe(true);
+    expect(isVoucherCostEnforced()).toBe(false);
+
+    reloadTripCostEngineConfig({ VOUCHER_COST_MODE: "enforced" });
+    expect(shouldWritebackVoucherActualsOnSave()).toBe(false);
+    expect(isVoucherCostEnforced()).toBe(true);
+
+    reloadTripCostEngineConfig({ VOUCHER_COST_MODE: "shadow" });
+    expect(shouldWritebackVoucherActualsOnSave()).toBe(true);
+    expect(isVoucherCostEnforced()).toBe(false);
   });
 });
