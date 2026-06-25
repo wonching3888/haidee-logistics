@@ -951,7 +951,7 @@ model CrateLoadingFee {
 model DriverVoucher {
   id                 String   @id @default(cuid())
   voucherNo          String   @unique @map("voucher_no")
-  tripId             String   @map("trip_id")
+  tripId             String   @unique @map("trip_id")
   tripDate           DateTime @map("trip_date") @db.Date
   lorry              String
   driverName         String   @map("driver_name")
@@ -975,10 +975,46 @@ model DriverVoucher {
   duitJalan          Float?   @map("duit_jalan")
   belanja            Float?   @map("belanja")
   baki               Float?   @map("baki")
+  status             String   @default("draft")
+  clerkSubmittedAt   DateTime? @map("clerk_submitted_at")
+  clerkSubmittedBy   String?  @map("clerk_submitted_by")
+  clerkConfirmedAt   DateTime? @map("clerk_confirmed_at")
+  clerkConfirmedBy   String?  @map("clerk_confirmed_by")
+  clerkFlaggedAt     DateTime? @map("clerk_flagged_at")
+  clerkFlaggedBy     String?  @map("clerk_flagged_by")
+  reviewedAt         DateTime? @map("reviewed_at")
+  reviewedBy         String?  @map("reviewed_by")
+  rejectedAt         DateTime? @map("rejected_at")
+  rejectedBy         String?  @map("rejected_by")
+  costAppliedAt      DateTime? @map("cost_applied_at")
+  clerkNote          String?  @map("clerk_note")
+  reviewNote         String?  @map("review_note")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  @@index([tripId])
+  changeLogs DriverVoucherChangeLog[]
+
+  @@index([status, tripDate(sort: Desc)])
+  @@index([tripDate, lorry])
+  @@index([tripDate, driverName])
   @@index([tripDate])
   @@map("driver_vouchers")
+}
+
+model DriverVoucherChangeLog {
+  id        String   @id @default(cuid())
+  voucherId String   @map("voucher_id")
+  eventType String   @map("event_type")
+  field     String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  changedBy String?  @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+  reason    String?
+
+  voucher DriverVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+  @@index([changedAt])
+  @@map("driver_voucher_change_logs")
 }
