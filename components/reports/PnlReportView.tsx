@@ -429,7 +429,7 @@ export function PnlReportView({
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 border-b border-haidee-border">
         {[
-          { id: "trip" as const, label: "趟次损益 Trip P&L" },
+          { id: "trip" as const, label: "趟次贡献 Trip Contribution" },
           { id: "period" as const, label: "时间汇总 Period Summary" },
           { id: "customer" as const, label: "顾客分析 Customer Analysis" },
         ].map((tab) => (
@@ -591,11 +591,11 @@ export function PnlReportView({
                   value={`${formatMyr(periodData.periodSummary.costMyr)} MYR`}
                 />
                 <SummaryCard
-                  label="毛利 Gross Profit"
+                  label="贡献毛利 Contribution Margin"
                   value={`${formatMyr(periodData.periodSummary.grossProfitMyr)} MYR`}
                 />
                 <SummaryCard
-                  label="毛利率 Margin"
+                  label="贡献毛利率 Contribution Margin %"
                   value={formatPct(periodData.periodSummary.marginPct)}
                 />
                 <SummaryCard
@@ -612,39 +612,69 @@ export function PnlReportView({
                 />
               </div>
               {periodData.periodSummary.fleetPayrollTotalMyr != null &&
-                periodData.periodSummary.netProfitAfterFleetPayrollMyr != null && (
+                periodData.periodSummary.netProfitAfterFleetPayrollMyr != null &&
+                periodData.periodSummary.pnlTripDriverAllowanceMyr != null &&
+                periodData.periodSummary.fleetPayrollIncrementalMyr != null && (
                   <section className="rounded-xl border-2 border-slate-300 bg-slate-50/80 p-5">
                     <h4 className="text-sm font-semibold text-haidee-text">
                       参考指标 Reference Metric
                     </h4>
-                    <p className="mt-1 text-xs text-haidee-muted">
-                      含全月车队薪资（底薪 + EPF/SOCSO/EIS 雇主供款等），非按趟分摊。此为毛利与全月薪资的简单相减参考值，不影响上方毛利及趟次/顾客分析口径。
+                    <p className="mt-1 text-xs leading-relaxed text-haidee-muted">
+                      上方贡献毛利已按趟计入司机津贴（路线 / 多市场 / 回桶提成）。本指标仅再扣全月车队成本中尚未按趟计入的部分（底薪 + 雇主供款 + 津贴差额），不重复扣已摊津贴。计算 = 贡献毛利 −（全月车队成本 − 已按趟津贴）。不等于会计净利润；包车司机薪、Office 等固定费用不在此列。
                     </p>
-                    <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-                      <div>
+                    <dl className="mt-4 space-y-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 pb-2">
                         <dt className="text-sm text-haidee-muted">
-                          车队全月薪资 Fleet Payroll (month)
+                          全月车队成本（实发 + 雇主）Fleet Payroll (net + employer)
                         </dt>
-                        <dd className="mt-1 font-mono text-lg font-semibold text-haidee-text">
+                        <dd className="font-mono text-base font-semibold text-haidee-text">
                           {formatMyr(periodData.periodSummary.fleetPayrollTotalMyr)} MYR
                         </dd>
                       </div>
-                      <div className="sm:col-span-2">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 pb-2">
                         <dt className="text-sm text-haidee-muted">
-                          净利润（扣除车队薪资）Net Profit (After Fleet Payroll)
+                          减：已在贡献毛利按趟计入的司机津贴 Less: trip driver allowance in margin
                         </dt>
-                        <dd className="mt-1 font-mono text-2xl font-bold text-haidee-navy">
+                        <dd className="font-mono text-base font-semibold text-haidee-text">
+                          −{formatMyr(periodData.periodSummary.pnlTripDriverAllowanceMyr)} MYR
+                        </dd>
+                      </div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 pb-2">
+                        <dt className="text-sm text-haidee-muted">
+                          增量车队人力成本 Incremental fleet labor
+                        </dt>
+                        <dd className="font-mono text-base font-semibold text-haidee-text">
+                          {formatMyr(periodData.periodSummary.fleetPayrollIncrementalMyr)} MYR
+                        </dd>
+                      </div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
+                        <dt className="text-sm font-medium text-haidee-text">
+                          营业毛利（扣车队人力）Operating Margin After Fleet Labor
+                        </dt>
+                        <dd className="font-mono text-2xl font-bold text-haidee-navy">
                           {formatMyr(
                             periodData.periodSummary.netProfitAfterFleetPayrollMyr
                           )}{" "}
                           MYR
                         </dd>
-                        <dd className="mt-1 text-xs text-haidee-muted">
-                          = 毛利 {formatMyr(periodData.periodSummary.grossProfitMyr)} −
-                          车队薪资{" "}
-                          {formatMyr(periodData.periodSummary.fleetPayrollTotalMyr)}
-                        </dd>
                       </div>
+                      <dd className="text-xs text-haidee-muted">
+                        = 贡献毛利 {formatMyr(periodData.periodSummary.grossProfitMyr)} −
+                        增量车队人力{" "}
+                        {formatMyr(periodData.periodSummary.fleetPayrollIncrementalMyr)}
+                      </dd>
+                      {periodData.periodSummary.payrollVariableAllowanceMyr != null &&
+                      periodData.periodSummary.payrollVariableAllowanceMyr !==
+                        periodData.periodSummary.pnlTripDriverAllowanceMyr ? (
+                        <dd className="text-xs text-haidee-muted/80">
+                          津贴对账差 Allowance reconciliation ={" "}
+                          {formatMyr(
+                            periodData.periodSummary.payrollVariableAllowanceMyr -
+                              periodData.periodSummary.pnlTripDriverAllowanceMyr
+                          )}{" "}
+                          MYR（薪资应发津贴 − 按趟合计）
+                        </dd>
+                      ) : null}
                     </dl>
                   </section>
                 )}

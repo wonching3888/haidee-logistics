@@ -113,9 +113,15 @@ export interface PnlPeriodSummary {
   totalBarrelQty: number;
   totalBoxQty: number;
   trend: PnlDailyTrendPoint[];
-  /** Reference only (month mode): full-month fleet payroll total cost. */
+  /** Reference only (month mode): full-month fleet payroll total cost (net + employer). */
   fleetPayrollTotalMyr: number | null;
-  /** Reference only (month mode): grossProfitMyr − fleetPayrollTotalMyr. */
+  /** Reference only: sum of dispatch trip driverMyr already in period gross profit. */
+  pnlTripDriverAllowanceMyr: number | null;
+  /** Reference only: fleetPayrollTotalMyr − pnlTripDriverAllowanceMyr. */
+  fleetPayrollIncrementalMyr: number | null;
+  /** Reference only: payroll tripAllowance + crateCommission + extraAllowance (gross). */
+  payrollVariableAllowanceMyr: number | null;
+  /** Reference only (month mode): grossProfitMyr − fleetPayrollIncrementalMyr. */
   netProfitAfterFleetPayrollMyr: number | null;
 }
 

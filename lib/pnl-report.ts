@@ -736,8 +736,19 @@ function buildPeriodSummaryFromTrips(input: {
     totalBoxQty,
     trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     fleetPayrollTotalMyr: null,
+    pnlTripDriverAllowanceMyr: null,
+    fleetPayrollIncrementalMyr: null,
+    payrollVariableAllowanceMyr: null,
     netProfitAfterFleetPayrollMyr: null,
   };
+}
+
+function sumPnlTripDriverAllowanceMyr(trips: PnlTripRow[]): number {
+  return roundMoney(
+    trips
+      .filter((trip) => trip.tripSource === "dispatch")
+      .reduce((sum, trip) => sum + trip.vehicleCosts.driverMyr, 0)
+  );
 }
 
 async function loadThaiSegmentRates() {
@@ -2136,15 +2147,28 @@ function mergePeriodSummaryWithTripTotals(
 async function enrichPeriodSummaryWithFleetPayroll(
   summary: PnlPeriodSummary,
   year: number,
-  month: number
+  month: number,
+  trips: PnlTripRow[]
 ): Promise<PnlPeriodSummary> {
   const payroll = await loadFleetPayrollAggregate(year, month, { sync: false });
   const fleetPayrollTotalMyr = roundMoney(payroll.totalCostMyr);
+  const pnlTripDriverAllowanceMyr = sumPnlTripDriverAllowanceMyr(trips);
+  const payrollVariableAllowanceMyr = roundMoney(
+    payroll.totals.tripAllowanceTotal +
+      payroll.totals.crateCommissionTotal +
+      payroll.totals.extraAllowanceTotal
+  );
+  const fleetPayrollIncrementalMyr = roundMoney(
+    fleetPayrollTotalMyr - pnlTripDriverAllowanceMyr
+  );
   return {
     ...summary,
     fleetPayrollTotalMyr,
+    pnlTripDriverAllowanceMyr,
+    fleetPayrollIncrementalMyr,
+    payrollVariableAllowanceMyr,
     netProfitAfterFleetPayrollMyr: roundMoney(
-      summary.grossProfitMyr - fleetPayrollTotalMyr
+      summary.grossProfitMyr - fleetPayrollIncrementalMyr
     ),
   };
 }
@@ -2185,7 +2209,8 @@ export async function buildPnlPeriodSummary(input: {
           computed.tripTotals
         ),
         input.year,
-        input.month
+        input.month,
+        computed.trips
       ),
     };
   }
@@ -2328,6 +2353,9 @@ export async function buildPnlReport(input: {
         a.date.localeCompare(b.date)
       ),
       fleetPayrollTotalMyr: null,
+      pnlTripDriverAllowanceMyr: null,
+      fleetPayrollIncrementalMyr: null,
+      payrollVariableAllowanceMyr: null,
       netProfitAfterFleetPayrollMyr: null,
     };
     return {
@@ -2447,6 +2475,9 @@ export async function buildPnlReport(input: {
       a.date.localeCompare(b.date)
     ),
     fleetPayrollTotalMyr: null,
+    pnlTripDriverAllowanceMyr: null,
+    fleetPayrollIncrementalMyr: null,
+    payrollVariableAllowanceMyr: null,
     netProfitAfterFleetPayrollMyr: null,
   };
 
