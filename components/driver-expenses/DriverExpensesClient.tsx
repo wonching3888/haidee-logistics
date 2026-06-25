@@ -407,6 +407,11 @@ export function DriverExpensesClient({
     }
   }
 
+  const tripIdsWithVoucher = useMemo(
+    () => new Set(todayVouchers.map((voucher) => voucher.tripId)),
+    [todayVouchers]
+  );
+
   return (
     <div className="space-y-6">
       {error && (
@@ -486,6 +491,7 @@ export function DriverExpensesClient({
         date={date}
         fees={unloadingFees}
         hasLoaded={hasLoadedToday}
+        tripIdsWithVoucher={tripIdsWithVoucher}
         onPatchFee={patchUnloadingFee}
       />
     </div>

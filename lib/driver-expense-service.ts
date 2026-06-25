@@ -47,6 +47,12 @@ import {
   type RouteMasterCostRow,
 } from "@/lib/operations-cost";
 import { shouldWritebackVoucherActualsOnSave } from "@/lib/trip-cost-engine/config";
+import {
+  listMarketActualsByVoucherId,
+  marketActualRowsToScalarPatch,
+  upsertMarketActualsForVoucher,
+  type MarketActualInput,
+} from "@/lib/driver-expense/market-actuals-service";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   {
@@ -501,6 +507,11 @@ export async function generateUnloadingFeesForTrip(tripId: string) {
   return syncUnloadingFeeEstimatesForTrip(tripId);
 }
 
+export async function tripHasDriverVoucher(tripId: string): Promise<boolean> {
+  const count = await prisma.driverVoucher.count({ where: { tripId } });
+  return count > 0;
+}
+
 export async function tripHasVoucherUnloadingActuals(
   tripId: string
 ): Promise<boolean> {
@@ -625,6 +636,17 @@ export async function patchUnloadingFee(
   id: string,
   input: { unloadFeeOverride?: number | null; kpbFeeOverride?: number | null }
 ) {
+  const existing = await prisma.unloadingFee.findUnique({
+    where: { id },
+    select: { tripId: true },
+  });
+  if (!existing) throw new Error("下货费记录不存在 / Unloading fee not found");
+  if (await tripHasDriverVoucher(existing.tripId)) {
+    throw new Error(
+      "此趟已有报销单，请在报销单录入实际值 / Trip has voucher — edit actuals on voucher"
+    );
+  }
+
   return prisma.unloadingFee.update({
     where: { id },
     data: {
@@ -704,7 +726,17 @@ export async function countPendingReviewVouchers(): Promise<number> {
 }
 
 export async function getDriverVoucher(id: string) {
-  return prisma.driverVoucher.findUnique({ where: { id } });
+  const voucher = await prisma.driverVoucher.findUnique({ where: { id } });
+  if (!voucher) return null;
+  const marketActuals = await listMarketActualsByVoucherId(id);
+  return {
+    ...voucher,
+    marketActuals: marketActuals.map((row) => ({
+      feeType: row.feeType,
+      displayMarket: row.displayMarket,
+      amount: row.amount,
+    })),
+  };
 }
 
 const EDITABLE_VOUCHER_STATUSES = new Set<VoucherStatus>([
@@ -736,7 +768,43 @@ type VoucherAmountPatch = Partial<{
   minyakMotoActual: number | null;
   otherActual: number | null;
   duitJalan: number | null;
+  marketActuals?: MarketActualInput[];
 }>;
+
+async function syncVoucherScalarsFromMarketActuals(
+  voucherId: string,
+  marketActuals: MarketActualInput[] | undefined,
+  existing: {
+    chopBorderActual: number | null;
+    parkingActual: number | null;
+    kpbActual: number | null;
+    fishCheckActual: number | null;
+    upahTurunActual: number | null;
+    upahNaikTongActual: number | null;
+    minyakMotoEnabled: boolean;
+    minyakMotoActual: number | null;
+    otherActual: number | null;
+    duitJalan: number | null;
+  }
+) {
+  if (!marketActuals || marketActuals.length === 0) return null;
+
+  const rows = await upsertMarketActualsForVoucher(voucherId, marketActuals);
+  const scalarPatch = marketActualRowsToScalarPatch(rows);
+  if (Object.keys(scalarPatch).length === 0) return null;
+
+  const merged = { ...existing, ...scalarPatch };
+  const belanja = sumActualBelanja(merged);
+  const baki =
+    merged.duitJalan != null
+      ? roundMoney(merged.duitJalan - belanja)
+      : null;
+
+  return prisma.driverVoucher.update({
+    where: { id: voucherId },
+    data: { ...scalarPatch, belanja, baki },
+  });
+}
 
 function assertVoucherEditable(status: string) {
   if (!isVoucherStatus(status) || !EDITABLE_VOUCHER_STATUSES.has(status)) {
@@ -1041,6 +1109,7 @@ export async function createDriverVoucher(
     minyakMotoActual?: number | null;
     otherActual?: number | null;
     duitJalan?: number | null;
+    marketActuals?: MarketActualInput[];
   },
   options?: DriverVoucherWriteOptions
 ) {
@@ -1101,15 +1170,23 @@ export async function createDriverVoucher(
     return created;
   });
 
+  let result = voucher;
+  const synced = await syncVoucherScalarsFromMarketActuals(
+    voucher.id,
+    input.marketActuals,
+    voucher
+  );
+  if (synced) result = synced;
+
   if (shouldWritebackVoucherActualsOnSave()) {
     await writebackVoucherActuals({
-      tripId: voucher.tripId,
-      kpbActual: voucher.kpbActual,
-      upahTurunActual: voucher.upahTurunActual,
-      upahNaikTongActual: voucher.upahNaikTongActual,
+      tripId: result.tripId,
+      kpbActual: result.kpbActual,
+      upahTurunActual: result.upahTurunActual,
+      upahNaikTongActual: result.upahNaikTongActual,
     });
   }
-  return voucher;
+  return result;
 }
 
 export async function updateDriverVoucher(
@@ -1122,7 +1199,8 @@ export async function updateDriverVoucher(
 
   assertVoucherEditable(existing.status);
 
-  const merged = { ...existing, ...input };
+  const { marketActuals, ...voucherPatch } = input;
+  const merged = { ...existing, ...voucherPatch };
   const belanja = sumActualBelanja(merged);
   const baki =
     merged.duitJalan != null
@@ -1134,12 +1212,12 @@ export async function updateDriverVoucher(
     options?.submitEntry ??
     (existing.status === "draft" || existing.status === "rejected");
 
-  const fieldChanges = diffVoucherFieldChanges(existing, input);
+  const fieldChanges = diffVoucherFieldChanges(existing, voucherPatch);
 
   const voucher = await prisma.$transaction(async (tx) => {
     const updated = await tx.driverVoucher.update({
       where: { id },
-      data: { ...input, belanja, baki },
+      data: { ...voucherPatch, belanja, baki },
     });
 
     if (actor && fieldChanges.length > 0) {
@@ -1168,15 +1246,23 @@ export async function updateDriverVoucher(
     return updated;
   });
 
+  let result = voucher;
+  const synced = await syncVoucherScalarsFromMarketActuals(
+    id,
+    marketActuals,
+    result
+  );
+  if (synced) result = synced;
+
   if (shouldWritebackVoucherActualsOnSave()) {
     await writebackVoucherActuals({
-      tripId: voucher.tripId,
-      kpbActual: voucher.kpbActual,
-      upahTurunActual: voucher.upahTurunActual,
-      upahNaikTongActual: voucher.upahNaikTongActual,
+      tripId: result.tripId,
+      kpbActual: result.kpbActual,
+      upahTurunActual: result.upahTurunActual,
+      upahNaikTongActual: result.upahNaikTongActual,
     });
   }
-  return voucher;
+  return result;
 }
 
 function parkingFeeForMarket(market: string, routes: RouteMasterCostRow[]): number {

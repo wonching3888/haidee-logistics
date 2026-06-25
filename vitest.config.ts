@@ -17,10 +17,13 @@ export default defineConfig({
       "lib/trip-cost-engine/legacy-adapter.test.ts",
       "lib/trip-cost-engine/voucher-cost-resolver.test.ts",
       "lib/driver-expense/market-actuals-service.test.ts",
+      "lib/driver-expense/market-actuals-form.test.ts",
       "lib/driver-expense/market-display-map.test.ts",
       "lib/driver-expense/voucher-cost-apply.test.ts",
       "lib/trip-cost-engine/vehicle-leg-resolver.test.ts",
       "lib/trip-cost-engine/line-cost-allocator.test.ts",
+      "lib/trip-cost-engine/shadow-logger.test.ts",
+      "lib/trip-cost-engine/shadow-compare.test.ts",
     ],
   },
   resolve: {

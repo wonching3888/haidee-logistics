@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
@@ -18,8 +18,18 @@ import {
   sumSuggestedAmounts,
   VOUCHER_LABELS,
   type DriverVoucherData,
+  type VoucherMarketActualData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
+import {
+  buildMarketActualInputsFromForm,
+  getMarketActualFormValue,
+  hydrateMarketActualFormMap,
+  marketActualFormKey,
+  marketActualFormMapToDto,
+  sumMarketActualFormValues,
+  type MarketActualFormMap,
+} from "@/lib/driver-expense/market-actuals-form";
 import { useT } from "@/components/shared/locale-context";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
 import {
@@ -181,7 +191,23 @@ function voucherToForm(v: DriverVoucherData): VoucherFormState {
   };
 }
 
-function formToPrintData(form: VoucherFormState, belanja: number, baki: number | null): DriverVoucherData {
+function formToPrintData(
+  form: VoucherFormState,
+  belanja: number,
+  baki: number | null,
+  marketActuals: MarketActualFormMap,
+  breakdown: VoucherPrintBreakdown | null
+): DriverVoucherData {
+  const parkingActual =
+    sumMarketActualFormValues(marketActuals, "parking") ??
+    parseOptionalNumber(form.parkingActual);
+  const kpbActual =
+    sumMarketActualFormValues(marketActuals, "kpb") ??
+    parseOptionalNumber(form.kpbActual);
+  const upahTurunActual =
+    sumMarketActualFormValues(marketActuals, "unload") ??
+    parseOptionalNumber(form.upahTurunActual);
+
   return {
     voucherNo: form.voucherNo,
     tripId: form.tripId,
@@ -192,13 +218,13 @@ function formToPrintData(form: VoucherFormState, belanja: number, baki: number |
     chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
     chopBorderActual: parseOptionalNumber(form.chopBorderActual),
     parkingAmt: parseOptionalNumber(form.parkingAmt),
-    parkingActual: parseOptionalNumber(form.parkingActual),
+    parkingActual,
     kpbAmt: parseOptionalNumber(form.kpbAmt),
-    kpbActual: parseOptionalNumber(form.kpbActual),
+    kpbActual,
     fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
     fishCheckActual: parseOptionalNumber(form.fishCheckActual),
     upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
-    upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+    upahTurunActual,
     upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
     upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
     minyakMotoEnabled: form.minyakMotoEnabled,
@@ -208,6 +234,19 @@ function formToPrintData(form: VoucherFormState, belanja: number, baki: number |
     duitJalan: parseOptionalNumber(form.duitJalan),
     belanja,
     baki,
+    marketActuals: marketActualFormMapToDto(marketActuals, breakdown),
+  };
+}
+
+function updateMarketActualCell(
+  map: MarketActualFormMap,
+  feeType: "parking" | "kpb" | "unload",
+  displayMarket: string,
+  value: string
+): MarketActualFormMap {
+  return {
+    ...map,
+    [marketActualFormKey(feeType, displayMarket)]: value,
   };
 }
 
@@ -235,6 +274,17 @@ export function DriverVoucherForm({
   const [error, setError] = useState<string | null>(null);
   const [printBreakdown, setPrintBreakdown] =
     useState<VoucherPrintBreakdown | null>(null);
+  const [marketActuals, setMarketActuals] = useState<MarketActualFormMap>({});
+  const hydrateSourceRef = useRef<{
+    tripId: string;
+    rows: VoucherMarketActualData[];
+    scalars: {
+      parkingActual?: number | null;
+      kpbActual?: number | null;
+      upahTurunActual?: number | null;
+    };
+  } | null>(null);
+  const hydratedTripRef = useRef<string | null>(null);
 
   const backHref = `/documents/driver-expenses?date=${date}&refresh=1`;
   const formEditable = canEditVoucherFields(workflow.status, userRole, mode);
@@ -270,6 +320,17 @@ export function DriverVoucherForm({
                   ? data.voucher.tripDate.slice(0, 10)
                   : date,
             };
+            hydrateSourceRef.current = {
+              tripId: voucher.tripId,
+              rows: voucher.marketActuals ?? [],
+              scalars: {
+                parkingActual: voucher.parkingActual,
+                kpbActual: voucher.kpbActual,
+                upahTurunActual: voucher.upahTurunActual,
+              },
+            };
+            hydratedTripRef.current = null;
+            setMarketActuals({});
             setForm(voucherToForm(voucher));
             setWorkflow(workflowFromVoucher(voucher));
           }
@@ -378,6 +439,17 @@ export function DriverVoucherForm({
           ? data.voucher.tripDate.slice(0, 10)
           : date,
     };
+    hydrateSourceRef.current = {
+      tripId: voucher.tripId,
+      rows: voucher.marketActuals ?? [],
+      scalars: {
+        parkingActual: voucher.parkingActual,
+        kpbActual: voucher.kpbActual,
+        upahTurunActual: voucher.upahTurunActual,
+      },
+    };
+    hydratedTripRef.current = null;
+    setMarketActuals({});
     setForm(voucherToForm(voucher));
     setWorkflow(workflowFromVoucher(voucher));
   }
@@ -391,19 +463,33 @@ export function DriverVoucherForm({
 
   function buildSavePayload(submitEntry?: boolean) {
     if (!form) throw new Error("Form not ready");
+    const parkingActual =
+      sumMarketActualFormValues(marketActuals, "parking") ??
+      parseOptionalNumber(form.parkingActual);
+    const kpbActual =
+      sumMarketActualFormValues(marketActuals, "kpb") ??
+      parseOptionalNumber(form.kpbActual);
+    const upahTurunActual =
+      sumMarketActualFormValues(marketActuals, "unload") ??
+      parseOptionalNumber(form.upahTurunActual);
+    const marketActualInputs = buildMarketActualInputsFromForm(
+      marketActuals,
+      printBreakdown
+    );
+
     return {
       tripId: form.tripId,
       voucherNo: form.voucherNo,
       chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
       chopBorderActual: parseOptionalNumber(form.chopBorderActual),
       parkingAmt: parseOptionalNumber(form.parkingAmt),
-      parkingActual: parseOptionalNumber(form.parkingActual),
+      parkingActual,
       kpbAmt: parseOptionalNumber(form.kpbAmt),
-      kpbActual: parseOptionalNumber(form.kpbActual),
+      kpbActual,
       fishCheckAmt: parseOptionalNumber(form.fishCheckAmt),
       fishCheckActual: parseOptionalNumber(form.fishCheckActual),
       upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
-      upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+      upahTurunActual,
       upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
       upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
       minyakMotoEnabled: form.minyakMotoEnabled,
@@ -411,6 +497,8 @@ export function DriverVoucherForm({
       minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
       otherActual: parseOptionalNumber(form.otherActual),
       duitJalan: parseOptionalNumber(form.duitJalan),
+      marketActuals:
+        marketActualInputs.length > 0 ? marketActualInputs : undefined,
       submitEntry,
     };
   }
@@ -598,6 +686,13 @@ export function DriverVoucherForm({
       };
       const noData = (await noRes.json()) as { voucherNo?: string };
       if (!prepData.suggestion) throw new Error("Tiada data cadangan / No suggestion data");
+      hydrateSourceRef.current = {
+        tripId,
+        rows: [],
+        scalars: {},
+      };
+      hydratedTripRef.current = null;
+      setMarketActuals({});
       setForm(suggestionToForm(prepData.suggestion, noData.voucherNo ?? ""));
       router.replace(
         `/documents/driver-expenses/new?date=${date}&tripId=${tripId}`
@@ -611,18 +706,27 @@ export function DriverVoucherForm({
 
   const belanja = useMemo(() => {
     if (!form) return 0;
+    const parkingActual =
+      sumMarketActualFormValues(marketActuals, "parking") ??
+      parseOptionalNumber(form.parkingActual);
+    const kpbActual =
+      sumMarketActualFormValues(marketActuals, "kpb") ??
+      parseOptionalNumber(form.kpbActual);
+    const upahTurunActual =
+      sumMarketActualFormValues(marketActuals, "unload") ??
+      parseOptionalNumber(form.upahTurunActual);
     return sumActualBelanja({
       chopBorderActual: parseOptionalNumber(form.chopBorderActual),
-      parkingActual: parseOptionalNumber(form.parkingActual),
-      kpbActual: parseOptionalNumber(form.kpbActual),
+      parkingActual,
+      kpbActual,
       fishCheckActual: parseOptionalNumber(form.fishCheckActual),
-      upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+      upahTurunActual,
       upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
       minyakMotoEnabled: form.minyakMotoEnabled,
       minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
       otherActual: parseOptionalNumber(form.otherActual),
     });
-  }, [form]);
+  }, [form, marketActuals]);
 
   const suggestedSubtotal = useMemo(() => {
     if (!form) return 0;
@@ -654,7 +758,9 @@ export function DriverVoucherForm({
   const baki =
     duitJalan != null ? roundMoney(duitJalan - belanja) : null;
 
-  const printData = form ? formToPrintData(form, belanja, baki) : null;
+  const printData = form
+    ? formToPrintData(form, belanja, baki, marketActuals, printBreakdown)
+    : null;
   const availableTrips = dispatches.filter((d) => !existingTripIds.has(d.id));
 
   useEffect(() => {
@@ -670,6 +776,22 @@ export function DriverVoucherForm({
       cancelled = true;
     };
   }, [form?.tripId]);
+
+  useEffect(() => {
+    if (!form?.tripId || !printBreakdown) return;
+    if (hydratedTripRef.current === form.tripId) return;
+
+    const source = hydrateSourceRef.current;
+    const rows =
+      source?.tripId === form.tripId ? source.rows : [];
+    const scalars =
+      source?.tripId === form.tripId ? source.scalars : {};
+
+    setMarketActuals(
+      hydrateMarketActualFormMap(printBreakdown, rows, scalars)
+    );
+    hydratedTripRef.current = form.tripId;
+  }, [form?.tripId, printBreakdown]);
 
   function handlePrint() {
     window.print();
@@ -813,13 +935,6 @@ export function DriverVoucherForm({
               const upahTurunMap = new Map(
                 (printBreakdown?.upahTurun ?? []).map((row) => [row.market, row])
               );
-              const parkingMarkets = MARKET_ORDER.filter((market) =>
-                parkingMap.has(market)
-              );
-              const kpbMarkets = MARKET_ORDER.filter((market) => kpbMap.has(market));
-              const upahTurunMarkets = MARKET_ORDER.filter((market) =>
-                upahTurunMap.has(market)
-              );
               const marketWithAnyRows = MARKET_ORDER.filter(
                 (market) =>
                   parkingMap.has(market) ||
@@ -858,27 +973,27 @@ export function DriverVoucherForm({
                             className="bg-muted/50 text-right font-mono"
                             value={String(parkingMap.get(market)!.suggested)}
                           />
-                          {market === parkingMarkets[parkingMarkets.length - 1] ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="text-right font-mono"
-                              value={form.parkingActual}
-                              onChange={(e) =>
-                                setForm((prev) =>
-                                  prev
-                                    ? { ...prev, parkingActual: e.target.value }
-                                    : prev
+                          <Input
+                            type="number"
+                            step="0.01"
+                            readOnly={!formEditable}
+                            className="text-right font-mono"
+                            value={getMarketActualFormValue(
+                              marketActuals,
+                              "parking",
+                              market
+                            )}
+                            onChange={(e) =>
+                              setMarketActuals((prev) =>
+                                updateMarketActualCell(
+                                  prev,
+                                  "parking",
+                                  market,
+                                  e.target.value
                                 )
-                              }
-                            />
-                          ) : (
-                            <Input
-                              readOnly
-                              className="bg-muted/50 text-right font-mono"
-                              value=""
-                            />
-                          )}
+                              )
+                            }
+                          />
                         </div>
                       )}
                       {kpbMap.get(market) && (
@@ -889,25 +1004,27 @@ export function DriverVoucherForm({
                             className="bg-muted/50 text-right font-mono"
                             value={String(kpbMap.get(market)!.suggested)}
                           />
-                          {market === kpbMarkets[kpbMarkets.length - 1] ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="text-right font-mono"
-                              value={form.kpbActual}
-                              onChange={(e) =>
-                                setForm((prev) =>
-                                  prev ? { ...prev, kpbActual: e.target.value } : prev
+                          <Input
+                            type="number"
+                            step="0.01"
+                            readOnly={!formEditable}
+                            className="text-right font-mono"
+                            value={getMarketActualFormValue(
+                              marketActuals,
+                              "kpb",
+                              market
+                            )}
+                            onChange={(e) =>
+                              setMarketActuals((prev) =>
+                                updateMarketActualCell(
+                                  prev,
+                                  "kpb",
+                                  market,
+                                  e.target.value
                                 )
-                              }
-                            />
-                          ) : (
-                            <Input
-                              readOnly
-                              className="bg-muted/50 text-right font-mono"
-                              value=""
-                            />
-                          )}
+                              )
+                            }
+                          />
                         </div>
                       )}
                       {upahTurunMap.get(market) && (
@@ -918,27 +1035,27 @@ export function DriverVoucherForm({
                             className="bg-muted/50 text-right font-mono"
                             value={String(upahTurunMap.get(market)!.suggested)}
                           />
-                          {market === upahTurunMarkets[upahTurunMarkets.length - 1] ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="text-right font-mono"
-                              value={form.upahTurunActual}
-                              onChange={(e) =>
-                                setForm((prev) =>
-                                  prev
-                                    ? { ...prev, upahTurunActual: e.target.value }
-                                    : prev
+                          <Input
+                            type="number"
+                            step="0.01"
+                            readOnly={!formEditable}
+                            className="text-right font-mono"
+                            value={getMarketActualFormValue(
+                              marketActuals,
+                              "unload",
+                              market
+                            )}
+                            onChange={(e) =>
+                              setMarketActuals((prev) =>
+                                updateMarketActualCell(
+                                  prev,
+                                  "unload",
+                                  market,
+                                  e.target.value
                                 )
-                              }
-                            />
-                          ) : (
-                            <Input
-                              readOnly
-                              className="bg-muted/50 text-right font-mono"
-                              value=""
-                            />
-                          )}
+                              )
+                            }
+                          />
                         </div>
                       )}
                     </div>

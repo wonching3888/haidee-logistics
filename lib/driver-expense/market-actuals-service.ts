@@ -114,3 +114,35 @@ export function sumMarketActualAmounts(
   }
   return Math.round(total * 100) / 100;
 }
+
+export function hasMarketActualAmounts(
+  rows: Pick<MarketActualRow, "feeType" | "amount">[],
+  feeType: MarketActualFeeType
+) {
+  return rows.some((row) => row.feeType === feeType && row.amount != null);
+}
+
+/** Mirror per-market rows onto voucher scalar fields (parking/kpb/upahTurun). */
+export function marketActualRowsToScalarPatch(
+  rows: Pick<MarketActualRow, "feeType" | "amount">[]
+): Partial<{
+  parkingActual: number;
+  kpbActual: number;
+  upahTurunActual: number;
+}> {
+  const patch: Partial<{
+    parkingActual: number;
+    kpbActual: number;
+    upahTurunActual: number;
+  }> = {};
+  if (hasMarketActualAmounts(rows, "parking")) {
+    patch.parkingActual = sumMarketActualAmounts(rows, "parking");
+  }
+  if (hasMarketActualAmounts(rows, "kpb")) {
+    patch.kpbActual = sumMarketActualAmounts(rows, "kpb");
+  }
+  if (hasMarketActualAmounts(rows, "unload")) {
+    patch.upahTurunActual = sumMarketActualAmounts(rows, "unload");
+  }
+  return patch;
+}

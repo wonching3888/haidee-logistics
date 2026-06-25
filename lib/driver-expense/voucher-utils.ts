@@ -1,3 +1,9 @@
+export interface VoucherMarketActualData {
+  feeType: "parking" | "kpb" | "unload";
+  displayMarket: string;
+  amount: number | null;
+}
+
 export interface DriverVoucherData {
   id?: string;
   voucherNo: string;
@@ -28,11 +34,13 @@ export interface DriverVoucherData {
   status?: string;
   clerkNote?: string | null;
   reviewNote?: string | null;
+  marketActuals?: VoucherMarketActualData[];
 }
 
 export interface VoucherPrintMarketRow {
   market: string;
   suggested: number;
+  actual?: number | null;
 }
 
 export interface VoucherPrintBreakdown {

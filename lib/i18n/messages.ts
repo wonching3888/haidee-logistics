@@ -1601,6 +1601,11 @@ export const MESSAGES = {
     en: "Total",
     th: "รวม",
   },
+  "driverExpenses.unloading.voucherReadonly": {
+    zh: "此趟已有报销单，下货费/KPB 请在报销单按市场录入实际值（此处只读）",
+    en: "This trip has a voucher — enter per-market unload/KPB actuals on the voucher (read-only here)",
+    th: "ทริปนี้มีใบเบิกแล้ว — กรอกค่าขนถ่าย/KPB ต่อตลาดในใบเบิก (อ่านอย่างเดียวที่นี่)",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

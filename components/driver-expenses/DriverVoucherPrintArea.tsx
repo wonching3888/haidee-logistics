@@ -41,6 +41,17 @@ function FeeRow({
 
 const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
 
+function resolveVoucherMarketActual(
+  voucher: DriverVoucherData,
+  feeType: "parking" | "kpb" | "unload",
+  displayMarket: string
+): number | null {
+  const row = voucher.marketActuals?.find(
+    (item) => item.feeType === feeType && item.displayMarket === displayMarket
+  );
+  return row?.amount ?? null;
+}
+
 interface DriverVoucherPrintAreaProps {
   voucher: DriverVoucherData;
   breakdown: VoucherPrintBreakdown | null;
@@ -85,9 +96,6 @@ export function DriverVoucherPrintArea({
   const parkingMap = new Map((breakdown?.parking ?? []).map((row) => [row.market, row]));
   const kpbMap = new Map((breakdown?.kpb ?? []).map((row) => [row.market, row]));
   const upahTurunMap = new Map((breakdown?.upahTurun ?? []).map((row) => [row.market, row]));
-  const parkingMarkets = MARKET_ORDER.filter((market) => parkingMap.has(market));
-  const kpbMarkets = MARKET_ORDER.filter((market) => kpbMap.has(market));
-  const upahTurunMarkets = MARKET_ORDER.filter((market) => upahTurunMap.has(market));
   const marketWithAnyRows = MARKET_ORDER.filter(
     (market) =>
       parkingMap.has(market) || kpbMap.has(market) || upahTurunMap.has(market)
@@ -144,33 +152,21 @@ export function DriverVoucherPrintArea({
                 <FeeRow
                   label={`Parking ${market}`}
                   suggested={parkingMap.get(market)!.suggested}
-                  actual={
-                    market === parkingMarkets[parkingMarkets.length - 1]
-                      ? voucher.parkingActual
-                      : null
-                  }
+                  actual={resolveVoucherMarketActual(voucher, "parking", market)}
                 />
               )}
               {kpbMap.get(market) && (
                 <FeeRow
                   label={`KPB ${market}`}
                   suggested={kpbMap.get(market)!.suggested}
-                  actual={
-                    market === kpbMarkets[kpbMarkets.length - 1]
-                      ? voucher.kpbActual
-                      : null
-                  }
+                  actual={resolveVoucherMarketActual(voucher, "kpb", market)}
                 />
               )}
               {upahTurunMap.get(market) && (
                 <FeeRow
                   label={`Upah Turun ${market}`}
                   suggested={upahTurunMap.get(market)!.suggested}
-                  actual={
-                    market === upahTurunMarkets[upahTurunMarkets.length - 1]
-                      ? voucher.upahTurunActual
-                      : null
-                  }
+                  actual={resolveVoucherMarketActual(voucher, "unload", market)}
                 />
               )}
             </Fragment>

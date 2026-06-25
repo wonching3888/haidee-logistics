@@ -84,6 +84,7 @@ interface UnloadingFeesCollapsibleProps {
   date: string;
   fees: UnloadingFeeRow[];
   hasLoaded: boolean;
+  tripIdsWithVoucher?: Set<string>;
   onPatchFee: (
     id: string,
     field: "unloadFeeOverride" | "kpbFeeOverride",
@@ -95,6 +96,7 @@ export function UnloadingFeesCollapsible({
   date,
   fees,
   hasLoaded,
+  tripIdsWithVoucher,
   onPatchFee,
 }: UnloadingFeesCollapsibleProps) {
   const { t } = useT();
@@ -172,6 +174,7 @@ export function UnloadingFeesCollapsible({
               <div className="no-print mt-3 space-y-2">
                 {groups.map((group) => {
                   const tripExpanded = expandedTrips.has(group.tripId);
+                  const voucherLocked = tripIdsWithVoucher?.has(group.tripId) ?? false;
                   return (
                     <div
                       key={group.tripId}
@@ -206,7 +209,13 @@ export function UnloadingFeesCollapsible({
                         </Button>
                       </div>
                       {tripExpanded && (
-                        <ScrollMatrixTable
+                        <>
+                          {voucherLocked && (
+                            <p className="border-b border-haidee-border bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                              {t("driverExpenses.unloading.voucherReadonly")}
+                            </p>
+                          )}
+                          <ScrollMatrixTable
                           heightOffset={360}
                           className="rounded-none border-0"
                         >
@@ -246,22 +255,25 @@ export function UnloadingFeesCollapsible({
                                     <Input
                                       type="number"
                                       step="0.01"
+                                      readOnly={voucherLocked}
                                       className={cn(
                                         "ml-auto h-8 w-24 text-right font-mono text-sm",
                                         row.unloadFeeOverride != null &&
-                                          "text-orange-600"
+                                          "text-orange-600",
+                                        voucherLocked && "bg-muted/50"
                                       )}
                                       defaultValue={
                                         row.unloadFeeOverride ?? row.unloadFee
                                       }
-                                      key={`unload-${row.id}-${row.unloadFeeOverride}`}
-                                      onBlur={(e) =>
+                                      key={`unload-${row.id}-${row.unloadFeeOverride}-${voucherLocked}`}
+                                      onBlur={(e) => {
+                                        if (voucherLocked) return;
                                         void onPatchFee(
                                           row.id,
                                           "unloadFeeOverride",
                                           e.target.value
-                                        )
-                                      }
+                                        );
+                                      }}
                                     />
                                   </TableCell>
                                   <TableCell className="text-right">
@@ -276,22 +288,25 @@ export function UnloadingFeesCollapsible({
                                       <Input
                                         type="number"
                                         step="0.01"
+                                        readOnly={voucherLocked}
                                         className={cn(
                                           "ml-auto h-8 w-24 text-right font-mono text-sm",
                                           row.kpbFeeOverride != null &&
-                                            "text-orange-600"
+                                            "text-orange-600",
+                                          voucherLocked && "bg-muted/50"
                                         )}
                                         defaultValue={
                                           row.kpbFeeOverride ?? row.kpbFee
                                         }
-                                        key={`kpb-${row.id}-${row.kpbFeeOverride}`}
-                                        onBlur={(e) =>
+                                        key={`kpb-${row.id}-${row.kpbFeeOverride}-${voucherLocked}`}
+                                        onBlur={(e) => {
+                                          if (voucherLocked) return;
                                           void onPatchFee(
                                             row.id,
                                             "kpbFeeOverride",
                                             e.target.value
-                                          )
-                                        }
+                                          );
+                                        }}
                                       />
                                     )}
                                   </TableCell>
@@ -303,6 +318,7 @@ export function UnloadingFeesCollapsible({
                             </TableBody>
                           </Table>
                         </ScrollMatrixTable>
+                        </>
                       )}
                     </div>
                   );
