@@ -28,9 +28,20 @@ interface UnloadingRateRow {
   kpbBox: number;
   kpbMode: string;
   unloadMode: string;
+  perTripSmallTruck?: number | null;
+  perTripLargeTruck?: number | null;
+  thirdPartyFlatUnload?: number | null;
 }
 
-type RateField = keyof Omit<UnloadingRateRow, "market" | "kpbMode" | "unloadMode">;
+type RateField = keyof Omit<
+  UnloadingRateRow,
+  | "market"
+  | "kpbMode"
+  | "unloadMode"
+  | "perTripSmallTruck"
+  | "perTripLargeTruck"
+  | "thirdPartyFlatUnload"
+>;
 
 const NUMERIC_FIELDS: RateField[] = [
   "smallCrate",
@@ -58,12 +69,17 @@ const A_PARKING_FIELD_KEYS: Partial<Record<RateField, MessageKey>> = {
   kpbBox: "driverExpenses.unloading.kpbParkingFieldBox",
 };
 
-function formatRate(value: number) {
+function formatRate(value: number | null | undefined) {
+  if (value == null) return "";
   return String(value);
 }
 
 function isKpbField(field: RateField) {
   return field === "kpbSmall" || field === "kpbLarge" || field === "kpbBox";
+}
+
+function isUnloadField(field: RateField) {
+  return field === "smallCrate" || field === "largeCrate" || field === "box";
 }
 
 /** Display-only: which cells are read-only (does not affect save payload). */
@@ -77,10 +93,12 @@ function isFieldReadOnly(market: string, field: RateField) {
   return false;
 }
 
-function fieldNoteKey(
-  market: string,
-  field: RateField
-): MessageKey | null {
+function isFieldHidden(market: string, field: RateField) {
+  if (BM_PINDAH_MARKETS.has(market) && isUnloadField(field)) return true;
+  return false;
+}
+
+function fieldNoteKey(market: string, field: RateField): MessageKey | null {
   if (market === "JB") return "driverExpenses.unloading.jbExempt";
   if ((market === "BM" || market === "KD") && isKpbField(field)) {
     return "driverExpenses.unloading.kpbPermanentlyCancelled";
@@ -103,7 +121,54 @@ function cellFieldLabel(
     const key = A_PARKING_FIELD_KEYS[field];
     if (key) return t(key);
   }
+  if (market === "MC" && isUnloadField(field)) {
+    return t("driverExpenses.unloading.mcSelfUnloadSection");
+  }
   return null;
+}
+
+function RateInputCell({
+  readOnly,
+  value,
+  onChange,
+  note,
+  label,
+}: {
+  readOnly: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  note?: string | null;
+  label?: string | null;
+}) {
+  return (
+    <div className="ml-auto flex max-w-[7.5rem] flex-col items-end gap-0.5">
+      {label && (
+        <span className="text-[10px] font-medium leading-tight text-haidee-muted">
+          {label}
+        </span>
+      )}
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        readOnly={readOnly}
+        disabled={readOnly}
+        aria-readonly={readOnly}
+        className={cn(
+          "h-8 w-20 text-right font-mono text-sm",
+          readOnly &&
+            "cursor-not-allowed border-haidee-border/60 bg-haidee-surface/80 text-haidee-muted opacity-70"
+        )}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {note && (
+        <span className="max-w-[7.5rem] text-left text-[10px] leading-tight text-haidee-muted">
+          {note}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function UnloadingRatesSettings() {
@@ -124,16 +189,27 @@ export function UnloadingRatesSettings() {
       const data = (await res.json()) as { rates?: UnloadingRateRow[] };
       const rows = data.rates ?? [];
       setRates(rows);
-      setForm(
-        Object.fromEntries(
+      const tpRow = rows.find((r) => r.market === "TP");
+      setForm({
+        ...Object.fromEntries(
           rows.flatMap((row) =>
             NUMERIC_FIELDS.map((field) => [
               `${row.market}.${field}`,
               formatRate(row[field]),
             ])
           )
-        )
-      );
+        ),
+        bmPindahPerTripSmall: formatRate(tpRow?.perTripSmallTruck ?? 12),
+        bmPindahPerTripLarge: formatRate(tpRow?.perTripLargeTruck ?? 20),
+        ...Object.fromEntries(
+          rows
+            .filter((r) => r.market === "MC")
+            .map((row) => [
+              "MC.thirdPartyFlatUnload",
+              formatRate(row.thirdPartyFlatUnload ?? 0.7),
+            ])
+        ),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -155,6 +231,39 @@ export function UnloadingRatesSettings() {
     return parsed;
   }
 
+  function saveBmPindahGroup() {
+    startTransition(async () => {
+      setSavingMarket("BM_PINDAH");
+      setError(null);
+      try {
+        const res = await fetch("/api/unloading-rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            syncBmPindahGroup: true,
+            perTripSmallTruck: parseField(
+              form.bmPindahPerTripSmall ?? "",
+              t("driverExpenses.unloading.colPerTripSmallTruck")
+            ),
+            perTripLargeTruck: parseField(
+              form.bmPindahPerTripLarge ?? "",
+              t("driverExpenses.unloading.colPerTripLargeTruck")
+            ),
+          }),
+        });
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          throw new Error(data.error ?? "保存失败");
+        }
+        await loadRates();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "保存失败");
+      } finally {
+        setSavingMarket(null);
+      }
+    });
+  }
+
   function saveRow(market: string) {
     const row = rates.find((r) => r.market === market);
     if (!row) return;
@@ -173,6 +282,15 @@ export function UnloadingRatesSettings() {
           kpbBox: parseField(form[`${market}.kpbBox`] ?? "", "KPB箱"),
           kpbMode: row.kpbMode,
           unloadMode: row.unloadMode,
+          perTripSmallTruck: row.perTripSmallTruck ?? null,
+          perTripLargeTruck: row.perTripLargeTruck ?? null,
+          thirdPartyFlatUnload:
+            market === "MC"
+              ? parseField(
+                  form["MC.thirdPartyFlatUnload"] ?? "",
+                  t("driverExpenses.unloading.mcThirdPartyFlat")
+                )
+              : (row.thirdPartyFlatUnload ?? null),
         };
         const res = await fetch("/api/unloading-rates", {
           method: "POST",
@@ -191,6 +309,8 @@ export function UnloadingRatesSettings() {
       }
     });
   }
+
+  const tableRows = rates.filter((row) => !BM_PINDAH_MARKETS.has(row.market));
 
   if (loading) {
     return (
@@ -212,12 +332,77 @@ export function UnloadingRatesSettings() {
         <span className="font-medium">KL 搬车子市场（SL / BP / MP）：</span>
         {t("driverExpenses.unloading.klSubMarketNote")}
       </p>
+
+      <div className="rounded-lg border border-haidee-border bg-haidee-surface/30 px-4 py-3">
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <p className="text-sm font-medium text-haidee-text">
+              {t("driverExpenses.unloading.bmPindahSectionTitle")}
+            </p>
+            <p className="mt-0.5 text-xs text-haidee-muted">
+              {t("driverExpenses.unloading.bmPindahPerTripNote")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-haidee-muted">
+                {t("driverExpenses.unloading.colPerTripSmallTruck")}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                className="h-8 w-24 text-right font-mono text-sm"
+                value={form.bmPindahPerTripSmall ?? ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    bmPindahPerTripSmall: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-haidee-muted">
+                {t("driverExpenses.unloading.colPerTripLargeTruck")}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                className="h-8 w-24 text-right font-mono text-sm"
+                value={form.bmPindahPerTripLarge ?? ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    bmPindahPerTripLarge: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending && savingMarket === "BM_PINDAH"}
+              onClick={saveBmPindahGroup}
+              className="h-8"
+            >
+              {isPending && savingMarket === "BM_PINDAH" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                t("driverExpenses.unloading.save")
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
-      <ScrollMatrixTable heightOffset={220}>
+      <ScrollMatrixTable heightOffset={280}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -227,11 +412,14 @@ export function UnloadingRatesSettings() {
                   {t(FIELD_HEADER_KEYS[field])}
                 </TableHead>
               ))}
+              <TableHead className="text-right">
+                {t("driverExpenses.unloading.mcThirdPartyFlat")}
+              </TableHead>
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rates.map((row) => {
+            {tableRows.map((row) => {
               const rowReadOnly = row.market === "JB";
               return (
                 <TableRow key={row.market}>
@@ -250,53 +438,60 @@ export function UnloadingRatesSettings() {
                         {t("driverExpenses.unloading.klSubMarketNote")}
                       </span>
                     )}
-                    {BM_PINDAH_MARKETS.has(row.market) && (
-                      <span className="mt-0.5 block text-xs font-normal text-amber-700/90">
-                        {t("driverExpenses.unloading.bmPindahDisplayPendingNote")}
+                    {row.market === "MC" && (
+                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
+                        {t("driverExpenses.unloading.mcThirdPartyNote")}
                       </span>
                     )}
                   </TableCell>
                   {NUMERIC_FIELDS.map((field) => {
+                    if (isFieldHidden(row.market, field)) {
+                      return (
+                        <TableCell
+                          key={field}
+                          className="align-top text-right text-xs text-haidee-muted"
+                        >
+                          —
+                        </TableCell>
+                      );
+                    }
                     const readOnly = isFieldReadOnly(row.market, field);
                     const noteKey = fieldNoteKey(row.market, field);
                     const fieldLabel = cellFieldLabel(row.market, field, t);
                     return (
                       <TableCell key={field} className="align-top text-right">
-                        <div className="ml-auto flex max-w-[7.5rem] flex-col items-end gap-0.5">
-                          {fieldLabel && (
-                            <span className="text-[10px] font-medium leading-tight text-haidee-muted">
-                              {fieldLabel}
-                            </span>
-                          )}
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            readOnly={readOnly}
-                            disabled={readOnly}
-                            aria-readonly={readOnly}
-                            className={cn(
-                              "h-8 w-20 text-right font-mono text-sm",
-                              readOnly &&
-                                "cursor-not-allowed border-haidee-border/60 bg-haidee-surface/80 text-haidee-muted opacity-70"
-                            )}
-                            value={form[`${row.market}.${field}`] ?? ""}
-                            onChange={(e) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                [`${row.market}.${field}`]: e.target.value,
-                              }))
-                            }
-                          />
-                          {noteKey && (
-                            <span className="max-w-[7.5rem] text-left text-[10px] leading-tight text-haidee-muted">
-                              {t(noteKey)}
-                            </span>
-                          )}
-                        </div>
+                        <RateInputCell
+                          readOnly={readOnly}
+                          value={form[`${row.market}.${field}`] ?? ""}
+                          onChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [`${row.market}.${field}`]: value,
+                            }))
+                          }
+                          label={fieldLabel}
+                          note={noteKey ? t(noteKey) : null}
+                        />
                       </TableCell>
                     );
                   })}
+                  <TableCell className="align-top text-right">
+                    {row.market === "MC" ? (
+                      <RateInputCell
+                        readOnly={false}
+                        value={form["MC.thirdPartyFlatUnload"] ?? ""}
+                        onChange={(value) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            "MC.thirdPartyFlatUnload": value,
+                          }))
+                        }
+                        label={t("driverExpenses.unloading.mcThirdPartyFlat")}
+                      />
+                    ) : (
+                      <span className="text-xs text-haidee-muted">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="align-top">
                     <Button
                       size="sm"

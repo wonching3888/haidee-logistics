@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireDriverExpensesApi } from "@/lib/require-auth";
 import {
   listUnloadingRateConfigs,
+  upsertBmPindahTripUnloadRates,
   upsertUnloadingRateConfig,
 } from "@/lib/driver-expense-service";
 
@@ -47,7 +48,18 @@ export async function POST(request: Request) {
       kpbBox?: number;
       kpbMode?: string;
       unloadMode?: string;
+      perTripSmallTruck?: number;
+      perTripLargeTruck?: number;
+      thirdPartyFlatUnload?: number | null;
+      syncBmPindahGroup?: boolean;
     };
+    if (body.syncBmPindahGroup) {
+      const rates = await upsertBmPindahTripUnloadRates({
+        perTripSmallTruck: Number(body.perTripSmallTruck ?? 0),
+        perTripLargeTruck: Number(body.perTripLargeTruck ?? 0),
+      });
+      return NextResponse.json({ rates });
+    }
     if (!body.market) {
       return NextResponse.json({ error: "market is required" }, { status: 400 });
     }
@@ -61,6 +73,9 @@ export async function POST(request: Request) {
       kpbBox: Number(body.kpbBox ?? 0),
       kpbMode: body.kpbMode ?? "per_crate",
       unloadMode: body.unloadMode ?? "per_crate",
+      perTripSmallTruck: body.perTripSmallTruck ?? null,
+      perTripLargeTruck: body.perTripLargeTruck ?? null,
+      thirdPartyFlatUnload: body.thirdPartyFlatUnload ?? null,
     });
     return NextResponse.json({ rate });
   } catch (error) {

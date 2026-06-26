@@ -883,10 +883,13 @@ model UnloadingRateConfig {
   kpbSmall   Float    @default(0)
   kpbLarge   Float    @default(0)
   kpbBox     Float    @default(0)
-  kpbMode    String   @default("per_crate")
-  unloadMode String   @default("per_crate")
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  kpbMode              String   @default("per_crate")
+  unloadMode           String   @default("per_crate")
+  perTripSmallTruck    Float?
+  perTripLargeTruck    Float?
+  thirdPartyFlatUnload Float?
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
 
   @@map("unloading_rate_configs")
 }

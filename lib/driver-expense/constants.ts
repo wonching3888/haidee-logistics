@@ -18,6 +18,12 @@ export function usesKlUnloadFeeRules(market: string): boolean {
 }
 export const PER_TRIP_UNLOAD_MARKETS = new Set(["TP", "KT", "P", "SA", "NT"]);
 
+export const BM_PINDAH_RATE_MARKETS = ["TP", "KT", "P", "SA", "NT"] as const;
+
+/** Fallback when DB perTrip* is null (BM Pindah trip unload). */
+export const BM_PINDAH_SMALL_TRUCK_FEE = 12;
+export const BM_PINDAH_LARGE_TRUCK_FEE = 20;
+
 export const KL_KPB_STORE_PATTERN = /^[A-H]\d+$/i;
 
 export const ZERO_UNLOAD_MARKETS = new Set(["JB"]);

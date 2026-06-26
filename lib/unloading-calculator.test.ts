@@ -230,9 +230,65 @@ const MC_RATE: UnloadingRateConfigInput = {
   kpbSmall: 0.5,
   kpbLarge: 0.5,
   kpbBox: 0.5,
+  thirdPartyFlatUnload: 0.7,
   kpbMode: "per_crate",
   unloadMode: "per_crate",
 };
+
+const TP_RATE: UnloadingRateConfigInput = {
+  market: "TP",
+  smallCrate: 0,
+  largeCrate: 0,
+  box: 0,
+  kpbSmall: 0,
+  kpbLarge: 0,
+  kpbBox: 0,
+  perTripSmallTruck: 12,
+  perTripLargeTruck: 20,
+  kpbMode: "per_trip",
+  unloadMode: "per_trip",
+};
+
+describe("calculateTripUnloadingFees BM Pindah per-trip unload from DB", () => {
+  it("charges large truck 20 from perTripLargeTruck", () => {
+    const [tp] = calculateTripUnloadingFees({
+      lines: [{ market: "TP", smallCrateQty: 100, largeCrateQty: 0, boxQty: 0 }],
+      ratesByMarket: new Map([["TP", TP_RATE]]),
+      truckSize: "large",
+    });
+    expect(tp.unloadFee).toBe(20);
+    expect(tp.kpbFee).toBe(0);
+    expect(tp.isKpbExempt).toBe(true);
+  });
+
+  it("charges small truck 12 from perTripSmallTruck", () => {
+    const [tp] = calculateTripUnloadingFees({
+      lines: [{ market: "TP", smallCrateQty: 5, largeCrateQty: 0, boxQty: 0 }],
+      ratesByMarket: new Map([["TP", TP_RATE]]),
+      truckSize: "small",
+    });
+    expect(tp.unloadFee).toBe(12);
+  });
+
+  it("charges once per trip when TP and KT on same trip", () => {
+    const results = calculateTripUnloadingFees({
+      lines: [
+        { market: "TP", smallCrateQty: 1, largeCrateQty: 0, boxQty: 0 },
+        { market: "KT", smallCrateQty: 2, largeCrateQty: 0, boxQty: 0 },
+      ],
+      ratesByMarket: new Map([
+        ["TP", TP_RATE],
+        ["KT", { ...TP_RATE, market: "KT" }],
+      ]),
+      truckSize: "large",
+    });
+    const tp = results.find((r) => r.market === "TP")!;
+    const kt = results.find((r) => r.market === "KT")!;
+    expect(tp.unloadFee).toBe(20);
+    expect(kt.unloadFee).toBe(0);
+    expect(kt.tripLevelNote).toBe("同趟已计下货费");
+  });
+});
 
 describe("calculateTripUnloadingFees MC third-party unload", () => {
   it("charges 0.70 per crate/box for MC third-party lines only", () => {

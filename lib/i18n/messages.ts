@@ -1741,6 +1741,46 @@ export const MESSAGES = {
     en: "Actual per-trip 12/20; settings UI update pending",
     th: "จริงต่อเที่ยว 12/20 กำลังปรับหน้าตั้งค่า",
   },
+  "driverExpenses.unloading.bmPindahSectionTitle": {
+    zh: "BM Pindah（TP / KT / P / SA / NT）",
+    en: "BM Pindah (TP / KT / P / SA / NT)",
+    th: "BM Pindah (TP / KT / P / SA / NT)",
+  },
+  "driverExpenses.unloading.bmPindahPerTripNote": {
+    zh: "按趟一次计费，不按桶；五市场共用此费率",
+    en: "Charged once per trip by truck size; shared by all five markets",
+    th: "คิดครั้งเดียวต่อเที่ยวตามขนาดรถ ใช้ร่วมทั้งห้าตลาด",
+  },
+  "driverExpenses.unloading.colPerTripSmallTruck": {
+    zh: "小车趟费",
+    en: "Small truck / trip",
+    th: "รถเล็ก/เที่ยว",
+  },
+  "driverExpenses.unloading.colPerTripLargeTruck": {
+    zh: "大车趟费",
+    en: "Large truck / trip",
+    th: "รถใหญ่/เที่ยว",
+  },
+  "driverExpenses.unloading.mcSelfUnloadSection": {
+    zh: "自送下货",
+    en: "Self delivery unload",
+    th: "ขนถ่ายส่งเอง",
+  },
+  "driverExpenses.unloading.mcThirdPartyFlat": {
+    zh: "第三方一口价",
+    en: "Third-party flat rate",
+    th: "เหมาจ่ายบุคคลที่สาม",
+  },
+  "driverExpenses.unloading.mcThirdPartyNote": {
+    zh: "仅 mc_delivery_mode=third_party 适用，不收 KPB",
+    en: "Applies only when mc_delivery_mode=third_party; no KPB",
+    th: "ใช้เมื่อ mc_delivery_mode=third_party เท่านั้น ไม่เก็บ KPB",
+  },
+  "driverExpenses.unloading.deprecatedCrateCols": {
+    zh: "已废弃",
+    en: "Deprecated",
+    th: "เลิกใช้",
+  },
   "driverExpenses.unloading.colSmall": {
     zh: "小桶",
     en: "Small",

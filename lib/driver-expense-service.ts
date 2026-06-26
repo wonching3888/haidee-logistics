@@ -21,6 +21,7 @@ import {
 } from "@/lib/crate-loading-calculator";
 import {
   LARGE_CRATE_CODES,
+  BM_PINDAH_RATE_MARKETS,
   isKpbDisabledMarket,
   isMcThirdPartyDeliveryLine,
   isSlKpbWaived,
@@ -84,6 +85,7 @@ export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
     kpbSmall: 0.5,
     kpbLarge: 0.5,
     kpbBox: 0.5,
+    thirdPartyFlatUnload: 0.7,
     unloadMode: "per_crate",
     kpbMode: "per_crate",
   },
@@ -122,56 +124,66 @@ export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   },
   {
     market: "TP",
-    smallCrate: 50,
-    largeCrate: 80,
+    smallCrate: 0,
+    largeCrate: 0,
     box: 0,
     kpbSmall: 0,
     kpbLarge: 0,
     kpbBox: 0,
+    perTripSmallTruck: 12,
+    perTripLargeTruck: 20,
     unloadMode: "per_trip",
     kpbMode: "per_trip",
   },
   {
     market: "KT",
-    smallCrate: 50,
-    largeCrate: 80,
+    smallCrate: 0,
+    largeCrate: 0,
     box: 0,
     kpbSmall: 0,
     kpbLarge: 0,
     kpbBox: 0,
+    perTripSmallTruck: 12,
+    perTripLargeTruck: 20,
     unloadMode: "per_trip",
     kpbMode: "per_trip",
   },
   {
     market: "P",
-    smallCrate: 50,
-    largeCrate: 80,
+    smallCrate: 0,
+    largeCrate: 0,
     box: 0,
     kpbSmall: 0,
     kpbLarge: 0,
     kpbBox: 0,
+    perTripSmallTruck: 12,
+    perTripLargeTruck: 20,
     unloadMode: "per_trip",
     kpbMode: "per_trip",
   },
   {
     market: "SA",
-    smallCrate: 50,
-    largeCrate: 80,
+    smallCrate: 0,
+    largeCrate: 0,
     box: 0,
     kpbSmall: 0,
     kpbLarge: 0,
     kpbBox: 0,
+    perTripSmallTruck: 12,
+    perTripLargeTruck: 20,
     unloadMode: "per_trip",
     kpbMode: "per_trip",
   },
   {
     market: "NT",
-    smallCrate: 50,
-    largeCrate: 80,
+    smallCrate: 0,
+    largeCrate: 0,
     box: 0,
     kpbSmall: 0,
     kpbLarge: 0,
     kpbBox: 0,
+    perTripSmallTruck: 12,
+    perTripLargeTruck: 20,
     unloadMode: "per_trip",
     kpbMode: "per_trip",
   },
@@ -201,6 +213,36 @@ function classifyCrate(tongCode: string, isBox: boolean) {
     return "large" as const;
   }
   return "small" as const;
+}
+
+function serializeUnloadingRateConfig(row: {
+  market: string;
+  smallCrate: number;
+  largeCrate: number;
+  box: number;
+  kpbSmall: number;
+  kpbLarge: number;
+  kpbBox: number;
+  kpbMode: string;
+  unloadMode: string;
+  perTripSmallTruck: number | null;
+  perTripLargeTruck: number | null;
+  thirdPartyFlatUnload: number | null;
+}): UnloadingRateConfigInput {
+  return {
+    market: row.market,
+    smallCrate: row.smallCrate,
+    largeCrate: row.largeCrate,
+    box: row.box,
+    kpbSmall: row.kpbSmall,
+    kpbLarge: row.kpbLarge,
+    kpbBox: row.kpbBox,
+    kpbMode: row.kpbMode,
+    unloadMode: row.unloadMode,
+    perTripSmallTruck: row.perTripSmallTruck,
+    perTripLargeTruck: row.perTripLargeTruck,
+    thirdPartyFlatUnload: row.thirdPartyFlatUnload,
+  };
 }
 
 export async function ensureUnloadingRateConfigsSeeded() {
@@ -233,11 +275,64 @@ export async function listUnloadingRateConfigs() {
 export async function upsertUnloadingRateConfig(
   input: UnloadingRateConfigInput
 ) {
+  const data = {
+    smallCrate: input.smallCrate,
+    largeCrate: input.largeCrate,
+    box: input.box,
+    kpbSmall: input.kpbSmall,
+    kpbLarge: input.kpbLarge,
+    kpbBox: input.kpbBox,
+    kpbMode: input.kpbMode,
+    unloadMode: input.unloadMode,
+    perTripSmallTruck: input.perTripSmallTruck ?? null,
+    perTripLargeTruck: input.perTripLargeTruck ?? null,
+    thirdPartyFlatUnload: input.thirdPartyFlatUnload ?? null,
+  };
   return prisma.unloadingRateConfig.upsert({
     where: { market: input.market },
-    create: input,
-    update: input,
+    create: { market: input.market, ...data },
+    update: data,
   });
+}
+
+/** B1: sync per-trip unload rates across TP / KT / P / SA / NT. */
+export async function upsertBmPindahTripUnloadRates(input: {
+  perTripSmallTruck: number;
+  perTripLargeTruck: number;
+}) {
+  await ensureUnloadingRateConfigsSeeded();
+  const results = [];
+  for (const market of BM_PINDAH_RATE_MARKETS) {
+    const existing = await prisma.unloadingRateConfig.findUnique({
+      where: { market },
+    });
+    const row = await prisma.unloadingRateConfig.upsert({
+      where: { market },
+      create: {
+        market,
+        smallCrate: 0,
+        largeCrate: 0,
+        box: 0,
+        kpbSmall: 0,
+        kpbLarge: 0,
+        kpbBox: 0,
+        kpbMode: existing?.kpbMode ?? "per_trip",
+        unloadMode: existing?.unloadMode ?? "per_trip",
+        perTripSmallTruck: input.perTripSmallTruck,
+        perTripLargeTruck: input.perTripLargeTruck,
+        thirdPartyFlatUnload: null,
+      },
+      update: {
+        perTripSmallTruck: input.perTripSmallTruck,
+        perTripLargeTruck: input.perTripLargeTruck,
+        smallCrate: 0,
+        largeCrate: 0,
+        box: 0,
+      },
+    });
+    results.push(row);
+  }
+  return results;
 }
 
 export async function listCrateLoadingRateConfigs() {
@@ -259,7 +354,7 @@ export async function upsertCrateLoadingRateConfig(
 
 async function loadUnloadingRatesMap() {
   const rows = await listUnloadingRateConfigs();
-  return new Map(rows.map((row) => [row.market, row]));
+  return new Map(rows.map((row) => [row.market, serializeUnloadingRateConfig(row)]));
 }
 
 async function loadCrateLoadingRatesMap() {
@@ -366,7 +461,7 @@ export async function getUnloadingRatesByMarket(): Promise<
   Map<string, UnloadingRateConfigInput>
 > {
   const rows = await listUnloadingRateConfigs();
-  return new Map(rows.map((row) => [row.market, row]));
+  return new Map(rows.map((row) => [row.market, serializeUnloadingRateConfig(row)]));
 }
 
 export function estimateTripUnloadingFeesTotal(
@@ -1339,10 +1434,11 @@ function hasAnyMarket(tripMarkets: string[], markets: string[]) {
 
 export async function getVoucherPrintBreakdown(tripId: string) {
   const dispatch = await loadDispatchForExpense(tripId);
-  const [unloadingFees, loadingFees, routes] = await Promise.all([
+  const [unloadingFees, loadingFees, routes, ratesByMarket] = await Promise.all([
     listUnloadingFees({ tripId }),
     listCrateLoadingFees({ tripId }),
     prisma.routeMaster.findMany({ where: { active: true } }),
+    getUnloadingRatesByMarket(),
   ]);
 
   const routeRows: RouteMasterCostRow[] = routes.map((route) => ({
@@ -1365,8 +1461,13 @@ export async function getVoucherPrintBreakdown(tripId: string) {
 
   const KL_GROUP = ["KL", "BP", "MP", "SL"];
   const BM_PINDAH_GROUP = ["P", "TP", "KT", "NT", "SA"];
+  const bmPindahRate =
+    ratesByMarket.get("TP") ??
+    ratesByMarket.get("KT") ??
+    ratesByMarket.get("P");
   const bmPindahTripFee = bmPindahTripUnloadFee(
-    resolveTruckSize(dispatch.truck.type)
+    resolveTruckSize(dispatch.truck.type),
+    bmPindahRate
   );
 
   const parking: { market: string; suggested: number }[] = [];

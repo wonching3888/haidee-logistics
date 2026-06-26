@@ -2,6 +2,8 @@ import {
   KL_KPB_STORE_PATTERN,
   PER_TRIP_UNLOAD_MARKETS,
   resolveUnloadingRateConfigMarket,
+  BM_PINDAH_LARGE_TRUCK_FEE,
+  BM_PINDAH_SMALL_TRUCK_FEE,
   isKpbDisabledMarket,
   isSlKpbWaived,
   MC_THIRD_PARTY_UNLOAD_RATE,
@@ -20,6 +22,9 @@ export interface UnloadingRateConfigInput {
   kpbBox: number;
   kpbMode: string;
   unloadMode: string;
+  perTripSmallTruck?: number | null;
+  perTripLargeTruck?: number | null;
+  thirdPartyFlatUnload?: number | null;
 }
 
 export interface UnloadingMarketLineInput {
@@ -50,9 +55,6 @@ export interface UnloadingFeeCalcResult {
   tripLevelNote: string | null;
 }
 
-const BM_PINDAH_SMALL_TRUCK_FEE = 12;
-const BM_PINDAH_LARGE_TRUCK_FEE = 20;
-
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -65,12 +67,16 @@ function rateForTruck(
   return size === "small" ? small : large;
 }
 
-export function bmPindahTripUnloadFee(truckSize: TruckSize) {
-  return rateForTruck(
-    truckSize,
-    BM_PINDAH_SMALL_TRUCK_FEE,
-    BM_PINDAH_LARGE_TRUCK_FEE
-  );
+export function bmPindahTripUnloadFee(
+  truckSize: TruckSize,
+  rate?: Pick<
+    UnloadingRateConfigInput,
+    "perTripSmallTruck" | "perTripLargeTruck"
+  > | null
+) {
+  const small = rate?.perTripSmallTruck ?? BM_PINDAH_SMALL_TRUCK_FEE;
+  const large = rate?.perTripLargeTruck ?? BM_PINDAH_LARGE_TRUCK_FEE;
+  return rateForTruck(truckSize, small, large);
 }
 
 function isKlKpbExempt(storeCode: string | null | undefined) {
@@ -128,7 +134,7 @@ export function calculateTripUnloadingFees(input: {
 
     if (PER_TRIP_UNLOAD_MARKETS.has(market)) {
       if (!perTripUnloadCharged) {
-        unloadFee = bmPindahTripUnloadFee(truckSize);
+        unloadFee = bmPindahTripUnloadFee(truckSize, rate);
         perTripUnloadCharged = true;
         tripLevelNote = "TP/KT/P/SA/NT 整趟一次";
       } else {
@@ -188,8 +194,10 @@ export function calculateTripUnloadingFees(input: {
           line.largeCrateQty * rate.largeCrate +
           line.boxQty * rate.box
       );
+      const thirdPartyRate =
+        rate.thirdPartyFlatUnload ?? MC_THIRD_PARTY_UNLOAD_RATE;
       const thirdPartyUnload = roundMoney(
-        (tpSmall + tpLarge + tpBox) * MC_THIRD_PARTY_UNLOAD_RATE
+        (tpSmall + tpLarge + tpBox) * thirdPartyRate
       );
       unloadFee = roundMoney(selfUnload + thirdPartyUnload);
       if (!isKpbDisabledMarket(market)) {
