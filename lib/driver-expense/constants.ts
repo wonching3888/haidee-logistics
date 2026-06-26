@@ -22,6 +22,13 @@ export const KL_KPB_STORE_PATTERN = /^[A-H]\d+$/i;
 
 export const ZERO_UNLOAD_MARKETS = new Set(["JB"]);
 
+/** Markets that no longer charge KPB (unload unchanged; use rate 0 + calc short-circuit, not isKpbExempt). */
+export const KPB_DISABLED_MARKETS = new Set(["BM", "KD"]);
+
+export function isKpbDisabledMarket(market: string): boolean {
+  return KPB_DISABLED_MARKETS.has(market.trim().toUpperCase());
+}
+
 export type TruckSize = "small" | "large";
 
 export function resolveTruckSize(truckType: string | null | undefined): TruckSize {

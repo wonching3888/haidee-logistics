@@ -32,6 +32,72 @@ describe("isKlKpbEligibleStall", () => {
   });
 });
 
+describe("calculateTripUnloadingFees BM/KD KPB disabled", () => {
+  const BM_RATE: UnloadingRateConfigInput = {
+    market: "BM",
+    smallCrate: 1,
+    largeCrate: 1,
+    box: 0.6,
+    kpbSmall: 7,
+    kpbLarge: 20,
+    kpbBox: 0,
+    kpbMode: "per_trip",
+    unloadMode: "per_crate",
+  };
+  const KD_RATE: UnloadingRateConfigInput = {
+    market: "KD",
+    smallCrate: 1,
+    largeCrate: 1,
+    box: 1,
+    kpbSmall: 5,
+    kpbLarge: 10,
+    kpbBox: 0,
+    kpbMode: "per_trip",
+    unloadMode: "per_crate",
+  };
+
+  it("BM charges unload only, never KPB (even with non-zero rate config)", () => {
+    const [bm] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "BM",
+          storeCode: null,
+          smallCrateQty: 10,
+          largeCrateQty: 0,
+          boxQty: 0,
+        },
+      ],
+      ratesByMarket: new Map([["BM", BM_RATE]]),
+      truckSize: "large",
+    });
+
+    expect(bm.unloadFee).toBe(10);
+    expect(bm.kpbFee).toBe(0);
+    expect(bm.isKpbExempt).toBe(false);
+    expect(bm.tripLevelNote).toBeNull();
+  });
+
+  it("KD charges unload only, never KPB (even with non-zero rate config)", () => {
+    const [kd] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "KD",
+          storeCode: null,
+          smallCrateQty: 8,
+          largeCrateQty: 2,
+          boxQty: 1,
+        },
+      ],
+      ratesByMarket: new Map([["KD", KD_RATE]]),
+      truckSize: "small",
+    });
+
+    expect(kd.unloadFee).toBe(11);
+    expect(kd.kpbFee).toBe(0);
+    expect(kd.isKpbExempt).toBe(false);
+    expect(kd.tripLevelNote).toBeNull();
+  });
+});
 describe("calculateTripUnloadingFees KL-group per-stall KPB", () => {
   it("charges KPB only for eligible-stall crate counts", () => {
     const [kl] = calculateTripUnloadingFees({

@@ -21,6 +21,7 @@ import {
 } from "@/lib/crate-loading-calculator";
 import {
   LARGE_CRATE_CODES,
+  isKpbDisabledMarket,
   resolveTruckSize,
   truckSizeLabel,
   usesKlUnloadFeeRules,
@@ -101,8 +102,8 @@ export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
     smallCrate: 1.0,
     largeCrate: 1.0,
     box: 0.6,
-    kpbSmall: 7.0,
-    kpbLarge: 20.0,
+    kpbSmall: 0,
+    kpbLarge: 0,
     kpbBox: 0,
     unloadMode: "per_crate",
     kpbMode: "per_trip",
@@ -112,8 +113,8 @@ export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
     smallCrate: 1.0,
     largeCrate: 1.0,
     box: 1.0,
-    kpbSmall: 5.0,
-    kpbLarge: 10.0,
+    kpbSmall: 0,
+    kpbLarge: 0,
     kpbBox: 0,
     unloadMode: "per_crate",
     kpbMode: "per_trip",
@@ -1376,6 +1377,7 @@ export async function getVoucherPrintBreakdown(tripId: string) {
   }
   for (const market of ["BM", "A", "KD", "MC"]) {
     if (!tripMarkets.includes(market)) continue;
+    if (isKpbDisabledMarket(market)) continue;
     const value = sumUnloadingByMarkets(unloadingFees, [market], "kpb");
     if (value > 0) kpb.push({ market, suggested: value });
   }

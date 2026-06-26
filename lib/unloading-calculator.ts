@@ -2,6 +2,7 @@ import {
   KL_KPB_STORE_PATTERN,
   PER_TRIP_UNLOAD_MARKETS,
   resolveUnloadingRateConfigMarket,
+  isKpbDisabledMarket,
   usesKlUnloadFeeRules,
   ZERO_UNLOAD_MARKETS,
   type TruckSize,
@@ -93,8 +94,6 @@ export function calculateTripUnloadingFees(input: {
   const { lines, ratesByMarket, truckSize } = input;
   const results: UnloadingFeeCalcResult[] = [];
   let perTripUnloadCharged = false;
-  let bmKpbCharged = false;
-  let kdKpbCharged = false;
 
   for (const line of lines) {
     const market = line.market.trim().toUpperCase();
@@ -165,32 +164,26 @@ export function calculateTripUnloadingFees(input: {
         (line.smallCrateQty + line.largeCrateQty) * rate.smallCrate +
           line.boxQty * rate.box
       );
-      if (!bmKpbCharged) {
-        kpbFee = rateForTruck(truckSize, rate.kpbSmall, rate.kpbLarge);
-        bmKpbCharged = true;
-        tripLevelNote = tripLevelNote ?? "BM KPB 整趟一次";
-      }
+      // KPB permanently disabled for BM (kpbFee stays 0; no isKpbExempt).
     } else if (market === "KD") {
       const perCrate = rate.smallCrate;
       unloadFee = roundMoney(
         (line.smallCrateQty + line.largeCrateQty + line.boxQty) * perCrate
       );
-      if (!kdKpbCharged) {
-        kpbFee = rateForTruck(truckSize, rate.kpbSmall, rate.kpbLarge);
-        kdKpbCharged = true;
-        tripLevelNote = tripLevelNote ?? "KD KPB 整趟一次";
-      }
+      // KPB permanently disabled for KD (kpbFee stays 0; no isKpbExempt).
     } else {
       unloadFee = roundMoney(
         line.smallCrateQty * rate.smallCrate +
           line.largeCrateQty * rate.largeCrate +
           line.boxQty * rate.box
       );
-      kpbFee = roundMoney(
-        line.smallCrateQty * rate.kpbSmall +
-          line.largeCrateQty * rate.kpbLarge +
-          line.boxQty * rate.kpbBox
-      );
+      if (!isKpbDisabledMarket(market)) {
+        kpbFee = roundMoney(
+          line.smallCrateQty * rate.kpbSmall +
+            line.largeCrateQty * rate.kpbLarge +
+            line.boxQty * rate.kpbBox
+        );
+      }
     }
 
     results.push({

@@ -30,6 +30,7 @@ import {
   sumMarketActualFormValues,
   type MarketActualFormMap,
 } from "@/lib/driver-expense/market-actuals-form";
+import { isKpbDisabledMarket } from "@/lib/driver-expense/constants";
 import { formatKpbFeeRowLabel } from "@/lib/driver-expense/fee-labels";
 import { useT } from "@/components/shared/locale-context";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
@@ -997,7 +998,8 @@ export function DriverVoucherForm({
                           />
                         </div>
                       )}
-                      {(market === "KL" || kpbMap.get(market)) && (
+                      {(market === "KL" ||
+                        (kpbMap.get(market) && !isKpbDisabledMarket(market))) && (
                         <div className="grid grid-cols-3 items-center gap-3">
                           <label className="text-sm">
                             {formatKpbFeeRowLabel(market, locale)}
