@@ -1691,6 +1691,16 @@ export const MESSAGES = {
     en: "This trip has a voucher — enter per-market unload/KPB actuals on the voucher (read-only here)",
     th: "ทริปนี้มีใบเบิกแล้ว — กรอกค่าขนถ่าย/KPB ต่อตลาดในใบเบิก (อ่านอย่างเดียวที่นี่)",
   },
+  "driverExpenses.fee.kpbParkingIpoh": {
+    zh: "停车费",
+    en: "Parking",
+    th: "ค่าจอดรถ",
+  },
+  "driverExpenses.unloading.kpbParkingIpohNote": {
+    zh: "即停车费",
+    en: "Parking fee",
+    th: "ค่าจอดรถ",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

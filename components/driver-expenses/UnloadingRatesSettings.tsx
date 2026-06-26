@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
+import { useT } from "@/components/shared/locale-context";
 import { cn } from "@/lib/utils";
 
 interface UnloadingRateRow {
@@ -44,6 +45,7 @@ function formatRate(value: number) {
 }
 
 export function UnloadingRatesSettings() {
+  const { t } = useT();
   const [rates, setRates] = useState<UnloadingRateRow[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -180,6 +182,11 @@ export function UnloadingRatesSettings() {
                   <span className="ml-1 text-xs text-haidee-muted">
                     {getMarketDisplayName(row.market)}
                   </span>
+                  {row.market === "A" && (
+                    <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
+                      {t("driverExpenses.unloading.kpbParkingIpohNote")}
+                    </span>
+                  )}
                 </TableCell>
                 {NUMERIC_FIELDS.map((field) => (
                   <TableCell key={field} className="text-right">

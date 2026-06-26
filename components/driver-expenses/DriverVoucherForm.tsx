@@ -30,6 +30,7 @@ import {
   sumMarketActualFormValues,
   type MarketActualFormMap,
 } from "@/lib/driver-expense/market-actuals-form";
+import { formatKpbFeeRowLabel } from "@/lib/driver-expense/fee-labels";
 import { useT } from "@/components/shared/locale-context";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
 import {
@@ -258,7 +259,7 @@ export function DriverVoucherForm({
   userRole,
 }: DriverVoucherFormProps) {
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const [form, setForm] = useState<VoucherFormState | null>(null);
   const [workflow, setWorkflow] = useState<VoucherWorkflowMeta>(defaultWorkflowMeta);
   const [changeLogs, setChangeLogs] = useState<VoucherChangeLogEntry[]>([]);
@@ -998,7 +999,9 @@ export function DriverVoucherForm({
                       )}
                       {(market === "KL" || kpbMap.get(market)) && (
                         <div className="grid grid-cols-3 items-center gap-3">
-                          <label className="text-sm">{`KPB ${market}`}</label>
+                          <label className="text-sm">
+                            {formatKpbFeeRowLabel(market, locale)}
+                          </label>
                           <Input
                             readOnly
                             className="bg-muted/50 text-right font-mono"

@@ -9,6 +9,8 @@ import {
   type DriverVoucherData,
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
+import { formatKpbFeeRowLabel } from "@/lib/driver-expense/fee-labels";
+import { useT } from "@/components/shared/locale-context";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 
 function formatAmt(value: number | null): string {
@@ -61,6 +63,7 @@ export function DriverVoucherPrintArea({
   voucher,
   breakdown,
 }: DriverVoucherPrintAreaProps) {
+  const { locale } = useT();
   const parkingSuggested =
     breakdown?.parking.length
       ? breakdown.parking.reduce((sum, row) => sum + row.suggested, 0)
@@ -157,7 +160,7 @@ export function DriverVoucherPrintArea({
               )}
               {kpbMap.get(market) && (
                 <FeeRow
-                  label={`KPB ${market}`}
+                  label={formatKpbFeeRowLabel(market, locale)}
                   suggested={kpbMap.get(market)!.suggested}
                   actual={resolveVoucherMarketActual(voucher, "kpb", market)}
                 />
