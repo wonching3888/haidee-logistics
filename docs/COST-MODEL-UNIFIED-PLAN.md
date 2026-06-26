@@ -244,8 +244,8 @@ VEHICLE_ALLOC_MODE=legacy|shadow|enforced     # C
 | 4 | C leg 分摊 + MC 剔除 + 行级 allocator | 依赖 1 |
 | 5 | shadow 跑满 2026-06 月 + diff 报告 | |
 | 6 | UI 按市场录入 + Module1 只读 + 打印 | 依赖 2 |
-| 7 | **一次 enforced** A+B+C + 全月重算 | 依赖 3–6 |
-| 8 | 迁移脚本 + 生产验证 | |
+| 7 | **一次 enforced** A+B+C + 全月重算 | ✅ 2026-06-26 生产上线 |
+| 8 | 迁移脚本 + 生产验证 | ✅ enforced 已验证；可选 `market_actuals` 回填 2 条待审 |
 
 **风险最高**：Step 7（P&L / 顾客分析数字变动 + 闸门同时生效）。
 
@@ -257,9 +257,38 @@ VEHICLE_ALLOC_MODE=legacy|shadow|enforced     # C
 |----|------|
 | 方案设计 | ✅ 定稿 |
 | 老板决策 | ✅ 七项已定（见 §3） |
-| 代码实现 | ⏸ **未开工** — 等老板下令 |
-| 开工前提 | 司机报销 ①–④ 书记试用稳定 |
-| Git | ✅ 已 commit 至 `main`（实施依据） |
+| Step 1–6 | ✅ 已上线 `main`（workflow、`market_actuals` UI、shadow 等） |
+| **Step 7 — A+B+C enforced** | ✅ **生产生效 2026-06-26**（`VOUCHER_COST_MODE=enforced` + `VEHICLE_ALLOC_MODE=enforced`） |
+| Step 7b 修复 | ✅ `883f222` — 无 voucher 读估算、MC 全第三方池对齐、守恒断言、缓存 key 含 flag |
+| Step 8 — 历史 voucher 迁移 | ⏸ **待审** — 见下方生产核查结论 |
+
+### 7 生产上线验证（2026-06-26）
+
+| 检查项 | 结果 |
+|--------|------|
+| 全月毛利守恒 | legacy **242,640.75** → enforced **242,640.61**（Δ **-0.14** 舍入） |
+| Shadow 车辆池守恒 | 146,933.92 → 146,934.06（Δ +0.14）✓ |
+| 顾客方向 | SAHASIN - SK 毛利 ↑ **7,355.59**；SAKDA ↓ **27,684**；59↑ / 17↓ |
+| Voucher gate（6 月） | 0 趟装卸费因未审 voucher 误读 |
+
+### 8 历史 voucher 迁移（2026-06-25 生产只读核查）
+
+生产共 **6** 条 voucher（5 confirmed + 1 approved），均有 `cost_applied_at`。
+
+| voucher | status | market_actuals | override | enforced 成本 |
+|---------|--------|----------------|----------|---------------|
+| V-20260611-001 | confirmed | **0 行**（①-b 迁移） | ✅ kpb/unload/loading | **读真实**（标量 actual + override） |
+| V-20260610-001 | confirmed | **0 行** | ✅ kpb/unload/loading | **读真实** |
+| V-20260601-001 | approved | 6 行 | ✅ | **读真实** |
+| V-20260608-001 | confirmed | 6 行 | ✅ | **读真实** |
+| V-20260611-002 | confirmed | 9 行 | ✅ | **读真实** |
+| V-20260612-001 | confirmed | 9 行 | ✅ | **读真实** |
+
+**结论**：①-b 迁来的 `V-20260611-001` 虽无 `market_actuals`，但旧 writeback 已写入 `unloading_fees` / `crate_loading_fees` override；enforced 下 **不读估算，P&L 成本正确**。
+
+**可选 housekeeping**（不影响 P&L，待老板审后执行）：为 `V-20260610-001`、`V-20260611-001` 从现有 override + 标量 **回填 `market_actuals`**，便于 UI 按市场编辑；幂等 dry-run 脚本待审。
+
+| Git | ✅ Step 7a `b439880`、Step 7b `883f222` 已 push `main` |
 
 ---
 
