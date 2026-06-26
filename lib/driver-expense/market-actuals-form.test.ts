@@ -59,4 +59,20 @@ describe("market-actuals-form", () => {
       amount: null,
     });
   });
+
+  it("includes KL kpb row when suggested is 0", () => {
+    const bd: VoucherPrintBreakdown = {
+      ...breakdown,
+      kpb: [{ market: "KL", suggested: 0 }],
+    };
+    const items = buildMarketActualInputsFromForm(
+      { [marketActualFormKey("kpb", "KL")]: "12.5" },
+      bd
+    );
+    expect(items).toContainEqual({
+      feeType: "kpb",
+      displayMarket: "KL",
+      amount: 12.5,
+    });
+  });
 });

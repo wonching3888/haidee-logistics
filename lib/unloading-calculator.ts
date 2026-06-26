@@ -25,6 +25,10 @@ export interface UnloadingMarketLineInput {
   smallCrateQty: number;
   largeCrateQty: number;
   boxQty: number;
+  /** KL-group: crate counts on A–H+digit stalls only (per-line aggregation). */
+  kpbSmallCrateQty?: number;
+  kpbLargeCrateQty?: number;
+  kpbBoxQty?: number;
 }
 
 export interface UnloadingFeeCalcResult {
@@ -66,6 +70,19 @@ function isKlKpbExempt(storeCode: string | null | undefined) {
   const code = (storeCode ?? "").trim();
   if (!code) return true;
   return !KL_KPB_STORE_PATTERN.test(code);
+}
+
+/** Stall code matches KL KPB charge pattern (A01–H50 style: letter A–H + digits). */
+export function isKlKpbEligibleStall(storeCode: string | null | undefined) {
+  return !isKlKpbExempt(storeCode);
+}
+
+function klKpbUsesPerStallCounts(line: UnloadingMarketLineInput) {
+  return (
+    line.kpbSmallCrateQty !== undefined ||
+    line.kpbLargeCrateQty !== undefined ||
+    line.kpbBoxQty !== undefined
+  );
 }
 
 export function calculateTripUnloadingFees(input: {
@@ -119,7 +136,21 @@ export function calculateTripUnloadingFees(input: {
           line.largeCrateQty * rate.largeCrate +
           line.boxQty * rate.box
       );
-      if (isKlKpbExempt(storeCode)) {
+      if (klKpbUsesPerStallCounts(line)) {
+        const kpbSmall = line.kpbSmallCrateQty ?? 0;
+        const kpbLarge = line.kpbLargeCrateQty ?? 0;
+        const kpbBox = line.kpbBoxQty ?? 0;
+        if (kpbSmall + kpbLarge + kpbBox <= 0) {
+          isKpbExempt = true;
+          kpbFee = 0;
+        } else {
+          kpbFee = roundMoney(
+            kpbSmall * rate.kpbSmall +
+              kpbLarge * rate.kpbLarge +
+              kpbBox * rate.kpbBox
+          );
+        }
+      } else if (isKlKpbExempt(storeCode)) {
         isKpbExempt = true;
         kpbFee = 0;
       } else {

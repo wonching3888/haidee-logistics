@@ -23,12 +23,14 @@ import {
   LARGE_CRATE_CODES,
   resolveTruckSize,
   truckSizeLabel,
+  usesKlUnloadFeeRules,
 } from "@/lib/driver-expense/constants";
 import {
   bmPindahTripUnloadFee,
   calculateTripUnloadingFees,
   effectiveKpbFee,
   effectiveUnloadFee,
+  isKlKpbEligibleStall,
   lineSubtotal,
   type UnloadingMarketLineInput,
   type UnloadingRateConfigInput,
@@ -274,7 +276,12 @@ function aggregateDispatchUnloadingLines(
 
   const byMarket = new Map<
     string,
-    UnloadingMarketLineInput & { storeCode: string | null }
+    UnloadingMarketLineInput & {
+      storeCode: string | null;
+      kpbSmallCrateQty: number;
+      kpbLargeCrateQty: number;
+      kpbBoxQty: number;
+    }
   >();
 
   for (const dl of dispatch.lines) {
@@ -289,20 +296,31 @@ function aggregateDispatchUnloadingLines(
 
     const tongCode = line.tongType?.code ?? "";
     const bucket = classifyCrate(tongCode, line.tongType?.isBox ?? false);
+    const stallCode = line.stall.code ?? null;
     const existing = byMarket.get(market) ?? {
       market,
-      storeCode: line.stall.code ?? null,
+      storeCode: null,
       smallCrateQty: 0,
       largeCrateQty: 0,
       boxQty: 0,
+      kpbSmallCrateQty: 0,
+      kpbLargeCrateQty: 0,
+      kpbBoxQty: 0,
     };
 
     if (bucket === "box") existing.boxQty += qty;
     else if (bucket === "large") existing.largeCrateQty += qty;
     else existing.smallCrateQty += qty;
 
-    if (!existing.storeCode && line.stall.code) {
-      existing.storeCode = line.stall.code;
+    if (usesKlUnloadFeeRules(market) && isKlKpbEligibleStall(stallCode)) {
+      if (bucket === "box") existing.kpbBoxQty += qty;
+      else if (bucket === "large") existing.kpbLargeCrateQty += qty;
+      else existing.kpbSmallCrateQty += qty;
+      if (!isKlKpbEligibleStall(existing.storeCode)) {
+        existing.storeCode = stallCode;
+      }
+    } else if (!existing.storeCode && stallCode) {
+      existing.storeCode = stallCode;
     }
 
     byMarket.set(market, existing);
@@ -1348,7 +1366,7 @@ export async function getVoucherPrintBreakdown(tripId: string) {
   const kpb: { market: string; suggested: number }[] = [];
   if (hasAnyMarket(tripMarkets, KL_GROUP)) {
     const value = sumUnloadingByMarkets(unloadingFees, KL_GROUP, "kpb");
-    if (value > 0) kpb.push({ market: "KL", suggested: value });
+    kpb.push({ market: "KL", suggested: value });
   }
   for (const market of ["BM", "A", "KD", "MC"]) {
     if (!tripMarkets.includes(market)) continue;

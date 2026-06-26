@@ -20,6 +20,7 @@ export default defineConfig({
       "lib/driver-expense/market-actuals-form.test.ts",
       "lib/driver-expense/market-display-map.test.ts",
       "lib/driver-expense/voucher-cost-apply.test.ts",
+      "lib/unloading-calculator.test.ts",
       "lib/trip-cost-engine/vehicle-leg-resolver.test.ts",
       "lib/trip-cost-engine/line-cost-allocator.test.ts",
       "lib/trip-cost-engine/shadow-logger.test.ts",

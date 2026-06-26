@@ -996,13 +996,13 @@ export function DriverVoucherForm({
                           />
                         </div>
                       )}
-                      {kpbMap.get(market) && (
+                      {(market === "KL" || kpbMap.get(market)) && (
                         <div className="grid grid-cols-3 items-center gap-3">
                           <label className="text-sm">{`KPB ${market}`}</label>
                           <Input
                             readOnly
                             className="bg-muted/50 text-right font-mono"
-                            value={String(kpbMap.get(market)!.suggested)}
+                            value={String(kpbMap.get(market)?.suggested ?? "0")}
                           />
                           <Input
                             type="number"
