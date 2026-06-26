@@ -22,6 +22,7 @@ import {
 import {
   LARGE_CRATE_CODES,
   isKpbDisabledMarket,
+  isSlKpbWaived,
   resolveTruckSize,
   truckSizeLabel,
   usesKlUnloadFeeRules,
@@ -319,7 +320,11 @@ function aggregateDispatchUnloadingLines(
     else if (bucket === "large") existing.largeCrateQty += qty;
     else existing.smallCrateQty += qty;
 
-    if (usesKlUnloadFeeRules(market) && isKlKpbEligibleStall(stallCode)) {
+    if (
+      usesKlUnloadFeeRules(market) &&
+      !isSlKpbWaived(market) &&
+      isKlKpbEligibleStall(stallCode)
+    ) {
       if (bucket === "box") existing.kpbBoxQty += qty;
       else if (bucket === "large") existing.kpbLargeCrateQty += qty;
       else existing.kpbSmallCrateQty += qty;

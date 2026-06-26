@@ -148,10 +148,10 @@ export function UnloadingRatesSettings() {
       </p>
       <p className="rounded-lg border border-haidee-border bg-haidee-surface/50 px-4 py-3 text-sm text-haidee-text">
         <span className="font-medium">KL 搬车子市场（SL / BP / MP）：</span>
-        基础下货费按 KL 费率、按桶/箱量计费；KPB 仅在档口编号符合 A–H
-        加数字格式时收取，无档口则豁免 KPB。
-        Sub-markets SL, BP, MP use KL unload rates; KPB applies only when stall code
-        matches the KL store pattern.
+        基础下货费按 KL 费率、按桶/箱量计费；BP/MP 的 KPB 仅在档口编号符合 A–H
+        加数字格式时收取。SL 下货费同 KL 费率，但 KPB 已豁免（不收 KPB）。
+        Sub-markets use KL unload rates; BP/MP KPB applies when stall code matches
+        the KL store pattern. SL unload uses KL rates; SL KPB is waived.
       </p>
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

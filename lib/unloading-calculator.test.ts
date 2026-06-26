@@ -98,6 +98,63 @@ describe("calculateTripUnloadingFees BM/KD KPB disabled", () => {
     expect(kd.tripLevelNote).toBeNull();
   });
 });
+describe("calculateTripUnloadingFees SL KPB waived", () => {
+  it("SL charges KL unload but never KPB (eligible stall, legacy path)", () => {
+    const [sl] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "SL",
+          storeCode: "A38",
+          smallCrateQty: 10,
+          largeCrateQty: 0,
+          boxQty: 0,
+        },
+      ],
+      ratesByMarket: new Map([["KL", KL_RATE]]),
+      truckSize: "large",
+    });
+
+    expect(sl.unloadFee).toBe(10);
+    expect(sl.kpbFee).toBe(0);
+    expect(sl.isKpbExempt).toBe(false);
+  });
+
+  it("KL KPB unchanged when SL line present on same trip", () => {
+    const results = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "KL",
+          storeCode: "A38",
+          smallCrateQty: 10,
+          largeCrateQty: 0,
+          boxQty: 0,
+          kpbSmallCrateQty: 6,
+          kpbLargeCrateQty: 0,
+          kpbBoxQty: 0,
+        },
+        {
+          market: "SL",
+          storeCode: "H01",
+          smallCrateQty: 20,
+          largeCrateQty: 0,
+          boxQty: 0,
+          kpbSmallCrateQty: 0,
+          kpbLargeCrateQty: 0,
+          kpbBoxQty: 0,
+        },
+      ],
+      ratesByMarket: new Map([["KL", KL_RATE]]),
+      truckSize: "large",
+    });
+
+    const kl = results.find((row) => row.market === "KL")!;
+    const sl = results.find((row) => row.market === "SL")!;
+    expect(kl.kpbFee).toBe(3);
+    expect(sl.unloadFee).toBe(20);
+    expect(sl.kpbFee).toBe(0);
+    expect(sl.isKpbExempt).toBe(false);
+  });
+});
 describe("calculateTripUnloadingFees KL-group per-stall KPB", () => {
   it("charges KPB only for eligible-stall crate counts", () => {
     const [kl] = calculateTripUnloadingFees({

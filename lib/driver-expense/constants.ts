@@ -29,6 +29,11 @@ export function isKpbDisabledMarket(market: string): boolean {
   return KPB_DISABLED_MARKETS.has(market.trim().toUpperCase());
 }
 
+/** SL shares KL unload rates but never charges KPB (short-circuit only; not isKpbExempt). */
+export function isSlKpbWaived(market: string): boolean {
+  return market.trim().toUpperCase() === "SL";
+}
+
 export type TruckSize = "small" | "large";
 
 export function resolveTruckSize(truckType: string | null | undefined): TruckSize {

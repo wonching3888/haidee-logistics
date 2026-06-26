@@ -3,6 +3,7 @@ import {
   PER_TRIP_UNLOAD_MARKETS,
   resolveUnloadingRateConfigMarket,
   isKpbDisabledMarket,
+  isSlKpbWaived,
   usesKlUnloadFeeRules,
   ZERO_UNLOAD_MARKETS,
   type TruckSize,
@@ -135,29 +136,31 @@ export function calculateTripUnloadingFees(input: {
           line.largeCrateQty * rate.largeCrate +
           line.boxQty * rate.box
       );
-      if (klKpbUsesPerStallCounts(line)) {
-        const kpbSmall = line.kpbSmallCrateQty ?? 0;
-        const kpbLarge = line.kpbLargeCrateQty ?? 0;
-        const kpbBox = line.kpbBoxQty ?? 0;
-        if (kpbSmall + kpbLarge + kpbBox <= 0) {
+      if (!isSlKpbWaived(market)) {
+        if (klKpbUsesPerStallCounts(line)) {
+          const kpbSmall = line.kpbSmallCrateQty ?? 0;
+          const kpbLarge = line.kpbLargeCrateQty ?? 0;
+          const kpbBox = line.kpbBoxQty ?? 0;
+          if (kpbSmall + kpbLarge + kpbBox <= 0) {
+            isKpbExempt = true;
+            kpbFee = 0;
+          } else {
+            kpbFee = roundMoney(
+              kpbSmall * rate.kpbSmall +
+                kpbLarge * rate.kpbLarge +
+                kpbBox * rate.kpbBox
+            );
+          }
+        } else if (isKlKpbExempt(storeCode)) {
           isKpbExempt = true;
           kpbFee = 0;
         } else {
           kpbFee = roundMoney(
-            kpbSmall * rate.kpbSmall +
-              kpbLarge * rate.kpbLarge +
-              kpbBox * rate.kpbBox
+            line.smallCrateQty * rate.kpbSmall +
+              line.largeCrateQty * rate.kpbLarge +
+              line.boxQty * rate.kpbBox
           );
         }
-      } else if (isKlKpbExempt(storeCode)) {
-        isKpbExempt = true;
-        kpbFee = 0;
-      } else {
-        kpbFee = roundMoney(
-          line.smallCrateQty * rate.kpbSmall +
-            line.largeCrateQty * rate.kpbLarge +
-            line.boxQty * rate.kpbBox
-        );
       }
     } else if (market === "BM") {
       unloadFee = roundMoney(
