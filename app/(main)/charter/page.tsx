@@ -4,8 +4,11 @@ import { Plus } from "lucide-react";
 import { getCharterTrips } from "@/app/actions/charter";
 import { CharterDateFilter } from "@/components/charter/CharterDateFilter";
 import { CharterDeletedBanner } from "@/components/charter/CharterDeletedBanner";
+import { CharterMonthlyLedger } from "@/components/charter/CharterMonthlyLedger";
 import { CharterTripList } from "@/components/charter/CharterTripList";
 import { PageError } from "@/components/shared/PageError";
+import { getCurrentUser } from "@/lib/auth";
+import { currentCalendarYearMonth } from "@/lib/parse-year-month-params";
 import { resolveDateParam } from "@/lib/date-utils";
 
 interface CharterPageProps {
@@ -17,7 +20,12 @@ export default async function CharterPage({ searchParams }: CharterPageProps) {
   const date = resolveDateParam(params.date);
 
   try {
-    const trips = await getCharterTrips(date);
+    const [trips, user] = await Promise.all([
+      getCharterTrips(date),
+      getCurrentUser(),
+    ]);
+    const { year, month } = currentCalendarYearMonth();
+    const showMonthlyLedger = user?.role === "admin";
 
     return (
       <div className="space-y-6">
@@ -51,6 +59,10 @@ export default async function CharterPage({ searchParams }: CharterPageProps) {
         </Suspense>
 
         <CharterTripList trips={trips} />
+
+        {showMonthlyLedger ? (
+          <CharterMonthlyLedger initialYear={year} initialMonth={month} />
+        ) : null}
       </div>
     );
   } catch (error) {

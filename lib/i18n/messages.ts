@@ -26,6 +26,71 @@ export const MESSAGES = {
     en: "Charter",
     th: "เหมารถ",
   },
+  "charter.monthlyLedger.title": {
+    zh: "当月包车流水",
+    en: "Monthly charter ledger",
+    th: "บัญชีเหมารถประจำเดือน",
+  },
+  "charter.monthlyLedger.subtitle": {
+    zh: "按包车单日期筛选；金额与 P&L 包车行一致",
+    en: "Filter by charter date; amounts match P&L charter rows",
+    th: "กรองตามวันที่เหมารถ ยอดตรงกับแถว P&L",
+  },
+  "charter.monthlyLedger.loading": {
+    zh: "加载中…",
+    en: "Loading…",
+    th: "กำลังโหลด…",
+  },
+  "charter.monthlyLedger.loadFailed": {
+    zh: "加载失败",
+    en: "Failed to load",
+    th: "โหลดไม่สำเร็จ",
+  },
+  "charter.monthlyLedger.empty": {
+    zh: "该月暂无包车记录",
+    en: "No charter trips for this month",
+    th: "ไม่มีรายการเหมารถในเดือนนี้",
+  },
+  "charter.monthlyLedger.filtersChanged": {
+    zh: "月份已变更，请点击查询更新",
+    en: "Month changed — click Search to update",
+    th: "เปลี่ยนเดือนแล้ว กดค้นหาเพื่ออัปเดต",
+  },
+  "charter.monthlyLedger.col.date": {
+    zh: "日期",
+    en: "Date",
+    th: "วันที่",
+  },
+  "charter.monthlyLedger.col.charterNo": {
+    zh: "包车单号",
+    en: "Charter no.",
+    th: "เลขที่เหมา",
+  },
+  "charter.monthlyLedger.col.plate": {
+    zh: "车牌",
+    en: "Plate",
+    th: "ทะเบียน",
+  },
+  "charter.monthlyLedger.col.customer": {
+    zh: "客户",
+    en: "Customer",
+    th: "ลูกค้า",
+  },
+  "charter.monthlyLedger.col.location": {
+    zh: "路线/地点",
+    en: "Route / location",
+    th: "เส้นทาง/สถานที่",
+  },
+  "charter.monthlyLedger.col.revenue": {
+    zh: "总价",
+    en: "Revenue",
+    th: "รายได้",
+  },
+  "charter.monthlyLedger.col.grossProfit": {
+    zh: "毛利",
+    en: "Gross profit",
+    th: "กำไรขั้นต้น",
+  },
   "nav.summary": {
     zh: "总单",
     en: "Daily Summary",

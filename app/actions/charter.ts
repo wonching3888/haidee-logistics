@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { requireWrite } from "@/lib/require-auth";
-import { parseDateInput, formatDisplayDate } from "@/lib/date-utils";
+import { requireRole, requireWrite } from "@/lib/require-auth";
+import { parseDateInput, formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { loadExchangeRate } from "@/lib/exchange-rate";
@@ -45,6 +45,12 @@ import {
   resolveCharterBillToDisplayLabelFromTrip,
   type CharterInvoiceData,
 } from "@/lib/charter-invoice";
+import {
+  charterTripPnlSelect,
+  computeCharterPnlRow,
+  type CharterTripPnlInput,
+} from "@/lib/charter-pnl";
+import { loadGlobalTripCostValues } from "@/lib/operations-cost";
 import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 
@@ -678,4 +684,71 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
 
   revalidateCharterPaths();
   return { ok: true };
+}
+
+export interface CharterMonthlyLedgerRow {
+  id: string;
+  date: string;
+  charterNo: string | null;
+  truckPlate: string;
+  customerName: string;
+  locationLabel: string;
+  revenueMyr: number;
+  grossProfitMyr: number;
+}
+
+const charterMonthlyLedgerSelect = {
+  stockAreaNote: true,
+  ...charterTripPnlSelect,
+  shipper: { select: { id: true, code: true, name: true, location: true } },
+} as const;
+
+type CharterMonthlyLedgerDbRow = CharterTripPnlInput & {
+  stockAreaNote: string | null;
+  shipper?: { id: string; code: string; name: string; location: string | null } | null;
+};
+
+function resolveCharterLedgerLocation(row: CharterMonthlyLedgerDbRow): string {
+  const stockArea = row.stockAreaNote?.trim();
+  if (stockArea) return stockArea;
+  const shipperLocation = row.shipper?.location?.trim();
+  if (shipperLocation) return shipperLocation;
+  return "—";
+}
+
+export async function getCharterMonthlyLedger(input: {
+  year: number;
+  month: number;
+}): Promise<{ rows: CharterMonthlyLedgerRow[] }> {
+  await requireRole(["admin"]);
+
+  parseCharterInvoiceYearMonth(input.year, input.month);
+  const { start, end } = charterMonthDateRange(input.year, input.month);
+  const globalCosts = await loadGlobalTripCostValues();
+
+  const dbRows = (await prisma.charterTrip.findMany({
+    where: { date: { gte: start, lte: end } },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    select: charterMonthlyLedgerSelect,
+  })) as CharterMonthlyLedgerDbRow[];
+
+  const rows: CharterMonthlyLedgerRow[] = [];
+  for (const trip of dbRows) {
+    const pnlRow = computeCharterPnlRow(trip, globalCosts);
+    if (!pnlRow) continue;
+
+    const customerName = pnlRow.shippers[0]?.shipperName ?? "—";
+    rows.push({
+      id: trip.id,
+      date: toDateInputValue(trip.date),
+      charterNo: trip.charterNo,
+      truckPlate: pnlRow.truckPlate,
+      customerName,
+      locationLabel: resolveCharterLedgerLocation(trip),
+      revenueMyr: pnlRow.revenueMyr,
+      grossProfitMyr: pnlRow.grossProfitMyr,
+    });
+  }
+
+  return { rows };
 }
