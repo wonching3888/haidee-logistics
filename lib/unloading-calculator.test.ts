@@ -221,3 +221,118 @@ describe("calculateTripUnloadingFees KL-group per-stall KPB", () => {
     expect(kl.isKpbExempt).toBe(false);
   });
 });
+
+const MC_RATE: UnloadingRateConfigInput = {
+  market: "MC",
+  smallCrate: 1,
+  largeCrate: 1,
+  box: 1,
+  kpbSmall: 0.5,
+  kpbLarge: 0.5,
+  kpbBox: 0.5,
+  kpbMode: "per_crate",
+  unloadMode: "per_crate",
+};
+
+describe("calculateTripUnloadingFees MC third-party unload", () => {
+  it("charges 0.70 per crate/box for MC third-party lines only", () => {
+    const [mc] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "MC",
+          smallCrateQty: 0,
+          largeCrateQty: 0,
+          boxQty: 0,
+          mcThirdPartySmallCrateQty: 10,
+          mcThirdPartyLargeCrateQty: 5,
+          mcThirdPartyBoxQty: 2,
+        },
+      ],
+      ratesByMarket: new Map([["MC", MC_RATE]]),
+      truckSize: "large",
+    });
+
+    expect(mc.unloadFee).toBe(11.9);
+    expect(mc.kpbFee).toBe(0);
+    expect(mc.isKpbExempt).toBe(false);
+    expect(mc.smallCrateQty).toBe(10);
+    expect(mc.largeCrateQty).toBe(5);
+    expect(mc.boxQty).toBe(2);
+  });
+
+  it("MC self delivery still uses MC rate config (1.0)", () => {
+    const [mc] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "MC",
+          smallCrateQty: 4,
+          largeCrateQty: 2,
+          boxQty: 1,
+        },
+      ],
+      ratesByMarket: new Map([["MC", MC_RATE]]),
+      truckSize: "large",
+    });
+
+    expect(mc.unloadFee).toBe(7);
+    expect(mc.kpbFee).toBe(3.5);
+  });
+
+  it("mixed MC self + third-party on same trip", () => {
+    const [mc] = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "MC",
+          smallCrateQty: 4,
+          largeCrateQty: 0,
+          boxQty: 0,
+          mcThirdPartySmallCrateQty: 10,
+          mcThirdPartyLargeCrateQty: 0,
+          mcThirdPartyBoxQty: 0,
+        },
+      ],
+      ratesByMarket: new Map([["MC", MC_RATE]]),
+      truckSize: "large",
+    });
+
+    expect(mc.unloadFee).toBe(11);
+    expect(mc.kpbFee).toBe(2);
+  });
+
+  it("KL trip unchanged when MC third-party line present on another market row", () => {
+    const results = calculateTripUnloadingFees({
+      lines: [
+        {
+          market: "KL",
+          storeCode: "A01",
+          smallCrateQty: 6,
+          largeCrateQty: 0,
+          boxQty: 0,
+          kpbSmallCrateQty: 6,
+          kpbLargeCrateQty: 0,
+          kpbBoxQty: 0,
+        },
+        {
+          market: "MC",
+          smallCrateQty: 0,
+          largeCrateQty: 0,
+          boxQty: 0,
+          mcThirdPartySmallCrateQty: 8,
+          mcThirdPartyLargeCrateQty: 0,
+          mcThirdPartyBoxQty: 0,
+        },
+      ],
+      ratesByMarket: new Map([
+        ["KL", KL_RATE],
+        ["MC", MC_RATE],
+      ]),
+      truckSize: "large",
+    });
+
+    const kl = results.find((row) => row.market === "KL")!;
+    const mc = results.find((row) => row.market === "MC")!;
+    expect(kl.kpbFee).toBe(3);
+    expect(mc.unloadFee).toBe(5.6);
+    expect(mc.kpbFee).toBe(0);
+  });
+});

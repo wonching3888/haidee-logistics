@@ -4,6 +4,7 @@ import {
   resolveUnloadingRateConfigMarket,
   isKpbDisabledMarket,
   isSlKpbWaived,
+  MC_THIRD_PARTY_UNLOAD_RATE,
   usesKlUnloadFeeRules,
   ZERO_UNLOAD_MARKETS,
   type TruckSize,
@@ -31,6 +32,10 @@ export interface UnloadingMarketLineInput {
   kpbSmallCrateQty?: number;
   kpbLargeCrateQty?: number;
   kpbBoxQty?: number;
+  /** MC third-party lines only (per inbound mc_delivery_mode). */
+  mcThirdPartySmallCrateQty?: number;
+  mcThirdPartyLargeCrateQty?: number;
+  mcThirdPartyBoxQty?: number;
 }
 
 export interface UnloadingFeeCalcResult {
@@ -174,6 +179,26 @@ export function calculateTripUnloadingFees(input: {
         (line.smallCrateQty + line.largeCrateQty + line.boxQty) * perCrate
       );
       // KPB permanently disabled for KD (kpbFee stays 0; no isKpbExempt).
+    } else if (market === "MC") {
+      const tpSmall = line.mcThirdPartySmallCrateQty ?? 0;
+      const tpLarge = line.mcThirdPartyLargeCrateQty ?? 0;
+      const tpBox = line.mcThirdPartyBoxQty ?? 0;
+      const selfUnload = roundMoney(
+        line.smallCrateQty * rate.smallCrate +
+          line.largeCrateQty * rate.largeCrate +
+          line.boxQty * rate.box
+      );
+      const thirdPartyUnload = roundMoney(
+        (tpSmall + tpLarge + tpBox) * MC_THIRD_PARTY_UNLOAD_RATE
+      );
+      unloadFee = roundMoney(selfUnload + thirdPartyUnload);
+      if (!isKpbDisabledMarket(market)) {
+        kpbFee = roundMoney(
+          line.smallCrateQty * rate.kpbSmall +
+            line.largeCrateQty * rate.kpbLarge +
+            line.boxQty * rate.kpbBox
+        );
+      }
     } else {
       unloadFee = roundMoney(
         line.smallCrateQty * rate.smallCrate +
@@ -189,12 +214,16 @@ export function calculateTripUnloadingFees(input: {
       }
     }
 
+    const tpSmall = line.mcThirdPartySmallCrateQty ?? 0;
+    const tpLarge = line.mcThirdPartyLargeCrateQty ?? 0;
+    const tpBox = line.mcThirdPartyBoxQty ?? 0;
+
     results.push({
       market,
       storeCode,
-      smallCrateQty: line.smallCrateQty,
-      largeCrateQty: line.largeCrateQty,
-      boxQty: line.boxQty,
+      smallCrateQty: line.smallCrateQty + tpSmall,
+      largeCrateQty: line.largeCrateQty + tpLarge,
+      boxQty: line.boxQty + tpBox,
       unloadFee,
       kpbFee,
       isKpbExempt,

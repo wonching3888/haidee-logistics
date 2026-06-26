@@ -22,6 +22,7 @@ import {
 import {
   LARGE_CRATE_CODES,
   isKpbDisabledMarket,
+  isMcThirdPartyDeliveryLine,
   isSlKpbWaived,
   resolveTruckSize,
   truckSizeLabel,
@@ -38,11 +39,10 @@ import {
   type UnloadingRateConfigInput,
 } from "@/lib/unloading-calculator";
 import { decimalToNumber } from "@/lib/freight-rates";
-import { MC_MARKET_CODE } from "@/lib/inbound-freight";
+import { normalizeMcDeliveryMode } from "@/lib/inbound-freight";
 import {
   effectiveMarketsForTripCost,
   mcAssignedLinesFromDispatchLines,
-  tripMcAllThirdParty,
 } from "@/lib/mc-dispatch-delivery";
 import {
   computeTripRouteCosts,
@@ -270,18 +270,6 @@ async function loadCrateLoadingRatesMap() {
 function aggregateDispatchUnloadingLines(
   dispatch: Awaited<ReturnType<typeof loadDispatchForExpense>>
 ) {
-  const assignedMcLines = dispatch.lines
-    .filter(
-      (dl) =>
-        dl.inboundLine?.dispatchStatus === "assigned" &&
-        dl.inboundLine.stall.market?.code === MC_MARKET_CODE
-    )
-    .map((dl) => ({
-      marketCode: MC_MARKET_CODE,
-      mcDeliveryMode: dl.inboundLine!.mcDeliveryMode,
-    }));
-  const skipMcUnloading = tripMcAllThirdParty(assignedMcLines);
-
   const byMarket = new Map<
     string,
     UnloadingMarketLineInput & {
@@ -289,6 +277,9 @@ function aggregateDispatchUnloadingLines(
       kpbSmallCrateQty: number;
       kpbLargeCrateQty: number;
       kpbBoxQty: number;
+      mcThirdPartySmallCrateQty: number;
+      mcThirdPartyLargeCrateQty: number;
+      mcThirdPartyBoxQty: number;
     }
   >();
 
@@ -297,7 +288,6 @@ function aggregateDispatchUnloadingLines(
     if (!line || line.dispatchStatus !== "assigned") continue;
     const market = line.stall.market?.code?.trim().toUpperCase();
     if (!market) continue;
-    if (skipMcUnloading && market === MC_MARKET_CODE) continue;
 
     const qty = decimalToNumber(line.quantity) ?? 0;
     if (qty <= 0) continue;
@@ -305,6 +295,8 @@ function aggregateDispatchUnloadingLines(
     const tongCode = line.tongType?.code ?? "";
     const bucket = classifyCrate(tongCode, line.tongType?.isBox ?? false);
     const stallCode = line.stall.code ?? null;
+    const mcMode = normalizeMcDeliveryMode(market, line.mcDeliveryMode);
+    const isMcThirdParty = isMcThirdPartyDeliveryLine(market, mcMode);
     const existing = byMarket.get(market) ?? {
       market,
       storeCode: null,
@@ -314,24 +306,37 @@ function aggregateDispatchUnloadingLines(
       kpbSmallCrateQty: 0,
       kpbLargeCrateQty: 0,
       kpbBoxQty: 0,
+      mcThirdPartySmallCrateQty: 0,
+      mcThirdPartyLargeCrateQty: 0,
+      mcThirdPartyBoxQty: 0,
     };
 
-    if (bucket === "box") existing.boxQty += qty;
-    else if (bucket === "large") existing.largeCrateQty += qty;
-    else existing.smallCrateQty += qty;
+    if (isMcThirdParty) {
+      if (bucket === "box") existing.mcThirdPartyBoxQty += qty;
+      else if (bucket === "large") existing.mcThirdPartyLargeCrateQty += qty;
+      else existing.mcThirdPartySmallCrateQty += qty;
+    } else {
+      if (bucket === "box") existing.boxQty += qty;
+      else if (bucket === "large") existing.largeCrateQty += qty;
+      else existing.smallCrateQty += qty;
 
-    if (
-      usesKlUnloadFeeRules(market) &&
-      !isSlKpbWaived(market) &&
-      isKlKpbEligibleStall(stallCode)
-    ) {
-      if (bucket === "box") existing.kpbBoxQty += qty;
-      else if (bucket === "large") existing.kpbLargeCrateQty += qty;
-      else existing.kpbSmallCrateQty += qty;
-      if (!isKlKpbEligibleStall(existing.storeCode)) {
+      if (
+        usesKlUnloadFeeRules(market) &&
+        !isSlKpbWaived(market) &&
+        isKlKpbEligibleStall(stallCode)
+      ) {
+        if (bucket === "box") existing.kpbBoxQty += qty;
+        else if (bucket === "large") existing.kpbLargeCrateQty += qty;
+        else existing.kpbSmallCrateQty += qty;
+        if (!isKlKpbEligibleStall(existing.storeCode)) {
+          existing.storeCode = stallCode;
+        }
+      } else if (!existing.storeCode && stallCode) {
         existing.storeCode = stallCode;
       }
-    } else if (!existing.storeCode && stallCode) {
+    }
+
+    if (!existing.storeCode && stallCode) {
       existing.storeCode = stallCode;
     }
 
@@ -1401,6 +1406,11 @@ export async function getVoucherPrintBreakdown(tripId: string) {
     if (value > 0) upahTurun.push({ market: "BM Pindah", suggested: value });
   }
   for (const market of ["A", "KD", "MC"]) {
+    if (market === "MC") {
+      const value = sumUnloadingByMarkets(unloadingFees, ["MC"], "unload");
+      if (value > 0) upahTurun.push({ market: "MC", suggested: value });
+      continue;
+    }
     if (!tripMarkets.includes(market)) continue;
     const value = sumUnloadingByMarkets(unloadingFees, [market], "unload");
     if (value > 0) upahTurun.push({ market, suggested: value });

@@ -34,6 +34,18 @@ export function isSlKpbWaived(market: string): boolean {
   return market.trim().toUpperCase() === "SL";
 }
 
+/** MC third-party haul: flat unload per crate/box (no KPB on these lines). */
+export const MC_THIRD_PARTY_UNLOAD_RATE = 0.7;
+
+export function isMcThirdPartyDeliveryLine(
+  market: string,
+  mcDeliveryMode: string | null | undefined
+): boolean {
+  return (
+    market.trim().toUpperCase() === "MC" && mcDeliveryMode === "third_party"
+  );
+}
+
 export type TruckSize = "small" | "large";
 
 export function resolveTruckSize(truckType: string | null | undefined): TruckSize {
