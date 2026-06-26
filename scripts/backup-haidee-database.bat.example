@@ -1,0 +1,134 @@
+@echo off
+REM ============================================================================
+REM  Hai Dee 生产数据库手动备份（双击运行）
+REM
+REM  【给老板】
+REM  1. 复制本文件到桌面，改名为：备份HaiDee数据库.bat
+REM  2. 双击运行 → 按提示输入密码 → 等完成 → 上传 .sql 到 Google Drive
+REM
+REM  【密码】
+REM  运行时手动输入，与 .env.local 里 DIRECT_URL 的密码相同。
+REM  不要把真实密码写进本文件，也不要把含密码的 .bat 发给别人或提交 Git。
+REM
+REM  【pg_dump 路径】
+REM  脚本会自动查找 C:\Program Files\PostgreSQL\17|16|15|14\bin\pg_dump.exe
+REM  若找不到，取消下面「手动指定路径」一行的注释，改成你电脑上的实际路径。
+REM ============================================================================
+
+chcp 65001 >nul
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM ---------- 手动指定 pg_dump 路径（一般不用改，自动查找即可）----------
+REM set "PG_DUMP=C:\Program Files\PostgreSQL\16\bin\pg_dump.exe"
+
+REM ---------- 数据库连接（5432 直连，不要用 6543 pooler）----------
+set "DB_HOST=db.zlmkfqicezpjpzgqljnj.supabase.co"
+set "DB_PORT=5432"
+set "DB_USER=postgres"
+set "DB_NAME=postgres"
+
+REM ---------- 备份保存位置 ----------
+set "BACKUP_DIR=%USERPROFILE%\Documents\HaiDee-Backups"
+
+REM ---------- 查找 pg_dump ----------
+if not defined PG_DUMP (
+  for %%V in (17 16 15 14) do (
+    if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe" (
+      set "PG_DUMP=C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe"
+      goto :found_pg_dump
+    )
+  )
+  echo.
+  echo [失败] 找不到 pg_dump.exe。
+  echo 请先安装 PostgreSQL 的 Command Line Tools（见项目说明）。
+  echo 装好后路径一般为：C:\Program Files\PostgreSQL\16\bin\pg_dump.exe
+  echo 若已安装仍报错，请编辑本脚本，取消「手动指定路径」那行注释并填入正确路径。
+  echo.
+  pause
+  exit /b 1
+)
+
+:found_pg_dump
+echo 使用工具：!PG_DUMP!
+
+REM ---------- 当天日期 YYYY-MM-DD ----------
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd"') do set "DATESTAMP=%%i"
+set "BACKUP_FILE=%BACKUP_DIR%\haidee-backup-%DATESTAMP%.sql"
+
+if not exist "%BACKUP_DIR%" (
+  mkdir "%BACKUP_DIR%"
+  echo 已创建文件夹：%BACKUP_DIR%
+)
+
+echo.
+echo ========================================
+echo   Hai Dee 生产数据库备份
+echo ========================================
+echo.
+echo 密码与 .env.local 里 DIRECT_URL 相同。
+echo 输入时屏幕上会显示字符，属正常现象，输完按 Enter 即可。
+echo.
+set /p "DB_PASSWORD=请输入数据库密码: "
+
+if "!DB_PASSWORD!"=="" (
+  echo.
+  echo [失败] 密码不能为空。
+  echo.
+  pause
+  exit /b 1
+)
+
+set "PGPASSWORD=!DB_PASSWORD!"
+
+echo.
+echo 正在导出整库，请稍候（约 1-3 分钟，请勿关闭窗口）...
+echo 目标文件：%BACKUP_FILE%
+echo.
+
+"!PG_DUMP!" -h %DB_HOST% -p %DB_PORT% -U %DB_USER% -d %DB_NAME% -F p --no-owner --no-acl -f "%BACKUP_FILE%"
+
+set "DUMP_EXIT=!ERRORLEVEL!"
+set "PGPASSWORD="
+set "DB_PASSWORD="
+
+if not "!DUMP_EXIT!"=="0" (
+  echo.
+  echo [失败] 导出失败。常见原因：
+  echo   - 密码错误（请核对 .env.local 里 DIRECT_URL 的密码）
+  echo   - 网络不通（换网络或手机热点再试）
+  echo   - pg_dump 版本与数据库不匹配（重装较新 PostgreSQL 客户端）
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist "%BACKUP_FILE%" (
+  echo.
+  echo [失败] 未生成备份文件。
+  echo.
+  pause
+  exit /b 1
+)
+
+for %%A in ("%BACKUP_FILE%") do set "FILE_SIZE=%%~zA"
+if "!FILE_SIZE!"=="0" (
+  echo.
+  echo [失败] 备份文件大小为 0，无效。请勿上传到 Drive。
+  echo.
+  pause
+  exit /b 1
+)
+
+echo.
+echo ========================================
+echo   [成功] 备份完成！
+echo ========================================
+echo  文件：%BACKUP_FILE%
+echo  大小：约 !FILE_SIZE! 字节
+echo.
+echo  下一步：
+echo    1. 打开文件夹确认有今天的 .sql 文件
+echo    2. 上传到 Google Drive「HaiDee-数据库备份」文件夹
+echo.
+pause
+exit /b 0
