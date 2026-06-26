@@ -13,11 +13,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDisplay } from "@/lib/date-utils";
-import type { DriverVoucherListItem } from "@/lib/driver-expense/voucher-list-types";
+import {
+  buildUnenteredTodoHref,
+  buildVoucherTodoHref,
+  isTodoUnsettledAlert,
+  type DriverExpenseTodoItem,
+} from "@/lib/driver-expense/todo-list";
+import { cn } from "@/lib/utils";
 import { VoucherStatusBadge } from "./VoucherStatusBadge";
 
 interface VoucherTodoPanelProps {
-  vouchers: DriverVoucherListItem[];
+  items: DriverExpenseTodoItem[];
   loading: boolean;
   hasLoaded: boolean;
   canWrite: boolean;
@@ -25,27 +31,45 @@ interface VoucherTodoPanelProps {
   pendingCount: number | null;
 }
 
-function buildTodoHref(v: DriverVoucherListItem): string {
-  return `/documents/driver-expenses/${v.id}?date=${v.tripDate}`;
+function todoStatusBadge(item: DriverExpenseTodoItem) {
+  if (item.kind === "unentered") {
+    return <VoucherStatusBadge status="none" />;
+  }
+  return <VoucherStatusBadge status={item.status} />;
+}
+
+function todoReferenceNo(item: DriverExpenseTodoItem): string {
+  if (item.kind === "voucher" && item.voucherNo) return item.voucherNo;
+  return item.dispatchNo ?? "—";
+}
+
+function buildTodoHref(item: DriverExpenseTodoItem): string {
+  if (item.kind === "unentered") return buildUnenteredTodoHref(item);
+  return buildVoucherTodoHref(item);
 }
 
 function todoActionLabel(
-  v: DriverVoucherListItem,
+  item: DriverExpenseTodoItem,
   canWrite: boolean,
   isAdmin: boolean,
   t: (key: import("@/lib/i18n/messages").MessageKey) => string
 ): string {
-  if (v.status === "pending_review" && isAdmin) {
+  if (item.kind === "unentered") {
+    return canWrite ? t("driverExpenses.action.enter") : t("driverExpenses.action.view");
+  }
+  if (item.status === "pending_review" && isAdmin) {
     return t("driverExpenses.action.review");
   }
-  if ((v.status === "draft" || v.status === "rejected") && canWrite) {
-    return t("driverExpenses.action.continue");
+  if (item.status === "clerk_entered" || item.status === "rejected") {
+    return canWrite
+      ? t("driverExpenses.action.continue")
+      : t("driverExpenses.action.view");
   }
   return t("driverExpenses.action.view");
 }
 
 export function VoucherTodoPanel({
-  vouchers,
+  items,
   loading,
   hasLoaded,
   canWrite,
@@ -69,7 +93,7 @@ export function VoucherTodoPanel({
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("driverExpenses.loading")}
         </p>
-      ) : !hasLoaded ? null : vouchers.length === 0 ? (
+      ) : !hasLoaded ? null : items.length === 0 ? (
         <p className="text-sm text-haidee-muted">
           {t("driverExpenses.empty.noTodo")}
         </p>
@@ -79,29 +103,43 @@ export function VoucherTodoPanel({
             <TableHeader>
               <TableRow>
                 <TableHead>{t("driverExpenses.col.date")}</TableHead>
+                <TableHead>{t("driverExpenses.col.referenceNo")}</TableHead>
                 <TableHead>{t("driverExpenses.col.plate")}</TableHead>
                 <TableHead>{t("driverExpenses.col.driver")}</TableHead>
                 <TableHead>{t("driverExpenses.col.route")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("driverExpenses.col.unsettledDays")}</TableHead>
                 <TableHead className="w-28">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vouchers.map((v) => (
-                <TableRow key={v.id}>
-                  <TableCell>{formatDisplay(v.tripDate)}</TableCell>
-                  <TableCell>{v.lorry}</TableCell>
-                  <TableCell>{v.driverName}</TableCell>
-                  <TableCell>{v.route}</TableCell>
-                  <TableCell>
-                    <VoucherStatusBadge status={v.status} />
+              {items.map((item) => (
+                <TableRow key={`${item.kind}-${item.tripId}`}>
+                  <TableCell>{formatDisplay(item.tripDate)}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {todoReferenceNo(item)}
+                  </TableCell>
+                  <TableCell>{item.lorry}</TableCell>
+                  <TableCell>{item.driverName || "—"}</TableCell>
+                  <TableCell>{item.route}</TableCell>
+                  <TableCell>{todoStatusBadge(item)}</TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-sm",
+                      isTodoUnsettledAlert(item.unsettledDays) &&
+                        "font-medium text-destructive"
+                    )}
+                  >
+                    {t("driverExpenses.todo.unsettledDays", {
+                      days: String(item.unsettledDays),
+                    })}
                   </TableCell>
                   <TableCell>
                     <Link
-                      href={buildTodoHref(v)}
+                      href={buildTodoHref(item)}
                       className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
                     >
-                      {todoActionLabel(v, canWrite, isAdmin, t)}
+                      {todoActionLabel(item, canWrite, isAdmin, t)}
                     </Link>
                   </TableCell>
                 </TableRow>

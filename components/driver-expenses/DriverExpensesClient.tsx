@@ -10,11 +10,10 @@ import {
   buildDispatchTripRows,
   defaultHistoryDateRange,
   normalizeVoucherListItem,
-  sortTodoVouchers,
-  TODO_STATUS_IN,
   type DispatchOption,
   type DriverVoucherListItem,
 } from "@/lib/driver-expense/voucher-list-types";
+import type { DriverExpenseTodoItem } from "@/lib/driver-expense/todo-list";
 import type { StoredUserRole } from "@/types";
 import { canWriteDriverVoucher } from "@/lib/auth-roles";
 import {
@@ -91,7 +90,7 @@ export function DriverExpensesClient({
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [unloadingFees, setUnloadingFees] = useState<UnloadingFeeRow[]>([]);
   const [todayVouchers, setTodayVouchers] = useState<DriverVoucherListItem[]>([]);
-  const [todoVouchers, setTodoVouchers] = useState<DriverVoucherListItem[]>([]);
+  const [todoItems, setTodoItems] = useState<DriverExpenseTodoItem[]>([]);
   const [historyVouchers, setHistoryVouchers] = useState<DriverVoucherListItem[]>(
     []
   );
@@ -115,10 +114,7 @@ export function DriverExpensesClient({
     () => buildDispatchTripRows(date, dispatches, todayVouchers),
     [date, dispatches, todayVouchers]
   );
-  const sortedTodo = useMemo(
-    () => sortTodoVouchers(todoVouchers),
-    [todoVouchers]
-  );
+  const sortedTodo = todoItems;
 
   const syncUrl = useCallback(
     (patch: Record<string, string | null | undefined>) => {
@@ -205,11 +201,12 @@ export function DriverExpensesClient({
     setLoadingTodo(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ statusIn: TODO_STATUS_IN });
-      const res = await fetch(`/api/driver-vouchers?${qs}`);
+      const res = await fetch("/api/driver-vouchers/todo");
       if (!res.ok) throw new Error(t("driverExpenses.loadFailed"));
-      const data = (await res.json()) as { vouchers?: DriverVoucherListItem[] };
-      setTodoVouchers((data.vouchers ?? []).map(normalizeVoucherListItem));
+      const data = (await res.json()) as {
+        items?: DriverExpenseTodoItem[];
+      };
+      setTodoItems(data.items ?? []);
       setTodoLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("driverExpenses.loadFailed"));
@@ -465,7 +462,7 @@ export function DriverExpensesClient({
 
         <ZoneSection title={t("driverExpenses.zone.todo")}>
           <VoucherTodoPanel
-            vouchers={sortedTodo}
+            items={sortedTodo}
             loading={loadingTodo}
             hasLoaded={todoLoaded}
             canWrite={canWrite}

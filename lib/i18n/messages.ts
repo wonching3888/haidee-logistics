@@ -1461,6 +1461,21 @@ export const MESSAGES = {
     en: "Route",
     th: "เส้นทาง",
   },
+  "driverExpenses.col.referenceNo": {
+    zh: "DO / 单号",
+    en: "DO / Voucher",
+    th: "DO / เลขใบเบิก",
+  },
+  "driverExpenses.col.unsettledDays": {
+    zh: "未结天数",
+    en: "Unsettled",
+    th: "ค้างชำระ",
+  },
+  "driverExpenses.todo.unsettledDays": {
+    zh: "已 {days} 天未结",
+    en: "{days} day(s) unsettled",
+    th: "ค้าง {days} วัน",
+  },
   "driverExpenses.col.voucherNo": {
     zh: "单号",
     en: "Voucher No",
@@ -1512,9 +1527,9 @@ export const MESSAGES = {
     th: "ประมาณการ",
   },
   "driverExpenses.status.clerk_entered": {
-    zh: "已录待确认",
-    en: "Entered",
-    th: "บันทึกแล้วรอยืนยัน",
+    zh: "待确认",
+    en: "Pending confirm",
+    th: "รอยืนยัน",
   },
   "driverExpenses.status.confirmed": {
     zh: "已确认",
@@ -1537,7 +1552,7 @@ export const MESSAGES = {
     th: "ตีกลับ",
   },
   "driverExpenses.status.notEntered": {
-    zh: "未录",
+    zh: "未录入",
     en: "Not entered",
     th: "ยังไม่บันทึก",
   },
@@ -1572,9 +1587,9 @@ export const MESSAGES = {
     th: "ไม่มีเที่ยวรถในวันนี้",
   },
   "driverExpenses.empty.noTodo": {
-    zh: "暂无待办报销单",
-    en: "No vouchers in to-do",
-    th: "ไม่มีใบเบิกค้าง",
+    zh: "暂无待办（未录入趟次或待处理费用单）",
+    en: "No to-do items (unentered trips or pending vouchers)",
+    th: "ไม่มีรายการค้าง (เที่ยวยังไม่บันทึกหรือใบเบิกรอดำเนินการ)",
   },
   "driverExpenses.empty.historyQuery": {
     zh: "请点击「查询」加载历史列表",

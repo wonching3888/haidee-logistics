@@ -55,6 +55,12 @@ import {
   upsertMarketActualsForVoucher,
   type MarketActualInput,
 } from "@/lib/driver-expense/market-actuals-service";
+import {
+  computeUnsettledDays,
+  sortDriverExpenseTodoItems,
+  TODO_VOUCHER_STATUSES,
+  type DriverExpenseTodoItem,
+} from "@/lib/driver-expense/todo-list";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   {
@@ -1435,6 +1441,61 @@ export async function syncTripDriverExpenses(tripId: string) {
     generateCrateLoadingFeesForTrip(tripId),
   ]);
   return { unloading, loading };
+}
+
+export async function listDriverExpenseTodoItems(): Promise<DriverExpenseTodoItem[]> {
+  const [dispatches, voucherTripIds, pendingVouchers] = await Promise.all([
+    prisma.dispatchOrder.findMany({
+      where: { status: { notIn: ["draft", "cancelled"] } },
+      include: { truck: true },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.driverVoucher.findMany({ select: { tripId: true } }),
+    prisma.driverVoucher.findMany({
+      where: { status: { in: [...TODO_VOUCHER_STATUSES] } },
+      orderBy: [{ tripDate: "desc" }, { voucherNo: "desc" }],
+    }),
+  ]);
+
+  const tripsWithVoucher = new Set(voucherTripIds.map((row) => row.tripId));
+  const dispatchById = new Map(dispatches.map((row) => [row.id, row]));
+  const items: DriverExpenseTodoItem[] = [];
+
+  for (const dispatch of dispatches) {
+    if (tripsWithVoucher.has(dispatch.id)) continue;
+    const tripDate = toDateInputValue(dispatch.date);
+    items.push({
+      kind: "unentered",
+      tripId: dispatch.id,
+      tripDate,
+      lorry: dispatch.truck.plate,
+      driverName: dispatch.driverName ?? "",
+      route: formatTripRouteLabel(dispatch.markets),
+      dispatchNo: dispatch.dispatchNo,
+      status: "unentered",
+      unsettledDays: computeUnsettledDays(tripDate),
+    });
+  }
+
+  for (const voucher of pendingVouchers) {
+    const tripDate = toDateInputValue(voucher.tripDate);
+    const dispatch = dispatchById.get(voucher.tripId);
+    items.push({
+      kind: "voucher",
+      tripId: voucher.tripId,
+      tripDate,
+      lorry: voucher.lorry,
+      driverName: voucher.driverName,
+      route: voucher.route,
+      dispatchNo: dispatch?.dispatchNo ?? null,
+      voucherId: voucher.id,
+      voucherNo: voucher.voucherNo,
+      status: voucher.status,
+      unsettledDays: computeUnsettledDays(tripDate),
+    });
+  }
+
+  return sortDriverExpenseTodoItems(items);
 }
 
 export async function listDispatchesForExpenseDate(dateStr: string) {
