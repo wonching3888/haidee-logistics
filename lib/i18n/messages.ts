@@ -1701,6 +1701,86 @@ export const MESSAGES = {
     en: "Parking fee",
     th: "ค่าจอดรถ",
   },
+  "driverExpenses.unloading.kpbParkingFieldSmall": {
+    zh: "停车费·小",
+    en: "Parking·S",
+    th: "จอด·เล็ก",
+  },
+  "driverExpenses.unloading.kpbParkingFieldLarge": {
+    zh: "停车费·大",
+    en: "Parking·L",
+    th: "จอด·ใหญ่",
+  },
+  "driverExpenses.unloading.kpbParkingFieldBox": {
+    zh: "停车费·箱",
+    en: "Parking·Box",
+    th: "จอด·กล่อง",
+  },
+  "driverExpenses.unloading.kpbPermanentlyCancelled": {
+    zh: "已永久取消",
+    en: "Permanently cancelled",
+    th: "ยกเลิกถาวร",
+  },
+  "driverExpenses.unloading.unloadUnusedFieldNote": {
+    zh: "此市场桶统一一个价，本格不参与计算",
+    en: "Single barrel rate for this market; this cell is not used in calculation",
+    th: "ตลาดนี้ใช้ราคาถังเดียว ช่องนี้ไม่นำไปคำนวณ",
+  },
+  "driverExpenses.unloading.jbExempt": {
+    zh: "免收",
+    en: "Exempt",
+    th: "ยกเว้น",
+  },
+  "driverExpenses.unloading.klSubMarketNote": {
+    zh: "BP / MP 共用此行费率；SL 下货同 KL，但 SL 的 KPB 不收（豁免）",
+    en: "BP / MP share this row; SL unload uses KL rates but SL KPB is waived",
+    th: "BP / MP ใช้แถวนี้ SL ขนถ่ายตาม KL แต่ไม่เก็บ KPB",
+  },
+  "driverExpenses.unloading.bmPindahDisplayPendingNote": {
+    zh: "实际按趟 12/20，设置页整理中",
+    en: "Actual per-trip 12/20; settings UI update pending",
+    th: "จริงต่อเที่ยว 12/20 กำลังปรับหน้าตั้งค่า",
+  },
+  "driverExpenses.unloading.colSmall": {
+    zh: "小桶",
+    en: "Small",
+    th: "ถังเล็ก",
+  },
+  "driverExpenses.unloading.colLarge": {
+    zh: "大桶",
+    en: "Large",
+    th: "ถังใหญ่",
+  },
+  "driverExpenses.unloading.colBox": {
+    zh: "箱",
+    en: "Box",
+    th: "กล่อง",
+  },
+  "driverExpenses.unloading.colKpbSmall": {
+    zh: "KPB小",
+    en: "KPB S",
+    th: "KPB เล็ก",
+  },
+  "driverExpenses.unloading.colKpbLarge": {
+    zh: "KPB大",
+    en: "KPB L",
+    th: "KPB ใหญ่",
+  },
+  "driverExpenses.unloading.colKpbBox": {
+    zh: "KPB箱",
+    en: "KPB Box",
+    th: "KPB กล่อง",
+  },
+  "driverExpenses.unloading.save": {
+    zh: "保存",
+    en: "Save",
+    th: "บันทึก",
+  },
+  "driverExpenses.unloading.marketCol": {
+    zh: "市场",
+    en: "Market",
+    th: "ตลาด",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

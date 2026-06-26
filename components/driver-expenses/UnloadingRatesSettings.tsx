@@ -15,6 +15,7 @@ import {
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { useT } from "@/components/shared/locale-context";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 interface UnloadingRateRow {
@@ -40,8 +41,69 @@ const NUMERIC_FIELDS: RateField[] = [
   "kpbBox",
 ];
 
+const BM_PINDAH_MARKETS = new Set(["TP", "KT", "P", "SA", "NT"]);
+
+const FIELD_HEADER_KEYS: Record<RateField, MessageKey> = {
+  smallCrate: "driverExpenses.unloading.colSmall",
+  largeCrate: "driverExpenses.unloading.colLarge",
+  box: "driverExpenses.unloading.colBox",
+  kpbSmall: "driverExpenses.unloading.colKpbSmall",
+  kpbLarge: "driverExpenses.unloading.colKpbLarge",
+  kpbBox: "driverExpenses.unloading.colKpbBox",
+};
+
+const A_PARKING_FIELD_KEYS: Partial<Record<RateField, MessageKey>> = {
+  kpbSmall: "driverExpenses.unloading.kpbParkingFieldSmall",
+  kpbLarge: "driverExpenses.unloading.kpbParkingFieldLarge",
+  kpbBox: "driverExpenses.unloading.kpbParkingFieldBox",
+};
+
 function formatRate(value: number) {
   return String(value);
+}
+
+function isKpbField(field: RateField) {
+  return field === "kpbSmall" || field === "kpbLarge" || field === "kpbBox";
+}
+
+/** Display-only: which cells are read-only (does not affect save payload). */
+function isFieldReadOnly(market: string, field: RateField) {
+  if (market === "JB") return true;
+  if (market === "BM" || market === "KD") {
+    if (isKpbField(field)) return true;
+    if (market === "BM" && field === "largeCrate") return true;
+    if (market === "KD" && (field === "largeCrate" || field === "box")) return true;
+  }
+  return false;
+}
+
+function fieldNoteKey(
+  market: string,
+  field: RateField
+): MessageKey | null {
+  if (market === "JB") return "driverExpenses.unloading.jbExempt";
+  if ((market === "BM" || market === "KD") && isKpbField(field)) {
+    return "driverExpenses.unloading.kpbPermanentlyCancelled";
+  }
+  if (market === "BM" && field === "largeCrate") {
+    return "driverExpenses.unloading.unloadUnusedFieldNote";
+  }
+  if (market === "KD" && (field === "largeCrate" || field === "box")) {
+    return "driverExpenses.unloading.unloadUnusedFieldNote";
+  }
+  return null;
+}
+
+function cellFieldLabel(
+  market: string,
+  field: RateField,
+  t: (key: MessageKey) => string
+) {
+  if (market === "A" && isKpbField(field)) {
+    const key = A_PARKING_FIELD_KEYS[field];
+    if (key) return t(key);
+  }
+  return null;
 }
 
 export function UnloadingRatesSettings() {
@@ -148,10 +210,7 @@ export function UnloadingRatesSettings() {
       </p>
       <p className="rounded-lg border border-haidee-border bg-haidee-surface/50 px-4 py-3 text-sm text-haidee-text">
         <span className="font-medium">KL 搬车子市场（SL / BP / MP）：</span>
-        基础下货费按 KL 费率、按桶/箱量计费；BP/MP 的 KPB 仅在档口编号符合 A–H
-        加数字格式时收取。SL 下货费同 KL 费率，但 KPB 已豁免（不收 KPB）。
-        Sub-markets use KL unload rates; BP/MP KPB applies when stall code matches
-        the KL store pattern. SL unload uses KL rates; SL KPB is waived.
+        {t("driverExpenses.unloading.klSubMarketNote")}
       </p>
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -162,72 +221,102 @@ export function UnloadingRatesSettings() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>市场 Market</TableHead>
-              <TableHead className="text-right">小桶 Small</TableHead>
-              <TableHead className="text-right">大桶 Large</TableHead>
-              <TableHead className="text-right">箱 Box</TableHead>
-              <TableHead className="text-right">KPB小</TableHead>
-              <TableHead className="text-right">KPB大</TableHead>
-              <TableHead className="text-right">KPB箱</TableHead>
-              <TableHead>下货模式</TableHead>
-              <TableHead>KPB模式</TableHead>
+              <TableHead>{t("driverExpenses.unloading.marketCol")}</TableHead>
+              {NUMERIC_FIELDS.map((field) => (
+                <TableHead key={field} className="text-right">
+                  {t(FIELD_HEADER_KEYS[field])}
+                </TableHead>
+              ))}
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rates.map((row) => (
-              <TableRow key={row.market}>
-                <TableCell className="font-medium">
-                  {row.market}
-                  <span className="ml-1 text-xs text-haidee-muted">
-                    {getMarketDisplayName(row.market)}
-                  </span>
-                  {row.market === "A" && (
-                    <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
-                      {t("driverExpenses.unloading.kpbParkingIpohNote")}
+            {rates.map((row) => {
+              const rowReadOnly = row.market === "JB";
+              return (
+                <TableRow key={row.market}>
+                  <TableCell className="align-top font-medium">
+                    {row.market}
+                    <span className="ml-1 text-xs text-haidee-muted">
+                      {getMarketDisplayName(row.market)}
                     </span>
-                  )}
-                </TableCell>
-                {NUMERIC_FIELDS.map((field) => (
-                  <TableCell key={field} className="text-right">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="ml-auto h-8 w-20 text-right font-mono text-sm"
-                      value={form[`${row.market}.${field}`] ?? ""}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          [`${row.market}.${field}`]: e.target.value,
-                        }))
-                      }
-                    />
-                  </TableCell>
-                ))}
-                <TableCell className="text-xs text-haidee-muted">
-                  {row.unloadMode}
-                </TableCell>
-                <TableCell className="text-xs text-haidee-muted">
-                  {row.kpbMode}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isPending && savingMarket === row.market}
-                    onClick={() => saveRow(row.market)}
-                    className={cn("h-8")}
-                  >
-                    {isPending && savingMarket === row.market ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      "保存"
+                    {row.market === "A" && (
+                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
+                        {t("driverExpenses.unloading.kpbParkingIpohNote")}
+                      </span>
                     )}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                    {row.market === "KL" && (
+                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
+                        {t("driverExpenses.unloading.klSubMarketNote")}
+                      </span>
+                    )}
+                    {BM_PINDAH_MARKETS.has(row.market) && (
+                      <span className="mt-0.5 block text-xs font-normal text-amber-700/90">
+                        {t("driverExpenses.unloading.bmPindahDisplayPendingNote")}
+                      </span>
+                    )}
+                  </TableCell>
+                  {NUMERIC_FIELDS.map((field) => {
+                    const readOnly = isFieldReadOnly(row.market, field);
+                    const noteKey = fieldNoteKey(row.market, field);
+                    const fieldLabel = cellFieldLabel(row.market, field, t);
+                    return (
+                      <TableCell key={field} className="align-top text-right">
+                        <div className="ml-auto flex max-w-[7.5rem] flex-col items-end gap-0.5">
+                          {fieldLabel && (
+                            <span className="text-[10px] font-medium leading-tight text-haidee-muted">
+                              {fieldLabel}
+                            </span>
+                          )}
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            readOnly={readOnly}
+                            disabled={readOnly}
+                            aria-readonly={readOnly}
+                            className={cn(
+                              "h-8 w-20 text-right font-mono text-sm",
+                              readOnly &&
+                                "cursor-not-allowed border-haidee-border/60 bg-haidee-surface/80 text-haidee-muted opacity-70"
+                            )}
+                            value={form[`${row.market}.${field}`] ?? ""}
+                            onChange={(e) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                [`${row.market}.${field}`]: e.target.value,
+                              }))
+                            }
+                          />
+                          {noteKey && (
+                            <span className="max-w-[7.5rem] text-left text-[10px] leading-tight text-haidee-muted">
+                              {t(noteKey)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="align-top">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={
+                        rowReadOnly || (isPending && savingMarket === row.market)
+                      }
+                      onClick={() => saveRow(row.market)}
+                      className={cn("h-8")}
+                    >
+                      {isPending && savingMarket === row.market ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        t("driverExpenses.unloading.save")
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </ScrollMatrixTable>
