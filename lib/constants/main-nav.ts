@@ -8,6 +8,7 @@ import {
   History,
   Settings,
   BarChart3,
+  Landmark,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -57,10 +58,13 @@ export const MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE: MainNavLink = {
   messageKey: "nav.monthlyInvoice",
 };
 
-export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES: MainNavLink = {
+export const MAIN_NAV_FINANCIAL_DRIVER_EXPENSES: MainNavLink = {
   href: "/documents/driver-expenses",
   messageKey: "nav.driverExpenses",
 };
+
+/** @deprecated Use MAIN_NAV_FINANCIAL_DRIVER_EXPENSES */
+export const MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES = MAIN_NAV_FINANCIAL_DRIVER_EXPENSES;
 
 export const MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE: MainNavLink = {
   href: "/documents/partner-trip-invoice",
@@ -81,8 +85,14 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
     MAIN_NAV_DOCUMENTS_MONTHLY_INVOICE,
     MAIN_NAV_DOCUMENTS_PARTNER_TRIP_INVOICE,
     MAIN_NAV_DOCUMENTS_CRATE_RETURN_INVOICE,
-    MAIN_NAV_DOCUMENTS_DRIVER_EXPENSES,
   ],
+};
+
+export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
+  id: "financial-control",
+  messageKey: "nav.financialControl",
+  icon: Landmark,
+  children: [MAIN_NAV_FINANCIAL_DRIVER_EXPENSES],
 };
 
 export const MAIN_NAV_CRATE: MainNavGroup = {

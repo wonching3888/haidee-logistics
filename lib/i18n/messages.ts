@@ -36,6 +36,11 @@ export const MESSAGES = {
     en: "Search",
     th: "ค้นหา",
   },
+  "nav.financialControl": {
+    zh: "财务管控",
+    en: "Financial Control",
+    th: "การควบคุมทางการเงิน",
+  },
   "nav.documents": {
     zh: "文件",
     en: "Documents",

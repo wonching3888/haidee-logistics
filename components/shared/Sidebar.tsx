@@ -17,6 +17,7 @@ import {
   MAIN_NAV_CRATE,
   MAIN_NAV_DASHBOARD,
   MAIN_NAV_DOCUMENTS,
+  MAIN_NAV_FINANCIAL_CONTROL,
   MAIN_NAV_HISTORY,
   MAIN_NAV_OPERATIONS,
   MAIN_NAV_REPORTS,
@@ -79,6 +80,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
     () =>
       [
         filterNavGroupByAccess(role, MAIN_NAV_OPERATIONS),
+        filterNavGroupByAccess(role, MAIN_NAV_FINANCIAL_CONTROL),
         filterNavGroupByAccess(role, MAIN_NAV_DOCUMENTS),
         filterNavGroupByAccess(role, MAIN_NAV_CRATE),
         filterNavGroupByAccess(role, MAIN_NAV_REPORTS),
