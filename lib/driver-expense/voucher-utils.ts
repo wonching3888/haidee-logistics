@@ -8,6 +8,7 @@ export interface DriverVoucherData {
   id?: string;
   voucherNo: string;
   tripId: string;
+  tripSource?: "dispatch" | "charter";
   tripDate: string;
   lorry: string;
   driverName: string;
@@ -117,6 +118,13 @@ export const VOUCHER_LINE_ITEMS = [
   },
 ] as const;
 
+/** Charter voucher: 6 reimbursement lines (excludes Parking/KPB/Fish Check). */
+export const CHARTER_VOUCHER_LINE_KEYS = [
+  "chopBorder",
+  "upahTurun",
+  "upahNaikTong",
+] as const;
+
 /** Labels used only in print output (@media print). */
 export const VOUCHER_PRINT_LABELS = {
   perkara: "Perkara / Item",
@@ -194,17 +202,46 @@ export function parseOptionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function sumActualBelanja(v: {
+export function sumCharterActualBelanja(v: {
   chopBorderActual: number | null;
-  parkingActual: number | null;
-  kpbActual: number | null;
-  fishCheckActual: number | null;
   upahTurunActual: number | null;
   upahNaikTongActual: number | null;
   minyakMotoEnabled: boolean;
   minyakMotoActual: number | null;
   otherActual: number | null;
 }) {
+  let total = 0;
+  for (const value of [
+    v.chopBorderActual,
+    v.upahTurunActual,
+    v.upahNaikTongActual,
+    v.otherActual,
+  ]) {
+    if (value != null) total += value;
+  }
+  if (v.minyakMotoEnabled && v.minyakMotoActual != null) {
+    total += v.minyakMotoActual;
+  }
+  return roundMoney(total);
+}
+
+export function sumActualBelanja(
+  v: {
+    chopBorderActual: number | null;
+    parkingActual: number | null;
+    kpbActual: number | null;
+    fishCheckActual: number | null;
+    upahTurunActual: number | null;
+    upahNaikTongActual: number | null;
+    minyakMotoEnabled: boolean;
+    minyakMotoActual: number | null;
+    otherActual: number | null;
+  },
+  options?: { tripSource?: "dispatch" | "charter" }
+) {
+  if (options?.tripSource === "charter") {
+    return sumCharterActualBelanja(v);
+  }
   let total = 0;
   for (const value of [
     v.chopBorderActual,
@@ -220,6 +257,21 @@ export function sumActualBelanja(v: {
   if (v.minyakMotoEnabled && v.minyakMotoActual != null) {
     total += v.minyakMotoActual;
   }
+  return roundMoney(total);
+}
+
+export function sumCharterSuggestedAmounts(v: {
+  chopBorderAmt: number | null;
+  upahTurunAmt: number | null;
+  upahNaikTongAmt: number | null;
+  minyakMotoEnabled: boolean;
+  minyakMotoAmt: number;
+}) {
+  let total = 0;
+  for (const value of [v.chopBorderAmt, v.upahTurunAmt, v.upahNaikTongAmt]) {
+    if (value != null) total += value;
+  }
+  if (v.minyakMotoEnabled) total += v.minyakMotoAmt;
   return roundMoney(total);
 }
 

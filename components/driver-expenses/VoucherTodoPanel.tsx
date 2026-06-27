@@ -39,6 +39,7 @@ function todoStatusBadge(item: DriverExpenseTodoItem) {
 
 function todoReferenceNo(item: DriverExpenseTodoItem): string {
   if (item.kind === "voucher" && item.voucherNo) return item.voucherNo;
+  if (item.tripSource === "charter" && item.charterNo) return item.charterNo;
   return item.dispatchNo ?? "—";
 }
 

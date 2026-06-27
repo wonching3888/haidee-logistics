@@ -12,11 +12,13 @@ function item(
   return {
     kind: partial.kind ?? "voucher",
     tripId: partial.tripId ?? "trip-1",
+    tripSource: partial.tripSource ?? "dispatch",
     tripDate: partial.tripDate,
     lorry: "ABC 1234",
     driverName: "Ali",
     route: "KL / MC",
     dispatchNo: null,
+    charterNo: null,
     unsettledDays: partial.unsettledDays ?? 0,
     ...partial,
   };

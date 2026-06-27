@@ -8,7 +8,7 @@ import { getDefaultRoute } from "@/lib/routes";
 export const dynamic = "force-dynamic";
 
 interface NewVoucherPageProps {
-  searchParams: Promise<{ date?: string; tripId?: string }>;
+  searchParams: Promise<{ date?: string; tripId?: string; tripSource?: string }>;
 }
 
 export default async function NewDriverVoucherPage({
@@ -35,6 +35,9 @@ export default async function NewDriverVoucherPage({
       mode="new"
       date={date}
       initialTripId={params.tripId}
+      initialTripSource={
+        params.tripSource === "charter" ? "charter" : "dispatch"
+      }
       userRole={user.role}
     />
   );

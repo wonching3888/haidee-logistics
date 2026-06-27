@@ -12,26 +12,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDisplay } from "@/lib/date-utils";
-import type { DispatchTripRow } from "@/lib/driver-expense/voucher-list-types";
+import type { ExpenseTripRow } from "@/lib/driver-expense/voucher-list-types";
 import { VoucherStatusBadge } from "./VoucherStatusBadge";
 
 interface VoucherTodayPanelProps {
   date: string;
-  trips: DispatchTripRow[];
+  trips: ExpenseTripRow[];
   hasLoaded: boolean;
   canWrite: boolean;
   isAdmin: boolean;
 }
 
-function tripActionHref(row: DispatchTripRow, date: string): string {
+function tripActionHref(row: ExpenseTripRow, date: string): string {
   if (!row.voucherId) {
-    return `/documents/driver-expenses/new?date=${date}&tripId=${row.tripId}`;
+    const params = new URLSearchParams({ date, tripId: row.tripId });
+    if (row.tripSource === "charter") params.set("tripSource", "charter");
+    return `/documents/driver-expenses/new?${params.toString()}`;
   }
   return `/documents/driver-expenses/${row.voucherId}?date=${date}`;
 }
 
 function tripActionLabel(
-  row: DispatchTripRow,
+  row: ExpenseTripRow,
   canWrite: boolean,
   isAdmin: boolean,
   t: (key: import("@/lib/i18n/messages").MessageKey) => string
@@ -84,11 +86,18 @@ export function VoucherTodayPanel({
               {trips.map((row) => {
                 const actionLabel = tripActionLabel(row, canWrite, isAdmin, t);
                 return (
-                  <TableRow key={row.tripId}>
+                  <TableRow key={`${row.tripSource}:${row.tripId}`}>
                     <TableCell>{formatDisplay(row.tripDate)}</TableCell>
                     <TableCell>{row.lorry}</TableCell>
                     <TableCell>{row.driverName}</TableCell>
-                    <TableCell>{row.route}</TableCell>
+                    <TableCell>
+                      <span>{row.route}</span>
+                      {row.tripSource === "charter" && (
+                        <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800">
+                          包车
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <VoucherStatusBadge status={row.status} />
                     </TableCell>

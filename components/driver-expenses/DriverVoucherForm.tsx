@@ -15,6 +15,7 @@ import {
   parseOptionalNumber,
   roundMoney,
   sumActualBelanja,
+  sumCharterSuggestedAmounts,
   sumSuggestedAmounts,
   VOUCHER_LABELS,
   type DriverVoucherData,
@@ -40,6 +41,10 @@ import {
 } from "@/lib/driver-voucher-status-types";
 import type { StoredUserRole } from "@/types";
 import { cn } from "@/lib/utils";
+import {
+  expenseTripKey,
+  type DriverVoucherTripSource,
+} from "@/lib/driver-expense/trip-source";
 import { VoucherChangeLogTimeline, type VoucherChangeLogEntry } from "./VoucherChangeLogTimeline";
 import { VoucherDecisionPanel } from "./VoucherDecisionPanel";
 import { VoucherReviewPanel } from "./VoucherReviewPanel";
@@ -48,6 +53,7 @@ import "./driver-expense-print.css";
 
 interface VoucherFormState {
   tripId: string;
+  tripSource: DriverVoucherTripSource;
   voucherNo: string;
   chopBorderAmt: string;
   chopBorderActual: string;
@@ -77,7 +83,9 @@ interface DispatchOption {
   lorry: string;
   driver: string;
   route: string;
-  date: string;
+  date?: string;
+  tripSource?: DriverVoucherTripSource;
+  charterNo?: string | null;
 }
 
 interface DriverVoucherFormProps {
@@ -85,6 +93,7 @@ interface DriverVoucherFormProps {
   date: string;
   voucherId?: string;
   initialTripId?: string;
+  initialTripSource?: DriverVoucherTripSource;
   userRole: StoredUserRole;
 }
 
@@ -125,33 +134,36 @@ const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
 function suggestionToForm(
   s: {
     tripId: string;
+    tripSource?: DriverVoucherTripSource;
     tripDate: string;
     lorry: string;
     driverName: string;
     route: string;
-    chopBorderAmt: number;
-    parkingAmt: number;
-    kpbAmt: number;
-    fishCheckAmt: number;
-    upahTurunAmt: number;
-    upahNaikTongAmt: number;
+    chopBorderAmt: number | null;
+    parkingAmt: number | null;
+    kpbAmt: number | null;
+    fishCheckAmt: number | null;
+    upahTurunAmt: number | null;
+    upahNaikTongAmt: number | null;
   },
-  voucherNo: string
+  voucherNo: string,
+  tripSource: DriverVoucherTripSource
 ): VoucherFormState {
   return {
     tripId: s.tripId,
+    tripSource,
     voucherNo,
-    chopBorderAmt: String(s.chopBorderAmt),
+    chopBorderAmt: String(s.chopBorderAmt ?? ""),
     chopBorderActual: "",
-    parkingAmt: String(s.parkingAmt),
+    parkingAmt: String(s.parkingAmt ?? ""),
     parkingActual: "",
-    kpbAmt: String(s.kpbAmt),
+    kpbAmt: String(s.kpbAmt ?? ""),
     kpbActual: "",
-    fishCheckAmt: String(s.fishCheckAmt),
+    fishCheckAmt: String(s.fishCheckAmt ?? ""),
     fishCheckActual: "",
-    upahTurunAmt: String(s.upahTurunAmt),
+    upahTurunAmt: String(s.upahTurunAmt ?? ""),
     upahTurunActual: "",
-    upahNaikTongAmt: String(s.upahNaikTongAmt),
+    upahNaikTongAmt: String(s.upahNaikTongAmt ?? ""),
     upahNaikTongActual: "",
     minyakMotoEnabled: false,
     minyakMotoAmt: "8",
@@ -165,9 +177,13 @@ function suggestionToForm(
   };
 }
 
-function voucherToForm(v: DriverVoucherData): VoucherFormState {
+function voucherToForm(
+  v: DriverVoucherData,
+  tripSource: DriverVoucherTripSource
+): VoucherFormState {
   return {
     tripId: v.tripId,
+    tripSource,
     voucherNo: v.voucherNo,
     chopBorderAmt: String(v.chopBorderAmt ?? ""),
     chopBorderActual: String(v.chopBorderActual ?? ""),
@@ -200,19 +216,24 @@ function formToPrintData(
   marketActuals: MarketActualFormMap,
   breakdown: VoucherPrintBreakdown | null
 ): DriverVoucherData {
-  const parkingActual =
-    sumMarketActualFormValues(marketActuals, "parking") ??
-    parseOptionalNumber(form.parkingActual);
-  const kpbActual =
-    sumMarketActualFormValues(marketActuals, "kpb") ??
-    parseOptionalNumber(form.kpbActual);
-  const upahTurunActual =
-    sumMarketActualFormValues(marketActuals, "unload") ??
-    parseOptionalNumber(form.upahTurunActual);
+  const isCharter = form.tripSource === "charter";
+  const parkingActual = isCharter
+    ? null
+    : sumMarketActualFormValues(marketActuals, "parking") ??
+      parseOptionalNumber(form.parkingActual);
+  const kpbActual = isCharter
+    ? null
+    : sumMarketActualFormValues(marketActuals, "kpb") ??
+      parseOptionalNumber(form.kpbActual);
+  const upahTurunActual = isCharter
+    ? parseOptionalNumber(form.upahTurunActual)
+    : sumMarketActualFormValues(marketActuals, "unload") ??
+      parseOptionalNumber(form.upahTurunActual);
 
   return {
     voucherNo: form.voucherNo,
     tripId: form.tripId,
+    tripSource: form.tripSource,
     tripDate: form.tripDate,
     lorry: form.lorry,
     driverName: form.driverName,
@@ -236,7 +257,9 @@ function formToPrintData(
     duitJalan: parseOptionalNumber(form.duitJalan),
     belanja,
     baki,
-    marketActuals: marketActualFormMapToDto(marketActuals, breakdown),
+    marketActuals: isCharter
+      ? undefined
+      : marketActualFormMapToDto(marketActuals, breakdown),
   };
 }
 
@@ -257,6 +280,7 @@ export function DriverVoucherForm({
   date,
   voucherId,
   initialTripId,
+  initialTripSource = "dispatch",
   userRole,
 }: DriverVoucherFormProps) {
   const router = useRouter();
@@ -333,7 +357,12 @@ export function DriverVoucherForm({
             };
             hydratedTripRef.current = null;
             setMarketActuals({});
-            setForm(voucherToForm(voucher));
+            setForm(
+              voucherToForm(
+                voucher,
+                voucher.tripSource === "charter" ? "charter" : "dispatch"
+              )
+            );
             setWorkflow(workflowFromVoucher(voucher));
           }
           return;
@@ -348,22 +377,31 @@ export function DriverVoucherForm({
         if (!dispatchRes.ok) throw new Error("Gagal memuatkan trip / Failed to load trips");
         const dispatchData = (await dispatchRes.json()) as {
           dispatches?: DispatchOption[];
+          trips?: DispatchOption[];
         };
         const voucherData = voucherRes.ok
           ? ((await voucherRes.json()) as {
-              vouchers?: { tripId: string }[];
+              vouchers?: { tripId: string; tripSource?: string }[];
             })
           : { vouchers: [] };
 
         if (cancelled) return;
 
-        setDispatches(dispatchData.dispatches ?? []);
+        const tripList = dispatchData.trips ?? dispatchData.dispatches ?? [];
+        setDispatches(tripList);
         setExistingTripIds(
-          new Set((voucherData.vouchers ?? []).map((v) => v.tripId))
+          new Set(
+            (voucherData.vouchers ?? []).map((v) =>
+              expenseTripKey(
+                v.tripId,
+                v.tripSource === "charter" ? "charter" : "dispatch"
+              )
+            )
+          )
         );
 
         if (initialTripId) {
-          await loadSuggestion(initialTripId, cancelled);
+          await loadSuggestion(initialTripId, initialTripSource, cancelled);
         }
       } catch (e) {
         if (!cancelled) {
@@ -374,26 +412,39 @@ export function DriverVoucherForm({
       }
     }
 
-    async function loadSuggestion(tripId: string, cancelled: boolean) {
+    async function loadSuggestion(
+      tripId: string,
+      tripSource: DriverVoucherTripSource,
+      cancelled: boolean
+    ) {
       setPreparing(true);
       try {
         const [prepRes, noRes] = await Promise.all([
           fetch("/api/driver-vouchers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prepareTripId: tripId }),
+            body: JSON.stringify({ prepareTripId: tripId, prepareTripSource: tripSource }),
           }),
           fetch(`/api/driver-vouchers/voucher-no?tripDate=${date}`),
         ]);
         if (!prepRes.ok || !noRes.ok) throw new Error("Tidak dapat cadangan / Cannot fetch suggestions");
         const prepData = (await prepRes.json()) as {
           suggestion?: Parameters<typeof suggestionToForm>[0];
+          tripSource?: DriverVoucherTripSource;
         };
         const noData = (await noRes.json()) as { voucherNo?: string };
         if (!prepData.suggestion) throw new Error("Tiada data cadangan / No suggestion data");
+        const resolvedSource =
+          prepData.tripSource === "charter" || tripSource === "charter"
+            ? "charter"
+            : "dispatch";
         if (!cancelled) {
           setForm(
-            suggestionToForm(prepData.suggestion, noData.voucherNo ?? "")
+            suggestionToForm(
+              prepData.suggestion,
+              noData.voucherNo ?? "",
+              resolvedSource
+            )
           );
         }
       } finally {
@@ -405,7 +456,7 @@ export function DriverVoucherForm({
     return () => {
       cancelled = true;
     };
-  }, [mode, voucherId, initialTripId, date]);
+  }, [mode, voucherId, initialTripId, initialTripSource, date]);
 
   useEffect(() => {
     if (mode !== "edit" || !voucherId) return;
@@ -452,7 +503,12 @@ export function DriverVoucherForm({
     };
     hydratedTripRef.current = null;
     setMarketActuals({});
-    setForm(voucherToForm(voucher));
+    setForm(
+      voucherToForm(
+        voucher,
+        voucher.tripSource === "charter" ? "charter" : "dispatch"
+      )
+    );
     setWorkflow(workflowFromVoucher(voucher));
   }
 
@@ -465,22 +521,26 @@ export function DriverVoucherForm({
 
   function buildSavePayload(submitEntry?: boolean) {
     if (!form) throw new Error("Form not ready");
-    const parkingActual =
-      sumMarketActualFormValues(marketActuals, "parking") ??
-      parseOptionalNumber(form.parkingActual);
-    const kpbActual =
-      sumMarketActualFormValues(marketActuals, "kpb") ??
-      parseOptionalNumber(form.kpbActual);
-    const upahTurunActual =
-      sumMarketActualFormValues(marketActuals, "unload") ??
-      parseOptionalNumber(form.upahTurunActual);
-    const marketActualInputs = buildMarketActualInputsFromForm(
-      marketActuals,
-      printBreakdown
-    );
+    const isCharter = form.tripSource === "charter";
+    const parkingActual = isCharter
+      ? null
+      : sumMarketActualFormValues(marketActuals, "parking") ??
+        parseOptionalNumber(form.parkingActual);
+    const kpbActual = isCharter
+      ? null
+      : sumMarketActualFormValues(marketActuals, "kpb") ??
+        parseOptionalNumber(form.kpbActual);
+    const upahTurunActual = isCharter
+      ? parseOptionalNumber(form.upahTurunActual)
+      : sumMarketActualFormValues(marketActuals, "unload") ??
+        parseOptionalNumber(form.upahTurunActual);
+    const marketActualInputs = isCharter
+      ? []
+      : buildMarketActualInputsFromForm(marketActuals, printBreakdown);
 
     return {
       tripId: form.tripId,
+      tripSource: form.tripSource,
       voucherNo: form.voucherNo,
       chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
       chopBorderActual: parseOptionalNumber(form.chopBorderActual),
@@ -670,7 +730,8 @@ export function DriverVoucherForm({
     }
   }
 
-  async function prepareVoucherForTrip(tripId: string) {
+  async function prepareVoucherForTrip(trip: DispatchOption) {
+    const tripSource = trip.tripSource ?? "dispatch";
     setPreparing(true);
     setError(null);
     try {
@@ -678,27 +739,41 @@ export function DriverVoucherForm({
         fetch("/api/driver-vouchers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prepareTripId: tripId }),
+          body: JSON.stringify({
+            prepareTripId: trip.id,
+            prepareTripSource: tripSource,
+          }),
         }),
         fetch(`/api/driver-vouchers/voucher-no?tripDate=${date}`),
       ]);
       if (!prepRes.ok || !noRes.ok) throw new Error("Tidak dapat cadangan / Cannot fetch suggestions");
       const prepData = (await prepRes.json()) as {
         suggestion?: Parameters<typeof suggestionToForm>[0];
+        tripSource?: DriverVoucherTripSource;
       };
       const noData = (await noRes.json()) as { voucherNo?: string };
       if (!prepData.suggestion) throw new Error("Tiada data cadangan / No suggestion data");
+      const resolvedSource =
+        prepData.tripSource === "charter" || tripSource === "charter"
+          ? "charter"
+          : "dispatch";
       hydrateSourceRef.current = {
-        tripId,
+        tripId: trip.id,
         rows: [],
         scalars: {},
       };
       hydratedTripRef.current = null;
       setMarketActuals({});
-      setForm(suggestionToForm(prepData.suggestion, noData.voucherNo ?? ""));
-      router.replace(
-        `/documents/driver-expenses/new?date=${date}&tripId=${tripId}`
+      setForm(
+        suggestionToForm(
+          prepData.suggestion,
+          noData.voucherNo ?? "",
+          resolvedSource
+        )
       );
+      const params = new URLSearchParams({ date, tripId: trip.id });
+      if (resolvedSource === "charter") params.set("tripSource", "charter");
+      router.replace(`/documents/driver-expenses/new?${params.toString()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyediakan / Prepare failed");
     } finally {
@@ -706,8 +781,26 @@ export function DriverVoucherForm({
     }
   }
 
+  const isCharterMode = form?.tripSource === "charter";
+
   const belanja = useMemo(() => {
     if (!form) return 0;
+    if (isCharterMode) {
+      return sumActualBelanja(
+        {
+          chopBorderActual: parseOptionalNumber(form.chopBorderActual),
+          parkingActual: null,
+          kpbActual: null,
+          fishCheckActual: null,
+          upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+          upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
+          minyakMotoEnabled: form.minyakMotoEnabled,
+          minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+          otherActual: parseOptionalNumber(form.otherActual),
+        },
+        { tripSource: "charter" }
+      );
+    }
     const parkingActual =
       sumMarketActualFormValues(marketActuals, "parking") ??
       parseOptionalNumber(form.parkingActual);
@@ -728,10 +821,19 @@ export function DriverVoucherForm({
       minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
       otherActual: parseOptionalNumber(form.otherActual),
     });
-  }, [form, marketActuals]);
+  }, [form, marketActuals, isCharterMode]);
 
   const suggestedSubtotal = useMemo(() => {
     if (!form) return 0;
+    if (isCharterMode) {
+      return sumCharterSuggestedAmounts({
+        chopBorderAmt: parseOptionalNumber(form.chopBorderAmt),
+        upahTurunAmt: parseOptionalNumber(form.upahTurunAmt),
+        upahNaikTongAmt: parseOptionalNumber(form.upahNaikTongAmt),
+        minyakMotoEnabled: form.minyakMotoEnabled,
+        minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
+      });
+    }
     const parkingSuggested =
       printBreakdown?.parking.length
         ? printBreakdown.parking.reduce((sum, row) => sum + row.suggested, 0)
@@ -754,7 +856,7 @@ export function DriverVoucherForm({
       minyakMotoEnabled: form.minyakMotoEnabled,
       minyakMotoAmt: parseOptionalNumber(form.minyakMotoAmt) ?? 8,
     });
-  }, [form, printBreakdown]);
+  }, [form, printBreakdown, isCharterMode]);
 
   const duitJalan = form ? parseOptionalNumber(form.duitJalan) : null;
   const baki =
@@ -763,10 +865,12 @@ export function DriverVoucherForm({
   const printData = form
     ? formToPrintData(form, belanja, baki, marketActuals, printBreakdown)
     : null;
-  const availableTrips = dispatches.filter((d) => !existingTripIds.has(d.id));
+  const availableTrips = dispatches.filter(
+    (d) => !existingTripIds.has(expenseTripKey(d.id, d.tripSource ?? "dispatch"))
+  );
 
   useEffect(() => {
-    if (!form?.tripId) {
+    if (!form?.tripId || isCharterMode) {
       setPrintBreakdown(null);
       return;
     }
@@ -777,10 +881,10 @@ export function DriverVoucherForm({
     return () => {
       cancelled = true;
     };
-  }, [form?.tripId]);
+  }, [form?.tripId, isCharterMode]);
 
   useEffect(() => {
-    if (!form?.tripId || !printBreakdown) return;
+    if (!form?.tripId || !printBreakdown || isCharterMode) return;
     if (hydratedTripRef.current === form.tripId) return;
 
     const source = hydrateSourceRef.current;
@@ -793,7 +897,7 @@ export function DriverVoucherForm({
       hydrateMarketActualFormMap(printBreakdown, rows, scalars)
     );
     hydratedTripRef.current = form.tripId;
-  }, [form?.tripId, printBreakdown]);
+  }, [form?.tripId, printBreakdown, isCharterMode]);
 
   function handlePrint() {
     window.print();
@@ -856,14 +960,19 @@ export function DriverVoucherForm({
             <div className="space-y-1">
               {availableTrips.map((d) => (
                 <button
-                  key={d.id}
+                  key={`${d.tripSource ?? "dispatch"}:${d.id}`}
                   type="button"
-                  onClick={() => prepareVoucherForTrip(d.id)}
+                  onClick={() => prepareVoucherForTrip(d)}
                   className="flex w-full items-center gap-2 rounded-lg border border-haidee-border px-3 py-2 text-left text-sm hover:bg-haidee-surface/50"
                 >
                   <span className="font-medium">{d.lorry}</span>
                   <span className="text-haidee-muted">{d.driver}</span>
                   <span className="text-haidee-muted">{d.route}</span>
+                  {(d.tripSource ?? "dispatch") === "charter" && (
+                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800">
+                      包车
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -889,7 +998,14 @@ export function DriverVoucherForm({
               </div>
               <div>
                 <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.trip}</p>
-                <p className="font-medium">{form.route}</p>
+                <p className="font-medium">
+                  {form.route}
+                  {isCharterMode && (
+                    <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800">
+                      包车
+                    </span>
+                  )}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.voucherNo}</p>
@@ -943,6 +1059,79 @@ export function DriverVoucherForm({
                   kpbMap.has(market) ||
                   upahTurunMap.has(market)
               );
+
+              if (isCharterMode) {
+                return (
+                  <>
+                    <div className="grid grid-cols-3 items-center gap-3">
+                      <label className="text-sm">Chop/Border</label>
+                      <Input
+                        readOnly
+                        className="bg-muted/50 text-right font-mono"
+                        value={form.chopBorderAmt}
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.chopBorderActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev
+                              ? { ...prev, chopBorderActual: e.target.value }
+                              : prev
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-3">
+                      <label className="text-sm">Upah Turun</label>
+                      <Input
+                        readOnly
+                        className="bg-muted/50 text-right font-mono"
+                        value={form.upahTurunAmt}
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.upahTurunActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev
+                              ? { ...prev, upahTurunActual: e.target.value }
+                              : prev
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-3">
+                      <label className="text-sm">Upah Naik Tong</label>
+                      <Input
+                        readOnly
+                        className="bg-muted/50 text-right font-mono"
+                        value={form.upahNaikTongAmt}
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="text-right font-mono"
+                        value={form.upahNaikTongActual}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  upahNaikTongActual: e.target.value,
+                                }
+                              : prev
+                          )
+                        }
+                      />
+                    </div>
+                  </>
+                );
+              }
 
               return (
                 <>

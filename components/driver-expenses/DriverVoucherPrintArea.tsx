@@ -4,6 +4,7 @@ import { Fragment } from "react";
 
 import {
   formatMyr,
+  sumCharterSuggestedAmounts,
   sumSuggestedAmounts,
   VOUCHER_PRINT_LABELS,
   type DriverVoucherData,
@@ -64,6 +65,7 @@ export function DriverVoucherPrintArea({
   breakdown,
 }: DriverVoucherPrintAreaProps) {
   const { locale } = useT();
+  const isCharter = voucher.tripSource === "charter";
   const parkingSuggested =
     breakdown?.parking.length
       ? breakdown.parking.reduce((sum, row) => sum + row.suggested, 0)
@@ -78,16 +80,24 @@ export function DriverVoucherPrintArea({
       : voucher.upahTurunAmt;
   const upahNaikTongSuggested =
     breakdown?.upahNaikTongSuggested ?? voucher.upahNaikTongAmt;
-  const suggestedSubtotal = sumSuggestedAmounts({
-    chopBorderAmt: voucher.chopBorderAmt,
-    parkingAmt: parkingSuggested,
-    kpbAmt: kpbSuggested,
-    fishCheckAmt: voucher.fishCheckAmt,
-    upahTurunAmt: upahTurunSuggested,
-    upahNaikTongAmt: upahNaikTongSuggested,
-    minyakMotoEnabled: voucher.minyakMotoEnabled,
-    minyakMotoAmt: voucher.minyakMotoAmt,
-  });
+  const suggestedSubtotal = isCharter
+    ? sumCharterSuggestedAmounts({
+        chopBorderAmt: voucher.chopBorderAmt,
+        upahTurunAmt: upahTurunSuggested,
+        upahNaikTongAmt: upahNaikTongSuggested,
+        minyakMotoEnabled: voucher.minyakMotoEnabled,
+        minyakMotoAmt: voucher.minyakMotoAmt,
+      })
+    : sumSuggestedAmounts({
+        chopBorderAmt: voucher.chopBorderAmt,
+        parkingAmt: parkingSuggested,
+        kpbAmt: kpbSuggested,
+        fishCheckAmt: voucher.fishCheckAmt,
+        upahTurunAmt: upahTurunSuggested,
+        upahNaikTongAmt: upahNaikTongSuggested,
+        minyakMotoEnabled: voucher.minyakMotoEnabled,
+        minyakMotoAmt: voucher.minyakMotoAmt,
+      });
 
   const bakiClass =
     voucher.baki != null && voucher.baki >= 0
@@ -149,65 +159,88 @@ export function DriverVoucherPrintArea({
             suggested={voucher.chopBorderAmt}
             actual={voucher.chopBorderActual}
           />
-          {marketWithAnyRows.map((market) => (
-            <Fragment key={`market-block-${market}`}>
-              {parkingMap.get(market) && (
-                <FeeRow
-                  label={`Parking ${market}`}
-                  suggested={parkingMap.get(market)!.suggested}
-                  actual={resolveVoucherMarketActual(voucher, "parking", market)}
-                />
-              )}
-              {kpbMap.get(market) && (
-                <FeeRow
-                  label={formatKpbFeeRowLabel(market, locale)}
-                  suggested={kpbMap.get(market)!.suggested}
-                  actual={resolveVoucherMarketActual(voucher, "kpb", market)}
-                />
-              )}
-              {upahTurunMap.get(market) && (
-                <FeeRow
-                  label={`Upah Turun ${market}`}
-                  suggested={upahTurunMap.get(market)!.suggested}
-                  actual={resolveVoucherMarketActual(voucher, "unload", market)}
-                />
-              )}
-            </Fragment>
-          ))}
-          {marketWithAnyRows.length === 0 && (
+          {isCharter ? (
             <>
-              <FeeRow
-                label="Parking"
-                suggested={voucher.parkingAmt}
-                actual={voucher.parkingActual}
-              />
-              <FeeRow
-                label="KPB"
-                suggested={voucher.kpbAmt}
-                actual={voucher.kpbActual}
-              />
               <FeeRow
                 label="Upah Turun"
                 suggested={voucher.upahTurunAmt}
                 actual={voucher.upahTurunActual}
               />
+              <FeeRow
+                label="Upah Naik Tong"
+                suggested={voucher.upahNaikTongAmt}
+                actual={voucher.upahNaikTongActual}
+              />
+            </>
+          ) : (
+            <>
+              {marketWithAnyRows.map((market) => (
+                <Fragment key={`market-block-${market}`}>
+                  {parkingMap.get(market) && (
+                    <FeeRow
+                      label={`Parking ${market}`}
+                      suggested={parkingMap.get(market)!.suggested}
+                      actual={resolveVoucherMarketActual(
+                        voucher,
+                        "parking",
+                        market
+                      )}
+                    />
+                  )}
+                  {kpbMap.get(market) && (
+                    <FeeRow
+                      label={formatKpbFeeRowLabel(market, locale)}
+                      suggested={kpbMap.get(market)!.suggested}
+                      actual={resolveVoucherMarketActual(voucher, "kpb", market)}
+                    />
+                  )}
+                  {upahTurunMap.get(market) && (
+                    <FeeRow
+                      label={`Upah Turun ${market}`}
+                      suggested={upahTurunMap.get(market)!.suggested}
+                      actual={resolveVoucherMarketActual(
+                        voucher,
+                        "unload",
+                        market
+                      )}
+                    />
+                  )}
+                </Fragment>
+              ))}
+              {marketWithAnyRows.length === 0 && (
+                <>
+                  <FeeRow
+                    label="Parking"
+                    suggested={voucher.parkingAmt}
+                    actual={voucher.parkingActual}
+                  />
+                  <FeeRow
+                    label="KPB"
+                    suggested={voucher.kpbAmt}
+                    actual={voucher.kpbActual}
+                  />
+                  <FeeRow
+                    label="Upah Turun"
+                    suggested={voucher.upahTurunAmt}
+                    actual={voucher.upahTurunActual}
+                  />
+                </>
+              )}
+              <FeeRow
+                label="Semak Ikan / Fish Check"
+                suggested={voucher.fishCheckAmt}
+                actual={voucher.fishCheckActual}
+              />
+              <FeeRow
+                label={
+                  breakdown?.upahNaikTongLabel ??
+                  "Upah Naik Tong / Crate Loading"
+                }
+                suggested={upahNaikTongSuggested}
+                actual={voucher.upahNaikTongActual}
+              />
             </>
           )}
-          <FeeRow
-            label="Semak Ikan / Fish Check"
-            suggested={voucher.fishCheckAmt}
-            actual={voucher.fishCheckActual}
-          />
-          <FeeRow
-            label={
-              breakdown?.upahNaikTongLabel ??
-              "Upah Naik Tong / Crate Loading"
-            }
-            suggested={
-              upahNaikTongSuggested
-            }
-            actual={voucher.upahNaikTongActual}
-          />
           {voucher.minyakMotoEnabled && (
             <FeeRow
               label={VOUCHER_PRINT_LABELS.minyakMoto}

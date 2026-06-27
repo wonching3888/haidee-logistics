@@ -153,6 +153,7 @@ export function VoucherHistoryPanel({
                 <TableHead>{t("driverExpenses.col.plate")}</TableHead>
                 <TableHead>{t("driverExpenses.col.driver")}</TableHead>
                 <TableHead>{t("driverExpenses.col.route")}</TableHead>
+                <TableHead>类型 Type</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
                 <TableHead className="text-right">
                   {t("driverExpenses.col.expense")}
@@ -168,6 +169,15 @@ export function VoucherHistoryPanel({
                   <TableCell>{v.lorry}</TableCell>
                   <TableCell>{v.driverName}</TableCell>
                   <TableCell>{v.route}</TableCell>
+                  <TableCell>
+                    {v.tripSource === "charter" ? (
+                      <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800">
+                        包车
+                      </span>
+                    ) : (
+                      <span className="text-xs text-haidee-muted">派车</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <VoucherStatusBadge status={v.status} />
                   </TableCell>

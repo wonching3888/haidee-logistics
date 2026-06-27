@@ -1,5 +1,6 @@
 import { subDays } from "date-fns";
 import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
+import type { DriverVoucherTripSource } from "@/lib/driver-expense/trip-source";
 
 export type DriverExpensesTab = "today" | "history";
 
@@ -7,6 +8,7 @@ export interface DriverVoucherListItem {
   id: string;
   voucherNo: string;
   tripId: string;
+  tripSource: DriverVoucherTripSource;
   tripDate: string;
   lorry: string;
   driverName: string;
@@ -22,6 +24,7 @@ export function normalizeVoucherListItem(
     id: string;
     voucherNo: string;
     tripId: string;
+    tripSource?: string | null;
     tripDate: Date | string;
     lorry: string;
     driverName: string;
@@ -36,7 +39,9 @@ export function normalizeVoucherListItem(
     typeof row.tripDate === "string"
       ? row.tripDate.slice(0, 10)
       : toDateInputValue(row.tripDate);
-  return { ...row, tripDate };
+  const tripSource: DriverVoucherTripSource =
+    row.tripSource === "charter" ? "charter" : "dispatch";
+  return { ...row, tripDate, tripSource };
 }
 
 export function defaultHistoryDateRange(endDate?: string): {
@@ -60,38 +65,58 @@ export interface DispatchOption {
   lorry: string;
   driver: string;
   route: string;
+  tripSource?: DriverVoucherTripSource;
+  charterNo?: string | null;
 }
 
 export type DispatchTripStatus = string | "none";
 
-export interface DispatchTripRow {
+export interface ExpenseTripRow {
   tripId: string;
+  tripSource: DriverVoucherTripSource;
   tripDate: string;
   lorry: string;
   driverName: string;
   route: string;
+  charterNo: string | null;
   voucherId?: string;
   status: DispatchTripStatus;
+}
+
+/** @deprecated Use ExpenseTripRow */
+export type DispatchTripRow = ExpenseTripRow;
+
+export function buildExpenseTripRows(
+  date: string,
+  trips: DispatchOption[],
+  vouchers: DriverVoucherListItem[]
+): ExpenseTripRow[] {
+  const byKey = new Map(
+    vouchers.map((v) => [`${v.tripSource}:${v.tripId}`, v])
+  );
+  return trips.map((t) => {
+    const tripSource = t.tripSource ?? "dispatch";
+    const voucher = byKey.get(`${tripSource}:${t.id}`);
+    return {
+      tripId: t.id,
+      tripSource,
+      tripDate: date,
+      lorry: t.lorry,
+      driverName: t.driver,
+      route: t.route,
+      charterNo: t.charterNo ?? null,
+      voucherId: voucher?.id,
+      status: voucher?.status ?? "none",
+    };
+  });
 }
 
 export function buildDispatchTripRows(
   date: string,
   dispatches: DispatchOption[],
   vouchers: DriverVoucherListItem[]
-): DispatchTripRow[] {
-  const byTripId = new Map(vouchers.map((v) => [v.tripId, v]));
-  return dispatches.map((d) => {
-    const voucher = byTripId.get(d.id);
-    return {
-      tripId: d.id,
-      tripDate: date,
-      lorry: d.lorry,
-      driverName: d.driver,
-      route: d.route,
-      voucherId: voucher?.id,
-      status: voucher?.status ?? "none",
-    };
-  });
+): ExpenseTripRow[] {
+  return buildExpenseTripRows(date, dispatches, vouchers);
 }
 
 const TODO_STATUS_ORDER: Record<string, number> = {

@@ -189,7 +189,7 @@ export async function transitionVoucherStatus(input: {
 }) {
   const existing = await prisma.driverVoucher.findUnique({
     where: { id: input.voucherId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, tripSource: true },
   });
 
   if (!existing) {
@@ -242,7 +242,7 @@ export async function transitionVoucherStatus(input: {
       note: input.note,
     });
 
-    if (isVoucherCostEnforced()) {
+    if (isVoucherCostEnforced() && existing.tripSource !== "charter") {
       if (input.toStatus === "confirmed" || input.toStatus === "approved") {
         return applyVoucherCostActuals(input.voucherId, tx);
       }

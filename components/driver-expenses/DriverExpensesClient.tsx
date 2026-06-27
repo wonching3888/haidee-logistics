@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { useT } from "@/components/shared/locale-context";
 import {
-  buildDispatchTripRows,
+  buildExpenseTripRows,
   defaultHistoryDateRange,
   normalizeVoucherListItem,
   type DispatchOption,
@@ -111,7 +111,7 @@ export function DriverExpensesClient({
 
   const hasLoadedToday = loadedDate === date;
   const dispatchTrips = useMemo(
-    () => buildDispatchTripRows(date, dispatches, todayVouchers),
+    () => buildExpenseTripRows(date, dispatches, todayVouchers),
     [date, dispatches, todayVouchers]
   );
   const sortedTodo = todoItems;
@@ -167,22 +167,28 @@ export function DriverExpensesClient({
           unloadingRes.json() as Promise<{ fees?: UnloadingFeeRow[] }>,
           voucherRes.json() as Promise<{ vouchers?: DriverVoucherListItem[] }>,
           dispatchRes.ok
-            ? (dispatchRes.json() as Promise<{ dispatches?: DispatchOption[] }>)
-            : Promise.resolve({ dispatches: [] }),
+            ? (dispatchRes.json() as Promise<{
+                dispatches?: DispatchOption[];
+                trips?: DispatchOption[];
+              }>)
+            : Promise.resolve({ dispatches: [], trips: [] }),
         ]);
 
         const fees = unloadingData.fees ?? [];
         const vouchers = (voucherData.vouchers ?? []).map(normalizeVoucherListItem);
-        const dispatchList = dispatchData.dispatches ?? [];
+        const tripList =
+          dispatchData.trips ??
+          dispatchData.dispatches ??
+          [];
 
         setUnloadingFees(fees);
         setTodayVouchers(vouchers);
-        setDispatches(dispatchList);
+        setDispatches(tripList);
         setLoadedDate(targetDate);
         persistTodayCache(targetDate, {
           unloadingFees: fees,
           vouchers,
-          dispatches: dispatchList,
+          dispatches: tripList,
         });
 
         if (options?.skipCache) {
@@ -338,13 +344,21 @@ export function DriverExpensesClient({
     setSyncing(true);
     setError(null);
     try {
-      let tripIds = dispatches.map((d) => d.id);
+      let tripIds = dispatches
+        .filter((d) => (d.tripSource ?? "dispatch") === "dispatch")
+        .map((d) => d.id);
       if (tripIds.length === 0) {
         const res = await fetch(`/api/driver-expenses/dispatches?date=${date}`);
         if (res.ok) {
-          const data = (await res.json()) as { dispatches?: DispatchOption[] };
-          tripIds = (data.dispatches ?? []).map((d) => d.id);
-          setDispatches(data.dispatches ?? []);
+          const data = (await res.json()) as {
+            dispatches?: DispatchOption[];
+            trips?: DispatchOption[];
+          };
+          const tripList = data.trips ?? data.dispatches ?? [];
+          tripIds = tripList
+            .filter((d) => (d.tripSource ?? "dispatch") === "dispatch")
+            .map((d) => d.id);
+          setDispatches(tripList);
         }
       }
       await Promise.all(

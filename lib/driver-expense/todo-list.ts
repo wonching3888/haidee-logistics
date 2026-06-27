@@ -1,6 +1,8 @@
 import { differenceInCalendarDays } from "date-fns";
 import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 
+import type { DriverVoucherTripSource } from "@/lib/driver-expense/trip-source";
+
 /** Days unsettled before highlighting in red (inclusive). */
 export const TODO_UNSETTLED_ALERT_DAYS = 7;
 
@@ -17,11 +19,13 @@ export type DriverExpenseTodoKind = "unentered" | "voucher";
 export interface DriverExpenseTodoItem {
   kind: DriverExpenseTodoKind;
   tripId: string;
+  tripSource: DriverVoucherTripSource;
   tripDate: string;
   lorry: string;
   driverName: string;
   route: string;
   dispatchNo: string | null;
+  charterNo: string | null;
   voucherId?: string;
   voucherNo?: string;
   /** `unentered` or a voucher workflow status. */
@@ -55,7 +59,14 @@ export function sortDriverExpenseTodoItems(
 }
 
 export function buildUnenteredTodoHref(item: DriverExpenseTodoItem): string {
-  return `/documents/driver-expenses/new?date=${item.tripDate}&tripId=${item.tripId}`;
+  const params = new URLSearchParams({
+    date: item.tripDate,
+    tripId: item.tripId,
+  });
+  if (item.tripSource === "charter") {
+    params.set("tripSource", "charter");
+  }
+  return `/documents/driver-expenses/new?${params.toString()}`;
 }
 
 export function buildVoucherTodoHref(item: DriverExpenseTodoItem): string {

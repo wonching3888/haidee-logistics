@@ -39,9 +39,16 @@ export async function POST(request: Request) {
     }
     const body = await request.json();
     if (body?.prepareTripId) {
-      await syncTripDriverExpenses(body.prepareTripId);
-      const suggestion = await suggestVoucherAmounts(body.prepareTripId);
-      return NextResponse.json({ suggestion });
+      const tripSource =
+        body.prepareTripSource === "charter" ? "charter" : "dispatch";
+      if (tripSource !== "charter") {
+        await syncTripDriverExpenses(body.prepareTripId, tripSource);
+      }
+      const suggestion = await suggestVoucherAmounts(
+        body.prepareTripId,
+        tripSource
+      );
+      return NextResponse.json({ suggestion, tripSource });
     }
     const { submitEntry, ...createInput } = body ?? {};
     const voucher = await createDriverVoucher(createInput, {

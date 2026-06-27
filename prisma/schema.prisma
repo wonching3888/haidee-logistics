@@ -608,6 +608,10 @@ model CharterTrip {
   billToCustomerName     String?  @map("bill_to_customer_name")
   computedLkimMyr        Decimal? @map("computed_lkim_myr") @db.Decimal(10, 2)
   computedCrateRentalMyr Decimal? @map("computed_crate_rental_myr") @db.Decimal(10, 2)
+  charterUnloadFeeOverride Decimal? @map("charterUnloadFeeOverride") @db.Decimal(10, 2)
+  charterOtherCostOverride Decimal? @map("charterOtherCostOverride") @db.Decimal(10, 2)
+  charterBorderPassOverride Decimal? @map("charterBorderPassOverride") @db.Decimal(10, 2)
+  charterLoadingLaborMyr Decimal? @map("charterLoadingLaborMyr") @db.Decimal(10, 2)
   createdById            String?  @map("created_by") @db.Uuid
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
@@ -954,7 +958,8 @@ model CrateLoadingFee {
 model DriverVoucher {
   id                 String   @id @default(cuid())
   voucherNo          String   @unique @map("voucher_no")
-  tripId             String   @unique @map("trip_id")
+  tripId             String   @map("trip_id")
+  tripSource         String   @default("dispatch") @map("tripSource")
   tripDate           DateTime @map("trip_date") @db.Date
   lorry              String
   driverName         String   @map("driver_name")
@@ -998,10 +1003,12 @@ model DriverVoucher {
   changeLogs DriverVoucherChangeLog[]
   marketActuals DriverVoucherMarketActual[]
 
+  @@unique([tripId, tripSource])
   @@index([status, tripDate(sort: Desc)])
   @@index([tripDate, lorry])
   @@index([tripDate, driverName])
   @@index([tripDate])
+  @@index([tripSource])
   @@map("driver_vouchers")
 }
 

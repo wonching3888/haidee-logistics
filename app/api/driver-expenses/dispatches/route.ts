@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireDriverExpensesApi } from "@/lib/require-auth";
-import { listDispatchesForExpenseDate } from "@/lib/driver-expense-service";
-import { toDateInputValue } from "@/lib/date-utils";
-import { formatTripRouteLabel } from "@/lib/trip-allowance";
+import { listTripsForExpenseDate } from "@/lib/driver-expense-service";
 
 export async function GET(request: Request) {
   try {
@@ -15,15 +13,11 @@ export async function GET(request: Request) {
     if (!date) {
       return NextResponse.json({ error: "date is required" }, { status: 400 });
     }
-    const dispatches = await listDispatchesForExpenseDate(date);
+    const trips = await listTripsForExpenseDate(date);
     return NextResponse.json({
-      dispatches: dispatches.map((d) => ({
-        id: d.id,
-        lorry: d.truck.plate,
-        driver: d.driverName ?? "",
-        route: formatTripRouteLabel(d.markets),
-        date: toDateInputValue(d.date),
-      })),
+      dispatches: trips.filter((t) => t.tripSource === "dispatch"),
+      charters: trips.filter((t) => t.tripSource === "charter"),
+      trips,
     });
   } catch (error) {
     return NextResponse.json(

@@ -64,6 +64,13 @@ import {
   TODO_VOUCHER_STATUSES,
   type DriverExpenseTodoItem,
 } from "@/lib/driver-expense/todo-list";
+import {
+  expenseTripKey,
+  parseDriverVoucherTripSource,
+  type DriverVoucherTripSource,
+} from "@/lib/driver-expense/trip-source";
+import { sumActualBelanja } from "@/lib/driver-expense/voucher-utils";
+import { charterRouteLabel } from "@/lib/charter-pnl";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
   {
@@ -529,6 +536,45 @@ async function loadDispatchForExpense(tripId: string) {
   return dispatch;
 }
 
+export async function loadCharterForExpense(charterTripId: string) {
+  const charter = await prisma.charterTrip.findUnique({
+    where: { id: charterTripId },
+    include: { truck: true },
+  });
+  if (!charter) throw new Error("趟次不存在 Trip not found");
+  return charter;
+}
+
+export async function loadTripForExpense(
+  tripId: string,
+  tripSource: DriverVoucherTripSource = "dispatch"
+) {
+  if (tripSource === "charter") {
+    return loadCharterForExpense(tripId);
+  }
+  return loadDispatchForExpense(tripId);
+}
+
+async function assertVoucherTripUnique(
+  tripId: string,
+  tripSource: DriverVoucherTripSource,
+  excludeVoucherId?: string
+) {
+  const existing = await prisma.driverVoucher.findFirst({
+    where: {
+      tripId,
+      tripSource,
+      ...(excludeVoucherId ? { id: { not: excludeVoucherId } } : {}),
+    },
+    select: { id: true, voucherNo: true },
+  });
+  if (existing) {
+    throw new Error(
+      `该趟次已有报销单 ${existing.voucherNo} / Voucher already exists for this trip`
+    );
+  }
+}
+
 function dispatchHasAssignedInboundLines(
   dispatch: Awaited<ReturnType<typeof loadDispatchForExpense>>
 ) {
@@ -918,6 +964,7 @@ async function syncVoucherScalarsFromMarketActuals(
   voucherId: string,
   marketActuals: MarketActualInput[] | undefined,
   existing: {
+    tripSource: string;
     chopBorderActual: number | null;
     parkingActual: number | null;
     kpbActual: number | null;
@@ -937,7 +984,8 @@ async function syncVoucherScalarsFromMarketActuals(
   if (Object.keys(scalarPatch).length === 0) return null;
 
   const merged = { ...existing, ...scalarPatch };
-  const belanja = sumActualBelanja(merged);
+  const tripSource = parseDriverVoucherTripSource(existing.tripSource);
+  const belanja = voucherBelanja(merged, tripSource);
   const baki =
     merged.duitJalan != null
       ? roundMoney(merged.duitJalan - belanja)
@@ -994,34 +1042,11 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function sumActualBelanja(voucher: {
-  chopBorderActual: number | null;
-  parkingActual: number | null;
-  kpbActual: number | null;
-  fishCheckActual: number | null;
-  upahTurunActual: number | null;
-  upahNaikTongActual: number | null;
-  minyakMotoEnabled: boolean;
-  minyakMotoActual: number | null;
-  otherActual?: number | null;
-}) {
-  let total = 0;
-  const fields = [
-    voucher.chopBorderActual,
-    voucher.parkingActual,
-    voucher.kpbActual,
-    voucher.fishCheckActual,
-    voucher.upahTurunActual,
-    voucher.upahNaikTongActual,
-    voucher.otherActual ?? null,
-  ];
-  for (const value of fields) {
-    if (value != null) total += value;
-  }
-  if (voucher.minyakMotoEnabled && voucher.minyakMotoActual != null) {
-    total += voucher.minyakMotoActual;
-  }
-  return roundMoney(total);
+function voucherBelanja(
+  voucher: Parameters<typeof sumActualBelanja>[0],
+  tripSource: DriverVoucherTripSource
+) {
+  return sumActualBelanja(voucher, { tripSource });
 }
 
 function allocateByProportion(total: number, weights: number[]): number[] {
@@ -1133,7 +1158,35 @@ async function writebackVoucherActuals(voucher: {
   }
 }
 
-export async function suggestVoucherAmounts(tripId: string) {
+export async function suggestVoucherAmountsCharter(charterTripId: string) {
+  const charter = await loadCharterForExpense(charterTripId);
+  const globalCosts = await loadGlobalTripCostValues();
+
+  return {
+    tripId: charter.id,
+    tripSource: "charter" as const,
+    tripDate: toDateInputValue(charter.date),
+    lorry: charter.truck.plate,
+    driverName: charter.driverName ?? "",
+    route: charterRouteLabel(charter.charterNo),
+    chopBorderAmt: charter.includeBorderFees ? globalCosts.borderPass : 0,
+    parkingAmt: null as number | null,
+    kpbAmt: null as number | null,
+    fishCheckAmt: null as number | null,
+    upahTurunAmt: decimalToNumber(charter.charterUnloadFeeMyr) ?? 0,
+    upahNaikTongAmt: 0,
+    totalQuantity: charter.totalQuantity ?? 0,
+  };
+}
+
+export async function suggestVoucherAmounts(
+  tripId: string,
+  tripSource: DriverVoucherTripSource = "dispatch"
+) {
+  if (tripSource === "charter") {
+    return suggestVoucherAmountsCharter(tripId);
+  }
+
   const dispatch = await loadDispatchForExpense(tripId);
   const [unloadingFees, loadingFees, routes, globalCosts] = await Promise.all([
     listUnloadingFees({ tripId }),
@@ -1195,6 +1248,7 @@ export async function suggestVoucherAmounts(tripId: string) {
 
   return {
     tripId,
+    tripSource: "dispatch" as const,
     tripDate: toDateInputValue(dispatch.date),
     lorry: dispatch.truck.plate,
     driverName: dispatch.driverName ?? "",
@@ -1235,6 +1289,7 @@ export async function createDriverVoucher(
   input: {
     voucherNo?: string;
     tripId: string;
+    tripSource?: DriverVoucherTripSource;
     chopBorderAmt?: number | null;
     chopBorderActual?: number | null;
     parkingAmt?: number | null;
@@ -1256,13 +1311,16 @@ export async function createDriverVoucher(
   },
   options?: DriverVoucherWriteOptions
 ) {
-  const suggestion = await suggestVoucherAmounts(input.tripId);
+  const tripSource = parseDriverVoucherTripSource(input.tripSource);
+  await assertVoucherTripUnique(input.tripId, tripSource);
+  const suggestion = await suggestVoucherAmounts(input.tripId, tripSource);
   const voucherNo =
     input.voucherNo ?? (await nextVoucherNo(suggestion.tripDate));
 
   const draft = {
     voucherNo,
     tripId: input.tripId,
+    tripSource,
     tripDate: parseDateInput(suggestion.tripDate),
     lorry: suggestion.lorry,
     driverName: suggestion.driverName,
@@ -1288,7 +1346,7 @@ export async function createDriverVoucher(
     baki: null as number | null,
   };
 
-  draft.belanja = sumActualBelanja(draft);
+  draft.belanja = voucherBelanja(draft, tripSource);
   draft.baki =
     draft.duitJalan != null
       ? roundMoney(draft.duitJalan - draft.belanja)
@@ -1321,7 +1379,7 @@ export async function createDriverVoucher(
   );
   if (synced) result = synced;
 
-  if (shouldWritebackVoucherActualsOnSave()) {
+  if (shouldWritebackVoucherActualsOnSave() && result.tripSource !== "charter") {
     await writebackVoucherActuals({
       tripId: result.tripId,
       kpbActual: result.kpbActual,
@@ -1344,7 +1402,8 @@ export async function updateDriverVoucher(
 
   const { marketActuals, ...voucherPatch } = input;
   const merged = { ...existing, ...voucherPatch };
-  const belanja = sumActualBelanja(merged);
+  const tripSource = parseDriverVoucherTripSource(existing.tripSource);
+  const belanja = voucherBelanja(merged, tripSource);
   const baki =
     merged.duitJalan != null
       ? roundMoney(merged.duitJalan - belanja)
@@ -1397,7 +1456,7 @@ export async function updateDriverVoucher(
   );
   if (synced) result = synced;
 
-  if (shouldWritebackVoucherActualsOnSave()) {
+  if (shouldWritebackVoucherActualsOnSave() && result.tripSource !== "charter") {
     await writebackVoucherActuals({
       tripId: result.tripId,
       kpbActual: result.kpbActual,
@@ -1553,7 +1612,13 @@ export async function getVoucherPrintBreakdown(tripId: string) {
   };
 }
 
-export async function syncTripDriverExpenses(tripId: string) {
+export async function syncTripDriverExpenses(
+  tripId: string,
+  tripSource: DriverVoucherTripSource = "dispatch"
+) {
+  if (tripSource === "charter") {
+    return { unloading: null, loading: null };
+  }
   const [unloading, loading] = await Promise.all([
     syncUnloadingFeeEstimatesForTrip(tripId),
     generateCrateLoadingFeesForTrip(tripId),
@@ -1561,35 +1626,104 @@ export async function syncTripDriverExpenses(tripId: string) {
   return { unloading, loading };
 }
 
+export async function listChartersForExpenseDate(dateStr: string) {
+  const date = parseDateInput(dateStr);
+  return prisma.charterTrip.findMany({
+    where: { date },
+    include: { truck: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function listTripsForExpenseDate(dateStr: string) {
+  const [dispatches, charters] = await Promise.all([
+    listDispatchesForExpenseDate(dateStr),
+    listChartersForExpenseDate(dateStr),
+  ]);
+
+  const dispatchTrips = dispatches.map((d) => ({
+    id: d.id,
+    tripSource: "dispatch" as const,
+    lorry: d.truck.plate,
+    driver: d.driverName ?? "",
+    route: formatTripRouteLabel(d.markets),
+    date: dateStr,
+    dispatchNo: d.dispatchNo,
+    charterNo: null as string | null,
+  }));
+
+  const charterTrips = charters.map((c) => ({
+    id: c.id,
+    tripSource: "charter" as const,
+    lorry: c.truck.plate,
+    driver: c.driverName ?? "",
+    route: charterRouteLabel(c.charterNo),
+    date: dateStr,
+    dispatchNo: null as string | null,
+    charterNo: c.charterNo,
+  }));
+
+  return [...dispatchTrips, ...charterTrips];
+}
+
 export async function listDriverExpenseTodoItems(): Promise<DriverExpenseTodoItem[]> {
-  const [dispatches, voucherTripIds, pendingVouchers] = await Promise.all([
+  const [dispatches, charters, vouchers, pendingVouchers] = await Promise.all([
     prisma.dispatchOrder.findMany({
       where: { status: { notIn: ["draft", "cancelled"] } },
       include: { truck: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
-    prisma.driverVoucher.findMany({ select: { tripId: true } }),
+    prisma.charterTrip.findMany({
+      include: { truck: true },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.driverVoucher.findMany({
+      select: { tripId: true, tripSource: true },
+    }),
     prisma.driverVoucher.findMany({
       where: { status: { in: [...TODO_VOUCHER_STATUSES] } },
       orderBy: [{ tripDate: "desc" }, { voucherNo: "desc" }],
     }),
   ]);
 
-  const tripsWithVoucher = new Set(voucherTripIds.map((row) => row.tripId));
+  const tripsWithVoucher = new Set(
+    vouchers.map((row) => expenseTripKey(row.tripId, parseDriverVoucherTripSource(row.tripSource)))
+  );
   const dispatchById = new Map(dispatches.map((row) => [row.id, row]));
+  const charterById = new Map(charters.map((row) => [row.id, row]));
   const items: DriverExpenseTodoItem[] = [];
 
   for (const dispatch of dispatches) {
-    if (tripsWithVoucher.has(dispatch.id)) continue;
+    if (tripsWithVoucher.has(expenseTripKey(dispatch.id, "dispatch"))) continue;
     const tripDate = toDateInputValue(dispatch.date);
     items.push({
       kind: "unentered",
       tripId: dispatch.id,
+      tripSource: "dispatch",
       tripDate,
       lorry: dispatch.truck.plate,
       driverName: dispatch.driverName ?? "",
       route: formatTripRouteLabel(dispatch.markets),
       dispatchNo: dispatch.dispatchNo,
+      charterNo: null,
+      status: "unentered",
+      unsettledDays: computeUnsettledDays(tripDate),
+    });
+  }
+
+  for (const charter of charters) {
+    if (tripsWithVoucher.has(expenseTripKey(charter.id, "charter"))) continue;
+    const tripDate = toDateInputValue(charter.date);
+    items.push({
+      kind: "unentered",
+      tripId: charter.id,
+      tripSource: "charter",
+      tripDate,
+      lorry: charter.truck.plate,
+      driverName: charter.driverName ?? "",
+      route: charterRouteLabel(charter.charterNo),
+      dispatchNo: null,
+      charterNo: charter.charterNo,
       status: "unentered",
       unsettledDays: computeUnsettledDays(tripDate),
     });
@@ -1597,15 +1731,21 @@ export async function listDriverExpenseTodoItems(): Promise<DriverExpenseTodoIte
 
   for (const voucher of pendingVouchers) {
     const tripDate = toDateInputValue(voucher.tripDate);
-    const dispatch = dispatchById.get(voucher.tripId);
+    const tripSource = parseDriverVoucherTripSource(voucher.tripSource);
+    const dispatch =
+      tripSource === "dispatch" ? dispatchById.get(voucher.tripId) : undefined;
+    const charter =
+      tripSource === "charter" ? charterById.get(voucher.tripId) : undefined;
     items.push({
       kind: "voucher",
       tripId: voucher.tripId,
+      tripSource,
       tripDate,
       lorry: voucher.lorry,
       driverName: voucher.driverName,
       route: voucher.route,
       dispatchNo: dispatch?.dispatchNo ?? null,
+      charterNo: charter?.charterNo ?? null,
       voucherId: voucher.id,
       voucherNo: voucher.voucherNo,
       status: voucher.status,
