@@ -28,6 +28,8 @@ interface PayrollSettingsSectionProps {
   extraMarketAllowance: number;
   bigTruckCrateCommission: number | null;
   smallTruckCrateCommission: number | null;
+  bpCrateCommissionBigTruck: number | null;
+  bpCrateCommissionSmallTruck: number | null;
 }
 
 export function PayrollSettingsSection({
@@ -35,6 +37,8 @@ export function PayrollSettingsSection({
   extraMarketAllowance,
   bigTruckCrateCommission,
   smallTruckCrateCommission,
+  bpCrateCommissionBigTruck,
+  bpCrateCommissionSmallTruck,
 }: PayrollSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -46,6 +50,12 @@ export function PayrollSettingsSection({
   );
   const [smallTruckCrate, setSmallTruckCrate] = useState(
     smallTruckCrateCommission != null ? String(smallTruckCrateCommission) : ""
+  );
+  const [bpBigTruckCrate, setBpBigTruckCrate] = useState(
+    bpCrateCommissionBigTruck != null ? String(bpCrateCommissionBigTruck) : ""
+  );
+  const [bpSmallTruckCrate, setBpSmallTruckCrate] = useState(
+    bpCrateCommissionSmallTruck != null ? String(bpCrateCommissionSmallTruck) : ""
   );
 
   useEffect(() => {
@@ -64,11 +74,21 @@ export function PayrollSettingsSection({
     setSmallTruckCrate(
       smallTruckCrateCommission != null ? String(smallTruckCrateCommission) : ""
     );
+    setBpBigTruckCrate(
+      bpCrateCommissionBigTruck != null ? String(bpCrateCommissionBigTruck) : ""
+    );
+    setBpSmallTruckCrate(
+      bpCrateCommissionSmallTruck != null
+        ? String(bpCrateCommissionSmallTruck)
+        : ""
+    );
   }, [
     routes,
     extraMarketAllowance,
     bigTruckCrateCommission,
     smallTruckCrateCommission,
+    bpCrateCommissionBigTruck,
+    bpCrateCommissionSmallTruck,
   ]);
 
   function parseOptionalRate(value: string, label: string) {
@@ -101,6 +121,14 @@ export function PayrollSettingsSection({
           smallTruckCrateCommission: parseOptionalRate(
             smallTruckCrate,
             "小车回桶提成"
+          ),
+          bpCrateCommissionBigTruck: parseOptionalRate(
+            bpBigTruckCrate,
+            "BP 大车回桶提成"
+          ),
+          bpCrateCommissionSmallTruck: parseOptionalRate(
+            bpSmallTruckCrate,
+            "BP 小车回桶提成"
           ),
         });
         router.refresh();
@@ -194,6 +222,31 @@ export function PayrollSettingsSection({
             <Input
               value={smallTruckCrate}
               onChange={(e) => setSmallTruckCrate(e.target.value)}
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+        </div>
+        <h4 className="mb-2 mt-4 text-sm font-semibold text-haidee-text">
+          BP 专程回桶提成 BP Crate Return Commission
+        </h4>
+        <p className="mb-3 text-xs text-haidee-muted">
+          当 date+plate 回收含 BP 市场且 qty&gt;0 时使用此费率（一趟一次，不与其他市场叠加）。
+          When a return includes BP market, use these rates (one commission per return).
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1 text-sm">
+            BP 大车 Big Truck (MYR)
+            <Input
+              value={bpBigTruckCrate}
+              onChange={(e) => setBpBigTruckCrate(e.target.value)}
+              className="min-h-[44px] font-mono"
+            />
+          </label>
+          <label className="block space-y-1 text-sm">
+            BP 小车 Small Truck (MYR)
+            <Input
+              value={bpSmallTruckCrate}
+              onChange={(e) => setBpSmallTruckCrate(e.target.value)}
               className="min-h-[44px] font-mono"
             />
           </label>

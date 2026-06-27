@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decimalToNumber } from "@/lib/freight-rates";
-import { DEFAULT_EXTRA_MARKET_ALLOWANCE } from "@/lib/constants/payroll-allowance";
+import {
+  DEFAULT_BP_CRATE_COMMISSION_BIG_TRUCK,
+  DEFAULT_BP_CRATE_COMMISSION_SMALL_TRUCK,
+  DEFAULT_EXTRA_MARKET_ALLOWANCE,
+} from "@/lib/constants/payroll-allowance";
 async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
@@ -27,6 +31,8 @@ async function ensurePayrollAllowanceSettings() {
     create: {
       id: "default",
       extraMarketAllowance: DEFAULT_EXTRA_MARKET_ALLOWANCE,
+      bpCrateCommissionBigTruck: DEFAULT_BP_CRATE_COMMISSION_BIG_TRUCK,
+      bpCrateCommissionSmallTruck: DEFAULT_BP_CRATE_COMMISSION_SMALL_TRUCK,
     },
     update: {},
   });
@@ -58,6 +64,12 @@ export async function getAllowanceSettingsData() {
     smallTruckCrateCommission: decimalToNumber(
       settings.smallTruckCrateCommission
     ),
+    bpCrateCommissionBigTruck: decimalToNumber(
+      settings.bpCrateCommissionBigTruck
+    ),
+    bpCrateCommissionSmallTruck: decimalToNumber(
+      settings.bpCrateCommissionSmallTruck
+    ),
   };
 }
 
@@ -66,6 +78,8 @@ export async function saveAllowanceSettings(input: {
   extraMarketAllowance?: number | null;
   bigTruckCrateCommission?: number | null;
   smallTruckCrateCommission?: number | null;
+  bpCrateCommissionBigTruck?: number | null;
+  bpCrateCommissionSmallTruck?: number | null;
 }) {
   await requireAdmin();
 
@@ -91,6 +105,12 @@ export async function saveAllowanceSettings(input: {
         smallTruckCrateCommission: parseOptionalRate(
           input.smallTruckCrateCommission
         ),
+        bpCrateCommissionBigTruck: parseOptionalRate(
+          input.bpCrateCommissionBigTruck
+        ),
+        bpCrateCommissionSmallTruck: parseOptionalRate(
+          input.bpCrateCommissionSmallTruck
+        ),
       },
       update: {
         extraMarketAllowance: parseOptionalRate(input.extraMarketAllowance),
@@ -99,6 +119,12 @@ export async function saveAllowanceSettings(input: {
         ),
         smallTruckCrateCommission: parseOptionalRate(
           input.smallTruckCrateCommission
+        ),
+        bpCrateCommissionBigTruck: parseOptionalRate(
+          input.bpCrateCommissionBigTruck
+        ),
+        bpCrateCommissionSmallTruck: parseOptionalRate(
+          input.bpCrateCommissionSmallTruck
         ),
       },
     }),
@@ -130,6 +156,12 @@ export async function loadPayrollAllowanceContext() {
     bigTruckCrateCommission: decimalToNumber(settings.bigTruckCrateCommission),
     smallTruckCrateCommission: decimalToNumber(
       settings.smallTruckCrateCommission
+    ),
+    bpCrateCommissionBigTruck: decimalToNumber(
+      settings.bpCrateCommissionBigTruck
+    ),
+    bpCrateCommissionSmallTruck: decimalToNumber(
+      settings.bpCrateCommissionSmallTruck
     ),
   };
 }

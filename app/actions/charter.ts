@@ -11,6 +11,7 @@ import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { loadExchangeRate } from "@/lib/exchange-rate";
 import { generateCharterNo } from "@/lib/charter-no";
+import { syncDriverPayrollTripForCharter } from "@/lib/driver-payroll-trip-sync";
 import {
   applyCharterCrateDeduction,
   charterLinesToStockLines,
@@ -468,6 +469,7 @@ function revalidateCharterPaths(id?: string) {
   try {
     revalidatePath("/charter");
     revalidatePath("/crate/customer-stock");
+    revalidatePath("/driver-payroll");
     if (id) {
       revalidatePath(`/charter/${id}`);
       revalidatePath(`/charter/${id}/invoice`);
@@ -589,6 +591,7 @@ export async function saveCharterTrip(
     });
 
     revalidateCharterPaths(input.id);
+    await syncDriverPayrollTripForCharter(input.id);
     return { ok: true, id: input.id };
   }
 
@@ -645,6 +648,7 @@ export async function saveCharterTrip(
   });
 
   revalidateCharterPaths(created.id);
+  await syncDriverPayrollTripForCharter(created.id);
   return { ok: true, id: created.id };
 }
 

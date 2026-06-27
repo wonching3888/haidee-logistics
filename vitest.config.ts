@@ -37,6 +37,7 @@ export default defineConfig({
       "lib/pnl-cache-invalidation.test.ts",
       "lib/crate-import-rows.test.ts",
       "lib/crate-return-billing.test.ts",
+      "lib/driver-payroll-crate-commission.test.ts",
     ],
   },
   resolve: {

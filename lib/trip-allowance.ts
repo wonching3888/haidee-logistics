@@ -243,23 +243,96 @@ export function crateCommissionForTruckType(
   return rates.bigTruckCrateCommission ?? 0;
 }
 
-export function crateReturnCommissionForDispatch(input: {
-  truckType: string | null | undefined;
-  hasCrateReturn: boolean;
-  rates: {
-    bigTruckCrateCommission: number | null;
-    smallTruckCrateCommission: number | null;
-  };
-}) {
-  if (!input.hasCrateReturn) return 0;
-  return crateCommissionForTruckType(input.truckType, input.rates);
+export interface CrateReturnCommissionRates {
+  bigTruckCrateCommission: number | null;
+  smallTruckCrateCommission: number | null;
+  bpCrateCommissionBigTruck: number | null;
+  bpCrateCommissionSmallTruck: number | null;
 }
+
+export interface CrateReturnPlateDayInfo {
+  hasReturn: boolean;
+  hasBpReturn: boolean;
+}
+
+/** One physical return (date+plate) earns at most one commission, assigned to one payroll trip. */
+export type CrateReturnCommissionTripRef =
+  | { source: "dispatch"; dispatchOrderId: string }
+  | { source: "charter"; charterTripId: string };
 
 function normalizePlate(plate: string) {
   return plate.trim().toUpperCase();
 }
 
-/** Plates linked to a dispatch (MY truck plate for empty-crate import matching). */
+function crateReturnPlateDayKey(date: Date | string, plate: string) {
+  const dateKey =
+    typeof date === "string" ? date.slice(0, 10) : toDateInputValue(date);
+  return `${dateKey}|${normalizePlate(plate)}`;
+}
+
+export function buildCrateReturnImportContext(
+  imports: {
+    date: Date | string;
+    quantity: number;
+    truck: { plate: string };
+    market: { code: string };
+  }[]
+) {
+  const context = new Map<string, CrateReturnPlateDayInfo>();
+  for (const row of imports) {
+    if (row.quantity <= 0) continue;
+    const key = crateReturnPlateDayKey(row.date, row.truck.plate);
+    const existing = context.get(key) ?? { hasReturn: false, hasBpReturn: false };
+    existing.hasReturn = true;
+    if (row.market.code.trim().toUpperCase() === "BP") {
+      existing.hasBpReturn = true;
+    }
+    context.set(key, existing);
+  }
+  return context;
+}
+
+export function getCrateReturnPlateDayInfo(
+  context: Map<string, CrateReturnPlateDayInfo>,
+  date: Date,
+  plate: string
+): CrateReturnPlateDayInfo | undefined {
+  return context.get(crateReturnPlateDayKey(date, plate));
+}
+
+export function crateReturnCommissionAmount(input: {
+  truckType: string | null | undefined;
+  plateDay: CrateReturnPlateDayInfo | undefined;
+  rates: CrateReturnCommissionRates;
+}) {
+  if (!input.plateDay?.hasReturn) return 0;
+  const tier = input.plateDay.hasBpReturn
+    ? {
+        bigTruckCrateCommission: input.rates.bpCrateCommissionBigTruck,
+        smallTruckCrateCommission: input.rates.bpCrateCommissionSmallTruck,
+      }
+    : {
+        bigTruckCrateCommission: input.rates.bigTruckCrateCommission,
+        smallTruckCrateCommission: input.rates.smallTruckCrateCommission,
+      };
+  return crateCommissionForTruckType(input.truckType, tier);
+}
+
+export function crateReturnCommissionForTrip(input: {
+  truckType: string | null | undefined;
+  isCommissionRecipient: boolean;
+  plateDay: CrateReturnPlateDayInfo | undefined;
+  rates: CrateReturnCommissionRates;
+}) {
+  if (!input.isCommissionRecipient) return 0;
+  return crateReturnCommissionAmount({
+    truckType: input.truckType,
+    plateDay: input.plateDay,
+    rates: input.rates,
+  });
+}
+
+/** @deprecated Use buildCrateReturnImportContext */
 export function buildCrateReturnImportLookup(
   imports: {
     date: Date | string;
@@ -270,15 +343,12 @@ export function buildCrateReturnImportLookup(
   const lookup = new Set<string>();
   for (const row of imports) {
     if (row.quantity <= 0) continue;
-    const dateKey =
-      typeof row.date === "string"
-        ? row.date.slice(0, 10)
-        : toDateInputValue(row.date);
-    lookup.add(`${dateKey}|${normalizePlate(row.truck.plate)}`);
+    lookup.add(crateReturnPlateDayKey(row.date, row.truck.plate));
   }
   return lookup;
 }
 
+/** @deprecated Use getCrateReturnPlateDayInfo */
 export function dispatchHasCrateReturn(
   order: {
     date: Date;
@@ -286,8 +356,34 @@ export function dispatchHasCrateReturn(
   },
   importLookup: Set<string>
 ) {
-  const dateKey = toDateInputValue(order.date);
-  return importLookup.has(`${dateKey}|${normalizePlate(order.truck.plate)}`);
+  return importLookup.has(crateReturnPlateDayKey(order.date, order.truck.plate));
+}
+
+/** @deprecated Use crateReturnCommissionForTrip */
+export function crateReturnCommissionForDispatch(input: {
+  truckType: string | null | undefined;
+  hasCrateReturn: boolean;
+  rates: Pick<
+    CrateReturnCommissionRates,
+    "bigTruckCrateCommission" | "smallTruckCrateCommission"
+  >;
+}) {
+  if (!input.hasCrateReturn) return 0;
+  return crateCommissionForTruckType(input.truckType, input.rates);
+}
+
+/** @deprecated Use crateReturnCommissionForTrip */
+export function crateReturnCommissionForCharter(input: {
+  truckType: string | null | undefined;
+  hasCrateReturn: boolean;
+  hasDispatchOnSameDateTruck: boolean;
+  rates: Pick<
+    CrateReturnCommissionRates,
+    "bigTruckCrateCommission" | "smallTruckCrateCommission"
+  >;
+}) {
+  if (!input.hasCrateReturn || input.hasDispatchOnSameDateTruck) return 0;
+  return crateCommissionForTruckType(input.truckType, input.rates);
 }
 
 export function getDriverPayrollName(driver: {

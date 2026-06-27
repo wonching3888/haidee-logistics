@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
-import { syncDriverPayrollTripForDispatch } from "@/lib/driver-payroll-trip-sync";
+import { syncDriverPayrollTripForDispatch, syncDriverPayrollTripForCharter } from "@/lib/driver-payroll-trip-sync";
 import {
   dispatchMatchesDriver,
   normalizePayrollDriverName,
@@ -99,18 +99,68 @@ function groupDispatchesForDrivers(
   return { byDriverId, unmatched };
 }
 
+function groupChartersForDrivers(
+  drivers: PayrollDriverSync[],
+  charters: Awaited<ReturnType<typeof loadPayrollMonthContext>>["charters"]
+) {
+  const byDriverId = new Map<string, typeof charters>(
+    drivers.map((driver) => [driver.id, []])
+  );
+
+  for (const trip of charters) {
+    const matchedDrivers = drivers.filter((driver) =>
+      dispatchMatchesDriver(driver, { driverName: trip.driverName })
+    );
+
+    if (matchedDrivers.length === 1) {
+      byDriverId.get(matchedDrivers[0]!.id)!.push(trip);
+      continue;
+    }
+
+    if (matchedDrivers.length > 1) {
+      const orderKey = normalizePayrollDriverName(trip.driverName);
+      const exact = matchedDrivers.find(
+        (driver) => normalizePayrollDriverName(driver.name) === orderKey
+      );
+      if (exact) {
+        byDriverId.get(exact.id)!.push(trip);
+      }
+    }
+  }
+
+  return byDriverId;
+}
+
+async function syncCharterTripsForMonth(charters: { id: string }[]) {
+  for (const trip of charters) {
+    await syncDriverPayrollTripForCharter(trip.id);
+  }
+}
+
 async function loadPayrollMonthContext(year: number, month: number) {
   const { start, end } = getMonthDateRange(year, month);
-  const dispatches = await prisma.dispatchOrder.findMany({
-    where: {
-      status: { notIn: ["cancelled"] },
-      date: { gte: start, lte: end },
-    },
-    include: dispatchIncludeForPayroll,
-    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-  });
+  const [dispatches, charters] = await Promise.all([
+    prisma.dispatchOrder.findMany({
+      where: {
+        status: { notIn: ["cancelled"] },
+        date: { gte: start, lte: end },
+      },
+      include: dispatchIncludeForPayroll,
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.charterTrip.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: {
+        id: true,
+        date: true,
+        driverName: true,
+        truck: { select: { type: true, plate: true } },
+      },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
 
-  return { start, end, dispatches };
+  return { start, end, dispatches, charters };
 }
 
 async function ensurePayrollMonth(driverId: string, yearMonth: string) {
@@ -152,11 +202,13 @@ function logPayrollSyncDiagnostics(input: {
 async function syncDispatchTripsForMonth(
   payrollMonthId: string,
   _driver: PayrollDriverSync,
-  dispatches: DispatchForPayroll[]
+  dispatches: DispatchForPayroll[],
+  charters: { id: string }[]
 ) {
   for (const order of dispatches) {
     await syncDriverPayrollTripForDispatch(order.id);
   }
+  await syncCharterTripsForMonth(charters);
 
   const dispatchIds = dispatches.map((order) => order.id);
   const [payrollTripCount, linkedTrips] = await Promise.all([
@@ -199,6 +251,10 @@ export async function syncFleetPayrollForMonth(year: number, month: number) {
     serializedDrivers,
     monthContext.dispatches
   );
+  const chartersByDriver = groupChartersForDrivers(
+    serializedDrivers,
+    monthContext.charters
+  );
   const driverResults: Array<{
     driverName: string;
     dispatchCount: number;
@@ -211,7 +267,8 @@ export async function syncFleetPayrollForMonth(year: number, month: number) {
     const result = await syncDispatchTripsForMonth(
       payrollMonth.id,
       driver,
-      grouped.byDriverId.get(driver.id) ?? []
+      grouped.byDriverId.get(driver.id) ?? [],
+      chartersByDriver.get(driver.id) ?? []
     );
     driverResults.push({
       driverName: driver.name,
@@ -255,12 +312,16 @@ export async function syncDriverPayrollForMonth(
   const dispatches = monthContext.dispatches.filter((order) =>
     dispatchMatchesDriver(serializedDriver, order)
   );
+  const charters = monthContext.charters.filter((trip) =>
+    dispatchMatchesDriver(serializedDriver, { driverName: trip.driverName })
+  );
 
   const payrollMonth = await ensurePayrollMonth(driverId, yearMonth);
   const result = await syncDispatchTripsForMonth(
     payrollMonth.id,
     serializedDriver,
-    dispatches
+    dispatches,
+    charters
   );
 
   logPayrollSyncDiagnostics({

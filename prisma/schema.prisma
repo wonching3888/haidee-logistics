@@ -287,6 +287,8 @@ model PayrollAllowanceSettings {
   extraMarketAllowance      Decimal? @default(30) @map("extra_market_allowance") @db.Decimal(10, 2)
   bigTruckCrateCommission   Decimal? @map("big_truck_crate_commission") @db.Decimal(10, 2)
   smallTruckCrateCommission Decimal? @map("small_truck_crate_commission") @db.Decimal(10, 2)
+  bpCrateCommissionBigTruck   Decimal? @default(210) @map("bp_crate_commission_big_truck") @db.Decimal(10, 2)
+  bpCrateCommissionSmallTruck Decimal? @default(190) @map("bp_crate_commission_small_truck") @db.Decimal(10, 2)
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
   @@map("payroll_allowance_settings")
@@ -390,6 +392,8 @@ model DriverPayrollTrip {
 
   payrollMonth  DriverPayrollMonth @relation(fields: [payrollMonthId], references: [id], onDelete: Cascade)
   dispatchOrder DispatchOrder?     @relation(fields: [dispatchOrderId], references: [id])
+  charterTripId String?            @unique @map("charter_trip_id") @db.Uuid
+  charterTrip   CharterTrip?       @relation(fields: [charterTripId], references: [id], onDelete: Cascade)
 
   @@map("driver_payroll_trips")
 }
@@ -621,6 +625,7 @@ model CharterTrip {
   createdBy User?             @relation(fields: [createdById], references: [id])
   lines      CharterTripLine[]
   extraItems CharterTripExtraItem[]
+  driverPayrollTrip DriverPayrollTrip?
 
   @@index([date])
   @@map("charter_trips")

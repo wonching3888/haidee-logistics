@@ -20,6 +20,7 @@ import {
   shouldPersistCrateImportRow,
 } from "@/lib/crate-import-rows";
 import { ensureCrateReturnMonthlyInvoicesForCrateTypes } from "@/lib/crate-return-billing";
+import { syncPayrollTripsAfterCrateImportChange } from "@/lib/driver-payroll-trip-sync";
 import { t } from "@/lib/i18n/translate";
 import type { UserLanguage } from "@/types";
 
@@ -502,6 +503,14 @@ export async function saveCrateImport(
   const dynamicColumnKeys = collectDynamicColumnKeys(rows);
 
   const persistedRecords: Prisma.TongImportCreateManyInput[] = [];
+  const affectedPlates = new Set<string>();
+  for (const row of rows) {
+    if (row.truckPlate.trim()) affectedPlates.add(row.truckPlate.trim());
+  }
+  for (const key of deletedRowKeys) {
+    const { truckPlate } = parseCrateImportRowKey(key);
+    if (truckPlate.trim()) affectedPlates.add(truckPlate.trim());
+  }
 
   await prisma.$transaction(async (tx) => {
     for (const key of deletedRowKeys) {
@@ -567,11 +576,14 @@ export async function saveCrateImport(
     );
   }
 
+  await syncPayrollTripsAfterCrateImportChange(date, Array.from(affectedPlates));
+
   revalidatePath("/tong/import");
   revalidatePath("/crate/import");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
   revalidatePath("/documents/crate-return-invoice");
+  revalidatePath("/driver-payroll");
 }
 
 /** Mark in-transit imports as arrived — SADAO stock +quantity per crate type. */
