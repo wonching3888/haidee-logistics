@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
@@ -16,6 +16,7 @@ import {
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
+  PnlDailyTrendPoint,
   PnlPeriodData,
   PnlPeriodMode,
   PnlRouteFilter,
@@ -64,6 +65,370 @@ function formatPct(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+const TREND_CHART_WIDTH = 720;
+const TREND_CHART_HEIGHT = 260;
+const TREND_PAD_LEFT = 52;
+const TREND_PAD_RIGHT = 16;
+const TREND_PAD_TOP = 16;
+const TREND_PAD_BOTTOM = 40;
+const TREND_PLOT_WIDTH =
+  TREND_CHART_WIDTH - TREND_PAD_LEFT - TREND_PAD_RIGHT;
+const TREND_PLOT_HEIGHT =
+  TREND_CHART_HEIGHT - TREND_PAD_TOP - TREND_PAD_BOTTOM;
+
+function parseTrendDate(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+
+function daysBetweenTrendDates(startMs: number, endMs: number) {
+  return Math.round((endMs - startMs) / 86_400_000);
+}
+
+function formatTrendDateLabel(dateStr: string) {
+  const parts = dateStr.split("-");
+  if (parts.length < 3) return dateStr;
+  return `${parts[1]}-${parts[2]}`;
+}
+
+function formatTrendAxisMyr(value: number) {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${(value / 1_000).toFixed(abs >= 10_000 ? 0 : 1)}k`;
+  }
+  return value.toFixed(0);
+}
+
+function niceTrendMax(value: number) {
+  if (value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const nice =
+    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude;
+}
+
+function trendYTicks(maxValue: number) {
+  const max = niceTrendMax(maxValue);
+  return [0, max / 3, (2 * max) / 3, max];
+}
+
+function trendXTickStep(count: number) {
+  if (count <= 8) return 1;
+  if (count <= 15) return 2;
+  if (count <= 30) return 3;
+  if (count <= 60) return 5;
+  return Math.ceil(count / 10);
+}
+
+function shouldShowTrendXTick(index: number, count: number, step: number) {
+  if (count <= 1) return true;
+  if (index === 0 || index === count - 1) return true;
+  return index % step === 0;
+}
+
+function PnlTrendChart({
+  points,
+}: {
+  points: PnlPeriodData["periodSummary"]["trend"];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const layout = useMemo(() => {
+    if (points.length === 0) return null;
+
+    const minMs = parseTrendDate(points[0].date);
+    const maxMs = parseTrendDate(points[points.length - 1].date);
+    const daySpan = Math.max(daysBetweenTrendDates(minMs, maxMs), 1);
+
+    const xForDate = (dateStr: string) => {
+      if (points.length === 1) {
+        return TREND_PAD_LEFT + TREND_PLOT_WIDTH / 2;
+      }
+      const offset = daysBetweenTrendDates(minMs, parseTrendDate(dateStr));
+      return TREND_PAD_LEFT + (offset / daySpan) * TREND_PLOT_WIDTH;
+    };
+
+    const rawMax = Math.max(
+      ...points.flatMap((p) => [p.revenueMyr, p.costMyr, p.profitMyr]),
+      1
+    );
+    const yMax = niceTrendMax(rawMax);
+    const yTicks = trendYTicks(rawMax);
+    const yForValue = (value: number) =>
+      TREND_PAD_TOP +
+      TREND_PLOT_HEIGHT -
+      (value / yMax) * TREND_PLOT_HEIGHT;
+
+    const xPositions = points.map((p) => xForDate(p.date));
+    const xTickStep = trendXTickStep(points.length);
+
+    const toPath = (key: "revenueMyr" | "costMyr" | "profitMyr") =>
+      points
+        .map(
+          (point, index) =>
+            `${index === 0 ? "M" : "L"} ${xPositions[index]} ${yForValue(point[key])}`
+        )
+        .join(" ");
+
+    return {
+      xPositions,
+      yForValue,
+      yTicks,
+      yMax,
+      xTickStep,
+      paths: {
+        revenue: toPath("revenueMyr"),
+        cost: toPath("costMyr"),
+        profit: toPath("profitMyr"),
+      },
+    };
+  }, [points]);
+
+  const pickNearestIndex = useCallback(
+    (clientX: number) => {
+      if (!layout || !containerRef.current) return null;
+      const svg = containerRef.current.querySelector("svg");
+      if (!svg) return null;
+      const rect = svg.getBoundingClientRect();
+      const svgX =
+        ((clientX - rect.left) / rect.width) * TREND_CHART_WIDTH;
+      let bestIndex = 0;
+      let bestDist = Infinity;
+      layout.xPositions.forEach((xp, index) => {
+        const dist = Math.abs(xp - svgX);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = index;
+        }
+      });
+      return bestIndex;
+    },
+    [layout]
+  );
+
+  const handlePointerMove = useCallback(
+    (clientX: number) => {
+      const index = pickNearestIndex(clientX);
+      if (index !== null) setActiveIndex(index);
+    },
+    [pickNearestIndex]
+  );
+
+  if (!layout || points.length === 0) {
+    return (
+      <p className="text-sm text-haidee-muted">暂无趋势数据 No trend data</p>
+    );
+  }
+
+  const activePoint: PnlDailyTrendPoint | null =
+    activeIndex !== null ? points[activeIndex] : null;
+  const activeX =
+    activeIndex !== null ? layout.xPositions[activeIndex] : null;
+  const tooltipLeftPct =
+    activeX !== null ? (activeX / TREND_CHART_WIDTH) * 100 : 0;
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white p-4">
+      <div ref={containerRef} className="relative min-w-[560px]">
+        {activePoint && activeX !== null && (
+          <div
+            className="pointer-events-none absolute z-10 min-w-[9.5rem] rounded-lg border border-haidee-border bg-white px-3 py-2 text-xs shadow-md"
+            style={{
+              left: `${tooltipLeftPct}%`,
+              top: 0,
+              transform: "translate(-50%, 0)",
+            }}
+          >
+            <div className="font-medium text-haidee-text">{activePoint.date}</div>
+            <div className="mt-1 space-y-0.5 text-haidee-muted">
+              <div className="flex justify-between gap-3">
+                <span className="text-emerald-700">收入</span>
+                <span className="font-mono text-haidee-text">
+                  {formatMyr(activePoint.revenueMyr)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-red-700">成本</span>
+                <span className="font-mono text-haidee-text">
+                  {formatMyr(activePoint.costMyr)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-blue-700">毛利</span>
+                <span className="font-mono text-haidee-text">
+                  {formatMyr(activePoint.profitMyr)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <svg
+          viewBox={`0 0 ${TREND_CHART_WIDTH} ${TREND_CHART_HEIGHT}`}
+          className="h-auto w-full touch-manipulation"
+          role="img"
+          aria-label="收入成本毛利趋势图"
+          onMouseMove={(e) => handlePointerMove(e.clientX)}
+          onMouseLeave={() => setActiveIndex(null)}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            if (touch) handlePointerMove(touch.clientX);
+          }}
+          onTouchMove={(e) => {
+            const touch = e.touches[0];
+            if (touch) handlePointerMove(touch.clientX);
+          }}
+          onClick={(e) => handlePointerMove(e.clientX)}
+        >
+          {layout.yTicks.map((tick) => {
+            const y = layout.yForValue(tick);
+            return (
+              <g key={tick}>
+                <line
+                  x1={TREND_PAD_LEFT}
+                  y1={y}
+                  x2={TREND_CHART_WIDTH - TREND_PAD_RIGHT}
+                  y2={y}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                />
+                <text
+                  x={TREND_PAD_LEFT - 6}
+                  y={y + 4}
+                  textAnchor="end"
+                  className="fill-haidee-muted text-[10px]"
+                >
+                  {formatTrendAxisMyr(tick)}
+                </text>
+              </g>
+            );
+          })}
+
+          <line
+            x1={TREND_PAD_LEFT}
+            y1={TREND_PAD_TOP + TREND_PLOT_HEIGHT}
+            x2={TREND_CHART_WIDTH - TREND_PAD_RIGHT}
+            y2={TREND_PAD_TOP + TREND_PLOT_HEIGHT}
+            stroke="#cbd5e1"
+            strokeWidth="1"
+          />
+
+          <path
+            d={layout.paths.revenue}
+            fill="none"
+            stroke="#059669"
+            strokeWidth="2"
+          />
+          <path
+            d={layout.paths.cost}
+            fill="none"
+            stroke="#dc2626"
+            strokeWidth="2"
+          />
+          <path
+            d={layout.paths.profit}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="2"
+          />
+
+          {points.map((point, index) => {
+            const cx = layout.xPositions[index];
+            const isActive = activeIndex === index;
+            const hitY =
+              (layout.yForValue(point.revenueMyr) +
+                layout.yForValue(point.costMyr) +
+                layout.yForValue(point.profitMyr)) /
+              3;
+            return (
+              <g key={point.date}>
+                <circle
+                  cx={cx}
+                  cy={hitY}
+                  r="14"
+                  fill="transparent"
+                  className="cursor-pointer"
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onFocus={() => setActiveIndex(index)}
+                  onClick={() => setActiveIndex(index)}
+                />
+                {isActive && (
+                  <>
+                    <line
+                      x1={cx}
+                      y1={TREND_PAD_TOP}
+                      x2={cx}
+                      y2={TREND_PAD_TOP + TREND_PLOT_HEIGHT}
+                      stroke="#94a3b8"
+                      strokeWidth="1"
+                      strokeDasharray="4 3"
+                    />
+                    {(
+                      [
+                        ["revenueMyr", "#059669"],
+                        ["costMyr", "#dc2626"],
+                        ["profitMyr", "#2563eb"],
+                      ] as const
+                    ).map(([key, color]) => (
+                      <circle
+                        key={key}
+                        cx={cx}
+                        cy={layout.yForValue(point[key])}
+                        r="4"
+                        fill={color}
+                        stroke="#ffffff"
+                        strokeWidth="1.5"
+                      />
+                    ))}
+                  </>
+                )}
+              </g>
+            );
+          })}
+
+          {points.map((point, index) => {
+            if (!shouldShowTrendXTick(index, points.length, layout.xTickStep)) {
+              return null;
+            }
+            const cx = layout.xPositions[index];
+            return (
+              <text
+                key={`tick-${point.date}`}
+                x={cx}
+                y={TREND_CHART_HEIGHT - 10}
+                textAnchor="middle"
+                className="fill-haidee-muted text-[10px]"
+              >
+                {formatTrendDateLabel(point.date)}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-haidee-muted">
+        <span className="inline-flex items-center gap-2">
+          <span className="h-2 w-6 rounded bg-emerald-600" />
+          收入 Revenue
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span className="h-2 w-6 rounded bg-red-600" />
+          成本 Cost
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span className="h-2 w-6 rounded bg-haidee-blue" />
+          毛利 Profit
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const STATUS_LABELS: Record<
   PnlCustomerStatus,
   { label: string; className: string }
@@ -85,60 +450,6 @@ const STATUS_LABELS: Record<
     className: "bg-red-100 text-red-800",
   },
 };
-
-function PnlTrendChart({
-  points,
-}: {
-  points: PnlPeriodData["periodSummary"]["trend"];
-}) {
-  if (points.length === 0) {
-    return (
-      <p className="text-sm text-haidee-muted">暂无趋势数据 No trend data</p>
-    );
-  }
-
-  const width = 720;
-  const height = 220;
-  const pad = 28;
-  const maxValue = Math.max(
-    ...points.flatMap((p) => [p.revenueMyr, p.costMyr, p.profitMyr]),
-    1
-  );
-
-  const x = (index: number) =>
-    pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2);
-  const y = (value: number) =>
-    height - pad - (value / maxValue) * (height - pad * 2);
-
-  const toPath = (key: "revenueMyr" | "costMyr" | "profitMyr") =>
-    points
-      .map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point[key])}`)
-      .join(" ");
-
-  return (
-    <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white p-4">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[560px]">
-        <path d={toPath("revenueMyr")} fill="none" stroke="#059669" strokeWidth="2" />
-        <path d={toPath("costMyr")} fill="none" stroke="#dc2626" strokeWidth="2" />
-        <path d={toPath("profitMyr")} fill="none" stroke="#2563eb" strokeWidth="2" />
-      </svg>
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-haidee-muted">
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2 w-6 rounded bg-emerald-600" />
-          收入 Revenue
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2 w-6 rounded bg-red-600" />
-          成本 Cost
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2 w-6 rounded bg-haidee-blue" />
-          毛利 Profit
-        </span>
-      </div>
-    </div>
-  );
-}
 
 interface PnlReportViewProps {
   initialYear: number;
