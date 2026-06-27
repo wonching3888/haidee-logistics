@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
-import { syncDriverPayrollTripForDispatch, syncDriverPayrollTripForCharter } from "@/lib/driver-payroll-trip-sync";
+import {
+  syncDriverPayrollTripForDispatch,
+  syncDriverPayrollTripForCharter,
+  cleanupCancelledDispatchPayrollOrphans,
+} from "@/lib/driver-payroll-trip-sync";
 import {
   dispatchMatchesDriver,
   normalizePayrollDriverName,
@@ -255,6 +259,12 @@ export async function syncFleetPayrollForMonth(year: number, month: number) {
     serializedDrivers,
     monthContext.charters
   );
+
+  await cleanupCancelledDispatchPayrollOrphans({
+    dateStart: monthContext.start,
+    dateEnd: monthContext.end,
+  });
+
   const driverResults: Array<{
     driverName: string;
     dispatchCount: number;
@@ -317,6 +327,11 @@ export async function syncDriverPayrollForMonth(
   );
 
   const payrollMonth = await ensurePayrollMonth(driverId, yearMonth);
+  await cleanupCancelledDispatchPayrollOrphans({
+    payrollMonthId: payrollMonth.id,
+    dateStart: monthContext.start,
+    dateEnd: monthContext.end,
+  });
   const result = await syncDispatchTripsForMonth(
     payrollMonth.id,
     serializedDriver,

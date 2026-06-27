@@ -37,8 +37,8 @@ import {
   syncUnloadingFeeEstimatesForTrip,
 } from "@/lib/driver-expense-service";
 import {
-  handleDriverPayrollTripOnDispatchCancel,
   syncDriverPayrollTripForDispatch,
+  finalizeDispatchCancelPayroll,
 } from "@/lib/driver-payroll-trip-sync";
 
 export interface CrateBoxQty {
@@ -1349,6 +1349,8 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
     where: { id: dispatchOrderId },
     select: {
       status: true,
+      date: true,
+      truck: { select: { plate: true } },
       lines: { select: { inboundLineId: true } },
     },
   });
@@ -1377,7 +1379,11 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
   }, DISPATCH_TRANSACTION_OPTIONS);
 
   await handleUnloadingFeesOnDispatchCancel(dispatchOrderId);
-  await handleDriverPayrollTripOnDispatchCancel(dispatchOrderId);
+  await finalizeDispatchCancelPayroll({
+    dispatchOrderId,
+    date: order.date,
+    plate: order.truck.plate,
+  });
 
   revalidatePath("/dispatch");
   revalidatePath("/summary");

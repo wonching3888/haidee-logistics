@@ -59,6 +59,38 @@ export type HandleDriverPayrollTripCancelResult = {
   manualCrateReturnCommission?: number;
 };
 
+export type CancelledDispatchPayrollOrphan = {
+  tripId: string;
+  dispatchOrderId: string;
+  dispatchNo: string | null;
+  payrollDriverName: string;
+  dispatchDriverName: string | null;
+  date: Date;
+  plate: string | null;
+  tripAllowance: number;
+  extraAllowance: number;
+  crateReturnCommission: number;
+};
+
+export type CancelledDispatchOrphanScanResult = {
+  /** Auto-delete: cancelled dispatch, tripAllowance=0, extraAllowance=0 (commission-only stale ok). */
+  deletable: CancelledDispatchPayrollOrphan[];
+  /** extraAllowance > 0 — never auto-delete. */
+  protectedManual: CancelledDispatchPayrollOrphan[];
+  /** tripAllowance > 0 on cancelled dispatch — keep for human review, never auto-delete. */
+  needsManualReview: CancelledDispatchPayrollOrphan[];
+};
+
+/** Cancelled-dispatch orphans safe to auto-delete (no allowance amounts left on row). */
+export function isCancelledDispatchOrphanAutoDeletable(trip: {
+  tripAllowance: unknown;
+  extraAllowance: unknown;
+}) {
+  const tripAllowance = decimalToNumber(trip.tripAllowance) ?? 0;
+  const extraAllowance = decimalToNumber(trip.extraAllowance) ?? 0;
+  return tripAllowance === 0 && extraAllowance === 0;
+}
+
 function yearMonthFromDate(date: Date) {
   const y = date.getUTCFullYear();
   const m = date.getUTCMonth() + 1;
@@ -567,4 +599,106 @@ export async function handleDriverPayrollTripOnDispatchCancel(
     keptForManualOverrides: false,
     zeroedTripAllowance: false,
   };
+}
+
+function mapCancelledDispatchOrphanRow(trip: {
+  id: string;
+  dispatchOrderId: string | null;
+  date: Date;
+  notes: string | null;
+  tripAllowance: unknown;
+  extraAllowance: unknown;
+  crateReturnCommission: unknown;
+  dispatchOrder: {
+    dispatchNo: string | null;
+    driverName: string | null;
+  } | null;
+  payrollMonth: { driver: { name: string } };
+}): CancelledDispatchPayrollOrphan {
+  return {
+    tripId: trip.id,
+    dispatchOrderId: trip.dispatchOrderId!,
+    dispatchNo: trip.dispatchOrder?.dispatchNo ?? null,
+    payrollDriverName: trip.payrollMonth.driver.name,
+    dispatchDriverName: trip.dispatchOrder?.driverName ?? null,
+    date: trip.date,
+    plate: trip.notes,
+    tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+    extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
+    crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
+  };
+}
+
+/** Read-only: payroll rows still linked to cancelled dispatches. */
+export async function findCancelledDispatchPayrollOrphans(input?: {
+  payrollMonthId?: string;
+  dateStart?: Date;
+  dateEnd?: Date;
+}): Promise<CancelledDispatchOrphanScanResult> {
+  const trips = await prisma.driverPayrollTrip.findMany({
+    where: {
+      dispatchOrderId: { not: null },
+      ...(input?.payrollMonthId ? { payrollMonthId: input.payrollMonthId } : {}),
+      ...(input?.dateStart && input?.dateEnd
+        ? { date: { gte: input.dateStart, lte: input.dateEnd } }
+        : {}),
+      dispatchOrder: { status: "cancelled" },
+    },
+    include: {
+      dispatchOrder: {
+        select: { dispatchNo: true, driverName: true },
+      },
+      payrollMonth: { include: { driver: { select: { name: true } } } },
+    },
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+
+  const deletable: CancelledDispatchPayrollOrphan[] = [];
+  const protectedManual: CancelledDispatchPayrollOrphan[] = [];
+  const needsManualReview: CancelledDispatchPayrollOrphan[] = [];
+
+  for (const trip of trips) {
+    if (!trip.dispatchOrderId || !trip.dispatchOrder) continue;
+    const row = mapCancelledDispatchOrphanRow(trip);
+    if (payrollTripHasManualOverrides(trip)) {
+      protectedManual.push(row);
+    } else if (!isCancelledDispatchOrphanAutoDeletable(trip)) {
+      needsManualReview.push(row);
+    } else {
+      deletable.push(row);
+    }
+  }
+
+  return { deletable, protectedManual, needsManualReview };
+}
+
+/** Delete payroll orphans for cancelled dispatches (only zero-allowance rows; skips manual/review). */
+export async function cleanupCancelledDispatchPayrollOrphans(input?: {
+  payrollMonthId?: string;
+  dateStart?: Date;
+  dateEnd?: Date;
+}): Promise<CancelledDispatchOrphanScanResult> {
+  const scan = await findCancelledDispatchPayrollOrphans(input);
+  if (scan.deletable.length === 0) return scan;
+
+  await prisma.driverPayrollTrip.deleteMany({
+    where: { id: { in: scan.deletable.map((row) => row.tripId) } },
+  });
+
+  return scan;
+}
+
+/**
+ * Cancel hook: delete/zero payroll row, then re-sync crate-return winners for date+plate.
+ */
+export async function finalizeDispatchCancelPayroll(input: {
+  dispatchOrderId: string;
+  date: Date;
+  plate: string;
+}): Promise<HandleDriverPayrollTripCancelResult> {
+  const result = await handleDriverPayrollTripOnDispatchCancel(
+    input.dispatchOrderId
+  );
+  await syncPayrollTripsAfterCrateImportChange(input.date, [input.plate]);
+  return result;
 }
