@@ -97,6 +97,19 @@ export function computeCharterEffectiveBorderFeesMyr(input: {
   return roundMoney(effectivePass + exceptPass);
 }
 
+/** New cost item (batch 5): eligible voucher actual only, otherwise 0. */
+export function resolveCharterLoadingLabor(input: {
+  charterLoadingLaborMyr: unknown;
+  voucher?: CharterVoucherCostContext | null;
+}): number {
+  const eligible = isCharterCostEligible(input.voucher);
+  const stored = decimalToNumber(input.charterLoadingLaborMyr);
+  if (eligible && stored != null) {
+    return roundMoney(stored);
+  }
+  return 0;
+}
+
 /** Assert other cost is chosen from one source only (never estimate + actual). */
 export function assertCharterOtherNotDoubleCounted(input: {
   effectiveOther: number;

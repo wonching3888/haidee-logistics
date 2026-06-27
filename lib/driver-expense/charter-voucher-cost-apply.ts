@@ -2,8 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 
 /**
- * Confirm/approve (charter): write voucher actuals to charter override columns.
- * Loading labor override is handled in batch 5.
+ * Confirm/approve (charter): write voucher actuals to charter cost columns.
  */
 export async function applyCharterVoucherCostActuals(
   voucherId: string,
@@ -17,6 +16,7 @@ export async function applyCharterVoucherCostActuals(
       tripSource: true,
       chopBorderActual: true,
       upahTurunActual: true,
+      upahNaikTongActual: true,
       otherActual: true,
     },
   });
@@ -33,6 +33,7 @@ export async function applyCharterVoucherCostActuals(
       charterBorderPassOverride: voucher.chopBorderActual,
       charterUnloadFeeOverride: voucher.upahTurunActual,
       charterOtherCostOverride: voucher.otherActual,
+      charterLoadingLaborMyr: voucher.upahNaikTongActual,
     },
   });
 
@@ -63,6 +64,7 @@ export async function clearCharterVoucherCostActuals(
       charterBorderPassOverride: null,
       charterUnloadFeeOverride: null,
       charterOtherCostOverride: null,
+      charterLoadingLaborMyr: null,
     },
   });
 

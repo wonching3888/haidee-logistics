@@ -3,6 +3,7 @@ import {
   resolveCharterEffectiveBorderPass,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
+  resolveCharterLoadingLabor,
   type CharterVoucherCostContext,
 } from "@/lib/charter-voucher-cost-resolver";
 import { decimalToNumber } from "@/lib/freight-rates";
@@ -56,6 +57,7 @@ export interface CharterTripPnlInput {
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
   charterOtherCostOverride: unknown;
+  charterLoadingLaborMyr: unknown;
   charterTollMyr: unknown;
   totalQuantity: number | null;
   computedLkimMyr: unknown;
@@ -133,6 +135,10 @@ export function computeCharterPnlRow(
     charterOtherCostOverride: trip.charterOtherCostOverride,
     voucher,
   });
+  const loadingLaborMyr = resolveCharterLoadingLabor({
+    charterLoadingLaborMyr: trip.charterLoadingLaborMyr,
+    voucher,
+  });
   const tollMyr = decimalToNumber(trip.charterTollMyr) ?? 0;
   const mileageKm = decimalToNumber(trip.charterMileageKm) ?? 0;
 
@@ -175,7 +181,9 @@ export function computeCharterPnlRow(
       tollMyr +
       borderFeesMyr
   );
-  const directCostMyr = roundMoney(shipperDirectCoreMyr + unloadFeeMyr);
+  const directCostMyr = roundMoney(
+    shipperDirectCoreMyr + unloadFeeMyr + loadingLaborMyr
+  );
   const totalCostMyr = roundMoney(directCostMyr + allocatedCostMyr);
   const grossProfitMyr = roundMoney(revenueMyr - totalCostMyr);
   const marginPct =
@@ -207,6 +215,7 @@ export function computeCharterPnlRow(
     lkimMaqisMyr: lkimMyr,
     thaiSegmentMyr: 0,
     unloadFeeMyr,
+    loadingLaborMyr,
     mcThirdPartyHaulageMyr: 0,
     directCostMyr: shipperDirectCoreMyr,
     allocatedFuelMyr: truckCosts.fuelMyr,
@@ -264,6 +273,7 @@ export const charterTripPnlSelect = {
   charterDriverSalaryMyr: true,
   charterOtherCostMyr: true,
   charterOtherCostOverride: true,
+  charterLoadingLaborMyr: true,
   charterTollMyr: true,
   totalQuantity: true,
   computedLkimMyr: true,

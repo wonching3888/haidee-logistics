@@ -6,6 +6,7 @@ import {
   computeCharterEffectiveBorderFeesMyr,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
+  resolveCharterLoadingLabor,
 } from "@/lib/charter-voucher-cost-resolver";
 import {
   computeTripTruckCosts,
@@ -36,6 +37,7 @@ export interface CharterOperationsCostTotals {
   charterExtraCostMyr: number;
   charterOtherCostMyr: number;
   charterBorderFeesMyr: number;
+  charterLoadingLaborMyr: number;
   charterTripCount: number;
   charterMileageKm: number;
   charterTotalQuantity: number;
@@ -54,6 +56,7 @@ export function emptyCharterOperationsCostTotals(): CharterOperationsCostTotals 
     charterExtraCostMyr: 0,
     charterOtherCostMyr: 0,
     charterBorderFeesMyr: 0,
+    charterLoadingLaborMyr: 0,
     charterTripCount: 0,
     charterMileageKm: 0,
     charterTotalQuantity: 0,
@@ -72,7 +75,8 @@ export function charterOperationsCostGrandTotal(
       totals.charterTollMyr +
       totals.charterExtraCostMyr +
       totals.charterOtherCostMyr +
-      totals.charterBorderFeesMyr
+      totals.charterBorderFeesMyr +
+      totals.charterLoadingLaborMyr
   );
 }
 
@@ -190,6 +194,10 @@ export async function aggregateCharterOperationsCosts(
       globalCosts,
       voucher: voucherByTripId.get(trip.id),
     });
+    totals.charterLoadingLaborMyr += resolveCharterLoadingLabor({
+      charterLoadingLaborMyr: trip.charterLoadingLaborMyr,
+      voucher: voucherByTripId.get(trip.id),
+    });
   }
 
   totals.charterTripCount = trips.length;
@@ -206,6 +214,7 @@ export async function aggregateCharterOperationsCosts(
   totals.charterExtraCostMyr = roundMoney(totals.charterExtraCostMyr);
   totals.charterOtherCostMyr = roundMoney(totals.charterOtherCostMyr);
   totals.charterBorderFeesMyr = roundMoney(totals.charterBorderFeesMyr);
+  totals.charterLoadingLaborMyr = roundMoney(totals.charterLoadingLaborMyr);
   totals.charterMileageKm = roundMoney(totals.charterMileageKm);
 
   return totals;

@@ -26,6 +26,7 @@ export interface PnlShipperRow {
   lkimMaqisMyr: number;
   thaiSegmentMyr: number;
   unloadFeeMyr: number;
+  loadingLaborMyr: number;
   mcThirdPartyHaulageMyr: number;
   directCostMyr: number;
   allocatedFuelMyr: number;

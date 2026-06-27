@@ -1269,6 +1269,7 @@ async function computeTripPnlRow(
       lkimMaqisMyr: number;
       thaiSegmentMyr: number;
       unloadFeeMyr: number;
+      loadingLaborMyr: number;
       mcThirdPartyHaulageMyr: number;
       unloadAllocatableQuantity: number;
     }
@@ -1448,6 +1449,7 @@ async function computeTripPnlRow(
         lkimMaqisMyr: 0,
         thaiSegmentMyr: 0,
         unloadFeeMyr: 0,
+        loadingLaborMyr: 0,
         mcThirdPartyHaulageMyr: 0,
         unloadAllocatableQuantity: 0,
       };

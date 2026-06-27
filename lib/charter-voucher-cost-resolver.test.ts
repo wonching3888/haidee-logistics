@@ -7,6 +7,7 @@ import {
   resolveCharterEffectiveBorderPass,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
+  resolveCharterLoadingLabor,
   resolveCharterScalarCost,
   type CharterVoucherCostContext,
 } from "@/lib/charter-voucher-cost-resolver";
@@ -57,6 +58,7 @@ function minimalCharterTrip(
     charterUnloadFeeMyr: 350,
     charterUnloadFeeOverride: null,
     charterBorderPassOverride: null,
+    charterLoadingLaborMyr: null,
     charterDriverSalaryMyr: 200,
     charterOtherCostMyr: 0,
     charterOtherCostOverride: null,
@@ -575,5 +577,126 @@ describe("computeCharterPnlRow unload + other + border same voucher", () => {
       unloadDelta + otherDelta + borderDelta
     );
     expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(-95);
+  });
+});
+
+describe("resolveCharterLoadingLabor", () => {
+  it("returns 0 without eligible voucher", () => {
+    expect(
+      resolveCharterLoadingLabor({
+        charterLoadingLaborMyr: 120,
+      })
+    ).toBe(0);
+    expect(
+      resolveCharterLoadingLabor({
+        charterLoadingLaborMyr: 120,
+        voucher: charterVoucher({ status: "draft", costAppliedAt: null }),
+      })
+    ).toBe(0);
+  });
+
+  it("returns stored actual when eligible", () => {
+    expect(
+      resolveCharterLoadingLabor({
+        charterLoadingLaborMyr: 120,
+        voucher: charterVoucher(),
+      })
+    ).toBe(120);
+  });
+
+  it("returns 0 when eligible but stored null", () => {
+    expect(
+      resolveCharterLoadingLabor({
+        charterLoadingLaborMyr: null,
+        voucher: charterVoucher(),
+      })
+    ).toBe(0);
+  });
+});
+
+describe("computeCharterPnlRow loading labor (batch 5)", () => {
+  it("no voucher: loadingLabor=0, totalCost unchanged vs pre-batch-5", () => {
+    const row = computeCharterPnlRow(
+      minimalCharterTrip({ charterLoadingLaborMyr: 120 }),
+      GLOBAL_COSTS
+    )!;
+    expect(row.shippers[0]!.loadingLaborMyr).toBe(0);
+    const baseline = computeCharterPnlRow(minimalCharterTrip(), GLOBAL_COSTS)!;
+    expect(row.totalCostMyr).toBe(baseline.totalCostMyr);
+  });
+
+  it("confirmed actual 120: totalCost +120 only", () => {
+    const baseline = computeCharterPnlRow(minimalCharterTrip(), GLOBAL_COSTS)!;
+    const actual = computeCharterPnlRow(
+      minimalCharterTrip({ charterLoadingLaborMyr: 120 }),
+      GLOBAL_COSTS,
+      charterVoucher()
+    )!;
+    expect(actual.shippers[0]!.loadingLaborMyr).toBe(120);
+    expect(actual.totalCostMyr).toBe(baseline.totalCostMyr + 120);
+  });
+
+  it("does not alter driver salary or crate rental when loading labor applies", () => {
+    const trip = minimalCharterTrip({
+      charterDriverSalaryMyr: 200,
+      computedCrateRentalMyr: 80,
+      charterLoadingLaborMyr: 120,
+    });
+    const baseline = computeCharterPnlRow(trip, GLOBAL_COSTS)!;
+    const actual = computeCharterPnlRow(trip, GLOBAL_COSTS, charterVoucher())!;
+
+    expect(actual.totalCostMyr - baseline.totalCostMyr).toBe(120);
+    expect(actual.shippers[0]!.crateRentalMyr).toBe(80);
+    expect(baseline.shippers[0]!.crateRentalMyr).toBe(80);
+    const salaryInCore =
+      actual.shippers[0]!.directCostMyr -
+      actual.shippers[0]!.crateRentalMyr -
+      actual.shippers[0]!.lkimMaqisMyr;
+    expect(salaryInCore).toBe(200);
+  });
+
+  it("rejected voucher: loading labor back to 0", () => {
+    const baseline = computeCharterPnlRow(minimalCharterTrip(), GLOBAL_COSTS)!;
+    const row = computeCharterPnlRow(
+      minimalCharterTrip({ charterLoadingLaborMyr: 120 }),
+      GLOBAL_COSTS,
+      charterVoucher({ status: "rejected", costAppliedAt: null })
+    )!;
+    expect(row.shippers[0]!.loadingLaborMyr).toBe(0);
+    expect(row.totalCostMyr).toBe(baseline.totalCostMyr);
+  });
+});
+
+describe("computeCharterPnlRow batches 2/3/4/5 same voucher", () => {
+  it("totalCost delta equals sum of unload/other/border/loading deltas", () => {
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        includeBorderFees: true,
+        charterOtherCostMyr: 50,
+      }),
+      BORDER_GLOBAL
+    )!;
+    const actualRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        includeBorderFees: true,
+        charterUnloadFeeOverride: 280,
+        charterOtherCostOverride: 20,
+        charterBorderPassOverride: 30,
+        charterLoadingLaborMyr: 120,
+        charterOtherCostMyr: 50,
+      }),
+      BORDER_GLOBAL,
+      charterVoucher()
+    )!;
+
+    const unloadDelta = 280 - 350;
+    const otherDelta = 20 - 50;
+    const borderDelta = 30 - 25;
+    const loadingDelta = 120;
+    expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(
+      unloadDelta + otherDelta + borderDelta + loadingDelta
+    );
+    expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(25);
+    expect(actualRow.shippers[0]!.loadingLaborMyr).toBe(120);
   });
 });

@@ -488,6 +488,14 @@ export function buildOperationsDashboardMetrics(input: {
             source: "actual",
           },
           {
+            key: "charterLoadingLabor",
+            label: "包车 — 上桶费(司机劳务)",
+            labelEn: "Charter — Crate Loading Labor",
+            amountMyr: input.charter.costs.charterLoadingLaborMyr,
+            source: "actual",
+            detail: "已确认/已审批报销单 upahNaikTongActual；否则 0",
+          },
+          {
             key: "charterDriverSalary",
             label: "包车 — 司机薪资",
             labelEn: "Charter — Driver Salary",

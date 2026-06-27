@@ -34,7 +34,7 @@ function createMockTx(state: {
 }
 
 describe("applyCharterVoucherCostActuals", () => {
-  it("writes border/unload/other actuals to override columns", async () => {
+  it("writes border/unload/other/loading actuals to charter columns", async () => {
     const state = {
       voucher: {
         id: "v1",
@@ -42,6 +42,7 @@ describe("applyCharterVoucherCostActuals", () => {
         tripSource: "charter",
         chopBorderActual: 30,
         upahTurunActual: 280,
+        upahNaikTongActual: 120,
         otherActual: 20,
       },
       charterTrip: {
@@ -49,6 +50,7 @@ describe("applyCharterVoucherCostActuals", () => {
         charterBorderPassOverride: null,
         charterUnloadFeeOverride: null,
         charterOtherCostOverride: null,
+        charterLoadingLaborMyr: null,
       },
     };
     const tx = createMockTx(state);
@@ -61,11 +63,10 @@ describe("applyCharterVoucherCostActuals", () => {
         charterBorderPassOverride: 30,
         charterUnloadFeeOverride: 280,
         charterOtherCostOverride: 20,
+        charterLoadingLaborMyr: 120,
       },
     });
-    expect(state.charterTrip.charterBorderPassOverride).toBe(30);
-    expect(state.charterTrip.charterUnloadFeeOverride).toBe(280);
-    expect(state.charterTrip.charterOtherCostOverride).toBe(20);
+    expect(state.charterTrip.charterLoadingLaborMyr).toBe(120);
   });
 
   it("rejects dispatch vouchers", async () => {
@@ -87,7 +88,7 @@ describe("applyCharterVoucherCostActuals", () => {
 });
 
 describe("clearCharterVoucherCostActuals", () => {
-  it("clears border/unload/other override columns", async () => {
+  it("clears border/unload/other/loading columns", async () => {
     const state = {
       voucher: {
         id: "v1",
@@ -99,6 +100,7 @@ describe("clearCharterVoucherCostActuals", () => {
         charterBorderPassOverride: 30,
         charterUnloadFeeOverride: 280,
         charterOtherCostOverride: 20,
+        charterLoadingLaborMyr: 120,
       },
     };
     const tx = createMockTx(state);
@@ -111,10 +113,9 @@ describe("clearCharterVoucherCostActuals", () => {
         charterBorderPassOverride: null,
         charterUnloadFeeOverride: null,
         charterOtherCostOverride: null,
+        charterLoadingLaborMyr: null,
       },
     });
-    expect(state.charterTrip.charterBorderPassOverride).toBeNull();
-    expect(state.charterTrip.charterUnloadFeeOverride).toBeNull();
-    expect(state.charterTrip.charterOtherCostOverride).toBeNull();
+    expect(state.charterTrip.charterLoadingLaborMyr).toBeNull();
   });
 });
