@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    setupFiles: ["./vitest.setup.ts"],
     include: [
       "lib/inbound-crate-stock-account.test.ts",
       "lib/market-do-route-groups.test.ts",
@@ -24,6 +25,7 @@ export default defineConfig({
       "lib/driver-expense/charter-voucher.test.ts",
       "lib/driver-expense/charter-voucher-cost-apply.test.ts",
       "lib/charter-voucher-cost-resolver.test.ts",
+      "lib/charter-voucher-lifecycle.integration.test.ts",
       "lib/driver-expense/voucher-cost-apply.test.ts",
       "lib/unloading-calculator.test.ts",
       "lib/trip-cost-engine/vehicle-leg-resolver.test.ts",

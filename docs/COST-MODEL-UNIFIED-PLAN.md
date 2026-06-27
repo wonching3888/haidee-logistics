@@ -303,4 +303,98 @@ VEHICLE_ALLOC_MODE=legacy|shadow|enforced     # C
 
 ---
 
+## 13. 附录：包车司机费用单 → P&L（Charter Voucher，批次 1–7）
+
+> **状态**：批次 1–7 已上线（schema phase 1 + 覆盖/新增 + 缓存/reopen/删单，2026-06）。  
+> **与 dispatch 关系**：包车走 `tripSource=charter` 独立路径；**不**走 `unloading_fees` / `crate_loading_fees` dispatch writeback。
+
+### 13.1 报销单六类字段：哪些进 P&L
+
+| 报销字段 | 中文 | 进 P&L？ | 机制 |
+|----------|------|---------|------|
+| `upahTurunActual` | 下货费 Upah Turun | ✅ | 覆盖 `charterUnloadFeeMyr` 估算（批次 2） |
+| `otherActual` | 其他 Other | ✅ | 覆盖 `charterOtherCostMyr` 估算（批次 3） |
+| `chopBorderActual` | Chop/Border | ✅（仅 borderPass 部分） | 覆盖全局 `borderPass`；**不**覆盖 epermit/dagang/forwarding（批次 4） |
+| `upahNaikTongActual` | 上桶费 Upah Naik Tong | ✅ | **新成本项** `charterLoadingLaborMyr`；无估算，eligible 计 actual、否则 0（批次 5） |
+| `minyakMotoActual` | 摩托油 | ❌ | 仅 belanja / 打印；不进 P&L |
+| `duitJalan` | 路钱（预付） | ❌ | 仅 belanja / baki；**不进** P&L、不进 belanja 合计 |
+
+**belanja** = 上述 P&L 相关 actual 之和（charter 分支不含 duitJalan）。**baki** = `duitJalan − belanja`。
+
+**不进 P&L 的固定/估算项（不受 voucher 覆盖，并存独立）：**
+
+- `charterDriverSalaryMyr` — 司机固定工钱（与上桶费劳务 **并存**，互不替代）
+- `computedCrateRentalMyr` — 公司租桶费（与上桶费 **完全无关**）
+- `computedLkimMyr`、extra items、车辆油费/维修、`toll` 等 — 原 charter P&L 逻辑不变
+
+### 13.2 生效闸门（eligible）
+
+与 dispatch 一致，读 **已生效实际值** 须同时满足：
+
+```text
+tripSource = 'charter'
+status ∈ { confirmed, approved }
+cost_applied_at IS NOT NULL
+```
+
+未满足（无 voucher / draft / pending_review / rejected / reopen 后 clerk_entered）→
+
+- unload / other / borderPass：**回退估算**（上桶费回 **0**）
+- 上桶费：始终 **0**（无估算可回退）
+
+**写入时机**：仅 confirm / approve 时 `applyCharterVoucherCostActuals`；**不**在 save 时 writeback。
+
+**打回 / reopen 清列**：`clearCharterVoucherCostActuals` 清空四列 override / loading：
+
+- `charterUnloadFeeOverride`
+- `charterOtherCostOverride`
+- `charterBorderPassOverride`
+- `charterLoadingLaborMyr`
+
+### 13.3 五项 P&L 成本机制（批次 2–5）
+
+| 批次 | 项 | 规则 | 双计防护 |
+|------|-----|------|----------|
+| 2 | 下货 unload | `effective = eligible && override≠null ? override : estimate` | 二选一，never estimate+override |
+| 3 | 其他 other | 同上 | 同上 |
+| 4 | 边境 borderPass | 只替换 `borderPass`；`exceptPass = epermit+dagang+forwarding` 始终估算 | 总额 = effectivePass + exceptPass |
+| 4b | `includeBorderFees=false` | 读取时 borderPass=0（即使有 override） | 边境费总额=0 |
+| 5 | 上桶 loading labor | `eligible && loading≠null ? loading : 0` | 新项，无估算，无双计 |
+
+**同单四项独立**：totalCost Δ = ΔUnload + ΔOther + ΔBorderPass + loadingLabor（各自独立，无交叉）。
+
+### 13.4 ADMIN reopen（批次 fix）
+
+- **权限**：仅 `admin`
+- **从**：`confirmed` / `approved` → **`clerk_entered`**（可编辑后重新 confirm/approve）
+- **行为**：`clearCharterVoucherCostActuals` → P&L 回估算/0；`change_logs.eventType = reopen`
+- **API**：`POST /api/driver-vouchers/[id]/reopen`
+
+### 13.5 删包车单 + P&L 缓存（批次 fix）
+
+- **`deleteCharterTrip`**：事务内 `deleteMany driver_vouchers WHERE tripId AND tripSource='charter'`（**不**误删 dispatch voucher），再删 trip
+- **缓存**：`invalidatePnlTripsCache()` — 清 `pnlMonthTripsCache` + `revalidatePath('/reports/pnl')`
+- **触发**：save/delete charter、voucher transition/reopen、apply/clear charter/dispatch cost actuals
+
+### 13.6 代码入口
+
+```text
+lib/charter-voucher-cost-resolver.ts   # eligible + resolve* + computeCharterEffectiveBorderFeesMyr
+lib/driver-expense/charter-voucher-cost-apply.ts
+lib/charter-pnl.ts                     # computeCharterPnlRow
+lib/charter-operations.ts              # 运营报表同口径
+lib/pnl-report.ts                      # charter 行并入 P&L 列表/顾客
+lib/charter-voucher-lifecycle.integration.test.ts  # 批次 2–5 生命周期集成测
+```
+
+### 13.7 生产只读验算（本地脚本，不提交）
+
+```bash
+npx tsx scripts/_verify-charter-voucher-batch7-full-regression.ts 2026 6
+```
+
+检查：无 eligible 趟 totalCost 与纯估算一致；有 eligible 趟 actual= effective；运营 charter 汇总与 P&L 逐项 diff=0；dispatch 路径不受 charter 泄漏。
+
+---
+
 *本文档为实施唯一依据；任何偏离须先更新本文档并重新评审。*
