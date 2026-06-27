@@ -74,7 +74,10 @@ export function VoucherChangeLogTimeline({
       ) : (
         <ol className="space-y-3">
           {logs.map((log) => {
-            const isStatusChange = log.eventType === "status_change";
+            const isStatusChange =
+              log.eventType === "status_change" || log.eventType === "reopen";
+            const statusBadgeLabel =
+              log.eventType === "reopen" ? "重新打开" : "状态变更";
             return (
               <li
                 key={log.id}
@@ -93,7 +96,7 @@ export function VoucherChangeLogTimeline({
                   <span>{log.changedByName ?? log.changedBy ?? "—"}</span>
                   {isStatusChange && (
                     <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800">
-                      状态变更
+                      {statusBadgeLabel}
                     </span>
                   )}
                 </div>

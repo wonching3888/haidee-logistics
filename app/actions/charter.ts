@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -463,6 +464,7 @@ async function syncCharterCrateStock(input: {
 }
 
 function revalidateCharterPaths(id?: string) {
+  invalidatePnlTripsCache();
   try {
     revalidatePath("/charter");
     revalidatePath("/crate/customer-stock");
@@ -662,6 +664,10 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
   if (!existing) throw new Error("包车记录不存在 Charter trip not found");
 
   await prisma.$transaction(async (tx) => {
+    await tx.driverVoucher.deleteMany({
+      where: { tripId: id, tripSource: "charter" },
+    });
+
     await syncCharterCrateStock({
       before: {
         cargoType: existing.cargoType,

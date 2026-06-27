@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 
 /**
  * Confirm/approve (charter): write voucher actuals to charter override columns.
@@ -33,6 +34,8 @@ export async function applyCharterVoucherCostActuals(
     },
   });
 
+  invalidatePnlTripsCache();
+
   return tx.driverVoucher.findUniqueOrThrow({ where: { id: voucherId } });
 }
 
@@ -59,6 +62,8 @@ export async function clearCharterVoucherCostActuals(
       charterOtherCostOverride: null,
     },
   });
+
+  invalidatePnlTripsCache();
 
   return tx.driverVoucher.findUniqueOrThrow({ where: { id: voucherId } });
 }

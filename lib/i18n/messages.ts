@@ -1661,6 +1661,26 @@ export const MESSAGES = {
     en: "Status change failed — retry confirm or flag",
     th: "เปลี่ยนสถานะไม่สำเร็จ — ลองยืนยันหรือส่งตรวจอีกครั้ง",
   },
+  "driverExpenses.form.reopen": {
+    zh: "重新打开 Reopen",
+    en: "Reopen",
+    th: "เปิดใหม่ Reopen",
+  },
+  "driverExpenses.form.reopenHint": {
+    zh: "重新打开将清除已生效的实际成本值，需重新确认或审批后才会再次写入 P&L。",
+    en: "Reopening clears applied actual costs; confirm or approve again to write them back to P&L.",
+    th: "การเปิดใหม่จะล้างค่าจริงที่บันทึกแล้ว ต้องยืนยันหรืออนุมัติใหม่จึงจะเขียนกลับ P&L",
+  },
+  "driverExpenses.form.reopenConfirm": {
+    zh: "确定重新打开此报销单？已生效的实际值将被清除，需重新确认或审批。",
+    en: "Reopen this voucher? Applied actual values will be cleared and must be confirmed or approved again.",
+    th: "เปิดใบเบิกนี้ใหม่? ค่าจริงที่บันทึกแล้วจะถูกล้างและต้องยืนยันหรืออนุมัติใหม่",
+  },
+  "driverExpenses.form.reopenFailed": {
+    zh: "重新打开失败",
+    en: "Reopen failed",
+    th: "เปิดใหม่ไม่สำเร็จ",
+  },
   "driverExpenses.unloading.queryHint": {
     zh: "查询当日数据后可查看下货费摘要",
     en: "Search today's data to view unloading fee summary",

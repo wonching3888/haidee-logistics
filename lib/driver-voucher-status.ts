@@ -13,6 +13,7 @@ import {
   isVoucherStatus,
   type VoucherStatus,
 } from "@/lib/driver-voucher-status-types";
+import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 import { isVoucherCostEnforced } from "@/lib/trip-cost-engine/config";
 
 export {
@@ -51,6 +52,8 @@ const CLERK_ROLES = new Set<StoredUserRole>([
   "clerk",
   "thai_accounting",
 ]);
+
+const REOPEN_FROM_STATUSES = new Set<VoucherStatus>(["confirmed", "approved"]);
 
 export class VoucherStatusTransitionError extends Error {
   readonly code: "NOT_FOUND" | "INVALID_TRANSITION" | "FORBIDDEN";
@@ -185,6 +188,98 @@ export async function applyVoucherStatusTransitionInTx(
   return voucher;
 }
 
+export function buildVoucherReopenUpdate(
+  actor: VoucherTransitionActor,
+  now: Date = new Date()
+): Record<string, unknown> {
+  return {
+    status: "clerk_entered" satisfies VoucherStatus,
+    costAppliedAt: null,
+    clerkSubmittedAt: now,
+    clerkSubmittedBy: actor.id,
+    rejectedAt: null,
+    rejectedBy: null,
+  };
+}
+
+async function clearEnforcedVoucherCostActualsInTx(
+  tx: Prisma.TransactionClient,
+  voucherId: string,
+  tripSource: string
+) {
+  if (!isVoucherCostEnforced()) return;
+
+  if (tripSource === "charter") {
+    await clearCharterVoucherCostActuals(voucherId, tx);
+    return;
+  }
+
+  await clearVoucherCostActuals(voucherId, tx);
+}
+
+export async function reopenVoucherStatus(input: {
+  voucherId: string;
+  actor: VoucherTransitionActor;
+  note?: string | null;
+}) {
+  if (input.actor.role !== "admin") {
+    throw new VoucherStatusTransitionError(
+      "FORBIDDEN",
+      "仅 ADMIN 可重新打开已确认/已审批报销单 / Only admin may reopen confirmed or approved vouchers"
+    );
+  }
+
+  const existing = await prisma.driverVoucher.findUnique({
+    where: { id: input.voucherId },
+    select: { id: true, status: true, tripSource: true },
+  });
+
+  if (!existing) {
+    throw new VoucherStatusTransitionError(
+      "NOT_FOUND",
+      "报销单不存在 / Voucher not found"
+    );
+  }
+
+  const fromStatus = existing.status as VoucherStatus;
+  if (!isVoucherStatus(fromStatus) || !REOPEN_FROM_STATUSES.has(fromStatus)) {
+    throw new VoucherStatusTransitionError(
+      "INVALID_TRANSITION",
+      `仅 confirmed/approved 可重新打开 / Reopen only allowed from confirmed or approved (current: ${existing.status})`
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    await clearEnforcedVoucherCostActualsInTx(
+      tx,
+      input.voucherId,
+      existing.tripSource
+    );
+
+    const voucher = await tx.driverVoucher.update({
+      where: { id: input.voucherId },
+      data: buildVoucherReopenUpdate(input.actor),
+    });
+
+    await tx.driverVoucherChangeLog.create({
+      data: {
+        voucherId: input.voucherId,
+        eventType: "reopen",
+        field: "status",
+        oldValue: fromStatus,
+        newValue: "clerk_entered",
+        changedBy: input.actor.id,
+        reason: input.note?.trim() ? input.note.trim() : null,
+      },
+    });
+
+    return voucher;
+  });
+
+  invalidatePnlTripsCache();
+  return result;
+}
+
 export async function transitionVoucherStatus(input: {
   voucherId: string;
   toStatus: VoucherStatus;
@@ -267,5 +362,8 @@ export async function transitionVoucherStatus(input: {
     return tx.driverVoucher.findUniqueOrThrow({
       where: { id: input.voucherId },
     });
+  }).then((voucher) => {
+    invalidatePnlTripsCache();
+    return voucher;
   });
 }

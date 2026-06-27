@@ -324,6 +324,11 @@ export function DriverVoucherForm({
     workflow.status === "clerk_entered" && canWriteDriverVoucher(userRole);
   const showReviewPanel =
     workflow.status === "pending_review" && userRole === "admin";
+  const showReopenButton =
+    mode === "edit" &&
+    Boolean(voucherId) &&
+    userRole === "admin" &&
+    (workflow.status === "confirmed" || workflow.status === "approved");
   const workflowBusyAny = saving || workflowBusy;
 
   useEffect(() => {
@@ -725,6 +730,32 @@ export function DriverVoucherForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : "操作失败 / Action failed");
       throw e;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
+
+  async function handleReopen() {
+    if (!voucherId) return;
+    if (!window.confirm(t("driverExpenses.form.reopenConfirm"))) return;
+
+    setWorkflowBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/driver-vouchers/${voucherId}/reopen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? t("driverExpenses.form.reopenFailed"));
+      }
+      await reloadVoucher(voucherId);
+      await reloadChangeLogs(voucherId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败 / Action failed");
     } finally {
       setWorkflowBusy(false);
     }
@@ -1466,6 +1497,25 @@ export function DriverVoucherForm({
                 onReject={handleReject}
                 busy={workflowBusyAny}
               />
+            )}
+
+            {showReopenButton && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
+                <p className="mb-2">{t("driverExpenses.form.reopenHint")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={workflowBusyAny}
+                  className="border-amber-400 text-amber-950 hover:bg-amber-100"
+                  onClick={() => void handleReopen()}
+                >
+                  {workflowBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("driverExpenses.form.reopen")
+                  )}
+                </Button>
+              </div>
             )}
 
             <div className="flex flex-wrap gap-2">

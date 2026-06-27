@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 import {
   feeMarketsForDisplayMarket,
   primaryFeeMarketForDisplay,
@@ -125,7 +126,7 @@ export async function applyVoucherCostActuals(
   const baki =
     merged.duitJalan != null ? roundMoney(merged.duitJalan - belanja) : null;
 
-  return tx.driverVoucher.update({
+  const updated = await tx.driverVoucher.update({
     where: { id: voucherId },
     data: {
       ...scalarPatch,
@@ -134,6 +135,8 @@ export async function applyVoucherCostActuals(
       costAppliedAt: now,
     },
   });
+  invalidatePnlTripsCache();
+  return updated;
 }
 
 /** Rejected: clear trip overrides; keep market_actuals draft; clear cost_applied_at. */
@@ -159,8 +162,10 @@ export async function clearVoucherCostActuals(
     data: { loadingFeeOverride: null },
   });
 
-  return tx.driverVoucher.update({
+  const updated = await tx.driverVoucher.update({
     where: { id: voucherId },
     data: { costAppliedAt: null },
   });
+  invalidatePnlTripsCache();
+  return updated;
 }

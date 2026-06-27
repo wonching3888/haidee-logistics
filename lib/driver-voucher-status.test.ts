@@ -3,6 +3,7 @@ import {
   assertActorCanTransition,
   buildVoucherStatusTransitionUpdate,
   isVoucherTransitionAllowed,
+  reopenVoucherStatus,
   transitionVoucherStatus,
   VoucherStatusTransitionError,
 } from "@/lib/driver-voucher-status";
@@ -14,10 +15,17 @@ const mockChangeLogCreate = vi.fn();
 const mockTransaction = vi.fn();
 const mockApplyVoucherCostActuals = vi.fn();
 const mockClearVoucherCostActuals = vi.fn();
+const mockApplyCharterVoucherCostActuals = vi.fn();
+const mockClearCharterVoucherCostActuals = vi.fn();
 const mockIsVoucherCostEnforced = vi.fn();
+const mockInvalidatePnlTripsCache = vi.fn();
 
 vi.mock("@/lib/trip-cost-engine/config", () => ({
   isVoucherCostEnforced: () => mockIsVoucherCostEnforced(),
+}));
+
+vi.mock("@/lib/pnl-cache-invalidation", () => ({
+  invalidatePnlTripsCache: () => mockInvalidatePnlTripsCache(),
 }));
 
 vi.mock("@/lib/driver-expense/voucher-cost-apply", () => ({
@@ -25,6 +33,13 @@ vi.mock("@/lib/driver-expense/voucher-cost-apply", () => ({
     mockApplyVoucherCostActuals(...args),
   clearVoucherCostActuals: (...args: unknown[]) =>
     mockClearVoucherCostActuals(...args),
+}));
+
+vi.mock("@/lib/driver-expense/charter-voucher-cost-apply", () => ({
+  applyCharterVoucherCostActuals: (...args: unknown[]) =>
+    mockApplyCharterVoucherCostActuals(...args),
+  clearCharterVoucherCostActuals: (...args: unknown[]) =>
+    mockClearCharterVoucherCostActuals(...args),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -66,7 +81,7 @@ describe("isVoucherTransitionAllowed", () => {
     expect(isVoucherTransitionAllowed("draft", "approved")).toBe(false);
   });
 
-  it("rejects confirmed → rejected (reopen deferred)", () => {
+  it("rejects confirmed → rejected (use admin reopen instead)", () => {
     expect(isVoucherTransitionAllowed("confirmed", "rejected")).toBe(false);
   });
 });
@@ -355,5 +370,135 @@ describe("transitionVoucherStatus", () => {
     );
     expect(mockApplyVoucherCostActuals).not.toHaveBeenCalled();
     expect(result.costAppliedAt).toBeNull();
+  });
+});
+
+describe("reopenVoucherStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsVoucherCostEnforced.mockReturnValue(false);
+    mockTransaction.mockImplementation(async (fn) =>
+      fn({
+        driverVoucher: {
+          update: mockUpdate,
+        },
+        driverVoucherChangeLog: { create: mockChangeLogCreate },
+      })
+    );
+  });
+
+  it("rejects non-admin", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: "v1",
+      status: "confirmed",
+      tripSource: "dispatch",
+    });
+
+    await expect(
+      reopenVoucherStatus({
+        voucherId: "v1",
+        actor: { id: "clerk-1", role: "clerk" },
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects reopen from draft", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: "v1",
+      status: "draft",
+      tripSource: "dispatch",
+    });
+
+    await expect(
+      reopenVoucherStatus({
+        voucherId: "v1",
+        actor: { id: "admin-1", role: "admin" },
+      })
+    ).rejects.toMatchObject({ code: "INVALID_TRANSITION" });
+  });
+
+  it("admin reopens confirmed dispatch voucher to clerk_entered", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: "v1",
+      status: "confirmed",
+      tripSource: "dispatch",
+    });
+    mockUpdate.mockResolvedValue({
+      id: "v1",
+      status: "clerk_entered",
+      costAppliedAt: null,
+    });
+
+    const result = await reopenVoucherStatus({
+      voucherId: "v1",
+      actor: { id: "admin-1", role: "admin" },
+    });
+
+    expect(result.status).toBe("clerk_entered");
+    expect(mockChangeLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        voucherId: "v1",
+        eventType: "reopen",
+        field: "status",
+        oldValue: "confirmed",
+        newValue: "clerk_entered",
+        changedBy: "admin-1",
+      }),
+    });
+    expect(mockInvalidatePnlTripsCache).toHaveBeenCalled();
+  });
+
+  it("enforced mode clears charter overrides on reopen", async () => {
+    mockIsVoucherCostEnforced.mockReturnValue(true);
+    mockFindUnique.mockResolvedValue({
+      id: "v2",
+      status: "approved",
+      tripSource: "charter",
+    });
+    mockUpdate.mockResolvedValue({
+      id: "v2",
+      status: "clerk_entered",
+      costAppliedAt: null,
+    });
+    mockClearCharterVoucherCostActuals.mockResolvedValue(undefined);
+
+    await reopenVoucherStatus({
+      voucherId: "v2",
+      actor: { id: "admin-1", role: "admin" },
+    });
+
+    expect(mockClearCharterVoucherCostActuals).toHaveBeenCalledWith(
+      "v2",
+      expect.any(Object)
+    );
+    expect(mockClearVoucherCostActuals).not.toHaveBeenCalled();
+  });
+
+  it("enforced mode clears dispatch overrides on reopen", async () => {
+    mockIsVoucherCostEnforced.mockReturnValue(true);
+    mockFindUnique.mockResolvedValue({
+      id: "v3",
+      status: "approved",
+      tripSource: "dispatch",
+    });
+    mockUpdate.mockResolvedValue({
+      id: "v3",
+      status: "clerk_entered",
+      costAppliedAt: null,
+    });
+    mockClearVoucherCostActuals.mockResolvedValue(undefined);
+
+    await reopenVoucherStatus({
+      voucherId: "v3",
+      actor: { id: "admin-1", role: "admin" },
+    });
+
+    expect(mockClearVoucherCostActuals).toHaveBeenCalledWith(
+      "v3",
+      expect.any(Object)
+    );
+    expect(mockClearCharterVoucherCostActuals).not.toHaveBeenCalled();
   });
 });
