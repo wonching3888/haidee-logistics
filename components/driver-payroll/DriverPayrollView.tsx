@@ -355,6 +355,9 @@ function DriverPayrollDetailSections({
                       趟次津贴(RM)
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
+                      包车固定工钱(RM)
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap px-2 text-right">
                       额外津贴(RM)
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
@@ -370,7 +373,7 @@ function DriverPayrollDetailSections({
                 <TableBody>
                   {data.trips.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-6 text-center text-haidee-muted">
+                      <TableCell colSpan={10} className="py-6 text-center text-haidee-muted">
                         当月暂无派车趟次
                       </TableCell>
                     </TableRow>
@@ -574,6 +577,10 @@ function DriverPayrollDetailSections({
                 <dl className="space-y-2 text-sm">
                   <SummaryRow label="底薪 Base Salary" value={summary.baseSalary} />
                   <SummaryRow label="趟次津贴 Trips" value={summary.tripAllowanceTotal} />
+                  <SummaryRow
+                    label="包车固定工钱 Charter Salary"
+                    value={summary.charterSalaryTotal}
+                  />
                   <SummaryRow label="回桶提成 Crate Return" value={summary.crateCommissionTotal} />
                   <SummaryRow label="额外津贴 Extras" value={summary.extraAllowanceTotal} />
                   <SummaryRow label="应发 Gross" value={summary.grossSalary} bold />
@@ -645,6 +652,7 @@ function TripRow({
 
   const tripTotal =
     (Number(tripAllowance) || 0) +
+    trip.charterSalary +
     (Number(extraAllowance) || 0) +
     trip.crateReturnCommission;
 
@@ -669,7 +677,16 @@ function TripRow({
           value={tripAllowance}
           onChange={(e) => setTripAllowance(e.target.value)}
           className={compactInputClass}
+          disabled={Boolean(trip.charterTripId)}
         />
+      </TableCell>
+      <TableCell className="px-2 py-1.5">
+        <div
+          className="flex h-8 w-[90px] items-center justify-end rounded-md border border-haidee-border bg-gray-100 px-2 font-mono text-xs tabular-nums text-haidee-text"
+          title="包车固定工钱(来自包车单)"
+        >
+          {money(trip.charterSalary)}
+        </div>
       </TableCell>
       <TableCell className="px-2 py-1.5">
         <Input

@@ -407,8 +407,8 @@ export async function syncDriverPayrollTripForDispatch(
 }
 
 /**
- * Charter payroll row: tripAllowance stays 0; crate-return commission only.
- * charterDriverSalaryMyr remains on charter P&L — not mixed here.
+ * Charter payroll row: tripAllowance stays 0; charterSalary from charterDriverSalaryMyr;
+ * crate-return commission only. charterDriverSalaryMyr remains on charter P&L until Step 2+3.
  */
 export async function syncDriverPayrollTripForCharter(
   charterTripId: string
@@ -426,6 +426,8 @@ export async function syncDriverPayrollTripForCharter(
       reason: "driver_unmatched",
     };
   }
+
+  const charterSalary = decimalToNumber(charter.charterDriverSalaryMyr) ?? 0;
 
   const yearMonth = yearMonthFromDate(charter.date);
   const [payrollMonth, allowanceContext, importContext] = await Promise.all([
@@ -452,6 +454,8 @@ export async function syncDriverPayrollTripForCharter(
     marketCount: 0,
     truckType: charter.truck.type,
     notes: charter.truck.plate,
+    tripAllowance: 0,
+    charterSalary,
   };
 
   const existing = await prisma.driverPayrollTrip.findUnique({
@@ -461,8 +465,10 @@ export async function syncDriverPayrollTripForCharter(
   if (existing) {
     const commissionUnchanged =
       decimalToNumber(existing.crateReturnCommission) === crateReturnCommission;
+    const charterSalaryUnchanged =
+      decimalToNumber(existing.charterSalary) === charterSalary;
 
-    if (commissionUnchanged) {
+    if (commissionUnchanged && charterSalaryUnchanged) {
       await prisma.driverPayrollTrip.update({
         where: { id: existing.id },
         data: sharedMetadata,
@@ -501,7 +507,6 @@ export async function syncDriverPayrollTripForCharter(
     data: {
       charterTripId,
       sortOrder: tripCount,
-      tripAllowance: 0,
       extraAllowance: 0,
       crateReturnCommission,
       ...sharedMetadata,

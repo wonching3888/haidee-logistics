@@ -39,6 +39,7 @@ export default defineConfig({
       "lib/crate-return-billing.test.ts",
       "lib/driver-payroll-crate-commission.test.ts",
       "lib/driver-payroll-trip-sync.test.ts",
+      "lib/payroll-charter-salary.test.ts",
     ],
   },
   resolve: {

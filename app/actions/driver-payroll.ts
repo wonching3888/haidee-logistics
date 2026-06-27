@@ -102,6 +102,7 @@ function buildSummaryFromRecords(input: {
   driver: ReturnType<typeof serializeDriver>;
   trips: {
     tripAllowance: unknown;
+    charterSalary: unknown;
     extraAllowance: unknown;
     crateReturnCommission: unknown;
   }[];
@@ -148,7 +149,8 @@ export async function getDriverPayrollMonthlySummary(input: {
     totals: aggregate.totals,
     netMyr: aggregate.netMyr,
     employerMyr: aggregate.employerMyr,
-    totalCostMyr: aggregate.totalCostMyr,
+    totalCostMyr: aggregate.driverTotalCostMyr,
+    companyPayrollCostMyr: aggregate.totalCostMyr,
     hasRecords: aggregate.hasRecords,
   };
 }
@@ -217,6 +219,7 @@ export async function getDriverPayrollMonth(input: {
     },
     trips: record.trips.map((trip) => {
       const crateReturnCommission = decimalToNumber(trip.crateReturnCommission) ?? 0;
+      const charterSalary = decimalToNumber(trip.charterSalary) ?? 0;
       const autoTripAllowanceDebug =
         input.month === 6
           ? explainTripAllowance({
@@ -268,6 +271,7 @@ export async function getDriverPayrollMonth(input: {
       return {
         id: trip.id,
         dispatchOrderId: trip.dispatchOrderId,
+        charterTripId: trip.charterTripId,
         date: toDateInputValue(trip.date),
         dateLabel: formatDisplayDate(trip.date),
         route: getRouteLabel(payrollTripRouteSource(trip)),
@@ -278,6 +282,7 @@ export async function getDriverPayrollMonth(input: {
         ),
         autoTripAllowance,
         tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+        charterSalary,
         extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
         crateReturnCommission,
         truckType: trip.truckType,

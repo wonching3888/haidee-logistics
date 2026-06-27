@@ -385,6 +385,7 @@ model DriverPayrollTrip {
   tripAllowance         Decimal  @default(0) @map("trip_allowance") @db.Decimal(10, 2)
   extraAllowance        Decimal  @default(0) @map("extra_allowance") @db.Decimal(10, 2)
   crateReturnCommission Decimal  @default(0) @map("crate_return_commission") @db.Decimal(10, 2)
+  charterSalary         Decimal  @default(0) @map("charter_salary") @db.Decimal(10, 2)
   truckType             String?  @map("truck_type")
   notes                 String?
   sortOrder             Int      @default(0) @map("sort_order")

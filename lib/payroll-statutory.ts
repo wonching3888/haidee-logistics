@@ -102,6 +102,7 @@ export function calculateStatutoryDeductions(input: {
 export interface PayrollSummaryInput {
   baseSalary: number;
   tripAllowanceTotal: number;
+  charterSalaryTotal: number;
   crateCommissionTotal: number;
   tripExtraAllowanceTotal: number;
   extraAllowanceTotal: number;
@@ -111,6 +112,7 @@ export interface PayrollSummaryInput {
 export interface PayrollSummary {
   baseSalary: number;
   tripAllowanceTotal: number;
+  charterSalaryTotal: number;
   crateCommissionTotal: number;
   extraAllowanceTotal: number;
   advanceTotal: number;
@@ -131,6 +133,7 @@ export function buildPayrollSummary(input: {
   const grossSalary = roundMoney(
     input.earnings.baseSalary +
       input.earnings.tripAllowanceTotal +
+      input.earnings.charterSalaryTotal +
       input.earnings.crateCommissionTotal +
       extraAllowanceTotal
   );
@@ -157,6 +160,7 @@ export function buildPayrollSummary(input: {
   return {
     baseSalary: input.earnings.baseSalary,
     tripAllowanceTotal: input.earnings.tripAllowanceTotal,
+    charterSalaryTotal: input.earnings.charterSalaryTotal,
     crateCommissionTotal: input.earnings.crateCommissionTotal,
     extraAllowanceTotal,
     advanceTotal: input.earnings.advanceTotal,
