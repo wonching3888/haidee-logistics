@@ -7,6 +7,9 @@ import {
   INVOICE_ROUTE_MARKET_CODES,
 } from "@/lib/constants/invoice-route-labels";
 import { toDateInputValue } from "@/lib/inbound-utils";
+import { formatDisplayDate } from "@/lib/date-utils";
+
+export type CrateReturnChargeKind = "freight" | "collection";
 
 export interface CrateReturnFreightRateConfig {
   crateType: string;
@@ -53,6 +56,21 @@ export interface CrateReturnMonthlyInvoiceSectionPrint {
   totalAmountMyr: number;
 }
 
+export interface CrateReturnMonthlyInvoiceDetailRowPrint {
+  tripKey: string;
+  tripDateLabel: string;
+  truckPlate: string;
+  marketCode: string;
+  marketLabel: string;
+  crateType: string;
+  quantity: number;
+  chargeKind: CrateReturnChargeKind;
+  /** Shown under market when freight + collection both apply (GKS). */
+  chargeLabel: string | null;
+  unitRateMyr: number;
+  amountMyr: number;
+}
+
 export interface CrateReturnMonthlyInvoicePrintData {
   invoiceNo: string;
   periodLabel: string;
@@ -68,6 +86,9 @@ export interface CrateReturnMonthlyInvoicePrintData {
   freightAmountMyr: number;
   collectionAmountMyr: number;
   totalAmountMyr: number;
+  /** Per-trip detail rows for print (freight + optional collection row per trip). */
+  detailRows: CrateReturnMonthlyInvoiceDetailRowPrint[];
+  /** @deprecated Market summary sections; kept for existing verify scripts. */
   sections: CrateReturnMonthlyInvoiceSectionPrint[];
 }
 
@@ -130,9 +151,147 @@ async function loadImportsForCrateType(
       tongType: { code: crateType },
     },
     include: {
+      truck: { select: { id: true, plate: true } },
       market: { select: { id: true, code: true } },
+      tongType: { select: { code: true } },
     },
+    orderBy: [
+      { date: "asc" },
+      { truck: { plate: "asc" } },
+      { market: { code: "asc" } },
+    ],
   });
+}
+
+export type CrateReturnImportRow = Awaited<
+  ReturnType<typeof loadImportsForCrateType>
+>[number];
+
+export interface CrateReturnTripAggregate {
+  tripKey: string;
+  tripDate: Date;
+  tripDateInput: string;
+  tripDateLabel: string;
+  truckId: string;
+  truckPlate: string;
+  marketId: string;
+  marketCode: string;
+  marketLabel: string;
+  crateType: string;
+  quantity: number;
+}
+
+export function buildCrateReturnTripKey(input: {
+  tripDateInput: string;
+  truckId: string;
+  marketId: string;
+  crateType: string;
+}) {
+  return `${input.tripDateInput}|${input.truckId}|${input.marketId}|${input.crateType}`;
+}
+
+export function aggregateCrateReturnTrips(
+  imports: CrateReturnImportRow[],
+  crateType: string
+): CrateReturnTripAggregate[] {
+  const tripMap = new Map<string, CrateReturnTripAggregate>();
+
+  for (const row of imports) {
+    const tripDateInput = toDateInputValue(row.date);
+    const typeCode = row.tongType.code;
+    const tripKey = buildCrateReturnTripKey({
+      tripDateInput,
+      truckId: row.truckId,
+      marketId: row.marketId,
+      crateType: typeCode,
+    });
+
+    const existing = tripMap.get(tripKey);
+    if (existing) {
+      existing.quantity += row.quantity;
+      continue;
+    }
+
+    tripMap.set(tripKey, {
+      tripKey,
+      tripDate: row.date,
+      tripDateInput,
+      tripDateLabel: formatDisplayDate(row.date),
+      truckId: row.truckId,
+      truckPlate: row.truck?.plate?.trim() || "—",
+      marketId: row.marketId,
+      marketCode: row.market.code,
+      marketLabel: getInvoiceMarketShortName(row.market.code),
+      crateType: typeCode,
+      quantity: row.quantity,
+    });
+  }
+
+  return Array.from(tripMap.values())
+    .filter((trip) => trip.crateType === crateType)
+    .sort((a, b) => {
+      const dateCmp = a.tripDateInput.localeCompare(b.tripDateInput);
+      if (dateCmp !== 0) return dateCmp;
+      const plateCmp = a.truckPlate.localeCompare(b.truckPlate);
+      if (plateCmp !== 0) return plateCmp;
+      return (
+        marketSortIndex(a.marketCode) - marketSortIndex(b.marketCode)
+      );
+    });
+}
+
+export function buildCrateReturnDetailRows(input: {
+  trips: CrateReturnTripAggregate[];
+  freightRateMyr: number;
+  collectionRateMyr: number;
+}): CrateReturnMonthlyInvoiceDetailRowPrint[] {
+  const showChargeLabel = input.collectionRateMyr > 0;
+  const rows: CrateReturnMonthlyInvoiceDetailRowPrint[] = [];
+
+  for (const trip of input.trips) {
+    rows.push({
+      tripKey: trip.tripKey,
+      tripDateLabel: trip.tripDateLabel,
+      truckPlate: trip.truckPlate,
+      marketCode: trip.marketCode,
+      marketLabel: trip.marketLabel,
+      crateType: trip.crateType,
+      quantity: trip.quantity,
+      chargeKind: "freight",
+      chargeLabel: showChargeLabel ? "车力 Freight" : null,
+      unitRateMyr: input.freightRateMyr,
+      amountMyr: roundMoney(trip.quantity * input.freightRateMyr),
+    });
+
+    if (input.collectionRateMyr > 0) {
+      rows.push({
+        tripKey: trip.tripKey,
+        tripDateLabel: trip.tripDateLabel,
+        truckPlate: trip.truckPlate,
+        marketCode: trip.marketCode,
+        marketLabel: trip.marketLabel,
+        crateType: trip.crateType,
+        quantity: trip.quantity,
+        chargeKind: "collection",
+        chargeLabel: "收桶 Collection",
+        unitRateMyr: input.collectionRateMyr,
+        amountMyr: roundMoney(trip.quantity * input.collectionRateMyr),
+      });
+    }
+  }
+
+  return rows;
+}
+
+export function sumDetailRowsByChargeKind(
+  rows: CrateReturnMonthlyInvoiceDetailRowPrint[],
+  kind: CrateReturnChargeKind
+) {
+  const filtered = rows.filter((row) => row.chargeKind === kind);
+  return {
+    quantity: filtered.reduce((sum, row) => sum + row.quantity, 0),
+    amountMyr: roundMoney(filtered.reduce((sum, row) => sum + row.amountMyr, 0)),
+  };
 }
 
 function aggregateMarketQuantities(
@@ -242,6 +401,7 @@ function toPrintData(input: {
   year: number;
   month: number;
   sections: CrateReturnMonthlyInvoiceSectionPrint[];
+  detailRows: CrateReturnMonthlyInvoiceDetailRowPrint[];
 }): CrateReturnMonthlyInvoicePrintData {
   return {
     invoiceNo: input.invoice.invoiceNo,
@@ -258,6 +418,7 @@ function toPrintData(input: {
     freightAmountMyr: decimalToNumber(input.invoice.freightAmountMyr) ?? 0,
     collectionAmountMyr: decimalToNumber(input.invoice.collectionAmountMyr) ?? 0,
     totalAmountMyr: decimalToNumber(input.invoice.totalAmountMyr) ?? 0,
+    detailRows: input.detailRows,
     sections: input.sections,
   };
 }
@@ -310,6 +471,12 @@ export async function ensureCrateReturnMonthlyInvoice(
 
   const sections = buildPrintSections({
     marketRows,
+    freightRateMyr,
+    collectionRateMyr,
+  });
+  const trips = aggregateCrateReturnTrips(imports, crateType);
+  const detailRows = buildCrateReturnDetailRows({
+    trips,
     freightRateMyr,
     collectionRateMyr,
   });
@@ -372,6 +539,7 @@ export async function ensureCrateReturnMonthlyInvoice(
     year,
     month,
     sections,
+    detailRows,
   });
 }
 

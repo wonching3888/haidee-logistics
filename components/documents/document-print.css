@@ -624,6 +624,12 @@
   width: 72px;
 }
 
+.monthly-invoice-print .monthly-invoice-plate-col,
+.haidee-market-invoice-print .monthly-invoice-plate-col {
+  width: 80px;
+  min-width: 80px;
+}
+
 .monthly-invoice-print .monthly-invoice-stall-col {
   width: 72px;
 }

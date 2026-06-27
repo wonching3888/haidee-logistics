@@ -29,6 +29,7 @@ export default defineConfig({
       "lib/trip-cost-engine/shadow-compare.test.ts",
       "lib/trip-cost-engine/trip-cost-facade.test.ts",
       "lib/pnl-month-cache.test.ts",
+      "lib/crate-return-billing.test.ts",
     ],
   },
   resolve: {

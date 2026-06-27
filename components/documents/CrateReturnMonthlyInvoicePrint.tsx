@@ -1,6 +1,7 @@
 import type { CrateReturnMonthlyInvoicePrintData } from "@/lib/crate-return-billing";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import "./document-print.css";
 
 interface CrateReturnMonthlyInvoicePrintProps {
   data: CrateReturnMonthlyInvoicePrintData;
@@ -14,9 +15,10 @@ export function CrateReturnMonthlyInvoicePrint({
   data,
 }: CrateReturnMonthlyInvoicePrintProps) {
   const company = INVOICE_COMPANY_HEADERS.haidee;
+  const hasCollection = data.collectionRateMyr > 0;
 
   return (
-    <div className="document-print haidee-market-invoice-print crate-return-invoice-print">
+    <div className="document-print haidee-market-invoice-print crate-return-invoice-print haidee-charter-invoice-document">
       <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
 
       <div className="mode4-tax-invoice-title">INVOICE</div>
@@ -51,56 +53,92 @@ export function CrateReturnMonthlyInvoicePrint({
         </div>
       </div>
 
-      {data.sections.map((section) => (
-        <div key={section.kind} className="monthly-invoice-section">
-          <div className="monthly-invoice-section-title">{section.title}</div>
-          <table className="monthly-invoice-table mode4-tax-invoice-table">
-            <thead>
-              <tr>
-                <th className="mode4-route-col">Description</th>
-                <th className="mode4-route-col">市场 Market</th>
-                <th className="mode4-qty-col">Qty</th>
-                <th className="mode4-rate-col">Rate</th>
-                <th className="mode4-amount-col">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {section.rows.map((row) => (
-                <tr key={`${section.kind}-${row.marketCode}`}>
-                  <td className="text-left">{section.lineDescription}</td>
-                  <td className="text-left">{row.marketLabel}</td>
-                  <td className="text-right">{row.quantity}</td>
-                  <td className="text-right">{row.unitRateMyr.toFixed(2)}</td>
-                  <td className="text-right">{row.amountMyr.toFixed(2)}</td>
-                </tr>
-              ))}
-              <tr className="monthly-invoice-section-total">
-                <td className="text-right" colSpan={2}>
-                  {section.title} 小计 Subtotal
+      <div className="monthly-invoice-section">
+        <div className="monthly-invoice-section-title">
+          回收明细 Crate Return Details
+        </div>
+        <table className="monthly-invoice-table">
+          <thead>
+            <tr>
+              <th className="monthly-invoice-date-col">日期 Date</th>
+              <th className="monthly-invoice-plate-col">车牌 Plate</th>
+              <th className="monthly-invoice-market-col">市场 Market</th>
+              <th className="monthly-invoice-type-col">桶型 Type</th>
+              <th className="monthly-invoice-qty-col">桶数 Qty</th>
+              <th className="monthly-invoice-rate-col">单价 Rate</th>
+              <th className="monthly-invoice-subtotal-col">金额 Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.detailRows.map((row, index) => (
+              <tr
+                key={`${row.tripKey}-${row.chargeKind}-${index}`}
+                className="text-left"
+              >
+                <td className="text-left">{row.tripDateLabel}</td>
+                <td className="text-left font-mono">{row.truckPlate}</td>
+                <td className="text-left">
+                  <div>{row.marketLabel}</div>
+                  {row.chargeLabel ? (
+                    <div className="text-[8pt] font-normal leading-tight">
+                      {row.chargeLabel}
+                    </div>
+                  ) : null}
                 </td>
-                <td className="text-right">{section.totalQty}</td>
+                <td className="text-left">{row.crateType}</td>
+                <td className="text-right">{row.quantity}</td>
+                <td className="text-right">{row.unitRateMyr.toFixed(2)}</td>
+                <td className="text-right">{row.amountMyr.toFixed(2)}</td>
+              </tr>
+            ))}
+
+            {hasCollection ? (
+              <>
+                <tr className="monthly-invoice-section-total">
+                  <td className="text-right" colSpan={4}>
+                    车力费小计 Freight Subtotal
+                  </td>
+                  <td className="text-right">{data.quantity}</td>
+                  <td />
+                  <td className="text-right">
+                    {formatMoney(data.freightAmountMyr, data.currency)}
+                  </td>
+                </tr>
+                <tr className="monthly-invoice-section-total">
+                  <td className="text-right" colSpan={4}>
+                    收桶费小计 Collection Subtotal
+                  </td>
+                  <td className="text-right">{data.quantity}</td>
+                  <td />
+                  <td className="text-right">
+                    {formatMoney(data.collectionAmountMyr, data.currency)}
+                  </td>
+                </tr>
+              </>
+            ) : (
+              <tr className="monthly-invoice-section-total">
+                <td className="text-right" colSpan={4}>
+                  小计 Subtotal
+                </td>
+                <td className="text-right">{data.quantity}</td>
                 <td />
                 <td className="text-right">
-                  {formatMoney(section.totalAmountMyr, data.currency)}
+                  {formatMoney(data.freightAmountMyr, data.currency)}
                 </td>
               </tr>
-            </tbody>
-          </table>
-        </div>
-      ))}
+            )}
 
-      <table className="monthly-invoice-table mode4-tax-invoice-totals">
-        <tbody>
-          <tr className="monthly-invoice-grand-row">
-            <td className="text-right" colSpan={4}>
-              总计 Grand Total
-            </td>
-            <td className="text-right">
-              {formatMoney(data.totalAmountMyr, data.currency)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <tr className="monthly-invoice-grand-row">
+              <td className="text-right" colSpan={6}>
+                总计 Grand Total
+              </td>
+              <td className="text-right">
+                {formatMoney(data.totalAmountMyr, data.currency)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div className="signature-row">
         <span>Prepared by: _______________</span>
