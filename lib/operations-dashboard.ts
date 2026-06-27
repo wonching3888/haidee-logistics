@@ -496,13 +496,6 @@ export function buildOperationsDashboardMetrics(input: {
             detail: "已确认/已审批报销单 upahNaikTongActual；否则 0",
           },
           {
-            key: "charterDriverSalary",
-            label: "包车 — 司机薪资",
-            labelEn: "Charter — Driver Salary",
-            amountMyr: input.charter.costs.charterDriverSalaryMyr,
-            source: "actual",
-          },
-          {
             key: "charterToll",
             label: "包车 — 过路费",
             labelEn: "Charter — Toll",

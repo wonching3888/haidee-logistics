@@ -71,7 +71,6 @@ export function charterOperationsCostGrandTotal(
       totals.charterLkimMyr +
       totals.charterCrateRentalMyr +
       totals.charterUnloadFeeMyr +
-      totals.charterDriverSalaryMyr +
       totals.charterTollMyr +
       totals.charterExtraCostMyr +
       totals.charterOtherCostMyr +
@@ -175,8 +174,6 @@ export async function aggregateCharterOperationsCosts(
       charterUnloadFeeOverride: trip.charterUnloadFeeOverride,
       voucher: voucherByTripId.get(trip.id),
     });
-    totals.charterDriverSalaryMyr +=
-      decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
     totals.charterTollMyr += decimalToNumber(trip.charterTollMyr) ?? 0;
     totals.charterOtherCostMyr += resolveCharterEffectiveOther({
       charterOtherCostMyr: trip.charterOtherCostMyr,
@@ -209,7 +206,7 @@ export async function aggregateCharterOperationsCosts(
   totals.charterLkimMyr = roundMoney(totals.charterLkimMyr);
   totals.charterCrateRentalMyr = roundMoney(totals.charterCrateRentalMyr);
   totals.charterUnloadFeeMyr = roundMoney(totals.charterUnloadFeeMyr);
-  totals.charterDriverSalaryMyr = roundMoney(totals.charterDriverSalaryMyr);
+  totals.charterDriverSalaryMyr = 0;
   totals.charterTollMyr = roundMoney(totals.charterTollMyr);
   totals.charterExtraCostMyr = roundMoney(totals.charterExtraCostMyr);
   totals.charterOtherCostMyr = roundMoney(totals.charterOtherCostMyr);

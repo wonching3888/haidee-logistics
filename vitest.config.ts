@@ -40,6 +40,7 @@ export default defineConfig({
       "lib/driver-payroll-crate-commission.test.ts",
       "lib/driver-payroll-trip-sync.test.ts",
       "lib/payroll-charter-salary.test.ts",
+      "lib/charter-payroll-salary.test.ts",
     ],
   },
   resolve: {

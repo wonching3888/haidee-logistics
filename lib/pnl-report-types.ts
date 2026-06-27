@@ -28,6 +28,8 @@ export interface PnlShipperRow {
   unloadFeeMyr: number;
   loadingLaborMyr: number;
   mcThirdPartyHaulageMyr: number;
+  /** Charter fixed driver salary (payroll charterSalary); embedded in directCostMyr. */
+  driverSalaryMyr?: number;
   directCostMyr: number;
   allocatedFuelMyr: number;
   allocatedMaintenanceMyr: number;
@@ -117,6 +119,7 @@ export interface PnlPeriodSummary {
   /** Reference only (month mode): full-month fleet payroll total cost (net + employer). */
   fleetPayrollTotalMyr: number | null;
   /** Reference only: sum of dispatch trip driverMyr already in period gross profit. */
+  /** Dispatch vehicleCosts.driverMyr + charter shipper driverSalaryMyr already in trip P&L. */
   pnlTripDriverAllowanceMyr: number | null;
   /** Reference only: fleetPayrollTotalMyr − pnlTripDriverAllowanceMyr. */
   fleetPayrollIncrementalMyr: number | null;

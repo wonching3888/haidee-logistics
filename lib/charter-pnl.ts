@@ -6,6 +6,7 @@ import {
   resolveCharterLoadingLabor,
   type CharterVoucherCostContext,
 } from "@/lib/charter-voucher-cost-resolver";
+import { resolveCharterDriverSalaryMyr } from "@/lib/charter-payroll-salary";
 import { decimalToNumber } from "@/lib/freight-rates";
 import {
   computeTripTruckCosts,
@@ -62,6 +63,8 @@ export interface CharterTripPnlInput {
   totalQuantity: number | null;
   computedLkimMyr: unknown;
   computedCrateRentalMyr: unknown;
+  /** When set (including 0), driver salary comes from payroll sync. */
+  payrollCharterSalaryMyr?: number;
   truck: {
     plate: string;
     fuelEfficiencyKmPerL: unknown;
@@ -129,7 +132,11 @@ export function computeCharterPnlRow(
     charterUnloadFeeOverride: trip.charterUnloadFeeOverride,
     voucher,
   });
-  const driverSalaryMyr = decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
+  const { driverSalaryMyr } = resolveCharterDriverSalaryMyr(
+    trip,
+    trip.payrollCharterSalaryMyr,
+    { warnOnFallback: true }
+  );
   const otherCostMyr = resolveCharterEffectiveOther({
     charterOtherCostMyr: trip.charterOtherCostMyr,
     charterOtherCostOverride: trip.charterOtherCostOverride,
@@ -217,6 +224,7 @@ export function computeCharterPnlRow(
     unloadFeeMyr,
     loadingLaborMyr,
     mcThirdPartyHaulageMyr: 0,
+    driverSalaryMyr,
     directCostMyr: shipperDirectCoreMyr,
     allocatedFuelMyr: truckCosts.fuelMyr,
     allocatedMaintenanceMyr: truckCosts.maintenanceMyr,

@@ -18,6 +18,7 @@ import {
   normalizeCharterBillToKey,
   type CharterTripPnlInput,
 } from "@/lib/charter-pnl";
+import { attachPayrollCharterSalaries } from "@/lib/charter-payroll-salary";
 import { loadCharterVoucherContextByTripId } from "@/lib/charter-voucher-cost-resolver";
 import {
   inboundLineStoredSnapshot,
@@ -444,7 +445,9 @@ async function computeCharterPnlRowsForFilters(input: {
 }): Promise<PnlTripRow[]> {
   if (input.routeFilter !== "ALL") return [];
 
-  const charters = await loadCharterTripsForPnl(input.start, input.end);
+  const charters = await attachPayrollCharterSalaries(
+    await loadCharterTripsForPnl(input.start, input.end)
+  );
   const voucherByTripId = await loadCharterVoucherContextByTripId(
     charters.map((charter) => charter.id)
   );
@@ -804,11 +807,23 @@ function buildPeriodSummaryFromTrips(input: {
   };
 }
 
-function sumPnlTripDriverAllowanceMyr(trips: PnlTripRow[]): number {
+function sumPnlEmbeddedDriverCompMyr(trips: PnlTripRow[]): number {
   return roundMoney(
-    trips
-      .filter((trip) => trip.tripSource === "dispatch")
-      .reduce((sum, trip) => sum + trip.vehicleCosts.driverMyr, 0)
+    trips.reduce((sum, trip) => {
+      if (trip.tripSource === "dispatch") {
+        return sum + trip.vehicleCosts.driverMyr;
+      }
+      if (trip.tripSource === "charter") {
+        return (
+          sum +
+          trip.shippers.reduce(
+            (shipperSum, shipper) => shipperSum + (shipper.driverSalaryMyr ?? 0),
+            0
+          )
+        );
+      }
+      return sum;
+    }, 0)
   );
 }
 
@@ -1633,7 +1648,9 @@ async function appendCharterCustomerMarketRows(input: {
   >;
 }) {
   const { start, end } = getMonthDateRange(input.year, input.month);
-  const charters = await loadCharterTripsForPnl(start, end);
+  const charters = await attachPayrollCharterSalaries(
+    await loadCharterTripsForPnl(start, end)
+  );
 
   const matched = charters.filter((trip) => {
     if (trip.shipper?.id === input.shipperId) return true;
@@ -1965,11 +1982,12 @@ export async function buildPnlTripDetail(input: {
   const ctx = await loadPnlComputationContext(input.year, input.month);
 
   if (charter) {
+    const [withPayroll] = await attachPayrollCharterSalaries([charter]);
     const voucherByTripId = await loadCharterVoucherContextByTripId([
       charter.id,
     ]);
     const trip = computeCharterPnlRow(
-      charter,
+      withPayroll,
       ctx.globalCosts,
       voucherByTripId.get(charter.id)
     );
@@ -2121,9 +2139,10 @@ async function enrichPeriodSummaryWithFleetPayroll(
 ): Promise<PnlPeriodSummary> {
   const payroll = await loadFleetPayrollAggregate(year, month, { sync: false });
   const fleetPayrollTotalMyr = roundMoney(payroll.totalCostMyr);
-  const pnlTripDriverAllowanceMyr = sumPnlTripDriverAllowanceMyr(trips);
+  const pnlTripDriverAllowanceMyr = sumPnlEmbeddedDriverCompMyr(trips);
   const payrollVariableAllowanceMyr = roundMoney(
     payroll.totals.tripAllowanceTotal +
+      payroll.totals.charterSalaryTotal +
       payroll.totals.crateCommissionTotal +
       payroll.totals.extraAllowanceTotal
   );

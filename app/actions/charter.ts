@@ -52,6 +52,7 @@ import {
   computeCharterPnlRow,
   type CharterTripPnlInput,
 } from "@/lib/charter-pnl";
+import { attachPayrollCharterSalaries } from "@/lib/charter-payroll-salary";
 import { loadCharterVoucherContextByTripId } from "@/lib/charter-voucher-cost-resolver";
 import { loadGlobalTripCostValues } from "@/lib/operations-cost";
 import { canViewInvoiceAmounts } from "@/lib/auth-roles";
@@ -746,9 +747,10 @@ export async function getCharterMonthlyLedger(input: {
   const voucherByTripId = await loadCharterVoucherContextByTripId(
     dbRows.map((trip) => trip.id)
   );
+  const rowsWithPayroll = await attachPayrollCharterSalaries(dbRows);
 
   const rows: CharterMonthlyLedgerRow[] = [];
-  for (const trip of dbRows) {
+  for (const trip of rowsWithPayroll) {
     const pnlRow = computeCharterPnlRow(
       trip,
       globalCosts,

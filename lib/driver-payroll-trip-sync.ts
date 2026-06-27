@@ -408,7 +408,7 @@ export async function syncDriverPayrollTripForDispatch(
 
 /**
  * Charter payroll row: tripAllowance stays 0; charterSalary from charterDriverSalaryMyr;
- * crate-return commission only. charterDriverSalaryMyr remains on charter P&L until Step 2+3.
+ * crate-return commission only. P&L/ops read payroll charterSalary (Step 2+3).
  */
 export async function syncDriverPayrollTripForCharter(
   charterTripId: string

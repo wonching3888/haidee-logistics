@@ -57,8 +57,8 @@ describe("charterSalary in payroll gross", () => {
   });
 });
 
-describe("company payroll cost isolation (Step 1)", () => {
-  it("excludes charterSalary from company totalCostMyr", () => {
+describe("company payroll includes charterSalary (Step 2+3)", () => {
+  it("includes charterSalary in company gross and totalCostMyr", () => {
     const trips = [
       {
         tripAllowance: 0,
@@ -80,10 +80,8 @@ describe("company payroll cost isolation (Step 1)", () => {
     });
 
     expect(full.grossSalary).toBe(210);
-    expect(company.grossSalary).toBe(0);
-    expect(payrollCompanyCostMyr(full)).toBeGreaterThan(
-      payrollCompanyCostMyr(company)
-    );
+    expect(company.grossSalary).toBe(210);
+    expect(payrollCompanyCostMyr(company)).toBe(payrollCompanyCostMyr(full));
 
     const row = payrollSummaryToRow(driver, full, true);
     const aggregate = aggregateFleetPayrollRows(
@@ -91,13 +89,12 @@ describe("company payroll cost isolation (Step 1)", () => {
       new Map([[driver.id, payrollCompanyCostMyr(company)]])
     );
 
-    expect(aggregate.driverTotalCostMyr).toBeGreaterThan(0);
     expect(aggregate.totalCostMyr).toBe(payrollCompanyCostMyr(company));
-    expect(aggregate.totalCostMyr).toBeLessThan(aggregate.driverTotalCostMyr);
+    expect(aggregate.driverTotalCostMyr).toBe(payrollCompanyCostMyr(full));
   });
 
-  it("matches pre-charter company cost when only charter salary added", () => {
-    const withoutCharter = buildPayrollSummary({
+  it("adds charter salary to company cost vs commission-only baseline", () => {
+    const commissionOnly = buildPayrollSummary({
       earnings: {
         baseSalary: 0,
         tripAllowanceTotal: 0,
@@ -111,7 +108,7 @@ describe("company payroll cost isolation (Step 1)", () => {
       childCount: 0,
     });
 
-    const withCharterCompany = buildCompanyPayrollSummaryFromRecords({
+    const withCharter = buildCompanyPayrollSummaryFromRecords({
       driver,
       trips: [
         {
@@ -124,8 +121,8 @@ describe("company payroll cost isolation (Step 1)", () => {
       extras: [],
     });
 
-    expect(payrollCompanyCostMyr(withCharterCompany)).toBe(
-      payrollCompanyCostMyr(withoutCharter)
+    expect(payrollCompanyCostMyr(withCharter)).toBeGreaterThan(
+      payrollCompanyCostMyr(commissionOnly)
     );
   });
 });

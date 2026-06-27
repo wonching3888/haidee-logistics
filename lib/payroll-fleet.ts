@@ -70,7 +70,7 @@ export interface FleetPayrollAggregate {
   totals: Omit<DriverPayrollSummaryRow, "driverId" | "hasMonthRecord">;
   netMyr: number;
   employerMyr: number;
-  /** Company-cost payroll (excludes charter fixed salary until P&L Step 2+3). Used by ops/P&L. */
+  /** Company-cost payroll (net + employer). Used by ops/P&L. */
   totalCostMyr: number;
   /** Full driver payroll cost incl. charter salary + statutory on it. For driver payroll UI. */
   driverTotalCostMyr: number;
@@ -158,7 +158,7 @@ export function buildDriverPayrollSummaryFromRecords(input: {
   });
 }
 
-/** Company-cost summary: excludes charter fixed salary from gross (Step 1 isolation). */
+/** Company-cost summary (includes charterSalary — Step 2+3 single source via payroll). */
 export function buildCompanyPayrollSummaryFromRecords(input: {
   driver: DriverPayrollDriverInput;
   trips: DriverPayrollMonthInput["trips"];
@@ -166,9 +166,7 @@ export function buildCompanyPayrollSummaryFromRecords(input: {
   overrides?: DriverPayrollOverridesInput;
 }): PayrollSummary {
   return buildPayrollSummary({
-    earnings: earningsFromTrips(input.driver, input.trips, input.extras, {
-      excludeCharterSalary: true,
-    }),
+    earnings: earningsFromTrips(input.driver, input.trips, input.extras),
     maritalStatus: input.driver.maritalStatus,
     childCount: input.driver.childCount,
     overrides: statutoryOverridesFromInput(input.overrides),
