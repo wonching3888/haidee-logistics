@@ -318,7 +318,7 @@ export function SettingsClient({
         </p>
       )}
 
-      <div className="min-h-[560px] w-full overflow-hidden rounded-xl border border-haidee-border bg-white">
+      <div className="min-h-[560px] w-full min-w-0 overflow-x-auto overflow-y-visible rounded-xl border border-haidee-border bg-white">
         <div className="border-b border-haidee-border px-4 py-3">
           <h3 className="text-lg font-semibold text-haidee-text">
             {sectionTitle.label}{" "}

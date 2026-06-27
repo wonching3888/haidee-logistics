@@ -59,10 +59,14 @@ body,
 @media (max-width: 767px) {
   .scroll-matrix-natural-mobile {
     overflow: visible !important;
+    flex: none !important;
+    min-height: auto !important;
   }
 
   .scroll-matrix-natural-mobile > div {
     overflow: visible !important;
+    flex: none !important;
+    min-height: auto !important;
   }
 
   .scroll-matrix-natural-mobile .scroll-matrix-table {
@@ -70,6 +74,13 @@ body,
     max-height: none !important;
     overflow-x: auto !important;
     overflow-y: visible !important;
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+
+  .scroll-matrix-natural-mobile .scroll-matrix-table [data-slot="table"] {
+    width: max-content;
+    min-width: 100%;
   }
 }

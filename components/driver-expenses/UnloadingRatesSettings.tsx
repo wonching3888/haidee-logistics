@@ -5,14 +5,13 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { useT } from "@/components/shared/locale-context";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -402,10 +401,9 @@ export function UnloadingRatesSettings() {
           {error}
         </p>
       )}
-      <ScrollMatrixTable heightOffset={280}>
-        <Table>
-          <TableHeader>
-            <TableRow>
+      <WideTableScrollArea heightOffset={280}>
+        <TableHeader>
+          <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>{t("driverExpenses.unloading.marketCol")}</TableHead>
               {NUMERIC_FIELDS.map((field) => (
                 <TableHead key={field} className="text-right">
@@ -513,8 +511,7 @@ export function UnloadingRatesSettings() {
               );
             })}
           </TableBody>
-        </Table>
-      </ScrollMatrixTable>
+      </WideTableScrollArea>
     </div>
   );
 }

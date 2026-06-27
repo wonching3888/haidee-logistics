@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
 import { useT } from "@/components/shared/locale-context";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -98,18 +97,17 @@ export function VoucherTodoPanel({
           {t("driverExpenses.empty.noTodo")}
         </p>
       ) : (
-        <ScrollMatrixTable heightOffset={420}>
-          <Table>
-            <TableHeader>
-              <TableRow>
+        <WideTableScrollArea heightOffset={420}>
+          <TableHeader>
+            <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>{t("driverExpenses.col.date")}</TableHead>
                 <TableHead>{t("driverExpenses.col.referenceNo")}</TableHead>
                 <TableHead>{t("driverExpenses.col.plate")}</TableHead>
                 <TableHead>{t("driverExpenses.col.driver")}</TableHead>
                 <TableHead>{t("driverExpenses.col.route")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
-                <TableHead>{t("driverExpenses.col.unsettledDays")}</TableHead>
                 <TableHead className="w-28">{t("common.actions")}</TableHead>
+                <TableHead>{t("driverExpenses.col.unsettledDays")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -123,6 +121,14 @@ export function VoucherTodoPanel({
                   <TableCell>{item.driverName || "—"}</TableCell>
                   <TableCell>{item.route}</TableCell>
                   <TableCell>{todoStatusBadge(item)}</TableCell>
+                  <TableCell>
+                    <Link
+                      href={buildTodoHref(item)}
+                      className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
+                    >
+                      {todoActionLabel(item, canWrite, isAdmin, t)}
+                    </Link>
+                  </TableCell>
                   <TableCell
                     className={cn(
                       "text-sm",
@@ -134,19 +140,10 @@ export function VoucherTodoPanel({
                       days: String(item.unsettledDays),
                     })}
                   </TableCell>
-                  <TableCell>
-                    <Link
-                      href={buildTodoHref(item)}
-                      className="inline-flex h-8 items-center rounded-lg border border-input px-2.5 text-sm hover:bg-accent"
-                    >
-                      {todoActionLabel(item, canWrite, isAdmin, t)}
-                    </Link>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </ScrollMatrixTable>
+        </WideTableScrollArea>
       )}
     </div>
   );

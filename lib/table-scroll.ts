@@ -102,6 +102,11 @@ export const STICKY_BODY_CONSIGNOR = cn(
 export const stickyRowHoverBodyClass =
   "bg-white group-hover:bg-haidee-surface/50";
 
+/** Sticky header row only (no pinned first column). */
+export const stickyHeaderRowTableClass = cn(
+  "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-20 [&_thead_th]:bg-haidee-surface [&_thead_th]:shadow-[0_1px_0_0] [&_thead_th]:shadow-haidee-border"
+);
+
 /** Apply sticky first column to shadcn Table via descendant selectors */
 export const stickyFirstColTableClass = cn(
   "[&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:top-0 [&_thead_th:first-child]:z-30 [&_thead_th:first-child]:bg-haidee-surface",

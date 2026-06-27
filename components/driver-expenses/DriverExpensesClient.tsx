@@ -39,7 +39,7 @@ function ModuleCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
+    <section className="min-w-0 overflow-x-auto overflow-y-visible rounded-xl border border-haidee-border bg-white shadow-sm">
       <header className="border-b border-haidee-border bg-haidee-surface/40 px-4 py-3">
         <h3 className="font-semibold text-haidee-text">{title}</h3>
       </header>

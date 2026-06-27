@@ -5,10 +5,9 @@ import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
+import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
 import { useT } from "@/components/shared/locale-context";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -146,10 +145,9 @@ export function VoucherHistoryPanel({
           {t("driverExpenses.empty.noHistory")}
         </p>
       ) : (
-        <ScrollMatrixTable heightOffset={420}>
-          <Table>
-            <TableHeader>
-              <TableRow>
+        <WideTableScrollArea heightOffset={420}>
+          <TableHeader>
+            <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 <TableHead>{t("driverExpenses.col.voucherNo")}</TableHead>
                 <TableHead>{t("driverExpenses.col.date")}</TableHead>
                 <TableHead>{t("driverExpenses.col.plate")}</TableHead>
@@ -189,8 +187,7 @@ export function VoucherHistoryPanel({
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </ScrollMatrixTable>
+        </WideTableScrollArea>
       )}
     </div>
   );

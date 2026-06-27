@@ -26,7 +26,7 @@ export function ScrollMatrixTable({
   children,
   heightOffset = 260,
   fillParent = false,
-  naturalHeightOnMobile = false,
+  naturalHeightOnMobile = true,
   className,
   innerClassName,
   style,
@@ -35,12 +35,14 @@ export function ScrollMatrixTable({
     ? getMatrixTableFillParentScrollStyle()
     : getMatrixTableScrollStyle(heightOffset);
 
+  const useNaturalMobile = naturalHeightOnMobile && !fillParent;
+
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white",
+        "scroll-matrix-root flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-haidee-border bg-white",
         fillParent && "h-full",
-        naturalHeightOnMobile && "scroll-matrix-natural-mobile",
+        useNaturalMobile && "scroll-matrix-natural-mobile",
         className
       )}
     >
