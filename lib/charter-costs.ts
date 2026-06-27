@@ -83,21 +83,45 @@ export function computeCharterCrateRentalMyr(
   return roundMoney(total);
 }
 
-export function computeCharterBorderFeesMyr(
+export type CharterGlobalBorderCosts = {
+  borderPass: number;
+  epermit: number;
+  dagangNet: number;
+  forwardingOutbound: number;
+};
+
+/** Border pass portion only (Chop/Border voucher actual replaces this when eligible). */
+export function computeCharterBorderPassMyr(
   includeBorderFees: boolean,
-  globalCosts: {
-    borderPass: number;
-    epermit: number;
-    dagangNet: number;
-    forwardingOutbound: number;
-  }
+  globalCosts: Pick<CharterGlobalBorderCosts, "borderPass">
+): number {
+  if (!includeBorderFees) return 0;
+  return roundMoney(globalCosts.borderPass);
+}
+
+/** epermit + dagang + forwarding — never overridden by voucher actuals. */
+export function computeCharterBorderFeesExceptPassMyr(
+  includeBorderFees: boolean,
+  globalCosts: Pick<
+    CharterGlobalBorderCosts,
+    "epermit" | "dagangNet" | "forwardingOutbound"
+  >
 ): number {
   if (!includeBorderFees) return 0;
   return roundMoney(
-    globalCosts.borderPass +
-      globalCosts.epermit +
+    globalCosts.epermit +
       globalCosts.dagangNet +
       globalCosts.forwardingOutbound
+  );
+}
+
+export function computeCharterBorderFeesMyr(
+  includeBorderFees: boolean,
+  globalCosts: CharterGlobalBorderCosts
+): number {
+  return roundMoney(
+    computeCharterBorderPassMyr(includeBorderFees, globalCosts) +
+      computeCharterBorderFeesExceptPassMyr(includeBorderFees, globalCosts)
   );
 }
 

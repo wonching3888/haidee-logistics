@@ -34,17 +34,19 @@ function createMockTx(state: {
 }
 
 describe("applyCharterVoucherCostActuals", () => {
-  it("writes unload and other actuals to override columns", async () => {
+  it("writes border/unload/other actuals to override columns", async () => {
     const state = {
       voucher: {
         id: "v1",
         tripId: "trip-1",
         tripSource: "charter",
+        chopBorderActual: 30,
         upahTurunActual: 280,
         otherActual: 20,
       },
       charterTrip: {
         id: "trip-1",
+        charterBorderPassOverride: null,
         charterUnloadFeeOverride: null,
         charterOtherCostOverride: null,
       },
@@ -56,10 +58,12 @@ describe("applyCharterVoucherCostActuals", () => {
     expect(tx.charterTrip.update).toHaveBeenCalledWith({
       where: { id: "trip-1" },
       data: {
+        charterBorderPassOverride: 30,
         charterUnloadFeeOverride: 280,
         charterOtherCostOverride: 20,
       },
     });
+    expect(state.charterTrip.charterBorderPassOverride).toBe(30);
     expect(state.charterTrip.charterUnloadFeeOverride).toBe(280);
     expect(state.charterTrip.charterOtherCostOverride).toBe(20);
   });
@@ -83,7 +87,7 @@ describe("applyCharterVoucherCostActuals", () => {
 });
 
 describe("clearCharterVoucherCostActuals", () => {
-  it("clears unload and other override columns", async () => {
+  it("clears border/unload/other override columns", async () => {
     const state = {
       voucher: {
         id: "v1",
@@ -92,6 +96,7 @@ describe("clearCharterVoucherCostActuals", () => {
       },
       charterTrip: {
         id: "trip-1",
+        charterBorderPassOverride: 30,
         charterUnloadFeeOverride: 280,
         charterOtherCostOverride: 20,
       },
@@ -103,10 +108,12 @@ describe("clearCharterVoucherCostActuals", () => {
     expect(tx.charterTrip.update).toHaveBeenCalledWith({
       where: { id: "trip-1" },
       data: {
+        charterBorderPassOverride: null,
         charterUnloadFeeOverride: null,
         charterOtherCostOverride: null,
       },
     });
+    expect(state.charterTrip.charterBorderPassOverride).toBeNull();
     expect(state.charterTrip.charterUnloadFeeOverride).toBeNull();
     expect(state.charterTrip.charterOtherCostOverride).toBeNull();
   });

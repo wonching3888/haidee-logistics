@@ -1,5 +1,11 @@
+import {
+  computeCharterBorderFeesExceptPassMyr,
+  computeCharterBorderPassMyr,
+  type CharterGlobalBorderCosts,
+} from "@/lib/charter-costs";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
+import type { GlobalTripCostValues } from "@/lib/operations-cost";
 
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -56,6 +62,39 @@ export function resolveCharterEffectiveOther(input: {
   const override = decimalToNumber(input.charterOtherCostOverride);
   const eligible = isCharterCostEligible(input.voucher);
   return resolveCharterScalarCost(override, estimate, eligible);
+}
+
+/** Border pass only; epermit/dagang/forwarding are never overridden. */
+export function resolveCharterEffectiveBorderPass(input: {
+  includeBorderFees: boolean;
+  charterBorderPassOverride: unknown;
+  globalCosts: Pick<CharterGlobalBorderCosts, "borderPass">;
+  voucher?: CharterVoucherCostContext | null;
+}): number {
+  if (!input.includeBorderFees) return 0;
+  const estimate = computeCharterBorderPassMyr(true, input.globalCosts);
+  const override = decimalToNumber(input.charterBorderPassOverride);
+  const eligible = isCharterCostEligible(input.voucher);
+  return resolveCharterScalarCost(override, estimate, eligible);
+}
+
+export function computeCharterEffectiveBorderFeesMyr(input: {
+  includeBorderFees: boolean;
+  charterBorderPassOverride: unknown;
+  globalCosts: GlobalTripCostValues;
+  voucher?: CharterVoucherCostContext | null;
+}): number {
+  const effectivePass = resolveCharterEffectiveBorderPass({
+    includeBorderFees: input.includeBorderFees,
+    charterBorderPassOverride: input.charterBorderPassOverride,
+    globalCosts: input.globalCosts,
+    voucher: input.voucher,
+  });
+  const exceptPass = computeCharterBorderFeesExceptPassMyr(
+    input.includeBorderFees,
+    input.globalCosts
+  );
+  return roundMoney(effectivePass + exceptPass);
 }
 
 /** Assert other cost is chosen from one source only (never estimate + actual). */

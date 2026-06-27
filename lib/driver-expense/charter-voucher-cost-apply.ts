@@ -3,7 +3,7 @@ import { invalidatePnlTripsCache } from "@/lib/pnl-cache-invalidation";
 
 /**
  * Confirm/approve (charter): write voucher actuals to charter override columns.
- * Border / loading labor overrides are handled in later batches.
+ * Loading labor override is handled in batch 5.
  */
 export async function applyCharterVoucherCostActuals(
   voucherId: string,
@@ -15,6 +15,7 @@ export async function applyCharterVoucherCostActuals(
       id: true,
       tripId: true,
       tripSource: true,
+      chopBorderActual: true,
       upahTurunActual: true,
       otherActual: true,
     },
@@ -29,6 +30,7 @@ export async function applyCharterVoucherCostActuals(
   await tx.charterTrip.update({
     where: { id: voucher.tripId },
     data: {
+      charterBorderPassOverride: voucher.chopBorderActual,
       charterUnloadFeeOverride: voucher.upahTurunActual,
       charterOtherCostOverride: voucher.otherActual,
     },
@@ -58,6 +60,7 @@ export async function clearCharterVoucherCostActuals(
   await tx.charterTrip.update({
     where: { id: voucher.tripId },
     data: {
+      charterBorderPassOverride: null,
       charterUnloadFeeOverride: null,
       charterOtherCostOverride: null,
     },

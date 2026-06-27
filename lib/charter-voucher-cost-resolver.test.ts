@@ -2,12 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   assertCharterOtherNotDoubleCounted,
   assertCharterUnloadNotDoubleCounted,
+  computeCharterEffectiveBorderFeesMyr,
   isCharterCostEligible,
+  resolveCharterEffectiveBorderPass,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
   resolveCharterScalarCost,
   type CharterVoucherCostContext,
 } from "@/lib/charter-voucher-cost-resolver";
+import {
+  computeCharterBorderFeesExceptPassMyr,
+  computeCharterBorderFeesMyr,
+  computeCharterBorderPassMyr,
+} from "@/lib/charter-costs";
 import {
   computeCharterPnlRow,
   type CharterTripPnlInput,
@@ -49,6 +56,7 @@ function minimalCharterTrip(
     charterRevenueMyr: 1000,
     charterUnloadFeeMyr: 350,
     charterUnloadFeeOverride: null,
+    charterBorderPassOverride: null,
     charterDriverSalaryMyr: 200,
     charterOtherCostMyr: 0,
     charterOtherCostOverride: null,
@@ -366,5 +374,206 @@ describe("computeCharterPnlRow unload + other same voucher", () => {
     expect(actualRow.totalCostMyr).not.toBe(
       estimateRow.totalCostMyr + 280 + 20
     );
+  });
+});
+
+const BORDER_GLOBAL: GlobalTripCostValues = {
+  fuelPriceMyr: 2.5,
+  borderPass: 25,
+  epermit: 10,
+  dagangNet: 5,
+  forwardingOutbound: 5,
+};
+
+describe("computeCharterBorderFees split", () => {
+  it("pass + exceptPass equals full border fees", () => {
+    expect(computeCharterBorderPassMyr(true, BORDER_GLOBAL)).toBe(25);
+    expect(computeCharterBorderFeesExceptPassMyr(true, BORDER_GLOBAL)).toBe(20);
+    expect(computeCharterBorderFeesMyr(true, BORDER_GLOBAL)).toBe(45);
+  });
+
+  it("includeBorderFees=false yields zero for all parts", () => {
+    expect(computeCharterBorderPassMyr(false, BORDER_GLOBAL)).toBe(0);
+    expect(computeCharterBorderFeesExceptPassMyr(false, BORDER_GLOBAL)).toBe(0);
+    expect(computeCharterBorderFeesMyr(false, BORDER_GLOBAL)).toBe(0);
+  });
+});
+
+describe("resolveCharterEffectiveBorderPass", () => {
+  it("no eligible voucher uses global pass estimate", () => {
+    expect(
+      resolveCharterEffectiveBorderPass({
+        includeBorderFees: true,
+        charterBorderPassOverride: null,
+        globalCosts: BORDER_GLOBAL,
+      })
+    ).toBe(25);
+  });
+
+  it("confirmed override 30 replaces pass only (not added to 25)", () => {
+    const effective = resolveCharterEffectiveBorderPass({
+      includeBorderFees: true,
+      charterBorderPassOverride: 30,
+      globalCosts: BORDER_GLOBAL,
+      voucher: charterVoucher(),
+    });
+    expect(effective).toBe(30);
+    expect(effective).not.toBe(55);
+  });
+
+  it("includeBorderFees=false returns 0 even with override and eligible voucher (read-time zero)", () => {
+    expect(
+      resolveCharterEffectiveBorderPass({
+        includeBorderFees: false,
+        charterBorderPassOverride: 30,
+        globalCosts: BORDER_GLOBAL,
+        voucher: charterVoucher(),
+      })
+    ).toBe(0);
+  });
+
+  it("rejected voucher falls back to estimate pass", () => {
+    expect(
+      resolveCharterEffectiveBorderPass({
+        includeBorderFees: true,
+        charterBorderPassOverride: 30,
+        globalCosts: BORDER_GLOBAL,
+        voucher: charterVoucher({ status: "rejected", costAppliedAt: null }),
+      })
+    ).toBe(25);
+  });
+});
+
+describe("computeCharterEffectiveBorderFeesMyr", () => {
+  it("pass25 epermit10 dagang5 fwd5 → total 45 without voucher", () => {
+    expect(
+      computeCharterEffectiveBorderFeesMyr({
+        includeBorderFees: true,
+        charterBorderPassOverride: null,
+        globalCosts: BORDER_GLOBAL,
+      })
+    ).toBe(45);
+  });
+
+  it("chop30 confirmed → total 50 (30+10+5+5), not 75 or 30 alone", () => {
+    const total = computeCharterEffectiveBorderFeesMyr({
+      includeBorderFees: true,
+      charterBorderPassOverride: 30,
+      globalCosts: BORDER_GLOBAL,
+      voucher: charterVoucher(),
+    });
+    expect(total).toBe(50);
+    expect(total).not.toBe(75);
+    expect(total).not.toBe(30);
+  });
+
+  it("epermit/dagang/forwarding unchanged when chop changes pass", () => {
+    const base = computeCharterEffectiveBorderFeesMyr({
+      includeBorderFees: true,
+      charterBorderPassOverride: null,
+      globalCosts: BORDER_GLOBAL,
+    });
+    const actual = computeCharterEffectiveBorderFeesMyr({
+      includeBorderFees: true,
+      charterBorderPassOverride: 30,
+      globalCosts: BORDER_GLOBAL,
+      voucher: charterVoucher(),
+    });
+    expect(actual - base).toBe(5);
+    expect(computeCharterBorderFeesExceptPassMyr(true, BORDER_GLOBAL)).toBe(20);
+  });
+
+  it("includeBorderFees=false → border total 0", () => {
+    expect(
+      computeCharterEffectiveBorderFeesMyr({
+        includeBorderFees: false,
+        charterBorderPassOverride: 30,
+        globalCosts: BORDER_GLOBAL,
+        voucher: charterVoucher(),
+      })
+    ).toBe(0);
+  });
+});
+
+describe("computeCharterPnlRow border pass override", () => {
+  function borderTrip(
+    overrides: Partial<CharterTripPnlInput> = {}
+  ): CharterTripPnlInput {
+    return minimalCharterTrip({
+      includeBorderFees: true,
+      ...overrides,
+    });
+  }
+
+  it("no voucher: border fees total 45, pass=25", () => {
+    const row = computeCharterPnlRow(borderTrip(), BORDER_GLOBAL)!;
+    expect(row.vehicleCosts.borderPassMyr).toBe(25);
+    expect(row.vehicleCosts.epermitMyr).toBe(10);
+    expect(row.vehicleCosts.dagangNetMyr).toBe(5);
+    expect(row.vehicleCosts.forwardingMyr).toBe(5);
+    const borderInAllocated =
+      row.vehicleCosts.borderPassMyr +
+      row.vehicleCosts.epermitMyr +
+      row.vehicleCosts.dagangNetMyr +
+      row.vehicleCosts.forwardingMyr;
+    expect(borderInAllocated).toBe(45);
+  });
+
+  it("confirmed chop30: totalCost delta +5 vs estimate", () => {
+    const estimateRow = computeCharterPnlRow(borderTrip(), BORDER_GLOBAL)!;
+    const actualRow = computeCharterPnlRow(
+      borderTrip({ charterBorderPassOverride: 30 }),
+      BORDER_GLOBAL,
+      charterVoucher()
+    )!;
+    expect(actualRow.vehicleCosts.borderPassMyr).toBe(30);
+    expect(actualRow.vehicleCosts.epermitMyr).toBe(10);
+    expect(actualRow.totalCostMyr).toBe(estimateRow.totalCostMyr + 5);
+  });
+
+  it("includeBorderFees=false: pass=0 and border total=0 despite override column", () => {
+    const row = computeCharterPnlRow(
+      borderTrip({
+        includeBorderFees: false,
+        charterBorderPassOverride: 30,
+      }),
+      BORDER_GLOBAL,
+      charterVoucher()
+    )!;
+    expect(row.vehicleCosts.borderPassMyr).toBe(0);
+    expect(row.vehicleCosts.epermitMyr).toBe(0);
+    expect(row.vehicleCosts.dagangNetMyr).toBe(0);
+    expect(row.vehicleCosts.forwardingMyr).toBe(0);
+  });
+});
+
+describe("computeCharterPnlRow unload + other + border same voucher", () => {
+  it("totalCost delta equals sum of independent pass/unload/other deltas", () => {
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        includeBorderFees: true,
+        charterOtherCostMyr: 50,
+      }),
+      BORDER_GLOBAL
+    )!;
+    const actualRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        includeBorderFees: true,
+        charterUnloadFeeOverride: 280,
+        charterOtherCostOverride: 20,
+        charterBorderPassOverride: 30,
+        charterOtherCostMyr: 50,
+      }),
+      BORDER_GLOBAL,
+      charterVoucher()
+    )!;
+
+    const unloadDelta = 280 - 350;
+    const otherDelta = 20 - 50;
+    const borderDelta = 30 - 25;
+    expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(
+      unloadDelta + otherDelta + borderDelta
+    );
+    expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(-95);
   });
 });

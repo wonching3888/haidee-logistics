@@ -1,5 +1,6 @@
-import { computeCharterBorderFeesMyr } from "@/lib/charter-costs";
 import {
+  computeCharterEffectiveBorderFeesMyr,
+  resolveCharterEffectiveBorderPass,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
   type CharterVoucherCostContext,
@@ -51,6 +52,7 @@ export interface CharterTripPnlInput {
   charterRevenueMyr: unknown;
   charterUnloadFeeMyr: unknown;
   charterUnloadFeeOverride: unknown;
+  charterBorderPassOverride: unknown;
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
   charterOtherCostOverride: unknown;
@@ -146,16 +148,23 @@ export function computeCharterPnlRow(
     globalCosts.fuelPriceMyr
   );
 
-  const borderPassMyr = trip.includeBorderFees ? globalCosts.borderPass : 0;
+  const borderPassMyr = resolveCharterEffectiveBorderPass({
+    includeBorderFees: trip.includeBorderFees,
+    charterBorderPassOverride: trip.charterBorderPassOverride,
+    globalCosts,
+    voucher,
+  });
   const epermitMyr = trip.includeBorderFees ? globalCosts.epermit : 0;
   const dagangNetMyr = trip.includeBorderFees ? globalCosts.dagangNet : 0;
   const forwardingMyr = trip.includeBorderFees
     ? globalCosts.forwardingOutbound
     : 0;
-  const borderFeesMyr = computeCharterBorderFeesMyr(
-    trip.includeBorderFees,
-    globalCosts
-  );
+  const borderFeesMyr = computeCharterEffectiveBorderFeesMyr({
+    includeBorderFees: trip.includeBorderFees,
+    charterBorderPassOverride: trip.charterBorderPassOverride,
+    globalCosts,
+    voucher,
+  });
 
   const shipperDirectCoreMyr = roundMoney(
     lkimMyr + crateRentalMyr + driverSalaryMyr + extraCostMyr + otherCostMyr
@@ -251,6 +260,7 @@ export const charterTripPnlSelect = {
   charterRevenueMyr: true,
   charterUnloadFeeMyr: true,
   charterUnloadFeeOverride: true,
+  charterBorderPassOverride: true,
   charterDriverSalaryMyr: true,
   charterOtherCostMyr: true,
   charterOtherCostOverride: true,

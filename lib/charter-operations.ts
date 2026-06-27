@@ -2,10 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import {
-  computeCharterBorderFeesMyr,
-} from "@/lib/charter-costs";
-import {
   loadCharterVoucherContextByTripId,
+  computeCharterEffectiveBorderFeesMyr,
   resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
 } from "@/lib/charter-voucher-cost-resolver";
@@ -186,12 +184,12 @@ export async function aggregateCharterOperationsCosts(
       totals.charterExtraCostMyr += decimalToNumber(item.amountMyr) ?? 0;
     }
 
-    if (trip.includeBorderFees) {
-      totals.charterBorderFeesMyr += computeCharterBorderFeesMyr(
-        true,
-        globalCosts
-      );
-    }
+    totals.charterBorderFeesMyr += computeCharterEffectiveBorderFeesMyr({
+      includeBorderFees: trip.includeBorderFees,
+      charterBorderPassOverride: trip.charterBorderPassOverride,
+      globalCosts,
+      voucher: voucherByTripId.get(trip.id),
+    });
   }
 
   totals.charterTripCount = trips.length;
