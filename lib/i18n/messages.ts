@@ -1196,6 +1196,31 @@ export const MESSAGES = {
     en: "Confirm Save",
     th: "ยืนยันบันทึก",
   },
+  "crateImport.noReturn": {
+    zh: "确认无回桶",
+    en: "No return",
+    th: "ไม่มีลังคืน",
+  },
+  "crateImport.rowState.pending": {
+    zh: "待录",
+    en: "Pending",
+    th: "รอบันทึก",
+  },
+  "crateImport.rowState.recorded": {
+    zh: "已录",
+    en: "Recorded",
+    th: "บันทึกแล้ว",
+  },
+  "crateImport.rowState.noReturn": {
+    zh: "无桶",
+    en: "No crates",
+    th: "ไม่มีลัง",
+  },
+  "crateImport.error.noReturnNeedsMarket": {
+    zh: "确认无回桶时需选择来源市场",
+    en: "Select a source market before confirming no return",
+    th: "กรุณาเลือกตลาดต้นทางก่อนยืนยันว่าไม่มีลังคืน",
+  },
   "crateImport.status.onTheWay": {
     zh: "在途",
     en: "In transit",

@@ -35,6 +35,7 @@ export default defineConfig({
       "lib/trip-cost-engine/trip-cost-facade.test.ts",
       "lib/pnl-month-cache.test.ts",
       "lib/pnl-cache-invalidation.test.ts",
+      "lib/crate-import-rows.test.ts",
       "lib/crate-return-billing.test.ts",
     ],
   },
