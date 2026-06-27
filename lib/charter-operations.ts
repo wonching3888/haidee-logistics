@@ -6,6 +6,7 @@ import {
 } from "@/lib/charter-costs";
 import {
   loadCharterVoucherContextByTripId,
+  resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
 } from "@/lib/charter-voucher-cost-resolver";
 import {
@@ -175,8 +176,11 @@ export async function aggregateCharterOperationsCosts(
     totals.charterDriverSalaryMyr +=
       decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
     totals.charterTollMyr += decimalToNumber(trip.charterTollMyr) ?? 0;
-    totals.charterOtherCostMyr +=
-      decimalToNumber(trip.charterOtherCostMyr) ?? 0;
+    totals.charterOtherCostMyr += resolveCharterEffectiveOther({
+      charterOtherCostMyr: trip.charterOtherCostMyr,
+      charterOtherCostOverride: trip.charterOtherCostOverride,
+      voucher: voucherByTripId.get(trip.id),
+    });
 
     for (const item of trip.extraItems) {
       totals.charterExtraCostMyr += decimalToNumber(item.amountMyr) ?? 0;

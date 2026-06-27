@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
 
 /**
- * Confirm/approve (charter): write upahTurunActual → charterUnloadFeeOverride only.
- * Other override columns are handled in later batches.
+ * Confirm/approve (charter): write voucher actuals to charter override columns.
+ * Border / loading labor overrides are handled in later batches.
  */
 export async function applyCharterVoucherCostActuals(
   voucherId: string,
@@ -15,6 +15,7 @@ export async function applyCharterVoucherCostActuals(
       tripId: true,
       tripSource: true,
       upahTurunActual: true,
+      otherActual: true,
     },
   });
 
@@ -28,13 +29,14 @@ export async function applyCharterVoucherCostActuals(
     where: { id: voucher.tripId },
     data: {
       charterUnloadFeeOverride: voucher.upahTurunActual,
+      charterOtherCostOverride: voucher.otherActual,
     },
   });
 
   return tx.driverVoucher.findUniqueOrThrow({ where: { id: voucherId } });
 }
 
-/** Rejected: clear charter unload override only (batch 2 scope). */
+/** Rejected: clear charter unload/other overrides applied from voucher actuals. */
 export async function clearCharterVoucherCostActuals(
   voucherId: string,
   tx: Prisma.TransactionClient
@@ -52,7 +54,10 @@ export async function clearCharterVoucherCostActuals(
 
   await tx.charterTrip.update({
     where: { id: voucher.tripId },
-    data: { charterUnloadFeeOverride: null },
+    data: {
+      charterUnloadFeeOverride: null,
+      charterOtherCostOverride: null,
+    },
   });
 
   return tx.driverVoucher.findUniqueOrThrow({ where: { id: voucherId } });

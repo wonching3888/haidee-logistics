@@ -34,13 +34,14 @@ function createMockTx(state: {
 }
 
 describe("applyCharterVoucherCostActuals", () => {
-  it("writes upahTurunActual to charterUnloadFeeOverride only", async () => {
+  it("writes unload and other actuals to override columns", async () => {
     const state = {
       voucher: {
         id: "v1",
         tripId: "trip-1",
         tripSource: "charter",
         upahTurunActual: 280,
+        otherActual: 20,
       },
       charterTrip: {
         id: "trip-1",
@@ -54,10 +55,13 @@ describe("applyCharterVoucherCostActuals", () => {
 
     expect(tx.charterTrip.update).toHaveBeenCalledWith({
       where: { id: "trip-1" },
-      data: { charterUnloadFeeOverride: 280 },
+      data: {
+        charterUnloadFeeOverride: 280,
+        charterOtherCostOverride: 20,
+      },
     });
     expect(state.charterTrip.charterUnloadFeeOverride).toBe(280);
-    expect(state.charterTrip.charterOtherCostOverride).toBeNull();
+    expect(state.charterTrip.charterOtherCostOverride).toBe(20);
   });
 
   it("rejects dispatch vouchers", async () => {
@@ -67,6 +71,7 @@ describe("applyCharterVoucherCostActuals", () => {
         tripId: "trip-1",
         tripSource: "dispatch",
         upahTurunActual: 280,
+        otherActual: 20,
       },
       charterTrip: { id: "trip-1", charterUnloadFeeOverride: null },
     });
@@ -78,7 +83,7 @@ describe("applyCharterVoucherCostActuals", () => {
 });
 
 describe("clearCharterVoucherCostActuals", () => {
-  it("clears charterUnloadFeeOverride only", async () => {
+  it("clears unload and other override columns", async () => {
     const state = {
       voucher: {
         id: "v1",
@@ -88,7 +93,7 @@ describe("clearCharterVoucherCostActuals", () => {
       charterTrip: {
         id: "trip-1",
         charterUnloadFeeOverride: 280,
-        charterOtherCostOverride: 99,
+        charterOtherCostOverride: 20,
       },
     };
     const tx = createMockTx(state);
@@ -97,9 +102,12 @@ describe("clearCharterVoucherCostActuals", () => {
 
     expect(tx.charterTrip.update).toHaveBeenCalledWith({
       where: { id: "trip-1" },
-      data: { charterUnloadFeeOverride: null },
+      data: {
+        charterUnloadFeeOverride: null,
+        charterOtherCostOverride: null,
+      },
     });
     expect(state.charterTrip.charterUnloadFeeOverride).toBeNull();
-    expect(state.charterTrip.charterOtherCostOverride).toBe(99);
+    expect(state.charterTrip.charterOtherCostOverride).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { computeCharterBorderFeesMyr } from "@/lib/charter-costs";
 import {
+  resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
   type CharterVoucherCostContext,
 } from "@/lib/charter-voucher-cost-resolver";
@@ -52,6 +53,7 @@ export interface CharterTripPnlInput {
   charterUnloadFeeOverride: unknown;
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
+  charterOtherCostOverride: unknown;
   charterTollMyr: unknown;
   totalQuantity: number | null;
   computedLkimMyr: unknown;
@@ -124,7 +126,11 @@ export function computeCharterPnlRow(
     voucher,
   });
   const driverSalaryMyr = decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
-  const otherCostMyr = decimalToNumber(trip.charterOtherCostMyr) ?? 0;
+  const otherCostMyr = resolveCharterEffectiveOther({
+    charterOtherCostMyr: trip.charterOtherCostMyr,
+    charterOtherCostOverride: trip.charterOtherCostOverride,
+    voucher,
+  });
   const tollMyr = decimalToNumber(trip.charterTollMyr) ?? 0;
   const mileageKm = decimalToNumber(trip.charterMileageKm) ?? 0;
 
@@ -247,6 +253,7 @@ export const charterTripPnlSelect = {
   charterUnloadFeeOverride: true,
   charterDriverSalaryMyr: true,
   charterOtherCostMyr: true,
+  charterOtherCostOverride: true,
   charterTollMyr: true,
   totalQuantity: true,
   computedLkimMyr: true,

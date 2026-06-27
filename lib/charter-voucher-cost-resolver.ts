@@ -47,6 +47,51 @@ export function resolveCharterEffectiveUnload(input: {
   return resolveCharterScalarCost(override, estimate, eligible);
 }
 
+export function resolveCharterEffectiveOther(input: {
+  charterOtherCostMyr: unknown;
+  charterOtherCostOverride: unknown;
+  voucher?: CharterVoucherCostContext | null;
+}): number {
+  const estimate = decimalToNumber(input.charterOtherCostMyr) ?? 0;
+  const override = decimalToNumber(input.charterOtherCostOverride);
+  const eligible = isCharterCostEligible(input.voucher);
+  return resolveCharterScalarCost(override, estimate, eligible);
+}
+
+/** Assert other cost is chosen from one source only (never estimate + actual). */
+export function assertCharterOtherNotDoubleCounted(input: {
+  effectiveOther: number;
+  estimate: number;
+  override: number | null;
+  actual: number | null;
+  eligible: boolean;
+}): void {
+  const expected = resolveCharterScalarCost(
+    input.override,
+    input.estimate,
+    input.eligible
+  );
+  if (input.effectiveOther !== expected) {
+    throw new Error(
+      `effectiveOther ${input.effectiveOther} !== expected ${expected}`
+    );
+  }
+  if (
+    input.eligible &&
+    input.override != null &&
+    input.effectiveOther === roundMoney(input.estimate + input.override)
+  ) {
+    throw new Error("double count: estimate + override");
+  }
+  if (
+    input.eligible &&
+    input.actual != null &&
+    input.effectiveOther === roundMoney(input.estimate + input.actual)
+  ) {
+    throw new Error("double count: estimate + actual");
+  }
+}
+
 /** Assert unload is chosen from one source only (never estimate + actual). */
 export function assertCharterUnloadNotDoubleCounted(input: {
   effectiveUnload: number;

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertCharterOtherNotDoubleCounted,
   assertCharterUnloadNotDoubleCounted,
   isCharterCostEligible,
+  resolveCharterEffectiveOther,
   resolveCharterEffectiveUnload,
   resolveCharterScalarCost,
   type CharterVoucherCostContext,
@@ -49,6 +51,7 @@ function minimalCharterTrip(
     charterUnloadFeeOverride: null,
     charterDriverSalaryMyr: 200,
     charterOtherCostMyr: 0,
+    charterOtherCostOverride: null,
     charterTollMyr: 0,
     totalQuantity: 10,
     computedLkimMyr: 50,
@@ -97,6 +100,59 @@ describe("resolveCharterScalarCost", () => {
     expect(resolveCharterScalarCost(280, 350, true)).toBe(280);
     expect(resolveCharterScalarCost(280, 350, false)).toBe(350);
     expect(resolveCharterScalarCost(null, 350, true)).toBe(350);
+  });
+});
+
+describe("resolveCharterEffectiveOther", () => {
+  it("50 estimate with no eligible voucher stays 50", () => {
+    expect(
+      resolveCharterEffectiveOther({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: null,
+      })
+    ).toBe(50);
+  });
+
+  it("confirmed override 20 replaces estimate (not 70)", () => {
+    const effective = resolveCharterEffectiveOther({
+      charterOtherCostMyr: 50,
+      charterOtherCostOverride: 20,
+      voucher: charterVoucher(),
+    });
+    expect(effective).toBe(20);
+    expect(effective).not.toBe(70);
+    expect(effective).not.toBe(50);
+  });
+
+  it("draft voucher keeps estimate even when override column is set", () => {
+    expect(
+      resolveCharterEffectiveOther({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: 20,
+        voucher: charterVoucher({ status: "draft", costAppliedAt: null }),
+      })
+    ).toBe(50);
+  });
+});
+
+describe("assertCharterOtherNotDoubleCounted", () => {
+  it("passes for eligible override and rejects estimate+actual sum", () => {
+    assertCharterOtherNotDoubleCounted({
+      effectiveOther: 20,
+      estimate: 50,
+      override: 20,
+      actual: 20,
+      eligible: true,
+    });
+    expect(() =>
+      assertCharterOtherNotDoubleCounted({
+        effectiveOther: 70,
+        estimate: 50,
+        override: 20,
+        actual: 20,
+        eligible: true,
+      })
+    ).toThrow(/effectiveOther 70/);
   });
 });
 
@@ -190,5 +246,125 @@ describe("computeCharterPnlRow unload override", () => {
       charterVoucher({ status: "confirmed" })
     );
     expect(trip.charterUnloadFeeMyr).toBe(350);
+  });
+});
+
+describe("computeCharterPnlRow other override", () => {
+  it("no voucher: other=50 from estimate", () => {
+    const row = computeCharterPnlRow(
+      minimalCharterTrip({ charterOtherCostMyr: 50 }),
+      GLOBAL_COSTS
+    )!;
+    expect(row.directCostMyr).toBeGreaterThan(0);
+    const base = computeCharterPnlRow(
+      minimalCharterTrip({ charterOtherCostMyr: 0 }),
+      GLOBAL_COSTS
+    )!;
+    expect(row.directCostMyr - base.directCostMyr).toBe(50);
+  });
+
+  it("confirmed actual 20: totalCost delta -30 vs estimate", () => {
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({ charterOtherCostMyr: 50 }),
+      GLOBAL_COSTS
+    )!;
+    const actualRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: 20,
+      }),
+      GLOBAL_COSTS,
+      charterVoucher()
+    )!;
+
+    expect(actualRow.totalCostMyr).toBe(estimateRow.totalCostMyr - 30);
+    expect(actualRow.totalCostMyr).not.toBe(estimateRow.totalCostMyr + 20);
+  });
+
+  it("rejected voucher falls back to estimate even if override column stale", () => {
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({ charterOtherCostMyr: 50 }),
+      GLOBAL_COSTS
+    )!;
+    const row = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: 20,
+      }),
+      GLOBAL_COSTS,
+      charterVoucher({ status: "rejected", costAppliedAt: null })
+    )!;
+    expect(row.totalCostMyr).toBe(estimateRow.totalCostMyr);
+  });
+
+  it("does not mutate charterOtherCostMyr estimate field in input", () => {
+    const trip = minimalCharterTrip({ charterOtherCostMyr: 50 });
+    computeCharterPnlRow(trip, GLOBAL_COSTS, charterVoucher());
+    expect(trip.charterOtherCostMyr).toBe(50);
+  });
+
+  it("extra cost items stay independent from Other override", () => {
+    const extraItems = [{ itemType: "cost", amountMyr: 25 }];
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+        extraItems,
+      }),
+      GLOBAL_COSTS
+    )!;
+    const actualRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: 20,
+        extraItems,
+      }),
+      GLOBAL_COSTS,
+      charterVoucher()
+    )!;
+    const otherOnlyEstimate = computeCharterPnlRow(
+      minimalCharterTrip({ charterOtherCostMyr: 50 }),
+      GLOBAL_COSTS
+    )!;
+    const otherOnlyActual = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+        charterOtherCostOverride: 20,
+      }),
+      GLOBAL_COSTS,
+      charterVoucher()
+    )!;
+
+    expect(actualRow.totalCostMyr - estimateRow.totalCostMyr).toBe(-30);
+    expect(
+      otherOnlyActual.totalCostMyr - otherOnlyEstimate.totalCostMyr
+    ).toBe(-30);
+    expect(estimateRow.totalCostMyr - otherOnlyEstimate.totalCostMyr).toBe(25);
+    expect(actualRow.totalCostMyr - otherOnlyActual.totalCostMyr).toBe(25);
+  });
+});
+
+describe("computeCharterPnlRow unload + other same voucher", () => {
+  it("each override applies independently without cross double-count", () => {
+    const estimateRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterOtherCostMyr: 50,
+      }),
+      GLOBAL_COSTS
+    )!;
+    const actualRow = computeCharterPnlRow(
+      minimalCharterTrip({
+        charterUnloadFeeOverride: 280,
+        charterOtherCostOverride: 20,
+        charterOtherCostMyr: 50,
+      }),
+      GLOBAL_COSTS,
+      charterVoucher()
+    )!;
+
+    expect(actualRow.shippers[0]!.unloadFeeMyr).toBe(280);
+    expect(actualRow.totalCostMyr).toBe(estimateRow.totalCostMyr - 100);
+    expect(actualRow.totalCostMyr).not.toBe(
+      estimateRow.totalCostMyr + 280 + 20
+    );
   });
 });
