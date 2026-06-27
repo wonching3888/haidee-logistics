@@ -47,6 +47,15 @@ export const STICKY_BODY_ACTIONS =
 
 export const FIRST_COL_WIDTH = "min-w-[160px] max-w-[160px] w-[160px]";
 
+/** Unloading rates market column — wide enough for multi-line zh/en notes. */
+export const UNLOADING_MARKET_COL_WIDTH =
+  "min-w-[11rem] max-w-[11rem] w-[11rem]";
+
+export const UNLOADING_MARKET_COL_WRAP = cn(
+  UNLOADING_MARKET_COL_WIDTH,
+  "whitespace-normal break-words align-top"
+);
+
 /** Inbound list column widths (px) — sum drives table width, not width:100%. */
 export const INBOUND_COLUMN_WIDTHS = {
   date: 92,

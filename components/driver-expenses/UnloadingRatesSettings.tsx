@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
+import { UNLOADING_MARKET_COL_WRAP } from "@/lib/table-scroll";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
 import { useT } from "@/components/shared/locale-context";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -401,10 +402,15 @@ export function UnloadingRatesSettings() {
           {error}
         </p>
       )}
-      <WideTableScrollArea heightOffset={280}>
+      <WideTableScrollArea
+        heightOffset={280}
+        tableClassName="[&_tbody_tr:hover_td:first-child]:bg-white"
+      >
         <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>{t("driverExpenses.unloading.marketCol")}</TableHead>
+              <TableHead className={UNLOADING_MARKET_COL_WRAP}>
+                {t("driverExpenses.unloading.marketCol")}
+              </TableHead>
               {NUMERIC_FIELDS.map((field) => (
                 <TableHead key={field} className="text-right">
                   {t(FIELD_HEADER_KEYS[field])}
@@ -421,26 +427,30 @@ export function UnloadingRatesSettings() {
               const rowReadOnly = row.market === "JB";
               return (
                 <TableRow key={row.market}>
-                  <TableCell className="align-top font-medium">
-                    {row.market}
-                    <span className="ml-1 text-xs text-haidee-muted">
-                      {getMarketDisplayName(row.market)}
-                    </span>
-                    {row.market === "A" && (
-                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
-                        {t("driverExpenses.unloading.kpbParkingIpohNote")}
-                      </span>
-                    )}
-                    {row.market === "KL" && (
-                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
-                        {t("driverExpenses.unloading.klSubMarketNote")}
-                      </span>
-                    )}
-                    {row.market === "MC" && (
-                      <span className="mt-0.5 block text-xs font-normal text-haidee-muted">
-                        {t("driverExpenses.unloading.mcThirdPartyNote")}
-                      </span>
-                    )}
+                  <TableCell className={UNLOADING_MARKET_COL_WRAP}>
+                    <div className="min-w-0 space-y-0.5">
+                      <div>
+                        <span className="font-medium">{row.market}</span>
+                        <span className="ml-1 text-xs text-haidee-muted">
+                          {getMarketDisplayName(row.market)}
+                        </span>
+                      </div>
+                      {row.market === "A" && (
+                        <p className="text-xs font-normal leading-snug text-haidee-muted">
+                          {t("driverExpenses.unloading.kpbParkingIpohNote")}
+                        </p>
+                      )}
+                      {row.market === "KL" && (
+                        <p className="text-xs font-normal leading-snug text-haidee-muted">
+                          {t("driverExpenses.unloading.klSubMarketNote")}
+                        </p>
+                      )}
+                      {row.market === "MC" && (
+                        <p className="text-xs font-normal leading-snug text-haidee-muted">
+                          {t("driverExpenses.unloading.mcThirdPartyNote")}
+                        </p>
+                      )}
+                    </div>
                   </TableCell>
                   {NUMERIC_FIELDS.map((field) => {
                     if (isFieldHidden(row.market, field)) {
