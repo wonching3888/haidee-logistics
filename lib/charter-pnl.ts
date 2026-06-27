@@ -1,4 +1,8 @@
 import { computeCharterBorderFeesMyr } from "@/lib/charter-costs";
+import {
+  resolveCharterEffectiveUnload,
+  type CharterVoucherCostContext,
+} from "@/lib/charter-voucher-cost-resolver";
 import { decimalToNumber } from "@/lib/freight-rates";
 import {
   computeTripTruckCosts,
@@ -45,6 +49,7 @@ export interface CharterTripPnlInput {
   charterMileageKm: unknown;
   charterRevenueMyr: unknown;
   charterUnloadFeeMyr: unknown;
+  charterUnloadFeeOverride: unknown;
   charterDriverSalaryMyr: unknown;
   charterOtherCostMyr: unknown;
   charterTollMyr: unknown;
@@ -90,7 +95,8 @@ export function resolveCharterPnlCustomer(trip: CharterTripPnlInput): {
 
 export function computeCharterPnlRow(
   trip: CharterTripPnlInput,
-  globalCosts: GlobalTripCostValues
+  globalCosts: GlobalTripCostValues,
+  voucher?: CharterVoucherCostContext | null
 ): PnlTripRow | null {
   const totalQuantity = trip.totalQuantity ?? 0;
   if (totalQuantity <= 0) return null;
@@ -112,7 +118,11 @@ export function computeCharterPnlRow(
 
   const lkimMyr = decimalToNumber(trip.computedLkimMyr) ?? 0;
   const crateRentalMyr = decimalToNumber(trip.computedCrateRentalMyr) ?? 0;
-  const unloadFeeMyr = decimalToNumber(trip.charterUnloadFeeMyr) ?? 0;
+  const unloadFeeMyr = resolveCharterEffectiveUnload({
+    charterUnloadFeeMyr: trip.charterUnloadFeeMyr,
+    charterUnloadFeeOverride: trip.charterUnloadFeeOverride,
+    voucher,
+  });
   const driverSalaryMyr = decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
   const otherCostMyr = decimalToNumber(trip.charterOtherCostMyr) ?? 0;
   const tollMyr = decimalToNumber(trip.charterTollMyr) ?? 0;
@@ -234,6 +244,7 @@ export const charterTripPnlSelect = {
   charterMileageKm: true,
   charterRevenueMyr: true,
   charterUnloadFeeMyr: true,
+  charterUnloadFeeOverride: true,
   charterDriverSalaryMyr: true,
   charterOtherCostMyr: true,
   charterTollMyr: true,

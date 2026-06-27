@@ -6,6 +6,10 @@ import {
   clearVoucherCostActuals,
 } from "@/lib/driver-expense/voucher-cost-apply";
 import {
+  applyCharterVoucherCostActuals,
+  clearCharterVoucherCostActuals,
+} from "@/lib/driver-expense/charter-voucher-cost-apply";
+import {
   isVoucherStatus,
   type VoucherStatus,
 } from "@/lib/driver-voucher-status-types";
@@ -242,12 +246,21 @@ export async function transitionVoucherStatus(input: {
       note: input.note,
     });
 
-    if (isVoucherCostEnforced() && existing.tripSource !== "charter") {
-      if (input.toStatus === "confirmed" || input.toStatus === "approved") {
-        return applyVoucherCostActuals(input.voucherId, tx);
-      }
-      if (input.toStatus === "rejected") {
-        return clearVoucherCostActuals(input.voucherId, tx);
+    if (isVoucherCostEnforced()) {
+      if (existing.tripSource === "charter") {
+        if (input.toStatus === "confirmed" || input.toStatus === "approved") {
+          return applyCharterVoucherCostActuals(input.voucherId, tx);
+        }
+        if (input.toStatus === "rejected") {
+          return clearCharterVoucherCostActuals(input.voucherId, tx);
+        }
+      } else {
+        if (input.toStatus === "confirmed" || input.toStatus === "approved") {
+          return applyVoucherCostActuals(input.voucherId, tx);
+        }
+        if (input.toStatus === "rejected") {
+          return clearVoucherCostActuals(input.voucherId, tx);
+        }
       }
     }
 

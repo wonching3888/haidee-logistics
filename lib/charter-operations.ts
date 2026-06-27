@@ -5,6 +5,10 @@ import {
   computeCharterBorderFeesMyr,
 } from "@/lib/charter-costs";
 import {
+  loadCharterVoucherContextByTripId,
+  resolveCharterEffectiveUnload,
+} from "@/lib/charter-voucher-cost-resolver";
+import {
   computeTripTruckCosts,
   loadGlobalTripCostValues,
 } from "@/lib/operations-cost";
@@ -137,6 +141,9 @@ export async function aggregateCharterOperationsCosts(
   ]);
 
   const totals = emptyCharterOperationsCostTotals();
+  const voucherByTripId = await loadCharterVoucherContextByTripId(
+    trips.map((trip) => trip.id)
+  );
 
   for (const trip of trips) {
     const mileage = decimalToNumber(trip.charterMileageKm) ?? 0;
@@ -160,8 +167,11 @@ export async function aggregateCharterOperationsCosts(
     totals.charterLkimMyr += decimalToNumber(trip.computedLkimMyr) ?? 0;
     totals.charterCrateRentalMyr +=
       decimalToNumber(trip.computedCrateRentalMyr) ?? 0;
-    totals.charterUnloadFeeMyr +=
-      decimalToNumber(trip.charterUnloadFeeMyr) ?? 0;
+    totals.charterUnloadFeeMyr += resolveCharterEffectiveUnload({
+      charterUnloadFeeMyr: trip.charterUnloadFeeMyr,
+      charterUnloadFeeOverride: trip.charterUnloadFeeOverride,
+      voucher: voucherByTripId.get(trip.id),
+    });
     totals.charterDriverSalaryMyr +=
       decimalToNumber(trip.charterDriverSalaryMyr) ?? 0;
     totals.charterTollMyr += decimalToNumber(trip.charterTollMyr) ?? 0;

@@ -50,6 +50,7 @@ import {
   computeCharterPnlRow,
   type CharterTripPnlInput,
 } from "@/lib/charter-pnl";
+import { loadCharterVoucherContextByTripId } from "@/lib/charter-voucher-cost-resolver";
 import { loadGlobalTripCostValues } from "@/lib/operations-cost";
 import { canViewInvoiceAmounts } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
@@ -732,9 +733,17 @@ export async function getCharterMonthlyLedger(input: {
     select: charterMonthlyLedgerSelect,
   })) as CharterMonthlyLedgerDbRow[];
 
+  const voucherByTripId = await loadCharterVoucherContextByTripId(
+    dbRows.map((trip) => trip.id)
+  );
+
   const rows: CharterMonthlyLedgerRow[] = [];
   for (const trip of dbRows) {
-    const pnlRow = computeCharterPnlRow(trip, globalCosts);
+    const pnlRow = computeCharterPnlRow(
+      trip,
+      globalCosts,
+      voucherByTripId.get(trip.id)
+    );
     if (!pnlRow) continue;
 
     const customerName = pnlRow.shippers[0]?.shipperName ?? "—";

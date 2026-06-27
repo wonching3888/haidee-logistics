@@ -18,6 +18,7 @@ import {
   normalizeCharterBillToKey,
   type CharterTripPnlInput,
 } from "@/lib/charter-pnl";
+import { loadCharterVoucherContextByTripId } from "@/lib/charter-voucher-cost-resolver";
 import {
   inboundLineStoredSnapshot,
 } from "@/lib/inbound-freight";
@@ -444,13 +445,20 @@ async function computeCharterPnlRowsForFilters(input: {
   if (input.routeFilter !== "ALL") return [];
 
   const charters = await loadCharterTripsForPnl(input.start, input.end);
+  const voucherByTripId = await loadCharterVoucherContextByTripId(
+    charters.map((charter) => charter.id)
+  );
   const rows: PnlTripRow[] = [];
 
   for (const charter of charters) {
     if (!tripMatchesDriverFilter(charter.driverName, input.driverFilter)) {
       continue;
     }
-    const row = computeCharterPnlRow(charter, input.ctx.globalCosts);
+    const row = computeCharterPnlRow(
+      charter,
+      input.ctx.globalCosts,
+      voucherByTripId.get(charter.id)
+    );
     if (row) rows.push(row);
   }
 
@@ -1642,6 +1650,10 @@ async function appendCharterCustomerMarketRows(input: {
 
   if (matched.length === 0) return;
 
+  const voucherByTripId = await loadCharterVoucherContextByTripId(
+    matched.map((charter) => charter.id)
+  );
+
   const existing = input.marketMap.get(CHARTER_PNL_MARKET_CODE) ?? {
     quantity: 0,
     revenueMyr: 0,
@@ -1654,7 +1666,11 @@ async function appendCharterCustomerMarketRows(input: {
   };
 
   for (const charter of matched) {
-    const row = computeCharterPnlRow(charter, input.ctx.globalCosts);
+    const row = computeCharterPnlRow(
+      charter,
+      input.ctx.globalCosts,
+      voucherByTripId.get(charter.id)
+    );
     if (!row) continue;
     const shipper = row.shippers[0];
     if (!shipper) continue;
@@ -1947,7 +1963,14 @@ export async function buildPnlTripDetail(input: {
   const ctx = await loadPnlComputationContext(input.year, input.month);
 
   if (charter) {
-    const trip = computeCharterPnlRow(charter, ctx.globalCosts);
+    const voucherByTripId = await loadCharterVoucherContextByTripId([
+      charter.id,
+    ]);
+    const trip = computeCharterPnlRow(
+      charter,
+      ctx.globalCosts,
+      voucherByTripId.get(charter.id)
+    );
     if (!trip) {
       throw new Error("该趟次无有效桶数 No assigned crates for this trip");
     }

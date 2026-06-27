@@ -22,6 +22,8 @@ export default defineConfig({
       "lib/driver-expense/fee-labels.test.ts",
       "lib/driver-expense/todo-list.test.ts",
       "lib/driver-expense/charter-voucher.test.ts",
+      "lib/driver-expense/charter-voucher-cost-apply.test.ts",
+      "lib/charter-voucher-cost-resolver.test.ts",
       "lib/driver-expense/voucher-cost-apply.test.ts",
       "lib/unloading-calculator.test.ts",
       "lib/trip-cost-engine/vehicle-leg-resolver.test.ts",
