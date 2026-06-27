@@ -14,46 +14,34 @@ import { formatKpbFeeRowLabel } from "@/lib/driver-expense/fee-labels";
 import { useT } from "@/components/shared/locale-context";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 
-function formatAmt(value: number | null): string {
+function formatSuggested(value: number | null): string {
   return value != null ? formatMyr(value) : "—";
 }
 
+/** Paper form: suggested column shows system estimate; actual column left blank for handwriting. */
 function FeeRow({
   label,
   suggested,
-  actual,
   bold,
 }: {
   label: string;
   suggested: number | null;
-  actual: number | null;
   bold?: boolean;
 }) {
   return (
     <tr className={bold ? "voucher-print-subtotal-row" : undefined}>
       <td className={bold ? "font-bold" : undefined}>{label}</td>
       <td className={`text-right font-mono ${bold ? "font-bold" : ""}`}>
-        {formatAmt(suggested)}
+        {formatSuggested(suggested)}
       </td>
-      <td className={`text-right font-mono ${bold ? "font-bold" : ""}`}>
-        {formatAmt(actual)}
-      </td>
+      <td
+        className={`text-right font-mono voucher-print-handwrite-cell ${bold ? "font-bold" : ""}`}
+      />
     </tr>
   );
 }
 
 const MARKET_ORDER = ["KL", "MC", "A", "BM", "BM Pindah", "KD"] as const;
-
-function resolveVoucherMarketActual(
-  voucher: DriverVoucherData,
-  feeType: "parking" | "kpb" | "unload",
-  displayMarket: string
-): number | null {
-  const row = voucher.marketActuals?.find(
-    (item) => item.feeType === feeType && item.displayMarket === displayMarket
-  );
-  return row?.amount ?? null;
-}
 
 interface DriverVoucherPrintAreaProps {
   voucher: DriverVoucherData;
@@ -98,13 +86,6 @@ export function DriverVoucherPrintArea({
         minyakMotoEnabled: voucher.minyakMotoEnabled,
         minyakMotoAmt: voucher.minyakMotoAmt,
       });
-
-  const bakiClass =
-    voucher.baki != null && voucher.baki >= 0
-      ? "text-green-700"
-      : voucher.baki != null
-        ? "text-red-700"
-        : "";
 
   const parkingMap = new Map((breakdown?.parking ?? []).map((row) => [row.market, row]));
   const kpbMap = new Map((breakdown?.kpb ?? []).map((row) => [row.market, row]));
@@ -154,22 +135,16 @@ export function DriverVoucherPrintArea({
           </tr>
         </thead>
         <tbody>
-          <FeeRow
-            label="Chop Border"
-            suggested={voucher.chopBorderAmt}
-            actual={voucher.chopBorderActual}
-          />
+          {isCharter && (
+            <FeeRow label={VOUCHER_PRINT_LABELS.duitJalan} suggested={null} />
+          )}
+          <FeeRow label="Chop Border" suggested={voucher.chopBorderAmt} />
           {isCharter ? (
             <>
-              <FeeRow
-                label="Upah Turun"
-                suggested={voucher.upahTurunAmt}
-                actual={voucher.upahTurunActual}
-              />
+              <FeeRow label="Upah Turun" suggested={upahTurunSuggested} />
               <FeeRow
                 label="Upah Naik Tong"
-                suggested={voucher.upahNaikTongAmt}
-                actual={voucher.upahNaikTongActual}
+                suggested={upahNaikTongSuggested}
               />
             </>
           ) : (
@@ -180,56 +155,32 @@ export function DriverVoucherPrintArea({
                     <FeeRow
                       label={`Parking ${market}`}
                       suggested={parkingMap.get(market)!.suggested}
-                      actual={resolveVoucherMarketActual(
-                        voucher,
-                        "parking",
-                        market
-                      )}
                     />
                   )}
                   {kpbMap.get(market) && (
                     <FeeRow
                       label={formatKpbFeeRowLabel(market, locale)}
                       suggested={kpbMap.get(market)!.suggested}
-                      actual={resolveVoucherMarketActual(voucher, "kpb", market)}
                     />
                   )}
                   {upahTurunMap.get(market) && (
                     <FeeRow
                       label={`Upah Turun ${market}`}
                       suggested={upahTurunMap.get(market)!.suggested}
-                      actual={resolveVoucherMarketActual(
-                        voucher,
-                        "unload",
-                        market
-                      )}
                     />
                   )}
                 </Fragment>
               ))}
               {marketWithAnyRows.length === 0 && (
                 <>
-                  <FeeRow
-                    label="Parking"
-                    suggested={voucher.parkingAmt}
-                    actual={voucher.parkingActual}
-                  />
-                  <FeeRow
-                    label="KPB"
-                    suggested={voucher.kpbAmt}
-                    actual={voucher.kpbActual}
-                  />
-                  <FeeRow
-                    label="Upah Turun"
-                    suggested={voucher.upahTurunAmt}
-                    actual={voucher.upahTurunActual}
-                  />
+                  <FeeRow label="Parking" suggested={voucher.parkingAmt} />
+                  <FeeRow label="KPB" suggested={voucher.kpbAmt} />
+                  <FeeRow label="Upah Turun" suggested={voucher.upahTurunAmt} />
                 </>
               )}
               <FeeRow
                 label="Semak Ikan / Fish Check"
                 suggested={voucher.fishCheckAmt}
-                actual={voucher.fishCheckActual}
               />
               <FeeRow
                 label={
@@ -237,28 +188,19 @@ export function DriverVoucherPrintArea({
                   "Upah Naik Tong / Crate Loading"
                 }
                 suggested={upahNaikTongSuggested}
-                actual={voucher.upahNaikTongActual}
               />
             </>
           )}
-          {voucher.minyakMotoEnabled && (
-            <FeeRow
-              label={VOUCHER_PRINT_LABELS.minyakMoto}
-              suggested={voucher.minyakMotoAmt}
-              actual={voucher.minyakMotoActual}
-            />
-          )}
-          {(voucher.otherActual ?? 0) > 0 && (
-            <FeeRow
-              label={VOUCHER_PRINT_LABELS.lainLain}
-              suggested={null}
-              actual={voucher.otherActual}
-            />
-          )}
+          <FeeRow
+            label={VOUCHER_PRINT_LABELS.minyakMoto}
+            suggested={
+              voucher.minyakMotoEnabled ? voucher.minyakMotoAmt : null
+            }
+          />
+          <FeeRow label={VOUCHER_PRINT_LABELS.lainLain} suggested={null} />
           <FeeRow
             label={VOUCHER_PRINT_LABELS.subtotal}
             suggested={suggestedSubtotal}
-            actual={voucher.belanja}
             bold
           />
         </tbody>
@@ -269,17 +211,15 @@ export function DriverVoucherPrintArea({
           <tbody>
             <tr>
               <td>{VOUCHER_PRINT_LABELS.duitJalan}</td>
-              <td className="text-right">{formatAmt(voucher.duitJalan)}</td>
+              <td className="text-right voucher-print-handwrite-cell" />
             </tr>
             <tr>
               <td>{VOUCHER_PRINT_LABELS.belanja}</td>
-              <td className="text-right">{formatAmt(voucher.belanja)}</td>
+              <td className="text-right voucher-print-handwrite-cell" />
             </tr>
             <tr>
               <td>{VOUCHER_PRINT_LABELS.baki}</td>
-              <td className={`text-right font-semibold ${bakiClass}`}>
-                {formatAmt(voucher.baki)}
-              </td>
+              <td className="text-right font-semibold voucher-print-handwrite-cell" />
             </tr>
           </tbody>
         </table>

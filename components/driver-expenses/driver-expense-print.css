@@ -44,6 +44,10 @@
     padding: 5px 7px;
   }
 
+  .voucher-print-area .voucher-print-handwrite-cell {
+    min-height: 7mm;
+  }
+
   .voucher-print-area .voucher-print-summary {
     font-size: 10pt;
     min-width: 50%;
@@ -51,6 +55,11 @@
 
   .voucher-print-area .voucher-print-summary td {
     padding: 5px 8px;
+  }
+
+  .voucher-print-area .voucher-print-summary .voucher-print-handwrite-cell {
+    min-height: 7mm;
+    min-width: 28mm;
   }
 
   .voucher-print-area .voucher-print-summary-wrap {
@@ -140,6 +149,10 @@
   padding: 4px 6px;
 }
 
+.voucher-print-area .voucher-print-handwrite-cell {
+  min-height: 22px;
+}
+
 .voucher-print-area .text-right {
   text-align: right;
 }
@@ -159,6 +172,11 @@
 .voucher-print-area .voucher-print-summary td {
   border: 1px solid #333;
   padding: 4px 7px;
+}
+
+.voucher-print-area .voucher-print-summary .voucher-print-handwrite-cell {
+  min-height: 22px;
+  min-width: 90px;
 }
 
 .voucher-print-area .voucher-print-subtotal-row td {
