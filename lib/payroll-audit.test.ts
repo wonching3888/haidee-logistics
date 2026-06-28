@@ -105,6 +105,8 @@ describe("resolveHistoryEntityTypes", () => {
       "inbound",
       "voucher",
       "payroll",
+      "dispatch",
+      "charter",
     ]);
   });
 

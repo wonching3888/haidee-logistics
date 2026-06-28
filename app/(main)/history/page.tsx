@@ -9,7 +9,12 @@ interface HistoryPageProps {
 }
 
 function parseTab(tab?: string): HistoryTab {
-  if (tab === "inbound" || tab === "payroll" || tab === "voucher") {
+  if (
+    tab === "inbound" ||
+    tab === "payroll" ||
+    tab === "voucher" ||
+    tab === "trips"
+  ) {
     return tab;
   }
   return "all";
@@ -31,7 +36,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           修改记录 Modification History
         </h2>
         <p className="text-sm text-haidee-muted">
-          进货 · 工资 · 费用单修改汇总 Inbound, payroll & voucher change log
+          进货 · 工资 · 费用单 · 派车/包车修改汇总
         </p>
       </div>
 

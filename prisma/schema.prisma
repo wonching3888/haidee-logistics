@@ -436,6 +436,24 @@ model PayrollChangeLog {
   @@map("payroll_change_logs")
 }
 
+model DispatchChangeLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  entityType  String   @map("entityType")
+  entityId    String   @map("entityId") @db.Uuid
+  entityLabel String?  @map("entityLabel")
+  eventType   String   @map("eventType")
+  field       String?
+  fromValue   String?  @map("fromValue")
+  toValue     String?  @map("toValue")
+  metadata    Json?
+  changedBy   String   @map("changedBy") @db.Uuid
+  changedAt   DateTime @default(now()) @map("changedAt")
+
+  @@index([entityType, entityId])
+  @@index([changedAt])
+  @@map("dispatch_change_logs")
+}
+
 model OperationsMonthlyCosts {
   id            String   @id @default(uuid()) @db.Uuid
   yearMonth     String   @unique @map("year_month")

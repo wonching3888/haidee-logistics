@@ -13,8 +13,17 @@ import {
   payrollAuditFieldLabel,
 } from "@/lib/payroll-audit";
 import { voucherAuditFieldLabel } from "@/lib/driver-voucher-audit";
+import {
+  dispatchAuditEventLabel,
+  dispatchAuditFieldLabel,
+} from "@/lib/dispatch-audit";
 
-export type AuditEntityType = "inbound" | "voucher" | "payroll";
+export type AuditEntityType =
+  | "inbound"
+  | "voucher"
+  | "payroll"
+  | "dispatch"
+  | "charter";
 
 export interface AuditFeedChange {
   field: string;
@@ -40,9 +49,20 @@ export interface AuditFeedEntry {
   pickupLocationLabel?: string;
 }
 
-export type HistoryTab = "all" | "inbound" | "payroll" | "voucher";
+export type HistoryTab =
+  | "all"
+  | "inbound"
+  | "payroll"
+  | "voucher"
+  | "trips";
 
-const ALL_ENTITY_TYPES: AuditEntityType[] = ["inbound", "voucher", "payroll"];
+const ALL_ENTITY_TYPES: AuditEntityType[] = [
+  "inbound",
+  "voucher",
+  "payroll",
+  "dispatch",
+  "charter",
+];
 
 export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
   switch (tab) {
@@ -52,6 +72,8 @@ export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
       return ["payroll"];
     case "voucher":
       return ["voucher"];
+    case "trips":
+      return ["dispatch", "charter"];
     default:
       return ALL_ENTITY_TYPES;
   }
@@ -466,6 +488,126 @@ async function fetchPayrollAuditEntries(
   return Array.from(grouped.values());
 }
 
+function parseDispatchMetadata(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function dispatchDeepLink(entityType: "dispatch" | "charter", entityId: string) {
+  return entityType === "charter" ? `/charter/${entityId}` : `/dispatch/${entityId}`;
+}
+
+function buildDispatchFeedChange(log: {
+  field: string | null;
+  fromValue: string | null;
+  toValue: string | null;
+  eventType: string;
+  metadata: unknown;
+}): AuditFeedChange {
+  const metadata = parseDispatchMetadata(log.metadata);
+
+  if (log.field) {
+    return {
+      field: dispatchAuditFieldLabel(log.field),
+      from: log.fromValue ?? "—",
+      to: log.toValue ?? "—",
+    };
+  }
+
+  if (log.eventType === "create") {
+    const parts = [
+      metadata.dispatchNo,
+      metadata.charterNo,
+      metadata.plate,
+      metadata.driverName,
+      metadata.lineCount != null ? `${metadata.lineCount} 行` : null,
+    ].filter(Boolean);
+    return {
+      field: "新建",
+      from: "—",
+      to: parts.map(String).join(" · ") || "—",
+    };
+  }
+
+  if (log.eventType === "delete") {
+    const parts = [
+      metadata.charterNo,
+      metadata.plate,
+      metadata.cargoType,
+    ].filter(Boolean);
+    return {
+      field: "删除快照",
+      from: parts.map(String).join(" · ") || "—",
+      to: "—",
+    };
+  }
+
+  if (log.eventType === "cancel") {
+    return {
+      field: "取消",
+      from: log.fromValue ?? "—",
+      to: log.toValue ?? "—",
+    };
+  }
+
+  return {
+    field: log.eventType,
+    from: log.fromValue ?? "—",
+    to: log.toValue ?? "—",
+  };
+}
+
+async function fetchDispatchAuditEntries(
+  dateStr?: string
+): Promise<AuditFeedEntry[]> {
+  const changedAtWhere = dateStr ? changedAtDayRange(dateStr) : undefined;
+
+  const logs = await prisma.dispatchChangeLog.findMany({
+    where: changedAtWhere ? { changedAt: changedAtWhere } : {},
+    orderBy: { changedAt: "desc" },
+  });
+
+  const actorNames = await loadActorNames(logs.map((log) => log.changedBy));
+
+  const grouped = new Map<string, AuditFeedEntry>();
+  for (const log of logs) {
+    const entityType = log.entityType as "dispatch" | "charter";
+    const key = `${log.entityType}:${log.entityId}:${log.changedBy}:${groupTimestampKey(log.changedAt)}:${log.eventType}`;
+    const change = buildDispatchFeedChange(log);
+    const entityLabel =
+      log.entityLabel ??
+      (typeof parseDispatchMetadata(log.metadata).dispatchNo === "string"
+        ? String(parseDispatchMetadata(log.metadata).dispatchNo)
+        : typeof parseDispatchMetadata(log.metadata).charterNo === "string"
+          ? String(parseDispatchMetadata(log.metadata).charterNo)
+          : log.entityId);
+
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.changes.push(change);
+      continue;
+    }
+
+    grouped.set(key, {
+      id: log.id,
+      entityType,
+      entityId: log.entityId,
+      entityLabel,
+      eventType: log.eventType,
+      eventTypeLabel: dispatchAuditEventLabel(entityType, log.eventType),
+      occurredAt: log.changedAt,
+      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      actorName: actorNames.get(log.changedBy) ?? "—",
+      changes: [change],
+      deepLink: dispatchDeepLink(entityType, log.entityId),
+    });
+  }
+
+  return Array.from(grouped.values());
+}
+
 export async function getAuditFeed(input: {
   entityTypes?: AuditEntityType[];
   date?: string;
@@ -484,6 +626,11 @@ export async function getAuditFeed(input: {
       : Promise.resolve([]),
     entityTypes.includes("payroll")
       ? fetchPayrollAuditEntries(input.date)
+      : Promise.resolve([]),
+    entityTypes.includes("dispatch") || entityTypes.includes("charter")
+      ? fetchDispatchAuditEntries(input.date).then((entries) =>
+          entries.filter((entry) => entityTypes.includes(entry.entityType))
+        )
       : Promise.resolve([]),
   ]);
 

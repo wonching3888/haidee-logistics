@@ -11,7 +11,12 @@ import {
 export type { AuditFeedEntry as HistoryAuditEntry };
 
 function parseHistoryTab(tab?: string): HistoryTab {
-  if (tab === "inbound" || tab === "payroll" || tab === "voucher") {
+  if (
+    tab === "inbound" ||
+    tab === "payroll" ||
+    tab === "voucher" ||
+    tab === "trips"
+  ) {
     return tab;
   }
   return "all";

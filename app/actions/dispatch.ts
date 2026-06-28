@@ -40,6 +40,16 @@ import {
   syncDriverPayrollTripForDispatch,
   finalizeDispatchCancelPayroll,
 } from "@/lib/driver-payroll-trip-sync";
+import {
+  appendDispatchChangeLogs,
+  buildDispatchCreateMetadata,
+  buildDispatchUpdateLogs,
+  diffDispatchCargo,
+  diffDispatchScalarFields,
+  formatMarketsAudit,
+  loadDispatchCargoLines,
+  totalCargoQty,
+} from "@/lib/dispatch-audit";
 
 export interface CrateBoxQty {
   crate: number;
@@ -1217,10 +1227,10 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   }
 
   if (input.dispatchOrderId) {
-    const [truck, existing] = await Promise.all([
+    const [newTruck, existing] = await Promise.all([
       prisma.truck.findUnique({
         where: { id: input.truckId },
-        select: { id: true },
+        select: { id: true, plate: true },
       }),
       prisma.dispatchOrder.findUnique({
         where: { id: input.dispatchOrderId },
@@ -1228,19 +1238,43 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
           dispatchNo: true,
           truckId: true,
           driverName: true,
+          markets: true,
+          status: true,
           originalTruckId: true,
           originalDriverName: true,
+          truck: { select: { plate: true } },
           lines: { select: { inboundLineId: true } },
         },
       }),
     ]);
-    if (!truck) throw new Error(t("dispatch.error.truckNotFound", locale));
+    if (!newTruck) throw new Error(t("dispatch.error.truckNotFound", locale));
     if (!existing) throw new Error(t("dispatch.error.orderNotFound", locale));
 
     const truckChanged = existing.truckId !== input.truckId;
     const driverChanged = (existing.driverName ?? "") !== input.driverName;
+    const beforeCargo = await loadDispatchCargoLines(
+      prisma,
+      existing.lines.map((line) => line.inboundLineId)
+    );
 
     await prisma.$transaction(async (tx) => {
+      if (driverChanged) {
+        await appendDispatchChangeLogs(tx, {
+          actorUserId: user.id,
+          logs: [
+            {
+              entityType: "dispatch",
+              entityId: input.dispatchOrderId!,
+              entityLabel: existing.dispatchNo,
+              eventType: "driver_change",
+              field: "driverName",
+              fromValue: existing.driverName,
+              toValue: input.driverName || null,
+            },
+          ],
+        });
+      }
+
       await tx.dispatchOrder.update({
         where: { id: input.dispatchOrderId },
         data: {
@@ -1282,6 +1316,32 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
         locale
       );
       await syncDispatchDriverAllowance(tx, input.dispatchOrderId!);
+
+      const afterCargo = await loadDispatchCargoLines(
+        tx,
+        assignments.map((row) => row.inboundLineId)
+      );
+      const fieldChanges = diffDispatchScalarFields(
+        {
+          plate: existing.truck.plate,
+          markets: formatMarketsAudit(existing.markets),
+        },
+        {
+          plate: newTruck.plate,
+          markets: formatMarketsAudit(input.markets),
+        },
+        ["plate", "markets"]
+      );
+      const cargoDiff = diffDispatchCargo(beforeCargo, afterCargo);
+      await appendDispatchChangeLogs(tx, {
+        actorUserId: user.id,
+        logs: buildDispatchUpdateLogs({
+          entityId: input.dispatchOrderId!,
+          entityLabel: existing.dispatchNo,
+          fieldChanges,
+          cargoDiff,
+        }),
+      });
     }, DISPATCH_TRANSACTION_OPTIONS);
 
     await syncUnloadingFeeEstimatesForTrip(input.dispatchOrderId!);
@@ -1290,6 +1350,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     revalidatePath("/dispatch");
     revalidatePath("/summary");
     revalidatePath("/documents/driver-expenses");
+    revalidatePath("/history");
     return {
       id: input.dispatchOrderId,
       dispatchNo: existing.dispatchNo,
@@ -1300,7 +1361,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   const [truck, dispatchNo] = await Promise.all([
     prisma.truck.findUnique({
       where: { id: input.truckId },
-      select: { id: true },
+      select: { id: true, plate: true },
     }),
     generateDispatchNo(date),
   ]);
@@ -1329,6 +1390,31 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
     );
     await syncDispatchDriverAllowance(tx, created.id);
 
+    const afterCargo = await loadDispatchCargoLines(
+      tx,
+      assignments.map((row) => row.inboundLineId)
+    );
+    await appendDispatchChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          entityType: "dispatch",
+          entityId: created.id,
+          entityLabel: dispatchNo,
+          eventType: "create",
+          metadata: buildDispatchCreateMetadata({
+            dispatchNo,
+            date,
+            plate: truck.plate,
+            driverName: input.driverName || null,
+            markets: input.markets,
+            lineCount: afterCargo.length,
+            totalQty: totalCargoQty(afterCargo),
+          }),
+        },
+      ],
+    });
+
     return created;
   }, DISPATCH_TRANSACTION_OPTIONS);
 
@@ -1338,6 +1424,7 @@ export async function saveDispatchOrder(input: SaveDispatchInput) {
   revalidatePath("/dispatch");
   revalidatePath("/summary");
   revalidatePath("/documents/driver-expenses");
+  revalidatePath("/history");
   return { id: order.id, dispatchNo, date: input.date };
 }
 
@@ -1348,8 +1435,11 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
   const order = await prisma.dispatchOrder.findUnique({
     where: { id: dispatchOrderId },
     select: {
+      dispatchNo: true,
       status: true,
       date: true,
+      driverName: true,
+      markets: true,
       truck: { select: { plate: true } },
       lines: { select: { inboundLineId: true } },
     },
@@ -1362,6 +1452,28 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
   const inboundLineIds = order.lines.map((line) => line.inboundLineId);
 
   await prisma.$transaction(async (tx) => {
+    await appendDispatchChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          entityType: "dispatch",
+          entityId: dispatchOrderId,
+          entityLabel: order.dispatchNo,
+          eventType: "cancel",
+          field: "status",
+          fromValue: order.status,
+          toValue: "cancelled",
+          metadata: {
+            dispatchNo: order.dispatchNo,
+            releasedLineCount: inboundLineIds.length,
+            plate: order.truck.plate,
+            driverName: order.driverName,
+            markets: order.markets,
+          },
+        },
+      ],
+    });
+
     await tx.dispatchOrder.update({
       where: { id: dispatchOrderId },
       data: { status: "cancelled" },
@@ -1389,6 +1501,7 @@ export async function cancelDispatchOrder(dispatchOrderId: string) {
   revalidatePath("/summary");
   revalidatePath("/documents");
   revalidatePath("/documents/driver-expenses");
+  revalidatePath("/history");
 }
 
 export async function changeDispatchTruck(
@@ -1402,15 +1515,17 @@ export async function changeDispatchTruck(
     prisma.dispatchOrder.findUnique({
       where: { id: dispatchOrderId },
       select: {
+        dispatchNo: true,
         status: true,
         truckId: true,
         originalTruckId: true,
+        truck: { select: { plate: true } },
         lines: { select: { inboundLineId: true } },
       },
     }),
     prisma.truck.findUnique({
       where: { id: truckId },
-      select: { active: true },
+      select: { active: true, plate: true },
     }),
   ]);
   if (!order) throw new Error(t("dispatch.error.orderNotFound", locale));
@@ -1422,6 +1537,23 @@ export async function changeDispatchTruck(
   const truckChanged = order.truckId !== truckId;
 
   await prisma.$transaction(async (tx) => {
+    if (truckChanged) {
+      await appendDispatchChangeLogs(tx, {
+        actorUserId: user.id,
+        logs: [
+          {
+            entityType: "dispatch",
+            entityId: dispatchOrderId,
+            entityLabel: order.dispatchNo,
+            eventType: "truck_change",
+            field: "plate",
+            fromValue: order.truck.plate,
+            toValue: truck.plate,
+          },
+        ],
+      });
+    }
+
     await tx.dispatchOrder.update({
       where: { id: dispatchOrderId },
       data: {
@@ -1450,4 +1582,5 @@ export async function changeDispatchTruck(
   revalidatePath("/summary");
   revalidatePath("/documents");
   revalidatePath("/documents/driver-expenses");
+  revalidatePath("/history");
 }

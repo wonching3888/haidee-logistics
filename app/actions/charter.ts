@@ -13,6 +13,17 @@ import { loadExchangeRate } from "@/lib/exchange-rate";
 import { generateCharterNo } from "@/lib/charter-no";
 import { syncDriverPayrollTripForCharter } from "@/lib/driver-payroll-trip-sync";
 import {
+  appendDispatchChangeLogs,
+  buildCharterCreateMetadata,
+  diffCharterLines,
+  diffDispatchScalarFields,
+  formatAuditMoney,
+  formatDateAudit,
+  type CharterExtraSnapshot,
+  type CharterLineSnapshot,
+  type DispatchChangeLogInput,
+} from "@/lib/dispatch-audit";
+import {
   applyCharterCrateDeduction,
   charterLinesToStockLines,
   resolveCharterStockContext,
@@ -471,6 +482,7 @@ function revalidateCharterPaths(id?: string) {
     revalidatePath("/charter");
     revalidatePath("/crate/customer-stock");
     revalidatePath("/driver-payroll");
+    revalidatePath("/history");
     if (id) {
       revalidatePath(`/charter/${id}`);
       revalidatePath(`/charter/${id}/invoice`);
@@ -516,18 +528,42 @@ export async function saveCharterTrip(
   const extraItems = buildAllExtraItems(input);
 
   if (input.id) {
-    const existing = await prisma.charterTrip.findUnique({
-      where: { id: input.id },
-      select: {
-        id: true,
-        charterNo: true,
-        cargoType: true,
-        shipperId: true,
-        stockAreaNote: true,
-        lines: { select: { tongTypeId: true, quantity: true } },
-      },
-    });
+    const [existing, newTruck] = await Promise.all([
+      prisma.charterTrip.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          charterNo: true,
+          date: true,
+          cargoType: true,
+          shipperId: true,
+          stockAreaNote: true,
+          driverName: true,
+          charterRevenueMyr: true,
+          charterDriverSalaryMyr: true,
+          billingCompany: true,
+          totalQuantity: true,
+          truck: { select: { plate: true } },
+          lines: {
+            select: {
+              tongTypeId: true,
+              quantity: true,
+              tongType: { select: { code: true } },
+            },
+          },
+          extraItems: {
+            select: { itemType: true, amountMyr: true, note: true, sortOrder: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      }),
+      prisma.truck.findUnique({
+        where: { id: input.truckId },
+        select: { plate: true },
+      }),
+    ]);
     if (!existing) throw new Error("包车记录不存在 Charter trip not found");
+    if (!newTruck) throw new Error("请选择车牌 Select truck plate");
 
     const beforeSnapshot: CharterStockSnapshot = {
       cargoType: existing.cargoType,
@@ -536,6 +572,27 @@ export async function saveCharterTrip(
       charterNo: existing.charterNo,
       lines: existing.lines,
     };
+
+    const beforeLines: CharterLineSnapshot[] = existing.lines.map((line) => ({
+      tongTypeId: line.tongTypeId,
+      tongTypeCode: line.tongType.code,
+      quantity: line.quantity,
+    }));
+    const afterLines: CharterLineSnapshot[] = resolvedLines.map((line) => ({
+      tongTypeId: line.tongTypeId,
+      tongTypeCode: line.tongTypeCode,
+      quantity: line.quantity,
+    }));
+    const beforeExtras: CharterExtraSnapshot[] = existing.extraItems.map((item) => ({
+      itemType: item.itemType,
+      amountMyr: Number(item.amountMyr),
+      note: item.note,
+    }));
+    const afterExtras: CharterExtraSnapshot[] = extraItems.map((item) => ({
+      itemType: item.itemType,
+      amountMyr: Number(item.amountMyr),
+      note: item.note,
+    }));
 
     await prisma.$transaction(async (tx) => {
       await tx.charterTrip.update({
@@ -578,6 +635,83 @@ export async function saveCharterTrip(
           })),
         });
       }
+
+      const fieldChanges = diffDispatchScalarFields(
+        {
+          date: formatDateAudit(existing.date),
+          plate: existing.truck.plate,
+          driverName: existing.driverName ?? null,
+          charterRevenueMyr: formatAuditMoney(existing.charterRevenueMyr),
+          charterDriverSalaryMyr: formatAuditMoney(existing.charterDriverSalaryMyr),
+          billingCompany: existing.billingCompany,
+          cargoType: existing.cargoType,
+          totalQuantity:
+            existing.totalQuantity != null ? String(existing.totalQuantity) : null,
+        },
+        {
+          date: formatDateAudit(date),
+          plate: newTruck.plate,
+          driverName,
+          charterRevenueMyr: formatAuditMoney(data.charterRevenueMyr),
+          charterDriverSalaryMyr: formatAuditMoney(data.charterDriverSalaryMyr),
+          billingCompany: data.billingCompany,
+          cargoType: data.cargoType,
+          totalQuantity:
+            data.totalQuantity != null ? String(data.totalQuantity) : null,
+        },
+        [
+          "date",
+          "plate",
+          "driverName",
+          "charterRevenueMyr",
+          "charterDriverSalaryMyr",
+          "billingCompany",
+          "cargoType",
+          "totalQuantity",
+        ]
+      );
+      const lineDiff = diffCharterLines(beforeLines, afterLines);
+      const auditLogs: DispatchChangeLogInput[] = fieldChanges.map((change) => ({
+        entityType: "charter",
+        entityId: input.id!,
+        entityLabel: existing.charterNo,
+        eventType: "update",
+        field: change.field,
+        fromValue: change.fromValue,
+        toValue: change.toValue,
+      }));
+      if (lineDiff) {
+        auditLogs.push({
+          entityType: "charter",
+          entityId: input.id!,
+          entityLabel: existing.charterNo,
+          eventType: "update",
+          field: "lines",
+          fromValue: `变更 ${lineDiff.removed.length + lineDiff.qtyChanged.length} 行`,
+          toValue: `变更 ${lineDiff.added.length + lineDiff.qtyChanged.length} 行`,
+          metadata: { lines: lineDiff } as unknown as Prisma.InputJsonValue,
+        });
+      }
+      const beforeExtrasJson = JSON.stringify(beforeExtras);
+      const afterExtrasJson = JSON.stringify(afterExtras);
+      if (beforeExtrasJson !== afterExtrasJson) {
+        auditLogs.push({
+          entityType: "charter",
+          entityId: input.id!,
+          entityLabel: existing.charterNo,
+          eventType: "update",
+          field: "extraItems",
+          fromValue: `${beforeExtras.length} 项`,
+          toValue: `${afterExtras.length} 项`,
+          metadata: {
+            extraItems: { before: beforeExtras, after: afterExtras },
+          } as unknown as Prisma.InputJsonValue,
+        });
+      }
+      await appendDispatchChangeLogs(tx, {
+        actorUserId: user.id,
+        logs: auditLogs,
+      });
     });
 
     await syncCharterCrateStock({
@@ -597,6 +731,11 @@ export async function saveCharterTrip(
   }
 
   const charterNo = await generateCharterNo(date);
+  const createTruck = await prisma.truck.findUnique({
+    where: { id: input.truckId },
+    select: { plate: true },
+  });
+  if (!createTruck) throw new Error("请选择车牌 Select truck plate");
 
   const created = await prisma.$transaction(async (tx) => {
     const trip = await tx.charterTrip.create({
@@ -634,6 +773,28 @@ export async function saveCharterTrip(
       });
     }
 
+    await appendDispatchChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          entityType: "charter",
+          entityId: trip.id,
+          entityLabel: charterNo,
+          eventType: "create",
+          metadata: buildCharterCreateMetadata({
+            charterNo,
+            date,
+            plate: createTruck.plate,
+            driverName,
+            cargoType: data.cargoType,
+            charterRevenueMyr: data.charterRevenueMyr,
+            lineCount: resolvedLines.length,
+            totalQty: resolvedLines.reduce((sum, line) => sum + line.quantity, 0),
+          }),
+        },
+      ],
+    });
+
     return trip;
   });
 
@@ -654,21 +815,51 @@ export async function saveCharterTrip(
 }
 
 export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
-  await requireWrite();
+  const user = await requireWrite();
 
   const existing = await prisma.charterTrip.findUnique({
     where: { id },
     select: {
       charterNo: true,
+      date: true,
       cargoType: true,
+      driverName: true,
+      charterRevenueMyr: true,
+      charterDriverSalaryMyr: true,
+      billingCompany: true,
       shipperId: true,
       stockAreaNote: true,
+      truck: { select: { plate: true } },
       lines: { select: { tongTypeId: true, quantity: true } },
     },
   });
   if (!existing) throw new Error("包车记录不存在 Charter trip not found");
 
   await prisma.$transaction(async (tx) => {
+    await appendDispatchChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          entityType: "charter",
+          entityId: id,
+          entityLabel: existing.charterNo,
+          eventType: "delete",
+          metadata: {
+            charterNo: existing.charterNo,
+            date: toDateInputValue(existing.date),
+            plate: existing.truck.plate,
+            driverName: existing.driverName,
+            cargoType: existing.cargoType,
+            charterRevenueMyr: formatAuditMoney(existing.charterRevenueMyr),
+            charterDriverSalaryMyr: formatAuditMoney(existing.charterDriverSalaryMyr),
+            billingCompany: existing.billingCompany,
+            lineCount: existing.lines.length,
+            totalQty: existing.lines.reduce((sum, line) => sum + line.quantity, 0),
+          },
+        },
+      ],
+    });
+
     await tx.driverVoucher.deleteMany({
       where: { tripId: id, tripSource: "charter" },
     });

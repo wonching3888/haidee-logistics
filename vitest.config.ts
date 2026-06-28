@@ -43,6 +43,7 @@ export default defineConfig({
       "lib/charter-payroll-salary.test.ts",
       "lib/operations-payroll-warnings.test.ts",
       "lib/payroll-audit.test.ts",
+      "lib/dispatch-audit.test.ts",
     ],
   },
   resolve: {
