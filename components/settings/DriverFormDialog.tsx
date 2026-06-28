@@ -22,6 +22,7 @@ export interface DriverFormValue {
   socsoNumber: string;
   maritalStatus: string;
   childCount: string;
+  accountCodeSuffix: string;
 }
 
 const EMPTY_FORM: DriverFormValue = {
@@ -35,6 +36,7 @@ const EMPTY_FORM: DriverFormValue = {
   socsoNumber: "",
   maritalStatus: "",
   childCount: "0",
+  accountCodeSuffix: "",
 };
 
 interface DriverFormDialogProps {
@@ -109,6 +111,17 @@ export function DriverFormDialog({
                   setForm({ ...form, autoCountEmployeeCode: e.target.value })
                 }
                 className="min-h-[44px] font-mono"
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              科目后缀 JV Suffix
+              <Input
+                value={form.accountCodeSuffix}
+                onChange={(e) =>
+                  setForm({ ...form, accountCodeSuffix: e.target.value })
+                }
+                placeholder="如 AKIM"
+                className="min-h-[44px] font-mono uppercase"
               />
             </label>
           </div>
@@ -207,6 +220,7 @@ export function driverToFormValue(driver: {
   socsoNumber: string | null;
   maritalStatus: string | null;
   childCount: number;
+  accountCodeSuffix?: string | null;
 }): DriverFormValue {
   const num = (value: number | null) =>
     value != null ? String(value) : "";
@@ -221,6 +235,7 @@ export function driverToFormValue(driver: {
     socsoNumber: driver.socsoNumber ?? "",
     maritalStatus: driver.maritalStatus ?? "",
     childCount: String(driver.childCount),
+    accountCodeSuffix: driver.accountCodeSuffix ?? "",
   };
 }
 
@@ -236,5 +251,6 @@ export function parseDriverFormValue(form: DriverFormValue) {
     socsoNumber: form.socsoNumber,
     maritalStatus: form.maritalStatus,
     childCount: Number(form.childCount) || 0,
+    accountCodeSuffix: form.accountCodeSuffix.trim() || null,
   };
 }

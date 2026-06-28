@@ -79,6 +79,7 @@ function serializeDriver(driver: {
   socsoNumber: string | null;
   maritalStatus: string | null;
   childCount: number;
+  accountCodeSuffix: string | null;
 }) {
   return {
     id: driver.id,
@@ -92,6 +93,7 @@ function serializeDriver(driver: {
     socsoNumber: driver.socsoNumber,
     maritalStatus: driver.maritalStatus as MaritalStatus | null,
     childCount: driver.childCount,
+    accountCodeSuffix: driver.accountCodeSuffix,
     payrollName: getDriverPayrollName({
       fullName: driver.fullName,
       name: driver.name,
@@ -685,6 +687,7 @@ export async function saveDriverPayrollMaster(input: {
   socsoNumber?: string | null;
   maritalStatus?: string | null;
   childCount?: number;
+  accountCodeSuffix?: string | null;
 }) {
   await requirePayrollWriteAccess();
   if (!input.name.trim()) {
@@ -712,6 +715,7 @@ export async function saveDriverPayrollMaster(input: {
         ? input.maritalStatus
         : null,
     childCount: input.childCount ?? 0,
+    accountCodeSuffix: input.accountCodeSuffix?.trim().toUpperCase() || null,
   };
 
   if (input.id) {

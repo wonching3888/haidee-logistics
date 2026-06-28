@@ -194,6 +194,7 @@ interface SettingsClientProps {
     socsoNumber: string | null;
     maritalStatus: string | null;
     childCount: number;
+    accountCodeSuffix: string | null;
   }[];
   routeMasters: RouteMasterRow[];
   payrollSettings: {

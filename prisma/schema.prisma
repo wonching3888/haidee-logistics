@@ -344,6 +344,7 @@ model Driver {
   bankAccount           String?  @map("bank_account")
   maritalStatus         String?  @map("marital_status")
   childCount            Int      @default(0) @map("child_count")
+  accountCodeSuffix     String?  @map("account_code_suffix")
   createdAt DateTime @default(now()) @map("created_at")
 
   trucks            Truck[]

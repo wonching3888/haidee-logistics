@@ -24,6 +24,7 @@ import {
 } from "@/components/settings/DriverFormDialog";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { Badge } from "@/components/ui/badge";
+import { SHARED_PAYROLL_JV_ACCOUNTS } from "@/lib/constants/payroll-jv-accounts";
 
 interface DriverRow {
   id: string;
@@ -37,6 +38,7 @@ interface DriverRow {
   socsoNumber: string | null;
   maritalStatus: string | null;
   childCount: number;
+  accountCodeSuffix: string | null;
 }
 
 interface DriverPayrollSettingsSectionProps {
@@ -79,6 +81,29 @@ export function DriverPayrollSettingsSection({
         </p>
       )}
 
+      <div className="rounded-lg border border-haidee-border bg-haidee-surface/50 p-4">
+        <h3 className="text-sm font-medium">JV 共用科目码 Shared JV Accounts</h3>
+        <p className="mt-1 text-xs text-haidee-muted">
+          所有司机共用，仅用于薪资 JV 导出（只读）。
+        </p>
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-haidee-muted">EPF 应付</dt>
+            <dd className="font-mono">{SHARED_PAYROLL_JV_ACCOUNTS.epfPayable}</dd>
+          </div>
+          <div>
+            <dt className="text-haidee-muted">SOCSO/EIS 应付</dt>
+            <dd className="font-mono">
+              {SHARED_PAYROLL_JV_ACCOUNTS.socsoEisPayable}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-haidee-muted">PCB 应付</dt>
+            <dd className="font-mono">{SHARED_PAYROLL_JV_ACCOUNTS.pcbPayable}</dd>
+          </div>
+        </dl>
+      </div>
+
       <div className="flex justify-end">
         <Button
           type="button"
@@ -101,6 +126,7 @@ export function DriverPayrollSettingsSection({
               <TableHead>小名 Nickname</TableHead>
               <TableHead>全名 Full Name</TableHead>
               <TableHead>AutoCount</TableHead>
+              <TableHead>科目后缀 JV Suffix</TableHead>
               <TableHead className="text-right">底薪</TableHead>
               <TableHead>婚姻/子女</TableHead>
               <TableHead>状态</TableHead>
@@ -110,7 +136,7 @@ export function DriverPayrollSettingsSection({
           <TableBody>
             {drivers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-haidee-muted">
+                <TableCell colSpan={8} className="py-8 text-center text-haidee-muted">
                   暂无司机 No drivers
                 </TableCell>
               </TableRow>
@@ -121,6 +147,9 @@ export function DriverPayrollSettingsSection({
                   <TableCell>{driver.fullName ?? "—"}</TableCell>
                   <TableCell className="font-mono text-sm">
                     {driver.autoCountEmployeeCode ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {driver.accountCodeSuffix ?? "—"}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {driver.baseSalary?.toFixed(2) ?? "—"}
