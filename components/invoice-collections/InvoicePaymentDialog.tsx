@@ -42,6 +42,8 @@ interface InvoicePaymentDialogProps {
   onClose: () => void;
   onSaved: () => void;
   customerKey: string;
+  customerName: string;
+  customerCode?: string | null;
   customerKind: ReceivableCustomerKind;
   customerId: string | null;
   currency: ReceivableCurrency;
@@ -59,6 +61,8 @@ export function InvoicePaymentDialog({
   onClose,
   onSaved,
   customerKey,
+  customerName,
+  customerCode,
   customerKind,
   customerId,
   currency,
@@ -184,9 +188,14 @@ export function InvoicePaymentDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <p className="text-sm text-haidee-muted">
-            {currency} · {customerKey}
-          </p>
+          <div>
+            <p className="text-sm font-medium text-haidee-text">
+              {customerName} · {currency}
+            </p>
+            {customerCode ? (
+              <p className="text-xs text-haidee-muted">{customerCode}</p>
+            ) : null}
+          </div>
 
           <div className="rounded-lg border border-haidee-border bg-haidee-surface/40 p-3">
             <p className="mb-2 text-sm font-medium text-haidee-text">
@@ -275,7 +284,8 @@ export function InvoicePaymentDialog({
               {t("invoiceCollections.payments.notes")}
             </span>
             <textarea
-              className="min-h-20 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              rows={5}
+              className="min-h-28 w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />

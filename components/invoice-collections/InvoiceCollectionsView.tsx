@@ -485,6 +485,12 @@ export function InvoiceCollectionsView() {
                 onClose={() => setPaymentDialogOpen(false)}
                 onSaved={() => void refetch(queryDraft)}
                 customerKey={verifiedDetail.customerKey}
+                customerName={detailCustomerName}
+                customerCode={
+                  verifiedDetail.invoices[0]?.customerCode ??
+                  ledgerForUrl?.customerCode ??
+                  null
+                }
                 customerKind={
                   verifiedDetail.invoices[0]?.customerKind ??
                   ledgerForUrl?.customerKind ??
