@@ -6,9 +6,11 @@ import {
   canWriteInvoiceCollections,
 } from "@/lib/auth-roles";
 import {
+  enrichCustomerLedgersWithCollection,
   enrichInvoicesWithCollection,
   loadAllocatedAmountsForInvoices,
   loadInvoicePaymentsForLedger,
+  loadUnallocatedAmountsByLedger,
 } from "@/lib/invoice-allocation";
 import type { UserRole } from "@/types";
 import {
@@ -74,7 +76,17 @@ export async function getInvoiceCollectionsPageData(input: {
     toMonth: input.toMonth,
   });
 
-  const ledgers = groupReceivableCustomerLedgers(invoices);
+  const baseLedgers = groupReceivableCustomerLedgers(invoices);
+  const [allocatedByInvoice, unallocatedByLedger] = await Promise.all([
+    loadAllocatedAmountsForInvoices(invoices),
+    loadUnallocatedAmountsByLedger(baseLedgers),
+  ]);
+  const ledgers = enrichCustomerLedgersWithCollection(
+    baseLedgers,
+    invoices,
+    allocatedByInvoice,
+    unallocatedByLedger
+  );
   const overview = summarizeReceivableOverview(invoices);
 
   let detail: {
@@ -91,9 +103,6 @@ export async function getInvoiceCollectionsPageData(input: {
       invoices,
       customerKey,
       currency
-    );
-    const allocatedByInvoice = await loadAllocatedAmountsForInvoices(
-      detailInvoices
     );
     const enrichedInvoices = enrichInvoicesWithCollection(
       detailInvoices,

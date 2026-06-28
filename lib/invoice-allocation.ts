@@ -6,6 +6,7 @@ import {
   loadReceivableInvoicesForRange,
   parseReceivableCustomerKey,
   type ReceivableCurrency,
+  type ReceivableCustomerLedger,
   type ReceivableInvoice,
   type ReceivableInvoiceType,
 } from "@/lib/receivable-invoices";
@@ -56,6 +57,15 @@ export interface ReceivableInvoiceWithCollection extends ReceivableInvoice {
   collectionStatus: InvoiceCollectionStatus;
 }
 
+export interface ReceivableCustomerLedgerWithCollection
+  extends ReceivableCustomerLedger {
+  totalAllocated: number;
+  totalOpen: number;
+  collectionStatus: InvoiceCollectionStatus;
+  prepaymentAmount: number;
+  hasPrepayment: boolean;
+}
+
 export interface InvoicePaymentAllocationView {
   invoiceType: ReceivableInvoiceType;
   invoiceKey: string;
@@ -93,6 +103,13 @@ export function computeInvoiceCollectionStatus(
 
 function invoiceLedgerKey(invoiceType: string, invoiceKey: string) {
   return `${invoiceType}|${invoiceKey}`;
+}
+
+export function ledgerCollectionKey(
+  customerKey: string,
+  currency: ReceivableCurrency
+) {
+  return `${customerKey}|${currency}`;
 }
 
 function sortPayments(a: AllocationPaymentInput, b: AllocationPaymentInput) {
@@ -360,6 +377,85 @@ export async function loadAllocatedAmountsForInvoices(
     );
   }
   return map;
+}
+
+export async function loadUnallocatedAmountsByLedger(
+  ledgers: Array<{ customerKey: string; currency: ReceivableCurrency }>
+): Promise<Map<string, number>> {
+  if (ledgers.length === 0) return new Map();
+
+  const rows = await prisma.invoicePayment.groupBy({
+    by: ["customerKey", "currency"],
+    where: {
+      OR: ledgers.map((ledger) => ({
+        customerKey: ledger.customerKey,
+        currency: ledger.currency,
+      })),
+    },
+    _sum: { unallocatedAmount: true },
+  });
+
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    const amount = roundMoney(Number(row._sum.unallocatedAmount ?? 0));
+    if (amount <= MONEY_EPSILON) continue;
+    map.set(
+      ledgerCollectionKey(
+        row.customerKey,
+        row.currency as ReceivableCurrency
+      ),
+      amount
+    );
+  }
+  return map;
+}
+
+export function enrichCustomerLedgersWithCollection(
+  ledgers: ReceivableCustomerLedger[],
+  invoices: ReceivableInvoice[],
+  allocatedByInvoice: Map<string, number>,
+  unallocatedByLedger: Map<string, number>
+): ReceivableCustomerLedgerWithCollection[] {
+  const invoicesByLedger = new Map<string, ReceivableInvoice[]>();
+  for (const invoice of invoices) {
+    const key = ledgerCollectionKey(invoice.customerKey, invoice.currency);
+    const bucket = invoicesByLedger.get(key);
+    if (bucket) {
+      bucket.push(invoice);
+    } else {
+      invoicesByLedger.set(key, [invoice]);
+    }
+  }
+
+  return ledgers.map((ledger) => {
+    const key = ledgerCollectionKey(ledger.customerKey, ledger.currency);
+    const ledgerInvoices = invoicesByLedger.get(key) ?? [];
+
+    let totalAllocated = 0;
+    for (const invoice of ledgerInvoices) {
+      totalAllocated +=
+        allocatedByInvoice.get(
+          invoiceLedgerKey(invoice.invoiceType, invoice.invoiceKey)
+        ) ?? 0;
+    }
+    totalAllocated = roundMoney(totalAllocated);
+    const totalOpen = roundMoney(
+      Math.max(0, ledger.totalReceivable - totalAllocated)
+    );
+    const prepaymentAmount = roundMoney(unallocatedByLedger.get(key) ?? 0);
+
+    return {
+      ...ledger,
+      totalAllocated,
+      totalOpen,
+      collectionStatus: computeInvoiceCollectionStatus(
+        ledger.totalReceivable,
+        totalAllocated
+      ),
+      prepaymentAmount,
+      hasPrepayment: prepaymentAmount > MONEY_EPSILON,
+    };
+  });
 }
 
 export function enrichInvoicesWithCollection(

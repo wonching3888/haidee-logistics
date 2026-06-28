@@ -251,6 +251,11 @@ export const MESSAGES = {
     en: "Invoice count",
     th: "จำนวนใบแจ้งหนี้",
   },
+  "invoiceCollections.col.received": {
+    zh: "已收",
+    en: "Received",
+    th: "รับแล้ว",
+  },
   "invoiceCollections.col.month": {
     zh: "月份",
     en: "Month",
@@ -290,6 +295,11 @@ export const MESSAGES = {
     zh: "已付清",
     en: "Paid",
     th: "ชำระครบ",
+  },
+  "invoiceCollections.status.hasPrepayment": {
+    zh: "有预收",
+    en: "Prepaid balance",
+    th: "มียอดรับล่วงหน้า",
   },
   "invoiceCollections.type.freight": {
     zh: "车力",

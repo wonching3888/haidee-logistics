@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   computeAutoFifoAllocations,
   computeInvoiceCollectionStatus,
+  enrichCustomerLedgersWithCollection,
   enrichInvoicesWithCollection,
   roundMoney,
   type AllocationInvoiceInput,
   type AllocationPaymentInput,
 } from "./invoice-allocation";
-import type { ReceivableInvoice } from "./receivable-invoices";
+import {
+  groupReceivableCustomerLedgers,
+  type ReceivableInvoice,
+} from "./receivable-invoices";
 
 function invoice(
   overrides: Partial<AllocationInvoiceInput> & Pick<AllocationInvoiceInput, "invoiceKey">
@@ -395,6 +399,133 @@ describe("computeAutoFifoAllocations", () => {
 
     expect(enriched[0]?.collectionStatus).toBe("paid");
     expect(enriched[0]?.openAmount).toBe(0);
+  });
+});
+
+describe("enrichCustomerLedgersWithCollection", () => {
+  it("aggregates allocated/open/status per customerKey+currency ledger", () => {
+    const invoices: ReceivableInvoice[] = [
+      {
+        invoiceType: "freight",
+        invoiceKey: "freight:jan",
+        invoiceNo: "INV-1",
+        customerKey: "shipper:abc",
+        customerKind: "shipper",
+        customerId: "abc",
+        customerCode: "B002",
+        customerName: "Best Brother",
+        yearMonth: "2026-01",
+        sortDate: "2026-01-01",
+        currency: "MYR",
+        issuerKey: "haidee",
+        totalAmount: 67_118.06,
+        sourceMeta: {},
+        printHref: "/",
+      },
+      {
+        invoiceType: "freight",
+        invoiceKey: "freight:feb",
+        invoiceNo: "INV-2",
+        customerKey: "shipper:abc",
+        customerKind: "shipper",
+        customerId: "abc",
+        customerCode: "B002",
+        customerName: "Best Brother",
+        yearMonth: "2026-02",
+        sortDate: "2026-02-01",
+        currency: "MYR",
+        issuerKey: "haidee",
+        totalAmount: 100,
+        sourceMeta: {},
+        printHref: "/",
+      },
+      {
+        invoiceType: "freight",
+        invoiceKey: "freight:thb",
+        invoiceNo: "INV-3",
+        customerKey: "shipper:abc",
+        customerKind: "shipper",
+        customerId: "abc",
+        customerCode: "B002",
+        customerName: "Best Brother",
+        yearMonth: "2026-01",
+        sortDate: "2026-01-01",
+        currency: "THB",
+        issuerKey: "haidee",
+        totalAmount: 500,
+        sourceMeta: {},
+        printHref: "/",
+      },
+    ];
+
+    const ledgers = groupReceivableCustomerLedgers(invoices);
+    const allocatedByInvoice = new Map<string, number>([
+      ["freight|freight:jan", 10_000],
+      ["freight|freight:feb", 0],
+      ["freight|freight:thb", 500],
+    ]);
+    const unallocatedByLedger = new Map<string, number>([
+      ["shipper:abc|MYR", 1_000],
+    ]);
+
+    const enriched = enrichCustomerLedgersWithCollection(
+      ledgers,
+      invoices,
+      allocatedByInvoice,
+      unallocatedByLedger
+    );
+
+    const myr = enriched.find((row) => row.currency === "MYR");
+    const thb = enriched.find((row) => row.currency === "THB");
+
+    expect(myr?.totalReceivable).toBe(67_218.06);
+    expect(myr?.totalAllocated).toBe(10_000);
+    expect(myr?.totalOpen).toBe(57_218.06);
+    expect(myr?.collectionStatus).toBe("partial");
+    expect(myr?.hasPrepayment).toBe(true);
+    expect(myr?.prepaymentAmount).toBe(1_000);
+
+    expect(thb?.totalAllocated).toBe(500);
+    expect(thb?.totalOpen).toBe(0);
+    expect(thb?.collectionStatus).toBe("paid");
+    expect(thb?.hasPrepayment).toBe(false);
+  });
+
+  it("preserves ledger sort order from input", () => {
+    const ledgers = [
+      {
+        customerKey: "shipper:a",
+        customerKind: "shipper" as const,
+        customerId: "a",
+        customerCode: null,
+        customerName: "Alpha",
+        currency: "THB" as const,
+        earliestYearMonth: "2026-01",
+        totalReceivable: 100,
+        invoiceCount: 1,
+      },
+      {
+        customerKey: "shipper:b",
+        customerKind: "shipper" as const,
+        customerId: "b",
+        customerCode: null,
+        customerName: "Bravo",
+        currency: "THB" as const,
+        earliestYearMonth: "2026-03",
+        totalReceivable: 200,
+        invoiceCount: 1,
+      },
+    ];
+
+    const enriched = enrichCustomerLedgersWithCollection(
+      ledgers,
+      [],
+      new Map(),
+      new Map()
+    );
+
+    expect(enriched.map((row) => row.customerName)).toEqual(["Alpha", "Bravo"]);
+    expect(enriched[0]?.collectionStatus).toBe("unpaid");
   });
 });
 

@@ -539,6 +539,13 @@ export function InvoiceCollectionsView() {
                       {t("invoiceCollections.col.totalReceivable")}
                     </TableHead>
                     <TableHead className="text-right">
+                      {t("invoiceCollections.col.received")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("invoiceCollections.col.open")}
+                    </TableHead>
+                    <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
+                    <TableHead className="text-right">
                       {t("invoiceCollections.col.invoiceCount")}
                     </TableHead>
                   </TableRow>
@@ -574,6 +581,22 @@ export function InvoiceCollectionsView() {
                       <TableCell>{ledger.earliestYearMonth}</TableCell>
                       <TableCell className="text-right font-mono">
                         {formatMoney(ledger.totalReceivable, ledger.currency)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatMoney(ledger.totalAllocated, ledger.currency)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatMoney(ledger.totalOpen, ledger.currency)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="block">
+                          {t(collectionStatusMessageKey(ledger.collectionStatus))}
+                        </span>
+                        {ledger.hasPrepayment ? (
+                          <span className="mt-0.5 block text-xs text-haidee-muted">
+                            {t("invoiceCollections.status.hasPrepayment")}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-right">
                         {ledger.invoiceCount}
