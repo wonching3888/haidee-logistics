@@ -86,13 +86,20 @@ function notesToAuditString(value: unknown): string | null {
   return text === "" ? null : text;
 }
 
-function dateToAuditString(value: unknown): string | null {
+export function dateToAuditString(value: unknown): string | null {
   if (value == null) return null;
   if (value instanceof Date) {
     return value.toISOString().slice(0, 10);
   }
   const text = String(value).trim();
   return text === "" ? null : text.slice(0, 10);
+}
+
+function moneyToAuditNumber(value: unknown): number {
+  if (typeof value === "object" && value !== null && "toNumber" in value) {
+    return roundMoney((value as { toNumber(): number }).toNumber());
+  }
+  return roundMoney(Number(value));
 }
 
 export function summarizeAllocations(
@@ -268,25 +275,36 @@ export function buildInvoicePaymentDeleteMetadata(input: {
   customerKind: string;
   customerName?: string | null;
   currency: ReceivableCurrency;
-  amount: number;
-  paymentDate: string;
+  amount: unknown;
+  paymentDate: unknown;
   bankAccount: string;
-  notes?: string | null;
+  notes?: unknown;
   allocationsBefore: InvoicePaymentAllocationSummary[];
-  unallocatedBefore: number;
+  unallocatedBefore: unknown;
 }): Prisma.InputJsonValue {
+  const paymentDate = dateToAuditString(input.paymentDate);
+  if (!paymentDate) {
+    throw new Error("删款留痕缺少付款日期 Missing payment date for delete audit");
+  }
+
   return {
     customerKey: input.customerKey,
     customerKind: input.customerKind,
     customerName: input.customerName ?? null,
     currency: input.currency,
-    amount: roundMoney(input.amount),
-    paymentDate: input.paymentDate,
+    amount: moneyToAuditNumber(input.amount),
+    paymentDate,
     bankAccount: input.bankAccount,
-    notes: input.notes ?? null,
-    allocationsBefore: input.allocationsBefore,
+    notes: notesToAuditString(input.notes),
+    allocationsBefore: input.allocationsBefore.map((row) => ({
+      invoiceType: row.invoiceType,
+      invoiceKey: row.invoiceKey,
+      yearMonth: row.yearMonth,
+      amount: roundMoney(row.amount),
+      ...(row.isManual ? { isManual: true } : {}),
+    })),
     allocationsBeforeSummary: summarizeAllocations(input.allocationsBefore),
-    unallocatedBefore: roundMoney(input.unallocatedBefore),
+    unallocatedBefore: moneyToAuditNumber(input.unallocatedBefore),
   } as unknown as Prisma.InputJsonValue;
 }
 

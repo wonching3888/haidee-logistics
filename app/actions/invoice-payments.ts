@@ -285,46 +285,57 @@ export type InvoiceCollectionsDetailInvoice = ReceivableInvoiceWithCollection;
 export async function deleteInvoicePayment(paymentId: string) {
   const user = await requireInvoiceCollectionsWriter();
 
-  await prisma.$transaction(async (tx) => {
-    const payment = await tx.invoicePayment.findUniqueOrThrow({
-      where: { id: paymentId },
-      include: {
-        allocations: {
-          orderBy: [{ yearMonth: "asc" }, { invoiceKey: "asc" }],
-        },
-      },
-    });
-    const currency = parseCurrency(payment.currency);
-    const customerKey = payment.customerKey;
-    const customerName = await resolveCustomerName(customerKey, currency);
-
-    await appendInvoicePaymentChangeLogs(tx, {
-      actorUserId: user.id,
-      logs: [
-        {
-          paymentId,
-          customerKey,
-          currency,
-          eventType: "delete",
-          metadata: buildInvoicePaymentDeleteMetadata({
-            customerKey,
-            customerKind: payment.customerKind,
-            customerName,
-            currency,
-            amount: Number(payment.amount),
-            paymentDate: payment.paymentDate.toISOString().slice(0, 10),
-            bankAccount: payment.bankAccount,
-            notes: payment.notes,
-            allocationsBefore: allocationRowsFromDb(payment.allocations),
-            unallocatedBefore: Number(payment.unallocatedAmount),
-          }),
-        },
-      ],
-    });
-
-    await tx.invoicePayment.delete({ where: { id: paymentId } });
-    await runAutoAllocation(customerKey, currency, tx);
+  const payment = await prisma.invoicePayment.findUniqueOrThrow({
+    where: { id: paymentId },
+    select: {
+      customerKey: true,
+      currency: true,
+    },
   });
+  const currency = parseCurrency(payment.currency);
+  const customerKey = payment.customerKey;
+  const customerName = await resolveCustomerName(customerKey, currency);
+
+  await prisma.$transaction(
+    async (tx) => {
+      const locked = await tx.invoicePayment.findUniqueOrThrow({
+        where: { id: paymentId },
+        include: {
+          allocations: {
+            orderBy: [{ yearMonth: "asc" }, { invoiceKey: "asc" }],
+          },
+        },
+      });
+
+      await appendInvoicePaymentChangeLogs(tx, {
+        actorUserId: user.id,
+        logs: [
+          {
+            paymentId,
+            customerKey,
+            currency,
+            eventType: "delete",
+            metadata: buildInvoicePaymentDeleteMetadata({
+              customerKey,
+              customerKind: locked.customerKind,
+              customerName,
+              currency,
+              amount: locked.amount,
+              paymentDate: locked.paymentDate,
+              bankAccount: locked.bankAccount,
+              notes: locked.notes,
+              allocationsBefore: allocationRowsFromDb(locked.allocations),
+              unallocatedBefore: locked.unallocatedAmount,
+            }),
+          },
+        ],
+      });
+
+      await tx.invoicePayment.delete({ where: { id: paymentId } });
+      await runAutoAllocation(customerKey, currency, tx);
+    },
+    { timeout: 30_000 }
+  );
 
   revalidatePath("/history");
   revalidatePath("/financial/invoice-collections");
