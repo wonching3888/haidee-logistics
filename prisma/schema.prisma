@@ -1139,3 +1139,22 @@ model InvoicePaymentAllocation {
   @@index([yearMonth])
   @@map("invoice_payment_allocations")
 }
+
+model InvoicePaymentChangeLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String?  @map("paymentId") @db.Uuid
+  customerKey String?  @map("customerKey")
+  currency    String?  @map("currency")
+  eventType   String   @map("eventType")
+  field       String?
+  fromValue   String?  @map("fromValue")
+  toValue     String?  @map("toValue")
+  metadata    Json?
+  changedBy   String   @map("changedBy") @db.Uuid
+  changedAt   DateTime @default(now()) @map("changedAt")
+
+  @@index([paymentId])
+  @@index([changedAt])
+  @@index([customerKey, currency])
+  @@map("invoice_payment_change_logs")
+}

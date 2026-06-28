@@ -17,13 +17,19 @@ import {
   dispatchAuditEventLabel,
   dispatchAuditFieldLabel,
 } from "@/lib/dispatch-audit";
+import {
+  invoiceCollectionsDeepLink,
+  invoicePaymentAuditEventLabel,
+  invoicePaymentAuditFieldLabel,
+} from "@/lib/invoice-payment-audit";
 
 export type AuditEntityType =
   | "inbound"
   | "voucher"
   | "payroll"
   | "dispatch"
-  | "charter";
+  | "charter"
+  | "invoice_payment";
 
 export interface AuditFeedChange {
   field: string;
@@ -54,7 +60,8 @@ export type HistoryTab =
   | "inbound"
   | "payroll"
   | "voucher"
-  | "trips";
+  | "trips"
+  | "invoice_collections";
 
 const ALL_ENTITY_TYPES: AuditEntityType[] = [
   "inbound",
@@ -62,6 +69,7 @@ const ALL_ENTITY_TYPES: AuditEntityType[] = [
   "payroll",
   "dispatch",
   "charter",
+  "invoice_payment",
 ];
 
 export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
@@ -74,6 +82,8 @@ export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
       return ["voucher"];
     case "trips":
       return ["dispatch", "charter"];
+    case "invoice_collections":
+      return ["invoice_payment"];
     default:
       return ALL_ENTITY_TYPES;
   }
@@ -608,6 +618,149 @@ async function fetchDispatchAuditEntries(
   return Array.from(grouped.values());
 }
 
+function parseInvoicePaymentMetadata(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function buildInvoicePaymentFeedChange(log: {
+  eventType: string;
+  field: string | null;
+  fromValue: string | null;
+  toValue: string | null;
+  metadata: unknown;
+}): AuditFeedChange {
+  const metadata = parseInvoicePaymentMetadata(log.metadata);
+
+  if (log.eventType === "create") {
+    const amount =
+      metadata.amount != null ? String(metadata.amount) : "—";
+    const currency =
+      typeof metadata.currency === "string" ? metadata.currency : "";
+    const bankAccount =
+      typeof metadata.bankAccount === "string" ? metadata.bankAccount : "—";
+    const paymentDate =
+      typeof metadata.paymentDate === "string" ? metadata.paymentDate : "—";
+    return {
+      field: "录款",
+      from: "—",
+      to: `${amount} ${currency} · ${bankAccount} · ${paymentDate}`,
+    };
+  }
+
+  if (log.eventType === "delete") {
+    const amount =
+      metadata.amount != null ? String(metadata.amount) : "—";
+    const currency =
+      typeof metadata.currency === "string" ? metadata.currency : "";
+    const summary =
+      typeof metadata.allocationsBeforeSummary === "string"
+        ? metadata.allocationsBeforeSummary
+        : "—";
+    return {
+      field: "删款",
+      from: `${amount} ${currency} · ${summary}`,
+      to: "—",
+    };
+  }
+
+  if (
+    log.eventType === "manual_override" ||
+    log.eventType === "reset_to_auto"
+  ) {
+    const before =
+      typeof metadata.allocationsBeforeSummary === "string"
+        ? metadata.allocationsBeforeSummary
+        : "—";
+    const after =
+      typeof metadata.allocationsAfterSummary === "string"
+        ? metadata.allocationsAfterSummary
+        : "—";
+    return {
+      field:
+        log.eventType === "manual_override" ? "冲账分配" : "恢复自动冲账",
+      from: before,
+      to: after,
+    };
+  }
+
+  if (log.field) {
+    return {
+      field: invoicePaymentAuditFieldLabel(log.field),
+      from: log.fromValue ?? "—",
+      to: log.toValue ?? "—",
+    };
+  }
+
+  return {
+    field: log.eventType,
+    from: log.fromValue ?? "—",
+    to: log.toValue ?? "—",
+  };
+}
+
+async function fetchInvoicePaymentAuditEntries(
+  dateStr?: string
+): Promise<AuditFeedEntry[]> {
+  const changedAtWhere = dateStr ? changedAtDayRange(dateStr) : undefined;
+
+  const logs = await prisma.invoicePaymentChangeLog.findMany({
+    where: changedAtWhere ? { changedAt: changedAtWhere } : {},
+    orderBy: { changedAt: "desc" },
+  });
+
+  const actorNames = await loadActorNames(logs.map((log) => log.changedBy));
+
+  const grouped = new Map<string, AuditFeedEntry>();
+  for (const log of logs) {
+    const key = `${log.paymentId ?? "deleted"}:${log.changedBy}:${groupTimestampKey(log.changedAt)}:${log.eventType}`;
+    const metadata = parseInvoicePaymentMetadata(log.metadata);
+    const customerName =
+      typeof metadata.customerName === "string" && metadata.customerName
+        ? metadata.customerName
+        : null;
+    const customerKey = log.customerKey ?? "";
+    const currency = log.currency ?? "";
+    const amount =
+      metadata.amount != null ? String(metadata.amount) : null;
+    const entityLabel = [
+      customerName ?? customerKey,
+      currency,
+      amount ? `${amount} ${currency}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const change = buildInvoicePaymentFeedChange(log);
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.changes.push(change);
+      continue;
+    }
+
+    grouped.set(key, {
+      id: log.id,
+      entityType: "invoice_payment",
+      entityId: log.paymentId ?? log.id,
+      entityLabel: entityLabel || "收账",
+      eventType: log.eventType,
+      eventTypeLabel: invoicePaymentAuditEventLabel(log.eventType),
+      occurredAt: log.changedAt,
+      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      actorName: actorNames.get(log.changedBy) ?? "—",
+      changes: [change],
+      deepLink:
+        customerKey && currency
+          ? invoiceCollectionsDeepLink({ customerKey, currency })
+          : "/financial/invoice-collections",
+    });
+  }
+
+  return Array.from(grouped.values());
+}
+
 export async function getAuditFeed(input: {
   entityTypes?: AuditEntityType[];
   date?: string;
@@ -631,6 +784,9 @@ export async function getAuditFeed(input: {
       ? fetchDispatchAuditEntries(input.date).then((entries) =>
           entries.filter((entry) => entityTypes.includes(entry.entityType))
         )
+      : Promise.resolve([]),
+    entityTypes.includes("invoice_payment")
+      ? fetchInvoicePaymentAuditEntries(input.date)
       : Promise.resolve([]),
   ]);
 

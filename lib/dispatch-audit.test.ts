@@ -86,13 +86,14 @@ describe("resolveHistoryEntityTypes trips tab", () => {
     expect(resolveHistoryEntityTypes("trips")).toEqual(["dispatch", "charter"]);
   });
 
-  it("includes all five domains for default tab", () => {
+  it("includes all domains for default tab", () => {
     expect(resolveHistoryEntityTypes(undefined)).toEqual([
       "inbound",
       "voucher",
       "payroll",
       "dispatch",
       "charter",
+      "invoice_payment",
     ]);
   });
 });

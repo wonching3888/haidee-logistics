@@ -15,7 +15,8 @@ function parseHistoryTab(tab?: string): HistoryTab {
     tab === "inbound" ||
     tab === "payroll" ||
     tab === "voucher" ||
-    tab === "trips"
+    tab === "trips" ||
+    tab === "invoice_collections"
   ) {
     return tab;
   }
