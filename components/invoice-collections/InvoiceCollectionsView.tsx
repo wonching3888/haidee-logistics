@@ -30,6 +30,9 @@ import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
+/** Wide enough for stacked name + code without bleeding into currency column. */
+const CUSTOMER_COL_WIDTH = "min-w-[12.5rem] max-w-[12.5rem] w-[12.5rem]";
+
 interface InvoiceCollectionsDraft {
   fromYear: number;
   fromMonth: number;
@@ -312,7 +315,7 @@ export function InvoiceCollectionsView() {
                 </p>
               ) : (
                 <ScrollMatrixTable
-                  heightOffset={520}
+                  heightOffset={380}
                   className="border-0 shadow-none rounded-none"
                 >
                   <Table noScrollContainer className={stickyFirstColTableClass}>
@@ -372,11 +375,17 @@ export function InvoiceCollectionsView() {
               </p>
             </section>
           ) : (
-            <ScrollMatrixTable heightOffset={480}>
+            <ScrollMatrixTable heightOffset={300}>
               <Table noScrollContainer className={stickyFirstColTableClass}>
                 <TableHeader>
                   <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                    <TableHead className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}>
+                    <TableHead
+                      className={cn(
+                        CUSTOMER_COL_WIDTH,
+                        STICKY_HEAD_FIRST,
+                        "whitespace-normal align-top"
+                      )}
+                    >
                       {t("invoiceCollections.col.customer")}
                     </TableHead>
                     <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
@@ -392,17 +401,28 @@ export function InvoiceCollectionsView() {
                 <TableBody>
                   {pageData.ledgers.map((ledger) => (
                     <TableRow key={`${ledger.customerKey}|${ledger.currency}`}>
-                      <TableCell className={cn(FIRST_COL_WIDTH, STICKY_BODY_FIRST)}>
+                      <TableCell
+                        className={cn(
+                          CUSTOMER_COL_WIDTH,
+                          STICKY_BODY_FIRST,
+                          "whitespace-normal align-top"
+                        )}
+                      >
                         <Link
                           href={listHrefForLedger(
                             ledger.customerKey,
                             ledger.currency
                           )}
-                          className="font-medium text-haidee-blue hover:underline"
+                          className="block font-medium leading-snug text-haidee-blue hover:underline"
                         >
-                          {ledger.customerCode
-                            ? `${ledger.customerName} (${ledger.customerCode})`
-                            : ledger.customerName}
+                          <span className="block break-words">
+                            {ledger.customerName}
+                          </span>
+                          {ledger.customerCode ? (
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              {ledger.customerCode}
+                            </span>
+                          ) : null}
                         </Link>
                       </TableCell>
                       <TableCell>{ledger.currency}</TableCell>

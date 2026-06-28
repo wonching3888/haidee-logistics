@@ -4,8 +4,10 @@ import {
   MONTHLY_INVOICE_MODES,
   type MonthlyInvoiceMode,
 } from "@/lib/constants/monthly-invoice";
-import { formatYearMonth } from "@/lib/crate-return-billing";
-import { decimalToNumber } from "@/lib/freight-rates";
+import {
+  formatYearMonth,
+  listCrateReturnMonthlyInvoicesForMonth,
+} from "@/lib/crate-return-billing";
 import {
   buildCharterInvoiceFromTrip,
   formatCharterBillToDisplayLabel,
@@ -375,43 +377,31 @@ export async function loadCrateReturnReceivableInvoicesForMonth(
   year: number,
   month: number
 ): Promise<ReceivableInvoice[]> {
-  const yearMonth = formatYearMonth(year, month);
-  const rows = await prisma.crateReturnMonthlyInvoice.findMany({
-    where: {
-      yearMonth,
-      totalAmountMyr: { gt: 0 },
-    },
-    include: {
-      billToShipper: { select: { id: true, code: true, name: true } },
-    },
-    orderBy: [{ invoiceNo: "asc" }],
-  });
+  const summaries = await listCrateReturnMonthlyInvoicesForMonth(year, month);
 
-  return rows.map((row) => {
-    const totalAmount = decimalToNumber(row.totalAmountMyr) ?? 0;
-    const [y, m] = yearMonth.split("-").map(Number);
-
-    return {
+  return summaries
+    .filter((row) => row.totalAmountMyr > 0)
+    .sort((a, b) => (a.invoiceNo ?? "").localeCompare(b.invoiceNo ?? ""))
+    .map((row) => ({
       invoiceType: "crate_return" as const,
-      invoiceKey: `crate_return:${row.id}`,
+      invoiceKey: `crate_return:${row.invoiceId}`,
       invoiceNo: row.invoiceNo,
       customerKey: buildReceivableCustomerKey("shipper", row.billToShipperId),
       customerKind: "shipper" as const,
       customerId: row.billToShipperId,
-      customerCode: row.billToShipper.code,
-      customerName: row.billToShipper.name,
-      yearMonth,
-      sortDate: `${yearMonth}-01`,
+      customerCode: row.billToCode,
+      customerName: row.billToName,
+      yearMonth: row.yearMonth,
+      sortDate: `${row.yearMonth}-01`,
       currency: "MYR" as const,
       issuerKey: "haidee" as const,
-      totalAmount,
+      totalAmount: row.totalAmountMyr,
       sourceMeta: {
         crateType: row.crateType,
         billToKind: "shipper",
       },
-      printHref: `/documents/crate-return-invoice/print?year=${y}&month=${m}&crateType=${encodeURIComponent(row.crateType)}`,
-    };
-  });
+      printHref: `/documents/crate-return-invoice/print?year=${row.year}&month=${row.month}&crateType=${encodeURIComponent(row.crateType)}`,
+    }));
 }
 
 function charterMonthDateRange(year: number, month: number) {
