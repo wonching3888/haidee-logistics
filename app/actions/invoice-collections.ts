@@ -1,7 +1,15 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { canViewInvoiceCollections } from "@/lib/auth-roles";
+import {
+  canViewInvoiceCollections,
+  canWriteInvoiceCollections,
+} from "@/lib/auth-roles";
+import {
+  enrichInvoicesWithCollection,
+  loadAllocatedAmountsForInvoices,
+  loadInvoicePaymentsForLedger,
+} from "@/lib/invoice-allocation";
 import type { UserRole } from "@/types";
 import {
   filterReceivableInvoicesForLedger,
@@ -9,7 +17,6 @@ import {
   loadReceivableInvoicesForRange,
   summarizeReceivableOverview,
   type ReceivableCurrency,
-  type ReceivableInvoice,
 } from "@/lib/receivable-invoices";
 
 async function requireInvoiceCollectionsViewer() {
@@ -43,7 +50,7 @@ export async function getInvoiceCollectionsPageData(input: {
   customerKey?: string | null;
   currency?: string | null;
 }) {
-  await requireInvoiceCollectionsViewer();
+  const user = await requireInvoiceCollectionsViewer();
   parseYearMonth(input.fromYear, input.fromMonth);
   parseYearMonth(input.toYear, input.toMonth);
 
@@ -73,8 +80,10 @@ export async function getInvoiceCollectionsPageData(input: {
   let detail: {
     customerKey: string;
     currency: ReceivableCurrency;
-    invoices: ReceivableInvoice[];
+    invoices: ReturnType<typeof enrichInvoicesWithCollection>;
+    payments: Awaited<ReturnType<typeof loadInvoicePaymentsForLedger>>;
     totalReceivable: number;
+    totalOpen: number;
   } | null = null;
 
   if (customerKey && currency) {
@@ -83,13 +92,32 @@ export async function getInvoiceCollectionsPageData(input: {
       customerKey,
       currency
     );
+    const allocatedByInvoice = await loadAllocatedAmountsForInvoices(
+      detailInvoices
+    );
+    const enrichedInvoices = enrichInvoicesWithCollection(
+      detailInvoices,
+      allocatedByInvoice
+    );
+    const payments = await loadInvoicePaymentsForLedger(
+      customerKey,
+      currency,
+      detailInvoices
+    );
+
     detail = {
       customerKey,
       currency,
-      invoices: detailInvoices,
+      invoices: enrichedInvoices,
+      payments,
       totalReceivable:
         Math.round(
           detailInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0) *
+            100
+        ) / 100,
+      totalOpen:
+        Math.round(
+          enrichedInvoices.reduce((sum, invoice) => sum + invoice.openAmount, 0) *
             100
         ) / 100,
     };
@@ -104,5 +132,16 @@ export async function getInvoiceCollectionsPageData(input: {
     overview,
     invoiceCount: invoices.length,
     detail,
+    canWritePayments: canWriteInvoiceCollections(user.role as UserRole),
   };
 }
+
+export type InvoiceCollectionsPageData = Awaited<
+  ReturnType<typeof getInvoiceCollectionsPageData>
+>;
+
+export type InvoiceCollectionsDetailInvoice =
+  NonNullable<InvoiceCollectionsPageData["detail"]>["invoices"][number];
+
+export type InvoiceCollectionsDetailPayment =
+  NonNullable<InvoiceCollectionsPageData["detail"]>["payments"][number];

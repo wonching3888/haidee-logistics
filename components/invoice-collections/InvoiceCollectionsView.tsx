@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections";
+import { InvoicePaymentDialog } from "@/components/invoice-collections/InvoicePaymentDialog";
+import { InvoicePaymentSection } from "@/components/invoice-collections/InvoicePaymentSection";
 import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFilterBar } from "@/components/shared/ReportFilterBar";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
@@ -27,6 +29,7 @@ import {
   stickyFirstColTableClass,
 } from "@/lib/table-scroll";
 import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable-invoices";
+import type { InvoiceCollectionStatus } from "@/lib/invoice-allocation";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +92,19 @@ function invoiceTypeMessageKey(
   }
 }
 
+function collectionStatusMessageKey(
+  status: InvoiceCollectionStatus
+): MessageKey {
+  switch (status) {
+    case "partial":
+      return "invoiceCollections.status.partial";
+    case "paid":
+      return "invoiceCollections.status.paid";
+    default:
+      return "invoiceCollections.status.unpaid";
+  }
+}
+
 function formatModeSuffix(
   invoiceType: ReceivableInvoiceType,
   mode?: string
@@ -102,6 +118,7 @@ function formatModeSuffix(
 export function InvoiceCollectionsView() {
   const { t } = useT();
   const searchParams = useSearchParams();
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const customerKey = searchParams.get("customerKey");
   const currencyParam = searchParams.get("currency");
@@ -170,6 +187,7 @@ export function InvoiceCollectionsView() {
 
   const pageData = data;
   const detailData = pageData?.detail ?? null;
+  const canWritePayments = pageData?.canWritePayments ?? false;
 
   const detailCustomerName =
     detailData?.invoices[0]?.customerName ??
@@ -299,6 +317,11 @@ export function InvoiceCollectionsView() {
                     <strong>
                       {formatMoney(detailData.totalReceivable, detailData.currency)}
                     </strong>
+                    {" · "}
+                    {t("invoiceCollections.col.open")}:{" "}
+                    <strong>
+                      {formatMoney(detailData.totalOpen, detailData.currency)}
+                    </strong>
                   </p>
                 </div>
                 <Link
@@ -308,6 +331,13 @@ export function InvoiceCollectionsView() {
                   {t("invoiceCollections.backToList")}
                 </Link>
               </div>
+
+              <InvoicePaymentSection
+                payments={detailData.payments}
+                currency={detailData.currency}
+                canWritePayments={canWritePayments}
+                onAddPayment={() => setPaymentDialogOpen(true)}
+              />
 
               {detailData.invoices.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-haidee-muted">
@@ -327,7 +357,13 @@ export function InvoiceCollectionsView() {
                         <TableHead>{t("invoiceCollections.col.type")}</TableHead>
                         <TableHead>{t("invoiceCollections.col.invoiceNo")}</TableHead>
                         <TableHead className="text-right">
-                          {t("invoiceCollections.col.amount")}
+                          {t("invoiceCollections.col.total")}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.allocated")}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.open")}
                         </TableHead>
                         <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
                         <TableHead />
@@ -352,7 +388,15 @@ export function InvoiceCollectionsView() {
                           <TableCell className="text-right font-mono">
                             {formatMoney(invoice.totalAmount, invoice.currency)}
                           </TableCell>
-                          <TableCell>{t("invoiceCollections.status.unpaid")}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(invoice.allocatedAmount, invoice.currency)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(invoice.openAmount, invoice.currency)}
+                          </TableCell>
+                          <TableCell>
+                            {t(collectionStatusMessageKey(invoice.collectionStatus))}
+                          </TableCell>
                           <TableCell className="text-right">
                             <Link
                               href={invoice.printHref}
@@ -367,6 +411,42 @@ export function InvoiceCollectionsView() {
                   </Table>
                 </ScrollMatrixTable>
               )}
+              {detailData && customerKey && currencyParam ? (
+                <InvoicePaymentDialog
+                  open={paymentDialogOpen}
+                  onClose={() => setPaymentDialogOpen(false)}
+                  onSaved={() => void search()}
+                  customerKey={customerKey}
+                  customerKind={
+                    detailData.invoices[0]?.customerKind ??
+                    pageData?.ledgers.find(
+                      (row) =>
+                        row.customerKey === customerKey &&
+                        row.currency === currencyParam
+                    )?.customerKind ??
+                    "shipper"
+                  }
+                  customerId={
+                    detailData.invoices[0]?.customerId ??
+                    pageData?.ledgers.find(
+                      (row) =>
+                        row.customerKey === customerKey &&
+                        row.currency === currencyParam
+                    )?.customerId ??
+                    null
+                  }
+                  currency={detailData.currency}
+                  openInvoices={detailData.invoices
+                    .filter((invoice) => invoice.openAmount > 0)
+                    .map((invoice) => ({
+                      yearMonth: invoice.yearMonth,
+                      invoiceNo: invoice.invoiceNo,
+                      invoiceKey: invoice.invoiceKey,
+                      totalAmount: invoice.totalAmount,
+                      openAmount: invoice.openAmount,
+                    }))}
+                />
+              ) : null}
             </section>
           ) : pageData.ledgers.length === 0 ? (
             <section className="rounded-xl border border-haidee-border bg-white px-4 py-6 shadow-sm">

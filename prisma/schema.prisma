@@ -1092,3 +1092,50 @@ model DriverVoucherMarketActual {
   @@index([voucherId])
   @@map("driver_voucher_market_actuals")
 }
+
+// ─── Invoice collections — customer payments & FIFO allocations ───────────────
+
+model InvoicePayment {
+  id                 String   @id @default(uuid()) @db.Uuid
+  customerKey        String   @map("customerKey")
+  customerKind       String   @map("customerKind")
+  customerId         String?  @map("customerId") @db.Uuid
+  currency           String   @map("currency")
+  amount             Decimal  @map("amount") @db.Decimal(12, 2)
+  paymentDate        DateTime @map("paymentDate") @db.Date
+  bankAccount        String   @map("bankAccount")
+  notes              String?  @map("notes") @db.Text
+  allocationStrategy String   @default("auto") @map("allocationStrategy")
+  unallocatedAmount  Decimal  @default(0) @map("unallocatedAmount") @db.Decimal(12, 2)
+  createdBy          String   @map("createdBy") @db.Uuid
+  updatedBy          String?  @map("updatedBy") @db.Uuid
+  createdAt          DateTime @default(now()) @map("createdAt")
+  updatedAt          DateTime @updatedAt @map("updatedAt")
+
+  allocations InvoicePaymentAllocation[]
+
+  @@index([customerKey, currency])
+  @@index([paymentDate])
+  @@index([bankAccount])
+  @@map("invoice_payments")
+}
+
+model InvoicePaymentAllocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @map("paymentId") @db.Uuid
+  invoiceType String   @map("invoiceType")
+  invoiceKey  String   @map("invoiceKey")
+  yearMonth   String   @map("yearMonth")
+  currency    String   @map("currency")
+  amount      Decimal  @map("amount") @db.Decimal(12, 2)
+  isManual    Boolean  @default(false) @map("isManual")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
+
+  payment InvoicePayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, invoiceType, invoiceKey])
+  @@index([invoiceType, invoiceKey])
+  @@index([yearMonth])
+  @@map("invoice_payment_allocations")
+}

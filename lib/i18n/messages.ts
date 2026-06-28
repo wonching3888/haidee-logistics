@@ -207,9 +207,9 @@ export const MESSAGES = {
     th: "เก็บเงินใบแจ้งหนี้",
   },
   "invoiceCollections.subtitle": {
-    zh: "客户应收账本 · 三种月结 Invoice 只读总览（本批不含来款冲账）",
-    en: "Customer receivable ledger · read-only invoice overview (payments not yet available)",
-    th: "บัญชีลูกหนี้ · ดูใบแจ้งหนี้แบบอ่านอย่างเดียว (ยังไม่มีการรับเงิน)",
+    zh: "客户应收账本 · 来款录入与自动 FIFO 冲账",
+    en: "Customer receivable ledger · payment entry with automatic FIFO allocation",
+    th: "บัญชีลูกหนี้ · บันทึกรับเงินและจัดสรร FIFO อัตโนมัติ",
   },
   "invoiceCollections.overview.thb": {
     zh: "THB 总应收",
@@ -277,9 +277,19 @@ export const MESSAGES = {
     th: "สถานะการเก็บเงิน",
   },
   "invoiceCollections.status.unpaid": {
-    zh: "未收",
+    zh: "未付",
     en: "Unpaid",
-    th: "ยังไม่รับ",
+    th: "ยังไม่ชำระ",
+  },
+  "invoiceCollections.status.partial": {
+    zh: "部分已付",
+    en: "Partially paid",
+    th: "ชำระบางส่วน",
+  },
+  "invoiceCollections.status.paid": {
+    zh: "已付清",
+    en: "Paid",
+    th: "ชำระครบ",
   },
   "invoiceCollections.type.freight": {
     zh: "车力",
@@ -325,6 +335,136 @@ export const MESSAGES = {
     zh: "请选择月份范围并点击「查询」",
     en: "Select a month range and click Search",
     th: "เลือกช่วงเดือนแล้วกดค้นหา",
+  },
+  "invoiceCollections.payments.title": {
+    zh: "来款",
+    en: "Payments",
+    th: "รับเงิน",
+  },
+  "invoiceCollections.payments.add": {
+    zh: "录入来款",
+    en: "Record payment",
+    th: "บันทึกรับเงิน",
+  },
+  "invoiceCollections.payments.empty": {
+    zh: "暂无来款记录",
+    en: "No payments recorded",
+    th: "ยังไม่มีการรับเงิน",
+  },
+  "invoiceCollections.payments.col.date": {
+    zh: "日期",
+    en: "Date",
+    th: "วันที่",
+  },
+  "invoiceCollections.payments.col.bankAccount": {
+    zh: "户口",
+    en: "Bank account",
+    th: "บัญชี",
+  },
+  "invoiceCollections.payments.col.amount": {
+    zh: "金额",
+    en: "Amount",
+    th: "จำนวนเงิน",
+  },
+  "invoiceCollections.payments.col.allocated": {
+    zh: "已分配",
+    en: "Allocated",
+    th: "จัดสรรแล้ว",
+  },
+  "invoiceCollections.payments.col.unallocated": {
+    zh: "预收余额",
+    en: "Unallocated",
+    th: "ยอดคงเหลือ",
+  },
+  "invoiceCollections.payments.expandAllocations": {
+    zh: "查看冲账明细",
+    en: "View allocations",
+    th: "ดูการจัดสรร",
+  },
+  "invoiceCollections.payments.dialogTitle": {
+    zh: "录入来款",
+    en: "Record payment",
+    th: "บันทึกรับเงิน",
+  },
+  "invoiceCollections.payments.paymentDate": {
+    zh: "付款日期",
+    en: "Payment date",
+    th: "วันที่รับเงิน",
+  },
+  "invoiceCollections.payments.notes": {
+    zh: "备注",
+    en: "Notes",
+    th: "หมายเหตุ",
+  },
+  "invoiceCollections.payments.preview": {
+    zh: "预览自动冲账",
+    en: "Preview auto allocation",
+    th: "ดูตัวอย่างการจัดสรร",
+  },
+  "invoiceCollections.payments.confirm": {
+    zh: "确认保存",
+    en: "Save payment",
+    th: "บันทึก",
+  },
+  "invoiceCollections.payments.previewTitle": {
+    zh: "拟分配结果",
+    en: "Planned allocations",
+    th: "ผลการจัดสรร",
+  },
+  "invoiceCollections.payments.openInvoices": {
+    zh: "未清 Invoice（老→新）",
+    en: "Open invoices (oldest first)",
+    th: "ใบแจ้งหนี้ค้าง (เก่าสุดก่อน)",
+  },
+  "invoiceCollections.payments.saveSuccess": {
+    zh: "来款已保存并完成自动冲账",
+    en: "Payment saved and auto-allocated",
+    th: "บันทึกและจัดสรรเรียบร้อย",
+  },
+  "invoiceCollections.payments.saveFailed": {
+    zh: "保存失败",
+    en: "Failed to save payment",
+    th: "บันทึกไม่สำเร็จ",
+  },
+  "invoiceCollections.col.allocated": {
+    zh: "已冲",
+    en: "Allocated",
+    th: "จัดสรรแล้ว",
+  },
+  "invoiceCollections.col.open": {
+    zh: "未清",
+    en: "Open",
+    th: "คงค้าง",
+  },
+  "invoiceCollections.col.total": {
+    zh: "总额",
+    en: "Total",
+    th: "ยอดรวม",
+  },
+  "invoiceCollections.bankAccount.haideeBbl5030": {
+    zh: "HAIDEE BBL 5030",
+    en: "HAIDEE BBL 5030",
+    th: "HAIDEE BBL 5030",
+  },
+  "invoiceCollections.bankAccount.hupdeeKbank5020": {
+    zh: "HUPDEE KBANK 5020",
+    en: "HUPDEE KBANK 5020",
+    th: "HUPDEE KBANK 5020",
+  },
+  "invoiceCollections.bankAccount.hupdeeBbl7044": {
+    zh: "HUPDEE BBL 7044",
+    en: "HUPDEE BBL 7044",
+    th: "HUPDEE BBL 7044",
+  },
+  "invoiceCollections.bankAccount.wtlPbb1725": {
+    zh: "WTL PBB 1725",
+    en: "WTL PBB 1725",
+    th: "WTL PBB 1725",
+  },
+  "invoiceCollections.bankAccount.cash": {
+    zh: "现金 CASH",
+    en: "Cash",
+    th: "เงินสด",
   },
   "nav.history": {
     zh: "修改记录",

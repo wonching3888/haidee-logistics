@@ -94,6 +94,11 @@ export function canViewInvoiceCollections(role: StoredUserRole): boolean {
   return role === "admin" || role === "viewer";
 }
 
+/** admin only — Invoice 收账来款录入 */
+export function canWriteInvoiceCollections(role: StoredUserRole): boolean {
+  return role === "admin";
+}
+
 /** admin/thai/my ✓ · clerk/viewer/owner ✗ · legacy accounting ✓ */
 export function canViewInvoiceAmounts(role: StoredUserRole): boolean {
   switch (role) {
