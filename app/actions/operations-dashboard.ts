@@ -22,6 +22,7 @@ import {
   buildOperationsDashboardMetrics,
   type OperationsDashboardData,
 } from "@/lib/operations-dashboard";
+import { aggregateOperationsPayrollWarnings } from "@/lib/operations-payroll-warnings";
 import { lineMcThirdPartyHaulageMyr } from "@/lib/mc-dispatch-delivery";
 
 async function requireOperationsAccess() {
@@ -143,6 +144,7 @@ export async function getOperationsDashboard(input: {
     exchangeRateRow,
     globalCostRates,
     charterCosts,
+    payrollWarning,
   ] = await Promise.all([
     aggregateIncome(input.year, input.month, inboundLines),
     aggregateMcThirdParty(input.year, input.month),
@@ -153,27 +155,31 @@ export async function getOperationsDashboard(input: {
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
     loadGlobalCostRates(),
     aggregateCharterOperationsCosts(input.year, input.month),
+    aggregateOperationsPayrollWarnings(input.year, input.month),
   ]);
 
   const exchangeRate =
     decimalToNumber(exchangeRateRow?.rate) ?? DEFAULT_EXCHANGE_RATE;
 
-  return buildOperationsDashboardMetrics({
-    year: input.year,
-    month: input.month,
-    yearMonth,
-    exchangeRate,
-    exchangeRateMissing: !exchangeRateRow,
-    income,
-    payroll,
-    mcThirdPartyMyr,
-    tripCosts,
-    lkimMaqis,
-    thaiSegmentFreight,
-    globalCostRates,
-    charter: {
-      income: income.charterIncome,
-      costs: charterCosts,
-    },
-  });
+  return {
+    ...buildOperationsDashboardMetrics({
+      year: input.year,
+      month: input.month,
+      yearMonth,
+      exchangeRate,
+      exchangeRateMissing: !exchangeRateRow,
+      income,
+      payroll,
+      mcThirdPartyMyr,
+      tripCosts,
+      lkimMaqis,
+      thaiSegmentFreight,
+      globalCostRates,
+      charter: {
+        income: income.charterIncome,
+        costs: charterCosts,
+      },
+    }),
+    payrollWarning: payrollWarning.showBox ? payrollWarning : null,
+  };
 }

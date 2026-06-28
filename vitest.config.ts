@@ -41,6 +41,7 @@ export default defineConfig({
       "lib/driver-payroll-trip-sync.test.ts",
       "lib/payroll-charter-salary.test.ts",
       "lib/charter-payroll-salary.test.ts",
+      "lib/operations-payroll-warnings.test.ts",
     ],
   },
   resolve: {

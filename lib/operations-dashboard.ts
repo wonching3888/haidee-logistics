@@ -13,6 +13,7 @@ import {
 } from "@/lib/charter-operations";
 import type { InboundFreightGapReason } from "@/lib/inbound-freight";
 import type { OperationsIncomeWarningSample } from "@/lib/operations-income";
+import type { OperationsPayrollWarningResult } from "@/lib/operations-payroll-warnings";
 
 export type DataSourceKind = "actual" | "estimate";
 
@@ -101,6 +102,8 @@ export interface OperationsDashboardData {
     assignedLineCount: number;
     exchangeRate: number;
   };
+  /** Attached by getOperationsDashboard action (not buildOperationsDashboardMetrics). */
+  payrollWarning?: OperationsPayrollWarningResult | null;
 }
 
 function roundMoney(value: number) {

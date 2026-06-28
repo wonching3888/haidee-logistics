@@ -11,6 +11,7 @@ import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChang
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
 import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
+import { OperationsPayrollWarningsBlock } from "@/components/operations/OperationsPayrollWarningsBlock";
 
 interface YearMonthDraft {
   year: number;
@@ -158,9 +159,9 @@ export function OperationsDashboardView({
               收入 Revenue
             </h3>
 
-            {data.revenue.warning && (
+            {(data.revenue.warning || data.payrollWarning) && (
               <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                {data.revenue.warning.missingRateLineCount > 0 && (
+                {data.revenue.warning && data.revenue.warning.missingRateLineCount > 0 && (
                   <>
                     <p className="font-semibold">
                       收入警告：{data.revenue.warning.missingRateLineCount} 行派车（
@@ -198,7 +199,8 @@ export function OperationsDashboardView({
                     )}
                   </>
                 )}
-                {data.revenue.warning.costWarnings.length > 0 && (
+                {data.revenue.warning &&
+                  data.revenue.warning.costWarnings.length > 0 && (
                   <div
                     className={
                       data.revenue.warning.missingRateLineCount > 0
@@ -216,6 +218,17 @@ export function OperationsDashboardView({
                       ))}
                     </ul>
                   </div>
+                )}
+
+                {data.payrollWarning && (
+                  <OperationsPayrollWarningsBlock
+                    warning={data.payrollWarning}
+                    hasIncomeOrCostWarnings={Boolean(
+                      data.revenue.warning &&
+                        (data.revenue.warning.missingRateLineCount > 0 ||
+                          data.revenue.warning.costWarnings.length > 0)
+                    )}
+                  />
                 )}
               </div>
             )}

@@ -1866,6 +1866,61 @@ export const MESSAGES = {
     en: "Market",
     th: "ตลาด",
   },
+  "operations.payrollWarning.title": {
+    zh: "薪资警告",
+    en: "Payroll Warnings",
+    th: "คำเตือนค่าแรง",
+  },
+  "operations.payrollWarning.p1": {
+    zh: "薪资警告：{count} 趟有效派车/包车缺少工资行",
+    en: "Payroll warning: {count} active trip(s) missing payroll row",
+    th: "คำเตือนค่าแรง: {count} เที่ยวที่ไม่มีแถว payroll",
+  },
+  "operations.payrollWarning.p2": {
+    zh: "{count} 趟趟次津贴应为 {sum} 实为 0",
+    en: "{count} trip(s) trip allowance should be {sum} but is 0",
+    th: "{count} เที่ยวค่าเที่ยวควร {sum} แต่เป็น 0",
+  },
+  "operations.payrollWarning.p3": {
+    zh: "{count} 趟回桶提成缺失（共 {qty} 桶）",
+    en: "{count} trip(s) missing crate-return commission ({qty} crates)",
+    th: "{count} เที่ยวขาดค่าคอมมิชชั่นคืนถัง ({qty} ถัง)",
+  },
+  "operations.payrollWarning.p4": {
+    zh: "{count} 单包车固定工钱未同步进工资",
+    en: "{count} charter(s) fixed driver salary not synced to payroll",
+    th: "{count} รายการเหมารถยังไม่ sync ค่าแรงคนขับ",
+  },
+  "operations.payrollWarning.p5": {
+    zh: "{count} 单包车回桶提成缺失",
+    en: "{count} charter(s) missing crate-return commission",
+    th: "{count} รายการเหมารถขาดค่าคอมมิชชั่นคืนถัง",
+  },
+  "operations.payrollWarning.d5": {
+    zh: "{count} 行付款模式/币种/开票主体未设置",
+    en: "{count} line(s) missing payment mode / currency / billing company",
+    th: "{count} แถวยังไม่ตั้ง payment mode / สกุลเงิน / billing company",
+  },
+  "operations.payrollWarning.unsyncedToggle": {
+    zh: "可能待同步 {count} 条",
+    en: "Possibly pending sync ({count})",
+    th: "อาจรอ sync ({count})",
+  },
+  "operations.payrollWarning.unsyncedHint": {
+    zh: "近 2 天内派车或 24 小时内新建的单据，sync 可能尚未完成，不计入主警告。",
+    en: "Trips within 2 days or created in the last 24h may still be syncing; excluded from main counts.",
+    th: "เที่ยวภายใน 2 วันหรือสร้างภายใน 24 ชม. อาจยัง sync ไม่เสร็จ ไม่นับในคำเตือนหลัก",
+  },
+  "operations.payrollWarning.samples": {
+    zh: "示例",
+    en: "Samples",
+    th: "ตัวอย่าง",
+  },
+  "operations.payrollWarning.dataQuality": {
+    zh: "数据完整性",
+    en: "Data completeness",
+    th: "ความครบถ้วนของข้อมูล",
+  },
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }
