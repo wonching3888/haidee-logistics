@@ -158,6 +158,23 @@ export function canAccessDriverExpenses(role: StoredUserRole): boolean {
   }
 }
 
+/** admin/my ✓ · legacy accounting read-only · all others ✗ */
+export function canWriteDriverPayroll(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "my_accounting":
+      return true;
+    case "accounting":
+    case "clerk":
+    case "thai_accounting":
+    case "viewer":
+    case "owner":
+      return false;
+    default:
+      return false;
+  }
+}
+
 /** admin/my ✓ · all others ✗ · legacy accounting ✓ */
 export function canViewDriverPayroll(role: StoredUserRole): boolean {
   switch (role) {

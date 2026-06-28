@@ -346,8 +346,9 @@ model Driver {
   childCount            Int      @default(0) @map("child_count")
   createdAt DateTime @default(now()) @map("created_at")
 
-  trucks         Truck[]
-  payrollMonths  DriverPayrollMonth[]
+  trucks            Truck[]
+  payrollMonths     DriverPayrollMonth[]
+  payrollChangeLogs PayrollChangeLog[]
 
   @@map("drivers")
 }
@@ -411,6 +412,28 @@ model DriverPayrollExtra {
   payrollMonth DriverPayrollMonth @relation(fields: [payrollMonthId], references: [id], onDelete: Cascade)
 
   @@map("driver_payroll_extras")
+}
+
+model PayrollChangeLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  payrollMonthId String?  @map("payrollMonthId") @db.Uuid
+  payrollTripId  String?  @map("payrollTripId") @db.Uuid
+  payrollExtraId String?  @map("payrollExtraId") @db.Uuid
+  driverId       String   @map("driverId") @db.Uuid
+  yearMonth      String   @map("yearMonth")
+  eventType      String   @map("eventType")
+  field          String?
+  fromValue      String?  @map("fromValue")
+  toValue        String?  @map("toValue")
+  metadata       Json?
+  changedBy      String   @map("changedBy") @db.Uuid
+  changedAt      DateTime @default(now()) @map("changedAt")
+
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([driverId, yearMonth])
+  @@index([changedAt])
+  @@map("payroll_change_logs")
 }
 
 model OperationsMonthlyCosts {

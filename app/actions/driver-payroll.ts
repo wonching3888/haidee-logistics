@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewDriverPayroll } from "@/lib/auth-roles";
+import { canViewDriverPayroll, canWriteDriverPayroll } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
@@ -28,6 +28,11 @@ import {
 import {
   syncDriverPayrollForMonth,
 } from "@/lib/payroll-month-sync";
+import {
+  appendPayrollChangeLogs,
+  diffPayrollOverrideChanges,
+  diffPayrollTripFieldChanges,
+} from "@/lib/payroll-audit";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -40,6 +45,14 @@ async function requirePayrollAccess() {
   const user = await getCurrentUser();
   if (!user || !canViewDriverPayroll(user.role as UserRole)) {
     throw new Error("无权限 Unauthorized");
+  }
+  return user;
+}
+
+async function requirePayrollWriteAccess() {
+  const user = await requirePayrollAccess();
+  if (!canWriteDriverPayroll(user.role as UserRole)) {
+    throw new Error("无写入权限 Write access denied");
   }
   return user;
 }
@@ -307,16 +320,72 @@ export async function saveDriverPayrollTrip(input: {
   extraAllowance: number;
   notes?: string;
 }) {
-  await requirePayrollAccess();
-  await prisma.driverPayrollTrip.update({
+  const user = await requirePayrollWriteAccess();
+  const existing = await prisma.driverPayrollTrip.findUnique({
     where: { id: input.id },
-    data: {
-      tripAllowance: input.tripAllowance,
-      extraAllowance: input.extraAllowance,
-      notes: input.notes?.trim() || null,
+    include: {
+      payrollMonth: {
+        select: {
+          id: true,
+          driverId: true,
+          yearMonth: true,
+          driver: { select: { name: true } },
+        },
+      },
+      dispatchOrder: { select: { dispatchNo: true } },
+      charterTrip: { select: { charterNo: true } },
     },
   });
+  if (!existing) {
+    throw new Error("趟次不存在 Trip not found");
+  }
+
+  const notes = input.notes?.trim() || null;
+  const changes = diffPayrollTripFieldChanges(existing, {
+    tripAllowance: input.tripAllowance,
+    extraAllowance: input.extraAllowance,
+    notes,
+  });
+  const metadata = {
+    tripNo:
+      existing.dispatchOrder?.dispatchNo ??
+      existing.charterTrip?.charterNo ??
+      null,
+    route: getRouteLabel(
+      payrollTripRouteSource({
+        markets: existing.markets,
+        route: existing.route,
+      })
+    ),
+    driverName: existing.payrollMonth.driver.name,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.driverPayrollTrip.update({
+      where: { id: input.id },
+      data: {
+        tripAllowance: input.tripAllowance,
+        extraAllowance: input.extraAllowance,
+        notes,
+      },
+    });
+    await appendPayrollChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: changes.map((change) => ({
+        payrollMonthId: existing.payrollMonth.id,
+        payrollTripId: existing.id,
+        driverId: existing.payrollMonth.driverId,
+        yearMonth: existing.payrollMonth.yearMonth,
+        eventType: "trip_update",
+        field: change.field,
+        fromValue: change.fromValue,
+        toValue: change.toValue,
+        metadata,
+      })),
+    });
+  });
   revalidatePath("/driver-payroll");
+  revalidatePath("/history");
 }
 
 export async function addDriverPayrollExtra(input: {
@@ -326,29 +395,95 @@ export async function addDriverPayrollExtra(input: {
   date: string;
   note?: string;
 }) {
-  await requirePayrollAccess();
+  const user = await requirePayrollWriteAccess();
   if (!isPayrollExtraType(input.type)) {
     throw new Error("无效类型 Invalid extra type");
   }
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
     throw new Error("金额必须大于 0 Amount must be greater than 0");
   }
-  await prisma.driverPayrollExtra.create({
-    data: {
-      payrollMonthId: input.payrollMonthId,
-      type: input.type,
-      amount: input.amount,
-      date: new Date(`${input.date}T00:00:00.000Z`),
-      note: input.note?.trim() || null,
-    },
+
+  const payrollMonth = await prisma.driverPayrollMonth.findUnique({
+    where: { id: input.payrollMonthId },
+    include: { driver: { select: { name: true } } },
+  });
+  if (!payrollMonth) {
+    throw new Error("薪资月份不存在 Payroll month not found");
+  }
+
+  const note = input.note?.trim() || null;
+  await prisma.$transaction(async (tx) => {
+    const extra = await tx.driverPayrollExtra.create({
+      data: {
+        payrollMonthId: input.payrollMonthId,
+        type: input.type,
+        amount: input.amount,
+        date: new Date(`${input.date}T00:00:00.000Z`),
+        note,
+      },
+    });
+    await appendPayrollChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          payrollMonthId: payrollMonth.id,
+          payrollExtraId: extra.id,
+          driverId: payrollMonth.driverId,
+          yearMonth: payrollMonth.yearMonth,
+          eventType: "extra_create",
+          metadata: {
+            type: input.type,
+            amount: input.amount,
+            date: input.date,
+            note,
+            driverName: payrollMonth.driver.name,
+          },
+        },
+      ],
+    });
   });
   revalidatePath("/driver-payroll");
+  revalidatePath("/history");
 }
 
 export async function deleteDriverPayrollExtra(id: string) {
-  await requirePayrollAccess();
-  await prisma.driverPayrollExtra.delete({ where: { id } });
+  const user = await requirePayrollWriteAccess();
+  const existing = await prisma.driverPayrollExtra.findUnique({
+    where: { id },
+    include: {
+      payrollMonth: {
+        include: { driver: { select: { name: true } } },
+      },
+    },
+  });
+  if (!existing) {
+    throw new Error("记录不存在 Extra not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await appendPayrollChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: [
+        {
+          payrollMonthId: existing.payrollMonthId,
+          payrollExtraId: existing.id,
+          driverId: existing.payrollMonth.driverId,
+          yearMonth: existing.payrollMonth.yearMonth,
+          eventType: "extra_delete",
+          metadata: {
+            type: existing.type,
+            amount: decimalToNumber(existing.amount),
+            date: toDateInputValue(existing.date),
+            note: existing.note,
+            driverName: existing.payrollMonth.driver.name,
+          },
+        },
+      ],
+    });
+    await tx.driverPayrollExtra.delete({ where: { id } });
+  });
   revalidatePath("/driver-payroll");
+  revalidatePath("/history");
 }
 
 export async function saveDriverPayrollOverrides(input: {
@@ -361,20 +496,47 @@ export async function saveDriverPayrollOverrides(input: {
   eisEmployer?: number | null;
   pcb?: number | null;
 }) {
-  await requirePayrollAccess();
-  await prisma.driverPayrollMonth.update({
+  const user = await requirePayrollWriteAccess();
+  const existing = await prisma.driverPayrollMonth.findUnique({
     where: { id: input.payrollMonthId },
-    data: {
-      epfEmployeeOverride: input.epfEmployee ?? null,
-      epfEmployerOverride: input.epfEmployer ?? null,
-      socsoEmployeeOverride: input.socsoEmployee ?? null,
-      socsoEmployerOverride: input.socsoEmployer ?? null,
-      eisEmployeeOverride: input.eisEmployee ?? null,
-      eisEmployerOverride: input.eisEmployer ?? null,
-      pcbOverride: input.pcb ?? null,
-    },
+    include: { driver: { select: { name: true } } },
+  });
+  if (!existing) {
+    throw new Error("薪资月份不存在 Payroll month not found");
+  }
+
+  const changes = diffPayrollOverrideChanges(existing, input);
+  const metadata = { driverName: existing.driver.name };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.driverPayrollMonth.update({
+      where: { id: input.payrollMonthId },
+      data: {
+        epfEmployeeOverride: input.epfEmployee ?? null,
+        epfEmployerOverride: input.epfEmployer ?? null,
+        socsoEmployeeOverride: input.socsoEmployee ?? null,
+        socsoEmployerOverride: input.socsoEmployer ?? null,
+        eisEmployeeOverride: input.eisEmployee ?? null,
+        eisEmployerOverride: input.eisEmployer ?? null,
+        pcbOverride: input.pcb ?? null,
+      },
+    });
+    await appendPayrollChangeLogs(tx, {
+      actorUserId: user.id,
+      logs: changes.map((change) => ({
+        payrollMonthId: existing.id,
+        driverId: existing.driverId,
+        yearMonth: existing.yearMonth,
+        eventType: "override_update",
+        field: change.field,
+        fromValue: change.fromValue,
+        toValue: change.toValue,
+        metadata,
+      })),
+    });
   });
   revalidatePath("/driver-payroll");
+  revalidatePath("/history");
 }
 
 function csvEscape(value: string | number | null | undefined) {
@@ -524,7 +686,7 @@ export async function saveDriverPayrollMaster(input: {
   maritalStatus?: string | null;
   childCount?: number;
 }) {
-  await requirePayrollAccess();
+  await requirePayrollWriteAccess();
   if (!input.name.trim()) {
     throw new Error("小名不能为空 Nickname is required");
   }
@@ -563,7 +725,7 @@ export async function saveDriverPayrollMaster(input: {
 }
 
 export async function deleteDriverPayrollMaster(id: string) {
-  await requirePayrollAccess();
+  await requirePayrollWriteAccess();
   await prisma.driver.update({ where: { id }, data: { active: false } });
   revalidatePath("/settings");
   revalidatePath("/driver-payroll");

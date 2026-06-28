@@ -15,29 +15,62 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowRight } from "lucide-react";
+import type { AuditFeedEntry } from "@/lib/audit-feed";
+import type { HistoryTab } from "@/lib/audit-feed";
 
-interface ModificationRecord {
-  id: string;
-  sessionNo: string | null;
-  sessionDate: string;
-  shipperName: string;
-  pickupLocationLabel: string;
-  modifiedAt: string;
-  modifiedBy: string;
-  changes: { field: string; from: string; to: string }[];
-}
+const TABS: { id: HistoryTab; label: string }[] = [
+  { id: "all", label: "全部 All" },
+  { id: "inbound", label: "进货 Inbound" },
+  { id: "payroll", label: "工资 Payroll" },
+  { id: "voucher", label: "费用单 Voucher" },
+];
+
+const ENTITY_TYPE_LABELS: Record<AuditFeedEntry["entityType"], string> = {
+  inbound: "进货",
+  payroll: "工资",
+  voucher: "费用单",
+};
 
 interface HistoryViewProps {
-  records: ModificationRecord[];
+  records: AuditFeedEntry[];
   filterDate: string;
+  activeTab: HistoryTab;
 }
 
-export function HistoryView({ records, filterDate }: HistoryViewProps) {
+export function HistoryView({ records, filterDate, activeTab }: HistoryViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  function pushParams(next: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    router.push(`/history?${params.toString()}`);
+  }
+
+  const showInboundColumns = activeTab === "all" || activeTab === "inbound";
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 border-b border-haidee-border pb-2">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => pushParams({ tab: tab.id === "all" ? undefined : tab.id })}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? "bg-haidee-blue text-white"
+                : "bg-haidee-surface text-haidee-text hover:bg-haidee-border/40"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
@@ -46,17 +79,14 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
           <DateInputField
             value={filterDate}
             onChange={(next) => {
-              const params = new URLSearchParams(searchParams.toString());
-              if (next) params.set("date", next);
-              else params.delete("date");
-              router.push(`/history?${params.toString()}`);
+              pushParams({ date: next || undefined });
             }}
           />
         </div>
         {filterDate && (
           <button
             type="button"
-            onClick={() => router.push("/history")}
+            onClick={() => pushParams({ date: undefined })}
             className="text-sm text-haidee-blue hover:underline"
           >
             清除筛选 Clear filter
@@ -64,7 +94,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
         )}
       </div>
 
-      <ScrollMatrixTable heightOffset={260}>
+      <ScrollMatrixTable heightOffset={300}>
         {records.length === 0 ? (
           <p className="p-8 text-center text-haidee-muted">
             暂无修改记录 No modification records
@@ -73,36 +103,65 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
           <Table noScrollContainer className={stickyFirstColTableClass}>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                <TableHead>进货单号 Session</TableHead>
-                <TableHead>日期 Date</TableHead>
-                <TableHead>寄货人 Consignor</TableHead>
-                <TableHead>收货地点 Pickup</TableHead>
+                {activeTab === "all" && <TableHead>类型 Type</TableHead>}
+                <TableHead>对象 Entity</TableHead>
+                {showInboundColumns && activeTab === "inbound" && (
+                  <>
+                    <TableHead>进货单号 Session</TableHead>
+                    <TableHead>日期 Date</TableHead>
+                    <TableHead>寄货人 Consignor</TableHead>
+                    <TableHead>收货地点 Pickup</TableHead>
+                  </>
+                )}
+                <TableHead>事件 Event</TableHead>
                 <TableHead>修改时间 Modified</TableHead>
                 <TableHead>修改人 Modified By</TableHead>
                 <TableHead>变更内容 Changes</TableHead>
+                <TableHead className="w-16">链接</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {records.map((rec) => (
-                <TableRow key={rec.id}>
-                  <TableCell>
-                    {rec.sessionNo ? (
-                      <span className="font-mono text-sm">{rec.sessionNo}</span>
-                    ) : (
-                      "—"
-                    )}
+                <TableRow key={`${rec.entityType}-${rec.id}`}>
+                  {activeTab === "all" && (
+                    <TableCell className="text-sm">
+                      {ENTITY_TYPE_LABELS[rec.entityType]}
+                    </TableCell>
+                  )}
+                  <TableCell className="text-sm">
+                    <MobileTruncatedName text={rec.entityLabel} />
                   </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {rec.sessionDate}
+                  {showInboundColumns && activeTab === "inbound" && (
+                    <>
+                      <TableCell>
+                        {rec.sessionNo ? (
+                          <span className="font-mono text-sm">{rec.sessionNo}</span>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {rec.sessionDate ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {rec.shipperName ? (
+                          <MobileTruncatedName text={rec.shipperName} />
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {rec.pickupLocationLabel ?? "—"}
+                      </TableCell>
+                    </>
+                  )}
+                  <TableCell className="text-sm text-haidee-muted">
+                    {rec.eventTypeLabel}
                   </TableCell>
-                  <TableCell>
-                    <MobileTruncatedName text={rec.shipperName} />
-                  </TableCell>
-                  <TableCell className="text-sm">{rec.pickupLocationLabel}</TableCell>
                   <TableCell className="font-mono text-sm text-haidee-muted">
-                    {rec.modifiedAt}
+                    {rec.occurredAtDisplay}
                   </TableCell>
-                  <TableCell className="text-sm">{rec.modifiedBy}</TableCell>
+                  <TableCell className="text-sm">{rec.actorName}</TableCell>
                   <TableCell>
                     <div className="space-y-2">
                       {rec.changes.map((c, i) => (
@@ -122,6 +181,18 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    {rec.deepLink ? (
+                      <Link
+                        href={rec.deepLink}
+                        className="text-sm text-haidee-blue hover:underline"
+                      >
+                        查看
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -130,10 +201,7 @@ export function HistoryView({ records, filterDate }: HistoryViewProps) {
       </ScrollMatrixTable>
 
       <p className="text-xs text-haidee-muted">
-        显示已确认进货单的修改记录，含修改时间与修改人。
-        <Link href="/inbound" className="ml-1 text-haidee-blue hover:underline">
-          前往进货录入 →
-        </Link>
+        汇总进货、工资与费用单的人工修改记录，按时间倒序混排。
       </p>
     </div>
   );
