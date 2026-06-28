@@ -46,6 +46,7 @@ export default defineConfig({
       "lib/dispatch-audit.test.ts",
       "lib/receivable-invoices.test.ts",
       "lib/invoice-allocation.test.ts",
+      "lib/invoice-collections-detail.test.ts",
     ],
   },
   resolve: {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections";
 import { InvoicePaymentDialog } from "@/components/invoice-collections/InvoicePaymentDialog";
@@ -21,7 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
+import {
+  buildInvoiceCollectionsUrlScopeKey,
+  isDetailDataForUrlScope,
+} from "@/lib/invoice-collections-detail";
 import { currentCalendarYearMonth } from "@/lib/parse-year-month-params";
+import { isReportQueryRequested } from "@/lib/reports/report-query-params";
 import {
   FIRST_COL_WIDTH,
   STICKY_BODY_FIRST,
@@ -177,6 +182,7 @@ export function InvoiceCollectionsView() {
     hasQueried,
     filtersDirty,
     search,
+    refetch,
   } = useReportQuery<InvoiceCollectionsDraft, InvoiceCollectionsQueryData>({
     initialDraft,
     isDraftDirty,
@@ -185,17 +191,69 @@ export function InvoiceCollectionsView() {
     syncUrlPath: "/financial/invoice-collections",
   });
 
+  const queryDraft = applied ?? draft;
+  const urlScopeKey = buildInvoiceCollectionsUrlScopeKey({
+    customerKey,
+    currency: currencyParam,
+    fromYear: queryDraft.fromYear,
+    fromMonth: queryDraft.fromMonth,
+    toYear: queryDraft.toYear,
+    toMonth: queryDraft.toMonth,
+  });
+  const urlScopeRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!hasQueried || !isReportQueryRequested(searchParams)) return;
+
+    if (urlScopeRef.current === null) {
+      urlScopeRef.current = urlScopeKey;
+      return;
+    }
+
+    if (urlScopeRef.current === urlScopeKey) return;
+
+    urlScopeRef.current = urlScopeKey;
+    void refetch(applied ?? draft);
+  }, [
+    applied,
+    draft,
+    hasQueried,
+    refetch,
+    searchParams,
+    urlScopeKey,
+  ]);
+
+  useEffect(() => {
+    setPaymentDialogOpen(false);
+  }, [customerKey, currencyParam]);
+
   const pageData = data;
   const detailData = pageData?.detail ?? null;
   const canWritePayments = pageData?.canWritePayments ?? false;
 
-  const detailCustomerName =
-    detailData?.invoices[0]?.customerName ??
-    pageData?.ledgers.find(
-      (row) =>
-        row.customerKey === customerKey && row.currency === currencyParam
-    )?.customerName ??
-    customerKey;
+  const verifiedDetail = isDetailDataForUrlScope(
+    detailData,
+    customerKey,
+    currencyParam
+  )
+    ? detailData
+    : null;
+
+  const ledgerForUrl =
+    customerKey && currencyParam
+      ? pageData?.ledgers.find(
+          (row) =>
+            row.customerKey === customerKey && row.currency === currencyParam
+        )
+      : undefined;
+
+  const detailCustomerName = verifiedDetail
+    ? (verifiedDetail.invoices[0]?.customerName ??
+      ledgerForUrl?.customerName ??
+      customerKey)
+    : (ledgerForUrl?.customerName ?? customerKey ?? "");
+
+  const showDetailLoading = isDetailView && hasQueried && !verifiedDetail;
 
   const listHrefForLedger = useCallback(
     (ledgerCustomerKey: string, currency: ReceivableCurrency) => {
@@ -302,7 +360,15 @@ export function InvoiceCollectionsView() {
             {t("invoiceCollections.overview.bankAccountsPending")}
           </p>
 
-          {isDetailView && detailData ? (
+          {showDetailLoading ? (
+            <section className="rounded-xl border border-haidee-border bg-white px-4 py-12 shadow-sm">
+              <p className="text-center text-sm text-haidee-muted">
+                {loading
+                  ? t("invoiceCollections.loadingDetail")
+                  : t("invoiceCollections.loadFailed")}
+              </p>
+            </section>
+          ) : verifiedDetail && customerKey && currencyParam ? (
             <section className="rounded-xl border border-haidee-border bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-haidee-border px-4 py-3">
                 <div>
@@ -310,17 +376,20 @@ export function InvoiceCollectionsView() {
                     {t("invoiceCollections.detailTitle")}
                   </p>
                   <h3 className="text-lg font-semibold text-haidee-text">
-                    {detailCustomerName} · {detailData.currency}
+                    {detailCustomerName} · {verifiedDetail.currency}
                   </h3>
                   <p className="text-sm text-haidee-muted">
                     {t("invoiceCollections.col.totalReceivable")}:{" "}
                     <strong>
-                      {formatMoney(detailData.totalReceivable, detailData.currency)}
+                      {formatMoney(
+                        verifiedDetail.totalReceivable,
+                        verifiedDetail.currency
+                      )}
                     </strong>
                     {" · "}
                     {t("invoiceCollections.col.open")}:{" "}
                     <strong>
-                      {formatMoney(detailData.totalOpen, detailData.currency)}
+                      {formatMoney(verifiedDetail.totalOpen, verifiedDetail.currency)}
                     </strong>
                   </p>
                 </div>
@@ -333,13 +402,13 @@ export function InvoiceCollectionsView() {
               </div>
 
               <InvoicePaymentSection
-                payments={detailData.payments}
-                currency={detailData.currency}
+                payments={verifiedDetail.payments}
+                currency={verifiedDetail.currency}
                 canWritePayments={canWritePayments}
                 onAddPayment={() => setPaymentDialogOpen(true)}
               />
 
-              {detailData.invoices.length === 0 ? (
+              {verifiedDetail.invoices.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-haidee-muted">
                   {t("invoiceCollections.empty")}
                 </p>
@@ -370,7 +439,7 @@ export function InvoiceCollectionsView() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {detailData.invoices.map((invoice) => (
+                      {verifiedDetail.invoices.map((invoice) => (
                         <TableRow key={invoice.invoiceKey}>
                           <TableCell className={cn(FIRST_COL_WIDTH, STICKY_BODY_FIRST)}>
                             {invoice.yearMonth}
@@ -411,42 +480,32 @@ export function InvoiceCollectionsView() {
                   </Table>
                 </ScrollMatrixTable>
               )}
-              {detailData && customerKey && currencyParam ? (
-                <InvoicePaymentDialog
-                  open={paymentDialogOpen}
-                  onClose={() => setPaymentDialogOpen(false)}
-                  onSaved={() => void search()}
-                  customerKey={customerKey}
-                  customerKind={
-                    detailData.invoices[0]?.customerKind ??
-                    pageData?.ledgers.find(
-                      (row) =>
-                        row.customerKey === customerKey &&
-                        row.currency === currencyParam
-                    )?.customerKind ??
-                    "shipper"
-                  }
-                  customerId={
-                    detailData.invoices[0]?.customerId ??
-                    pageData?.ledgers.find(
-                      (row) =>
-                        row.customerKey === customerKey &&
-                        row.currency === currencyParam
-                    )?.customerId ??
-                    null
-                  }
-                  currency={detailData.currency}
-                  openInvoices={detailData.invoices
-                    .filter((invoice) => invoice.openAmount > 0)
-                    .map((invoice) => ({
-                      yearMonth: invoice.yearMonth,
-                      invoiceNo: invoice.invoiceNo,
-                      invoiceKey: invoice.invoiceKey,
-                      totalAmount: invoice.totalAmount,
-                      openAmount: invoice.openAmount,
-                    }))}
-                />
-              ) : null}
+              <InvoicePaymentDialog
+                open={paymentDialogOpen}
+                onClose={() => setPaymentDialogOpen(false)}
+                onSaved={() => void refetch(queryDraft)}
+                customerKey={verifiedDetail.customerKey}
+                customerKind={
+                  verifiedDetail.invoices[0]?.customerKind ??
+                  ledgerForUrl?.customerKind ??
+                  "shipper"
+                }
+                customerId={
+                  verifiedDetail.invoices[0]?.customerId ??
+                  ledgerForUrl?.customerId ??
+                  null
+                }
+                currency={verifiedDetail.currency}
+                openInvoices={verifiedDetail.invoices
+                  .filter((invoice) => invoice.openAmount > 0)
+                  .map((invoice) => ({
+                    yearMonth: invoice.yearMonth,
+                    invoiceNo: invoice.invoiceNo,
+                    invoiceKey: invoice.invoiceKey,
+                    totalAmount: invoice.totalAmount,
+                    openAmount: invoice.openAmount,
+                  }))}
+              />
             </section>
           ) : pageData.ledgers.length === 0 ? (
             <section className="rounded-xl border border-haidee-border bg-white px-4 py-6 shadow-sm">

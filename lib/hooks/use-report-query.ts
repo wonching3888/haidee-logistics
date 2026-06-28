@@ -27,6 +27,8 @@ export interface UseReportQueryResult<TDraft, TData> {
   hasQueried: boolean;
   filtersDirty: boolean;
   search: () => Promise<void>;
+  /** Re-run fetch with optional draft; keeps URL sync when enabled. */
+  refetch: (draft?: TDraft) => Promise<void>;
 }
 
 export function useReportQuery<TDraft, TData>({
@@ -76,6 +78,13 @@ export function useReportQuery<TDraft, TData>({
     await runSearch(draft);
   }, [draft, runSearch]);
 
+  const refetch = useCallback(
+    async (nextDraft?: TDraft) => {
+      await runSearch(nextDraft ?? draft);
+    },
+    [draft, runSearch]
+  );
+
   useEffect(() => {
     if (autoRan.current) return;
     if (!isReportQueryRequested(searchParams)) return;
@@ -97,5 +106,6 @@ export function useReportQuery<TDraft, TData>({
     hasQueried,
     filtersDirty,
     search,
+    refetch,
   };
 }

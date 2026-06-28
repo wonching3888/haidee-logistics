@@ -331,6 +331,11 @@ export const MESSAGES = {
     en: "Failed to load",
     th: "โหลดไม่สำเร็จ",
   },
+  "invoiceCollections.loadingDetail": {
+    zh: "正在加载客户账本…",
+    en: "Loading customer ledger…",
+    th: "กำลังโหลดบัญชีลูกค้า…",
+  },
   "invoiceCollections.awaitingQuery": {
     zh: "请选择月份范围并点击「查询」",
     en: "Select a month range and click Search",
