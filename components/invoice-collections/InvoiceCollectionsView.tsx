@@ -7,6 +7,7 @@ import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections
 import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFilterBar } from "@/components/shared/ReportFilterBar";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
+import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useT } from "@/components/shared/locale-context";
 import {
@@ -19,8 +20,15 @@ import {
 } from "@/components/ui/table";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
 import { currentCalendarYearMonth } from "@/lib/parse-year-month-params";
+import {
+  FIRST_COL_WIDTH,
+  STICKY_BODY_FIRST,
+  STICKY_HEAD_FIRST,
+  stickyFirstColTableClass,
+} from "@/lib/table-scroll";
 import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable-invoices";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { cn } from "@/lib/utils";
 
 interface InvoiceCollectionsDraft {
   fromYear: number;
@@ -274,7 +282,7 @@ export function InvoiceCollectionsView() {
           </p>
 
           {isDetailView && detailData ? (
-            <section className="space-y-4 overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
+            <section className="rounded-xl border border-haidee-border bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-haidee-border px-4 py-3">
                 <div>
                   <p className="text-sm text-haidee-muted">
@@ -303,102 +311,113 @@ export function InvoiceCollectionsView() {
                   {t("invoiceCollections.empty")}
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("invoiceCollections.col.month")}</TableHead>
-                      <TableHead>{t("invoiceCollections.col.type")}</TableHead>
-                      <TableHead>{t("invoiceCollections.col.invoiceNo")}</TableHead>
-                      <TableHead className="text-right">
-                        {t("invoiceCollections.col.amount")}
-                      </TableHead>
-                      <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detailData.invoices.map((invoice) => (
-                      <TableRow key={invoice.invoiceKey}>
-                        <TableCell>{invoice.yearMonth}</TableCell>
-                        <TableCell>
-                          {t(invoiceTypeMessageKey(invoice.invoiceType))}
-                          {formatModeSuffix(
-                            invoice.invoiceType,
-                            invoice.sourceMeta.mode
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {invoice.invoiceNo ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatMoney(invoice.totalAmount, invoice.currency)}
-                        </TableCell>
-                        <TableCell>{t("invoiceCollections.status.unpaid")}</TableCell>
-                        <TableCell className="text-right">
-                          <Link
-                            href={invoice.printHref}
-                            className="text-sm font-medium text-haidee-blue hover:underline"
-                          >
-                            {t("invoiceCollections.openPrint")}
-                          </Link>
-                        </TableCell>
+                <ScrollMatrixTable
+                  heightOffset={520}
+                  className="border-0 shadow-none rounded-none"
+                >
+                  <Table noScrollContainer className={stickyFirstColTableClass}>
+                    <TableHeader>
+                      <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                        <TableHead className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}>
+                          {t("invoiceCollections.col.month")}
+                        </TableHead>
+                        <TableHead>{t("invoiceCollections.col.type")}</TableHead>
+                        <TableHead>{t("invoiceCollections.col.invoiceNo")}</TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.amount")}
+                        </TableHead>
+                        <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
+                        <TableHead />
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {detailData.invoices.map((invoice) => (
+                        <TableRow key={invoice.invoiceKey}>
+                          <TableCell className={cn(FIRST_COL_WIDTH, STICKY_BODY_FIRST)}>
+                            {invoice.yearMonth}
+                          </TableCell>
+                          <TableCell>
+                            {t(invoiceTypeMessageKey(invoice.invoiceType))}
+                            {formatModeSuffix(
+                              invoice.invoiceType,
+                              invoice.sourceMeta.mode
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {invoice.invoiceNo ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(invoice.totalAmount, invoice.currency)}
+                          </TableCell>
+                          <TableCell>{t("invoiceCollections.status.unpaid")}</TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={invoice.printHref}
+                              className="text-sm font-medium text-haidee-blue hover:underline"
+                            >
+                              {t("invoiceCollections.openPrint")}
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollMatrixTable>
               )}
+            </section>
+          ) : pageData.ledgers.length === 0 ? (
+            <section className="rounded-xl border border-haidee-border bg-white px-4 py-6 shadow-sm">
+              <p className="text-sm text-haidee-muted">
+                {t("invoiceCollections.empty")}
+              </p>
             </section>
           ) : (
-            <section className="overflow-hidden rounded-xl border border-haidee-border bg-white shadow-sm">
-              {pageData.ledgers.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-haidee-muted">
-                  {t("invoiceCollections.empty")}
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("invoiceCollections.col.customer")}</TableHead>
-                      <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
-                      <TableHead>{t("invoiceCollections.col.earliestMonth")}</TableHead>
-                      <TableHead className="text-right">
-                        {t("invoiceCollections.col.totalReceivable")}
-                      </TableHead>
-                      <TableHead className="text-right">
-                        {t("invoiceCollections.col.invoiceCount")}
-                      </TableHead>
+            <ScrollMatrixTable heightOffset={480}>
+              <Table noScrollContainer className={stickyFirstColTableClass}>
+                <TableHeader>
+                  <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                    <TableHead className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}>
+                      {t("invoiceCollections.col.customer")}
+                    </TableHead>
+                    <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
+                    <TableHead>{t("invoiceCollections.col.earliestMonth")}</TableHead>
+                    <TableHead className="text-right">
+                      {t("invoiceCollections.col.totalReceivable")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("invoiceCollections.col.invoiceCount")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageData.ledgers.map((ledger) => (
+                    <TableRow key={`${ledger.customerKey}|${ledger.currency}`}>
+                      <TableCell className={cn(FIRST_COL_WIDTH, STICKY_BODY_FIRST)}>
+                        <Link
+                          href={listHrefForLedger(
+                            ledger.customerKey,
+                            ledger.currency
+                          )}
+                          className="font-medium text-haidee-blue hover:underline"
+                        >
+                          {ledger.customerCode
+                            ? `${ledger.customerName} (${ledger.customerCode})`
+                            : ledger.customerName}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{ledger.currency}</TableCell>
+                      <TableCell>{ledger.earliestYearMonth}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatMoney(ledger.totalReceivable, ledger.currency)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {ledger.invoiceCount}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageData.ledgers.map((ledger) => (
-                      <TableRow key={`${ledger.customerKey}|${ledger.currency}`}>
-                        <TableCell>
-                          <Link
-                            href={listHrefForLedger(
-                              ledger.customerKey,
-                              ledger.currency
-                            )}
-                            className="font-medium text-haidee-blue hover:underline"
-                          >
-                            {ledger.customerCode
-                              ? `${ledger.customerName} (${ledger.customerCode})`
-                              : ledger.customerName}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{ledger.currency}</TableCell>
-                        <TableCell>{ledger.earliestYearMonth}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatMoney(ledger.totalReceivable, ledger.currency)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {ledger.invoiceCount}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </section>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollMatrixTable>
           )}
         </>
       )}
