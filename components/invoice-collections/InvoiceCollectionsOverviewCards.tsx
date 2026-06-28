@@ -20,7 +20,7 @@ function CurrencyOverviewCard({
 }: {
   overview: InvoiceCollectionsOverview["thb"];
 }) {
-  const { t } = useT();
+  const { t, tLocal } = useT();
   const currency = overview.currency as ReceivableCurrency;
   const titleKey =
     currency === "THB"
@@ -91,7 +91,9 @@ function CurrencyOverviewCard({
               className="flex items-center justify-between gap-3"
             >
               <span>
-                {t(invoiceBankAccountLabelKey(row.bankAccount as InvoiceBankAccount))}
+                {tLocal(
+                  invoiceBankAccountLabelKey(row.bankAccount as InvoiceBankAccount)
+                )}
               </span>
               <span className="font-mono">
                 {formatMoney(row.amount, currency)}

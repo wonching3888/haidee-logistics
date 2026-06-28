@@ -8,6 +8,7 @@ import {
 import type { InvoiceCollectionsDetailPayment } from "@/app/actions/invoice-collections";
 import { InvoiceManualAllocationDialog } from "@/components/invoice-collections/InvoiceManualAllocationDialog";
 import { InvoicePaymentEditDialog } from "@/components/invoice-collections/InvoicePaymentEditDialog";
+import { InvoiceCollectionsBilingualHead } from "@/components/invoice-collections/InvoiceCollectionsBilingualHead";
 import { useT } from "@/components/shared/locale-context";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,9 @@ import type {
 } from "@/lib/receivable-invoices";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+
+const DETAIL_PAYMENT_TABLE_HEIGHT = 260;
+const COMPACT_COL_RIGHT = "min-w-[4.25rem] max-w-[5.5rem] w-[4.75rem] text-right";
 
 function formatMoney(value: number, currency: string) {
   return `${value.toLocaleString("en-US", {
@@ -88,7 +92,7 @@ export function InvoicePaymentSection({
   onAddPayment,
   onPaymentsChanged,
 }: InvoicePaymentSectionProps) {
-  const { t } = useT();
+  const { t, tLocal } = useT();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editPayment, setEditPayment] =
     useState<InvoiceCollectionsDetailPayment | null>(null);
@@ -154,25 +158,35 @@ export function InvoicePaymentSection({
         </p>
       ) : (
         <ScrollMatrixTable
-          heightOffset={520}
           className="border-0 shadow-none rounded-none"
+          style={{
+            height: DETAIL_PAYMENT_TABLE_HEIGHT,
+            maxHeight: DETAIL_PAYMENT_TABLE_HEIGHT,
+          }}
         >
           <Table noScrollContainer className={stickyFirstColTableClass}>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                <TableHead className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}>
-                  {t("invoiceCollections.payments.col.date")}
-                </TableHead>
-                <TableHead>{t("invoiceCollections.payments.col.bankAccount")}</TableHead>
-                <TableHead className="text-right">
-                  {t("invoiceCollections.payments.col.amount")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("invoiceCollections.payments.col.allocated")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("invoiceCollections.payments.col.unallocated")}
-                </TableHead>
+                <InvoiceCollectionsBilingualHead
+                  messageKey="invoiceCollections.payments.col.date"
+                  className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}
+                />
+                <InvoiceCollectionsBilingualHead messageKey="invoiceCollections.payments.col.bankAccount" />
+                <InvoiceCollectionsBilingualHead
+                  messageKey="invoiceCollections.payments.col.amount"
+                  align="right"
+                  className={COMPACT_COL_RIGHT}
+                />
+                <InvoiceCollectionsBilingualHead
+                  messageKey="invoiceCollections.payments.col.allocated"
+                  align="right"
+                  className={COMPACT_COL_RIGHT}
+                />
+                <InvoiceCollectionsBilingualHead
+                  messageKey="invoiceCollections.payments.col.unallocated"
+                  align="right"
+                  className={COMPACT_COL_RIGHT}
+                />
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -190,9 +204,14 @@ export function InvoicePaymentSection({
                             {t("invoiceCollections.payments.strategyManual")}
                           </span>
                         ) : null}
+                        {payment.notes ? (
+                          <p className="mt-1 text-sm leading-snug text-haidee-text">
+                            {payment.notes}
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell>
-                        {t(
+                        {tLocal(
                           invoiceBankAccountLabelKey(
                             payment.bankAccount as InvoiceBankAccount
                           )
@@ -304,7 +323,7 @@ export function InvoicePaymentSection({
                             ))}
                           </ul>
                           {payment.notes ? (
-                            <p className="mt-2 text-xs text-haidee-muted">
+                            <p className="mt-3 text-sm leading-snug text-haidee-text">
                               {payment.notes}
                             </p>
                           ) : null}

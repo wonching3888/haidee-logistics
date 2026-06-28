@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections";
+import {
+  CollectionStatusBadge,
+  PrepaymentBadge,
+} from "@/components/invoice-collections/CollectionStatusBadge";
+import {
+  InvoiceCollectionsBilingualHead,
+  InvoiceCollectionsBilingualLabel,
+} from "@/components/invoice-collections/InvoiceCollectionsBilingualHead";
 import { InvoiceCollectionsListFilterBar } from "@/components/invoice-collections/InvoiceCollectionsListFilterBar";
 import { InvoiceCollectionsOverviewCards } from "@/components/invoice-collections/InvoiceCollectionsOverviewCards";
 import { InvoicePaymentDialog } from "@/components/invoice-collections/InvoicePaymentDialog";
@@ -45,12 +53,18 @@ import {
   stickyFirstColTableClass,
 } from "@/lib/table-scroll";
 import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable-invoices";
-import type { InvoiceCollectionStatus } from "@/lib/invoice-collections-overview";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
-/** Wide enough for stacked name + code without bleeding into currency column. */
-const CUSTOMER_COL_WIDTH = "min-w-[12.5rem] max-w-[12.5rem] w-[12.5rem]";
+const LIST_SCROLL_STORAGE_KEY = "invoice-collections-list-scroll-y";
+const DETAIL_INVOICE_TABLE_HEIGHT = 280;
+
+/** Stacked bilingual headers allow a narrower customer column. */
+const CUSTOMER_COL_WIDTH = "min-w-[9.5rem] max-w-[9.5rem] w-[9.5rem]";
+const COMPACT_COL = "min-w-[4.25rem] max-w-[5.5rem] w-[4.75rem]";
+const COMPACT_COL_RIGHT = cn(COMPACT_COL, "text-right");
+const STATUS_COL = "min-w-[4.5rem] max-w-[5.5rem] w-[5rem]";
+const COUNT_COL = "min-w-[3rem] max-w-[3.5rem] w-[3.25rem] text-right";
 
 interface InvoiceCollectionsDraft {
   fromYear: number;
@@ -105,19 +119,6 @@ function invoiceTypeMessageKey(
       return "invoiceCollections.type.charter";
     default:
       return "invoiceCollections.type.freight";
-  }
-}
-
-function collectionStatusMessageKey(
-  status: InvoiceCollectionStatus
-): MessageKey {
-  switch (status) {
-    case "partial":
-      return "invoiceCollections.status.partial";
-    case "paid":
-      return "invoiceCollections.status.paid";
-    default:
-      return "invoiceCollections.status.unpaid";
   }
 }
 
@@ -260,6 +261,25 @@ export function InvoiceCollectionsView() {
     setPaymentDialogOpen(false);
   }, [customerKey, currencyParam]);
 
+  useEffect(() => {
+    if (isDetailView || !hasQueried) return;
+
+    const raw = sessionStorage.getItem(LIST_SCROLL_STORAGE_KEY);
+    if (raw == null) return;
+
+    sessionStorage.removeItem(LIST_SCROLL_STORAGE_KEY);
+    const y = Number(raw);
+    if (!Number.isFinite(y) || y < 0) return;
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: y, left: 0, behavior: "instant" });
+    });
+  }, [hasQueried, isDetailView]);
+
+  const saveListScrollPosition = useCallback(() => {
+    sessionStorage.setItem(LIST_SCROLL_STORAGE_KEY, String(window.scrollY));
+  }, []);
+
   const pageData = data;
   const detailData = pageData?.detail ?? null;
   const canWritePayments = pageData?.canWritePayments ?? false;
@@ -323,52 +343,63 @@ export function InvoiceCollectionsView() {
     const params = buildUrlParams(applied ?? draft);
     params.delete("customerKey");
     params.delete("currency");
+    if (hasQueried || isReportQueryRequested(searchParams)) {
+      params.set("q", "1");
+    }
     return `/financial/invoice-collections?${params.toString()}`;
-  }, [applied, buildUrlParams, draft]);
+  }, [applied, buildUrlParams, draft, hasQueried, searchParams]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-haidee-text">
-          {t("invoiceCollections.title")}
-        </h2>
-        <p className="text-sm text-haidee-muted">
-          {t("invoiceCollections.subtitle")}
-        </p>
-      </div>
+      {!isDetailView ? (
+        <>
+          <div>
+            <InvoiceCollectionsBilingualLabel
+              messageKey="invoiceCollections.title"
+              titleClassName="text-2xl font-bold"
+            />
+            <InvoiceCollectionsBilingualLabel
+              messageKey="invoiceCollections.subtitle"
+              className="mt-1"
+              titleClassName="text-sm font-normal text-haidee-muted"
+              subtitleClassName="text-[10px]"
+            />
+          </div>
 
-      <ReportFilterBar loading={loading} onSearch={() => void search()}>
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <p className="mb-1 text-xs text-haidee-muted">From</p>
-            <YearMonthFields
-              year={draft.fromYear}
-              month={draft.fromMonth}
-              onYearChange={(fromYear) =>
-                setDraft((prev) => ({ ...prev, fromYear }))
-              }
-              onMonthChange={(fromMonth) =>
-                setDraft((prev) => ({ ...prev, fromMonth }))
-              }
-              monthSuffix=""
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-haidee-muted">To</p>
-            <YearMonthFields
-              year={draft.toYear}
-              month={draft.toMonth}
-              onYearChange={(toYear) =>
-                setDraft((prev) => ({ ...prev, toYear }))
-              }
-              onMonthChange={(toMonth) =>
-                setDraft((prev) => ({ ...prev, toMonth }))
-              }
-              monthSuffix=""
-            />
-          </div>
-        </div>
-      </ReportFilterBar>
+          <ReportFilterBar loading={loading} onSearch={() => void search()}>
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <p className="mb-1 text-xs text-haidee-muted">From</p>
+                <YearMonthFields
+                  year={draft.fromYear}
+                  month={draft.fromMonth}
+                  onYearChange={(fromYear) =>
+                    setDraft((prev) => ({ ...prev, fromYear }))
+                  }
+                  onMonthChange={(fromMonth) =>
+                    setDraft((prev) => ({ ...prev, fromMonth }))
+                  }
+                  monthSuffix=""
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-haidee-muted">To</p>
+                <YearMonthFields
+                  year={draft.toYear}
+                  month={draft.toMonth}
+                  onYearChange={(toYear) =>
+                    setDraft((prev) => ({ ...prev, toYear }))
+                  }
+                  onMonthChange={(toMonth) =>
+                    setDraft((prev) => ({ ...prev, toMonth }))
+                  }
+                  monthSuffix=""
+                />
+              </div>
+            </div>
+          </ReportFilterBar>
+        </>
+      ) : null}
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -376,7 +407,7 @@ export function InvoiceCollectionsView() {
         </div>
       )}
 
-      <ReportFiltersChangedHint show={filtersDirty} />
+      {!isDetailView ? <ReportFiltersChangedHint show={filtersDirty} /> : null}
 
       {!hasQueried && !loading && (
         <ReportAwaitingQuery>{t("invoiceCollections.awaitingQuery")}</ReportAwaitingQuery>
@@ -384,7 +415,9 @@ export function InvoiceCollectionsView() {
 
       {hasQueried && pageData && (
         <>
-          <InvoiceCollectionsOverviewCards overview={pageData.overview} />
+          {!isDetailView ? (
+            <InvoiceCollectionsOverviewCards overview={pageData.overview} />
+          ) : null}
 
           {showDetailLoading ? (
             <section className="rounded-xl border border-haidee-border bg-white px-4 py-12 shadow-sm">
@@ -396,15 +429,17 @@ export function InvoiceCollectionsView() {
             </section>
           ) : verifiedDetail && customerKey && currencyParam ? (
             <section className="rounded-xl border border-haidee-border bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-haidee-border px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-haidee-border px-4 py-2">
                 <div>
-                  <p className="text-sm text-haidee-muted">
-                    {t("invoiceCollections.detailTitle")}
-                  </p>
-                  <h3 className="text-lg font-semibold text-haidee-text">
+                  <InvoiceCollectionsBilingualLabel
+                    messageKey="invoiceCollections.detailTitle"
+                    titleClassName="text-sm"
+                    subtitleClassName="text-[10px]"
+                  />
+                  <h3 className="mt-1 text-lg font-semibold text-haidee-text">
                     {detailCustomerName} · {verifiedDetail.currency}
                   </h3>
-                  <p className="text-sm text-haidee-muted">
+                  <p className="mt-0.5 text-sm text-haidee-muted">
                     {t("invoiceCollections.col.totalReceivable")}:{" "}
                     <strong>
                       {formatMoney(
@@ -421,6 +456,7 @@ export function InvoiceCollectionsView() {
                 </div>
                 <Link
                   href={backToListHref}
+                  scroll={false}
                   className="text-sm font-medium text-haidee-blue hover:underline"
                 >
                   {t("invoiceCollections.backToList")}
@@ -457,27 +493,40 @@ export function InvoiceCollectionsView() {
                 </p>
               ) : (
                 <ScrollMatrixTable
-                  heightOffset={380}
                   className="border-0 shadow-none rounded-none"
+                  style={{
+                    height: DETAIL_INVOICE_TABLE_HEIGHT,
+                    maxHeight: DETAIL_INVOICE_TABLE_HEIGHT,
+                  }}
                 >
                   <Table noScrollContainer className={stickyFirstColTableClass}>
                     <TableHeader>
                       <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                        <TableHead className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}>
-                          {t("invoiceCollections.col.month")}
-                        </TableHead>
-                        <TableHead>{t("invoiceCollections.col.type")}</TableHead>
-                        <TableHead>{t("invoiceCollections.col.invoiceNo")}</TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.total")}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.allocated")}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.open")}
-                        </TableHead>
-                        <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.month"
+                          className={cn(FIRST_COL_WIDTH, STICKY_HEAD_FIRST)}
+                        />
+                        <InvoiceCollectionsBilingualHead messageKey="invoiceCollections.col.type" />
+                        <InvoiceCollectionsBilingualHead messageKey="invoiceCollections.col.invoiceNo" />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.total"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.allocated"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.open"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.collectionStatus"
+                          className={STATUS_COL}
+                        />
                         <TableHead />
                       </TableRow>
                     </TableHeader>
@@ -507,9 +556,7 @@ export function InvoiceCollectionsView() {
                             {formatMoney(invoice.openAmount, invoice.currency)}
                           </TableCell>
                           <TableCell>
-                            <span className="block">
-                              {t(collectionStatusMessageKey(invoice.collectionStatus))}
-                            </span>
+                            <CollectionStatusBadge status={invoice.collectionStatus} />
                             {invoice.isOverAllocated ? (
                               <span className="mt-0.5 block text-xs font-medium text-red-600">
                                 {t("invoiceCollections.status.overAllocated")}
@@ -585,30 +632,42 @@ export function InvoiceCollectionsView() {
                   <Table noScrollContainer className={stickyFirstColTableClass}>
                     <TableHeader>
                       <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                        <TableHead
-                          className={cn(
-                            CUSTOMER_COL_WIDTH,
-                            STICKY_HEAD_FIRST,
-                            "whitespace-normal align-top"
-                          )}
-                        >
-                          {t("invoiceCollections.col.customer")}
-                        </TableHead>
-                        <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
-                        <TableHead>{t("invoiceCollections.col.earliestMonth")}</TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.totalReceivable")}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.received")}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.open")}
-                        </TableHead>
-                        <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
-                        <TableHead className="text-right">
-                          {t("invoiceCollections.col.invoiceCount")}
-                        </TableHead>
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.customer"
+                          className={cn(CUSTOMER_COL_WIDTH, STICKY_HEAD_FIRST)}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.currency"
+                          className={COMPACT_COL}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.earliestMonth"
+                          className={COMPACT_COL}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.totalReceivable"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.received"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.open"
+                          align="right"
+                          className={COMPACT_COL_RIGHT}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.collectionStatus"
+                          className={STATUS_COL}
+                        />
+                        <InvoiceCollectionsBilingualHead
+                          messageKey="invoiceCollections.col.invoiceCount"
+                          align="right"
+                          className={COUNT_COL}
+                        />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -626,6 +685,8 @@ export function InvoiceCollectionsView() {
                                 ledger.customerKey,
                                 ledger.currency
                               )}
+                              scroll={false}
+                              onClick={saveListScrollPosition}
                               className="block font-medium leading-snug text-haidee-blue hover:underline"
                             >
                               <span className="block break-words">
@@ -650,13 +711,9 @@ export function InvoiceCollectionsView() {
                             {formatMoney(ledger.totalOpen, ledger.currency)}
                           </TableCell>
                           <TableCell>
-                            <span className="block">
-                              {t(collectionStatusMessageKey(ledger.collectionStatus))}
-                            </span>
+                            <CollectionStatusBadge status={ledger.collectionStatus} />
                             {ledger.hasPrepayment ? (
-                              <span className="mt-0.5 block text-xs text-haidee-muted">
-                                {t("invoiceCollections.status.hasPrepayment")}
-                              </span>
+                              <PrepaymentBadge className="mt-0.5" />
                             ) : null}
                           </TableCell>
                           <TableCell className="text-right">
