@@ -9,11 +9,17 @@ import {
   isInvoiceBankAccount,
 } from "@/lib/constants/invoice-bank-accounts";
 import {
+  applyManualAllocationsForPayment,
   formatAllocationPreviewRows,
+  loadAllocatedAmountsForInvoices,
   loadReceivableInvoicesForCustomerLedger,
   previewAutoAllocationForNewPayment,
+  resetPaymentToAutoAllocation,
+  rerunAutoAllocationForLedgers,
   runAutoAllocation,
+  validateManualAllocationRows,
   type InvoicePaymentView,
+  type ManualAllocationRowInput,
   type ReceivableInvoiceWithCollection,
 } from "@/lib/invoice-allocation";
 import { prisma } from "@/lib/prisma";
@@ -211,6 +217,169 @@ export type PreviewInvoicePaymentAllocationResult = Awaited<
 
 export type InvoiceCollectionsDetailPayment = InvoicePaymentView;
 export type InvoiceCollectionsDetailInvoice = ReceivableInvoiceWithCollection;
+
+export async function deleteInvoicePayment(paymentId: string) {
+  await requireInvoiceCollectionsWriter();
+
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.invoicePayment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    const currency = parseCurrency(payment.currency);
+    const customerKey = payment.customerKey;
+
+    await tx.invoicePayment.delete({ where: { id: paymentId } });
+    await runAutoAllocation(customerKey, currency, tx);
+  });
+
+  return { ok: true as const };
+}
+
+export async function updateInvoicePayment(input: {
+  paymentId: string;
+  amount: number;
+  paymentDate: string;
+  bankAccount: string;
+  notes?: string | null;
+  customerKey: string;
+  customerKind: string;
+  customerId?: string | null;
+  currency: string;
+}) {
+  const user = await requireInvoiceCollectionsWriter();
+  const amount = parseAmount(input.amount);
+  const paymentDate = parsePaymentDate(input.paymentDate);
+  const currency = parseCurrency(input.currency);
+  const customerKind = parseCustomerKind(input.customerKind);
+  parseReceivableCustomerKey(input.customerKey);
+
+  if (!isInvoiceBankAccount(input.bankAccount)) {
+    throw new Error("无效户口 Invalid bank account");
+  }
+  if (!isBankAccountValidForCurrency(input.bankAccount, currency)) {
+    throw new Error("户口与币种不匹配 Bank account does not match currency");
+  }
+
+  const notes = input.notes?.trim() || null;
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.invoicePayment.findUniqueOrThrow({
+      where: { id: input.paymentId },
+      include: {
+        allocations: { where: { isManual: true } },
+      },
+    });
+
+    const oldCurrency = parseCurrency(existing.currency);
+    const oldCustomerKey = existing.customerKey;
+
+    if (existing.allocationStrategy === "manual") {
+      const manualSum = roundMoney(
+        existing.allocations.reduce(
+          (sum, row) => sum + Number(row.amount),
+          0
+        )
+      );
+      if (amount + 0.001 < manualSum) {
+        throw new Error(
+          "来款金额不能低于手动冲账合计 Payment amount cannot be less than manual allocations"
+        );
+      }
+    }
+
+    await tx.invoicePayment.update({
+      where: { id: input.paymentId },
+      data: {
+        amount,
+        paymentDate,
+        bankAccount: input.bankAccount,
+        notes,
+        customerKey: input.customerKey,
+        customerKind,
+        customerId: input.customerId ?? null,
+        currency,
+        updatedBy: user.id,
+      },
+    });
+
+    const ledgers = [{ customerKey: oldCustomerKey, currency: oldCurrency }];
+    if (
+      oldCustomerKey !== input.customerKey ||
+      oldCurrency !== currency
+    ) {
+      ledgers.push({ customerKey: input.customerKey, currency });
+    }
+
+    await rerunAutoAllocationForLedgers(ledgers, tx);
+  });
+
+  return { ok: true as const };
+}
+
+export async function setManualInvoicePaymentAllocation(input: {
+  paymentId: string;
+  allocations: ManualAllocationRowInput[];
+  confirmOverAllocation?: boolean;
+}) {
+  const user = await requireInvoiceCollectionsWriter();
+
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.invoicePayment.findUniqueOrThrow({
+      where: { id: input.paymentId },
+    });
+    const currency = parseCurrency(payment.currency);
+    const customerKey = payment.customerKey;
+    const invoices = await loadReceivableInvoicesForCustomerLedger(
+      customerKey,
+      currency
+    );
+    const allocatedExcludingPayment = await loadAllocatedAmountsForInvoices(
+      invoices,
+      { excludePaymentId: input.paymentId }
+    );
+
+    validateManualAllocationRows({
+      paymentAmount: Number(payment.amount),
+      currency,
+      customerKey,
+      allocations: input.allocations,
+      invoices,
+      allocatedByInvoiceExcludingPayment: allocatedExcludingPayment,
+      confirmOverAllocation: input.confirmOverAllocation,
+    });
+
+    await applyManualAllocationsForPayment(
+      input.paymentId,
+      input.allocations,
+      invoices,
+      tx,
+      user.id
+    );
+    await runAutoAllocation(customerKey, currency, tx);
+  });
+
+  return { ok: true as const };
+}
+
+export async function resetInvoicePaymentToAutoAllocation(paymentId: string) {
+  const user = await requireInvoiceCollectionsWriter();
+
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.invoicePayment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    const currency = parseCurrency(payment.currency);
+
+    await resetPaymentToAutoAllocation(paymentId, tx, user.id);
+    await runAutoAllocation(payment.customerKey, currency, tx);
+  });
+
+  return { ok: true as const };
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
 
 /** Test-only helper for permission checks without DB writes. */
 export async function assertInvoiceCollectionsWriteAccess() {

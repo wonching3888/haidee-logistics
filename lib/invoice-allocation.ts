@@ -55,6 +55,24 @@ export interface ReceivableInvoiceWithCollection extends ReceivableInvoice {
   allocatedAmount: number;
   openAmount: number;
   collectionStatus: InvoiceCollectionStatus;
+  isOverAllocated: boolean;
+}
+
+export interface ManualAllocationRowInput {
+  invoiceType: ReceivableInvoiceType;
+  invoiceKey: string;
+  amount: number;
+}
+
+export interface ManualAllocationOverInvoiceWarning {
+  invoiceType: ReceivableInvoiceType;
+  invoiceKey: string;
+  invoiceNo: string | null;
+  yearMonth: string;
+  totalAmount: number;
+  otherAllocated: number;
+  manualAmount: number;
+  projectedAllocated: number;
 }
 
 export interface ReceivableCustomerLedgerWithCollection
@@ -72,6 +90,7 @@ export interface InvoicePaymentAllocationView {
   invoiceNo: string | null;
   yearMonth: string;
   amount: number;
+  isManual: boolean;
 }
 
 export interface InvoicePaymentView {
@@ -82,6 +101,7 @@ export interface InvoicePaymentView {
   allocatedAmount: number;
   unallocatedAmount: number;
   notes: string | null;
+  allocationStrategy: "auto" | "manual";
   allocations: InvoicePaymentAllocationView[];
 }
 
@@ -99,6 +119,13 @@ export function computeInvoiceCollectionStatus(
   if (allocatedAmount <= MONEY_EPSILON) return "unpaid";
   if (allocatedAmount + MONEY_EPSILON >= totalAmount) return "paid";
   return "partial";
+}
+
+export function isInvoiceOverAllocated(
+  totalAmount: number,
+  allocatedAmount: number
+): boolean {
+  return allocatedAmount > totalAmount + MONEY_EPSILON;
 }
 
 function invoiceLedgerKey(invoiceType: string, invoiceKey: string) {
@@ -306,6 +333,170 @@ export async function runAutoAllocation(
   return result;
 }
 
+export async function rerunAutoAllocationForLedgers(
+  ledgers: Array<{ customerKey: string; currency: ReceivableCurrency }>,
+  tx: InvoiceAllocationTransaction
+) {
+  const seen = new Set<string>();
+  for (const ledger of ledgers) {
+    const key = ledgerCollectionKey(ledger.customerKey, ledger.currency);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    await runAutoAllocation(ledger.customerKey, ledger.currency, tx);
+  }
+}
+
+export function validateManualAllocationRows(input: {
+  paymentAmount: number;
+  currency: ReceivableCurrency;
+  customerKey: string;
+  allocations: ManualAllocationRowInput[];
+  invoices: ReceivableInvoice[];
+  allocatedByInvoiceExcludingPayment: Map<string, number>;
+  confirmOverAllocation?: boolean;
+}): ManualAllocationOverInvoiceWarning[] {
+  if (input.allocations.length === 0) {
+    throw new Error("请至少指定一笔冲账 Please specify at least one allocation");
+  }
+
+  const invoiceByKey = new Map(
+    input.invoices.map((invoice) => [
+      invoiceLedgerKey(invoice.invoiceType, invoice.invoiceKey),
+      invoice,
+    ])
+  );
+
+  let manualSum = 0;
+  const manualByInvoice = new Map<string, number>();
+
+  for (const row of input.allocations) {
+    const amount = roundMoney(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("冲账金额须大于 0 Allocation amount must be greater than zero");
+    }
+
+    const invoice = invoiceByKey.get(
+      invoiceLedgerKey(row.invoiceType, row.invoiceKey)
+    );
+    if (!invoice) {
+      throw new Error("无效 Invoice Invalid invoice");
+    }
+    if (
+      invoice.customerKey !== input.customerKey ||
+      invoice.currency !== input.currency
+    ) {
+      throw new Error("Invoice 须属于当前客户账本 Invoice must belong to current ledger");
+    }
+
+    manualSum = roundMoney(manualSum + amount);
+    const key = invoiceLedgerKey(row.invoiceType, row.invoiceKey);
+    manualByInvoice.set(key, roundMoney((manualByInvoice.get(key) ?? 0) + amount));
+  }
+
+  if (manualSum > input.paymentAmount + MONEY_EPSILON) {
+    throw new Error(
+      "手动冲账合计不能超过来款金额 Manual allocations cannot exceed payment amount"
+    );
+  }
+
+  const overWarnings: ManualAllocationOverInvoiceWarning[] = [];
+  for (const [key, manualAmount] of Array.from(manualByInvoice.entries())) {
+    const invoice = invoiceByKey.get(key);
+    if (!invoice) continue;
+    const otherAllocated = roundMoney(
+      input.allocatedByInvoiceExcludingPayment.get(key) ?? 0
+    );
+    const projectedAllocated = roundMoney(otherAllocated + manualAmount);
+    if (isInvoiceOverAllocated(invoice.totalAmount, projectedAllocated)) {
+      overWarnings.push({
+        invoiceType: invoice.invoiceType,
+        invoiceKey: invoice.invoiceKey,
+        invoiceNo: invoice.invoiceNo,
+        yearMonth: invoice.yearMonth,
+        totalAmount: invoice.totalAmount,
+        otherAllocated,
+        manualAmount,
+        projectedAllocated,
+      });
+    }
+  }
+
+  if (overWarnings.length > 0 && !input.confirmOverAllocation) {
+    throw new Error(
+      "部分 Invoice 冲账将超过总额,请确认后提交 Some invoices would be over-allocated; confirm to proceed"
+    );
+  }
+
+  return overWarnings;
+}
+
+export async function applyManualAllocationsForPayment(
+  paymentId: string,
+  allocations: ManualAllocationRowInput[],
+  invoices: ReceivableInvoice[],
+  tx: InvoiceAllocationTransaction,
+  updatedBy: string
+) {
+  const invoiceByKey = new Map(
+    invoices.map((invoice) => [
+      invoiceLedgerKey(invoice.invoiceType, invoice.invoiceKey),
+      invoice,
+    ])
+  );
+
+  await tx.invoicePaymentAllocation.deleteMany({
+    where: { paymentId },
+  });
+
+  if (allocations.length > 0) {
+    await tx.invoicePaymentAllocation.createMany({
+      data: allocations.map((row) => {
+        const invoice = invoiceByKey.get(
+          invoiceLedgerKey(row.invoiceType, row.invoiceKey)
+        );
+        if (!invoice) {
+          throw new Error("无效 Invoice Invalid invoice");
+        }
+        return {
+          paymentId,
+          invoiceType: row.invoiceType,
+          invoiceKey: row.invoiceKey,
+          yearMonth: invoice.yearMonth,
+          currency: invoice.currency,
+          amount: roundMoney(row.amount),
+          isManual: true,
+        };
+      }),
+    });
+  }
+
+  await tx.invoicePayment.update({
+    where: { id: paymentId },
+    data: {
+      allocationStrategy: "manual",
+      updatedBy,
+    },
+  });
+}
+
+export async function resetPaymentToAutoAllocation(
+  paymentId: string,
+  tx: InvoiceAllocationTransaction,
+  updatedBy: string
+) {
+  await tx.invoicePaymentAllocation.deleteMany({
+    where: { paymentId, isManual: true },
+  });
+
+  await tx.invoicePayment.update({
+    where: { id: paymentId },
+    data: {
+      allocationStrategy: "auto",
+      updatedBy,
+    },
+  });
+}
+
 export async function loadInvoicePaymentsForLedger(
   customerKey: string,
   currency: ReceivableCurrency,
@@ -338,6 +529,8 @@ export async function loadInvoicePaymentsForLedger(
     ),
     unallocatedAmount: roundMoney(Number(payment.unallocatedAmount)),
     notes: payment.notes,
+    allocationStrategy:
+      payment.allocationStrategy === "manual" ? "manual" : "auto",
     allocations: payment.allocations.map((row) => ({
       invoiceType: row.invoiceType as ReceivableInvoiceType,
       invoiceKey: row.invoiceKey,
@@ -347,12 +540,14 @@ export async function loadInvoicePaymentsForLedger(
         ) ?? null,
       yearMonth: row.yearMonth,
       amount: roundMoney(Number(row.amount)),
+      isManual: row.isManual,
     })),
   }));
 }
 
 export async function loadAllocatedAmountsForInvoices(
-  invoices: ReceivableInvoice[]
+  invoices: ReceivableInvoice[],
+  options?: { excludePaymentId?: string }
 ): Promise<Map<string, number>> {
   if (invoices.length === 0) return new Map();
 
@@ -365,6 +560,9 @@ export async function loadAllocatedAmountsForInvoices(
     by: ["invoiceType", "invoiceKey"],
     where: {
       OR: keys,
+      ...(options?.excludePaymentId
+        ? { paymentId: { not: options.excludePaymentId } }
+        : {}),
     },
     _sum: { amount: true },
   });
@@ -467,13 +665,16 @@ export function enrichInvoicesWithCollection(
       allocatedByInvoice.get(
         invoiceLedgerKey(invoice.invoiceType, invoice.invoiceKey)
       ) ?? 0;
-    const openAmount = roundMoney(
-      Math.max(0, invoice.totalAmount - allocatedAmount)
+    const overAllocated = isInvoiceOverAllocated(
+      invoice.totalAmount,
+      allocatedAmount
     );
+    const openAmount = roundMoney(invoice.totalAmount - allocatedAmount);
     return {
       ...invoice,
       allocatedAmount,
       openAmount,
+      isOverAllocated: overAllocated,
       collectionStatus: computeInvoiceCollectionStatus(
         invoice.totalAmount,
         allocatedAmount

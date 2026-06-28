@@ -5,6 +5,7 @@ import {
   enrichCustomerLedgersWithCollection,
   enrichInvoicesWithCollection,
   roundMoney,
+  validateManualAllocationRows,
   type AllocationInvoiceInput,
   type AllocationPaymentInput,
 } from "./invoice-allocation";
@@ -398,7 +399,157 @@ describe("computeAutoFifoAllocations", () => {
     );
 
     expect(enriched[0]?.collectionStatus).toBe("paid");
-    expect(enriched[0]?.openAmount).toBe(0);
+    expect(enriched[0]?.isOverAllocated).toBe(true);
+    expect(enriched[0]?.openAmount).toBe(-138);
+  });
+
+  it("preserves manual allocations when auto FIFO reruns for other payments", () => {
+    const invoices = [
+      invoice({
+        invoiceKey: "freight:jan",
+        yearMonth: "2026-01",
+        totalAmount: 103_000,
+      }),
+      invoice({
+        invoiceKey: "freight:feb",
+        yearMonth: "2026-02",
+        totalAmount: 50_000,
+      }),
+    ];
+
+    const manualAllocations = [
+      {
+        paymentId: "p-manual",
+        invoiceType: "freight" as const,
+        invoiceKey: "freight:jan",
+        amount: 20_000,
+      },
+    ];
+
+    const result = computeAutoFifoAllocations({
+      currency: "THB",
+      invoices,
+      payments: [
+        payment({ id: "p-manual", amount: 50_000, paymentDate: "2026-06-01" }),
+        payment({ id: "p-new", amount: 50_000, paymentDate: "2026-06-02" }),
+      ],
+      manualAllocations,
+    });
+
+    const autoToJan = result.allocations
+      .filter((row) => row.paymentId === "p-manual" && row.invoiceKey === "freight:jan")
+      .reduce((sum, row) => sum + row.amount, 0);
+    expect(autoToJan).toBe(30_000);
+    expect(result.paymentUnallocated["p-manual"]).toBe(0);
+
+    const autoFromNew = result.allocations.filter((row) => row.paymentId === "p-new");
+    expect(autoFromNew.reduce((sum, row) => sum + row.amount, 0)).toBe(50_000);
+    expect(result.paymentUnallocated["p-new"]).toBe(0);
+  });
+
+  it("reallocates correctly after removing the first payment (delete simulation)", () => {
+    const invoices = [
+      invoice({
+        invoiceKey: "freight:jan",
+        yearMonth: "2026-01",
+        totalAmount: 103_000,
+      }),
+    ];
+
+    const withTwo = computeAutoFifoAllocations({
+      currency: "THB",
+      invoices,
+      payments: [
+        payment({ id: "p1", amount: 50_000, paymentDate: "2026-06-01" }),
+        payment({ id: "p2", amount: 50_000, paymentDate: "2026-06-02" }),
+      ],
+    });
+
+    const afterDelete = computeAutoFifoAllocations({
+      currency: "THB",
+      invoices,
+      payments: [payment({ id: "p2", amount: 50_000, paymentDate: "2026-06-02" })],
+    });
+
+    expect(
+      withTwo.allocations
+        .filter((row) => row.paymentId === "p1")
+        .reduce((sum, row) => sum + row.amount, 0)
+    ).toBe(50_000);
+    expect(
+      afterDelete.allocations.reduce((sum, row) => sum + row.amount, 0)
+    ).toBe(50_000);
+    expect(afterDelete.allocations[0]?.paymentId).toBe("p2");
+  });
+});
+
+describe("validateManualAllocationRows", () => {
+  it("rejects manual sum above payment amount", () => {
+    expect(() =>
+      validateManualAllocationRows({
+        paymentAmount: 10_000,
+        currency: "MYR",
+        customerKey: "shipper:abc",
+        allocations: [
+          { invoiceType: "freight", invoiceKey: "freight:jan", amount: 12_000 },
+        ],
+        invoices: [
+          {
+            invoiceType: "freight",
+            invoiceKey: "freight:jan",
+            invoiceNo: null,
+            customerKey: "shipper:abc",
+            customerKind: "shipper",
+            customerId: "abc",
+            customerCode: null,
+            customerName: "Test",
+            yearMonth: "2026-01",
+            sortDate: "2026-01-01",
+            currency: "MYR",
+            issuerKey: "haidee",
+            totalAmount: 50_000,
+            sourceMeta: {},
+            printHref: "/",
+          },
+        ],
+        allocatedByInvoiceExcludingPayment: new Map(),
+      })
+    ).toThrow(/不能超过来款|cannot exceed/i);
+  });
+
+  it("requires confirmOverAllocation when invoice would be over-allocated", () => {
+    expect(() =>
+      validateManualAllocationRows({
+        paymentAmount: 20_000,
+        currency: "MYR",
+        customerKey: "shipper:abc",
+        allocations: [
+          { invoiceType: "freight", invoiceKey: "freight:jan", amount: 15_000 },
+        ],
+        invoices: [
+          {
+            invoiceType: "freight",
+            invoiceKey: "freight:jan",
+            invoiceNo: null,
+            customerKey: "shipper:abc",
+            customerKind: "shipper",
+            customerId: "abc",
+            customerCode: null,
+            customerName: "Test",
+            yearMonth: "2026-01",
+            sortDate: "2026-01-01",
+            currency: "MYR",
+            issuerKey: "haidee",
+            totalAmount: 10_000,
+            sourceMeta: {},
+            printHref: "/",
+          },
+        ],
+        allocatedByInvoiceExcludingPayment: new Map([
+          ["freight|freight:jan", 5_000],
+        ]),
+      })
+    ).toThrow(/超过总额|over-allocated/i);
   });
 });
 

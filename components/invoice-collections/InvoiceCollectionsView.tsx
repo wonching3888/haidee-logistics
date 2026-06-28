@@ -404,8 +404,25 @@ export function InvoiceCollectionsView() {
               <InvoicePaymentSection
                 payments={verifiedDetail.payments}
                 currency={verifiedDetail.currency}
+                currentCustomerKey={verifiedDetail.customerKey}
+                ledgerOptions={pageData.ledgers.map((ledger) => ({
+                  customerKey: ledger.customerKey,
+                  customerKind: ledger.customerKind,
+                  customerId: ledger.customerId,
+                  customerName: ledger.customerName,
+                  currency: ledger.currency,
+                }))}
+                manualInvoiceOptions={verifiedDetail.invoices.map((invoice) => ({
+                  invoiceType: invoice.invoiceType,
+                  invoiceKey: invoice.invoiceKey,
+                  invoiceNo: invoice.invoiceNo,
+                  yearMonth: invoice.yearMonth,
+                  totalAmount: invoice.totalAmount,
+                  allocatedAmount: invoice.allocatedAmount,
+                }))}
                 canWritePayments={canWritePayments}
                 onAddPayment={() => setPaymentDialogOpen(true)}
+                onPaymentsChanged={() => void refetch(queryDraft)}
               />
 
               {verifiedDetail.invoices.length === 0 ? (
@@ -464,7 +481,14 @@ export function InvoiceCollectionsView() {
                             {formatMoney(invoice.openAmount, invoice.currency)}
                           </TableCell>
                           <TableCell>
-                            {t(collectionStatusMessageKey(invoice.collectionStatus))}
+                            <span className="block">
+                              {t(collectionStatusMessageKey(invoice.collectionStatus))}
+                            </span>
+                            {invoice.isOverAllocated ? (
+                              <span className="mt-0.5 block text-xs font-medium text-red-600">
+                                {t("invoiceCollections.status.overAllocated")}
+                              </span>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-right">
                             <Link

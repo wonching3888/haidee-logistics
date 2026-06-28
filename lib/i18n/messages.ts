@@ -441,6 +441,86 @@ export const MESSAGES = {
     en: "Failed to save payment",
     th: "บันทึกไม่สำเร็จ",
   },
+  "invoiceCollections.payments.edit": {
+    zh: "改",
+    en: "Edit",
+    th: "แก้ไข",
+  },
+  "invoiceCollections.payments.delete": {
+    zh: "删",
+    en: "Delete",
+    th: "ลบ",
+  },
+  "invoiceCollections.payments.manualAllocate": {
+    zh: "手动冲账",
+    en: "Manual allocate",
+    th: "จัดสรรเอง",
+  },
+  "invoiceCollections.payments.resetAuto": {
+    zh: "恢复自动",
+    en: "Reset to auto",
+    th: "กลับเป็นอัตโนมัติ",
+  },
+  "invoiceCollections.payments.editTitle": {
+    zh: "修改来款",
+    en: "Edit payment",
+    th: "แก้ไขรับชำระ",
+  },
+  "invoiceCollections.payments.manualTitle": {
+    zh: "手动指定冲账",
+    en: "Manual allocation",
+    th: "จัดสรรด้วยตนเอง",
+  },
+  "invoiceCollections.payments.deleteTitle": {
+    zh: "删除来款",
+    en: "Delete payment",
+    th: "ลบรับชำระ",
+  },
+  "invoiceCollections.payments.deleteConfirm": {
+    zh: "确定删除这笔来款？删除后将自动重算该客户账本的冲账。",
+    en: "Delete this payment? Allocations for this customer ledger will be recalculated.",
+    th: "ลบรายการนี้? ระบบจะคำนวณการจัดสรรใหม่",
+  },
+  "invoiceCollections.payments.resetAutoConfirm": {
+    zh: "恢复自动冲账？将删除该笔来款的手动分配并重新 FIFO。",
+    en: "Reset to auto allocation? Manual rows for this payment will be removed and FIFO rerun.",
+    th: "กลับเป็นอัตโนมัติ? จะลบการจัดสรรด้วยตนเองและคำนวณ FIFO ใหม่",
+  },
+  "invoiceCollections.payments.manualSum": {
+    zh: "手动冲账合计",
+    en: "Manual total",
+    th: "รวมจัดสรรด้วยตนเอง",
+  },
+  "invoiceCollections.payments.manualRemaining": {
+    zh: "剩余未分配",
+    en: "Remaining unallocated",
+    th: "คงเหลือไม่จัดสรร",
+  },
+  "invoiceCollections.payments.overInvoiceWarning": {
+    zh: "以下 Invoice 冲账将超过总额",
+    en: "These invoices would be over-allocated",
+    th: "ใบแจ้งหนี้เหล่านี้จะถูกจัดสรรเกินยอด",
+  },
+  "invoiceCollections.payments.confirmOverAllocation": {
+    zh: "我确认仍要保存超额冲账",
+    en: "I confirm saving despite over-allocation",
+    th: "ยืนยันบันทึกแม้เกินยอด",
+  },
+  "invoiceCollections.payments.prepaidHint": {
+    zh: "预收/未分配",
+    en: "Prepaid / unallocated",
+    th: "รับล่วงหน้า / คงเหลือ",
+  },
+  "invoiceCollections.payments.strategyManual": {
+    zh: "手动",
+    en: "Manual",
+    th: "ด้วยตนเอง",
+  },
+  "invoiceCollections.status.overAllocated": {
+    zh: "超额 over-allocated",
+    en: "Over-allocated",
+    th: "เกินยอด",
+  },
   "invoiceCollections.col.allocated": {
     zh: "已冲",
     en: "Allocated",
