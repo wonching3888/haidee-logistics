@@ -226,6 +226,111 @@ export const MESSAGES = {
     en: "Bank account breakdown will be available after payment entry is implemented",
     th: "สรุปตามบัญชีธนาคารจะมีหลังเปิดรับบันทึกการรับเงิน",
   },
+  "invoiceCollections.overview.thbTitle": {
+    zh: "THB 收账总览",
+    en: "THB collections overview",
+    th: "สรุปเก็บเงิน THB",
+  },
+  "invoiceCollections.overview.myrTitle": {
+    zh: "MYR 收账总览",
+    en: "MYR collections overview",
+    th: "สรุปเก็บเงิน MYR",
+  },
+  "invoiceCollections.overview.scopeHint": {
+    zh: "按上方月份范围统计（不受下方列表筛选影响）",
+    en: "Totals for the month range above (not affected by list filters below)",
+    th: "รวมตามช่วงเดือนด้านบน (ไม่ถูกตัวกรองรายการด้านล่าง)",
+  },
+  "invoiceCollections.overview.metricsLegend": {
+    zh: "总已收 = 实际来款合计；已分配 = 冲账金额；预收 = 未分配来款；总未收 = 总应收 − 已分配（不含预收）",
+    en: "Received = sum of payments; Allocated = applied to invoices; Prepaid = unallocated payments; Open = receivable − allocated (excludes prepaid)",
+    th: "รับแล้ว = ยอดรับเงิน; จัดสรรแล้ว = หักใบแจ้งหนี้; รับล่วงหน้า = เงินคงเหลือ; ค้าง = ลูกหนี้ − จัดสรรแล้ว (ไม่รวมรับล่วงหน้า)",
+  },
+  "invoiceCollections.overview.totalReceivable": {
+    zh: "总应收",
+    en: "Total receivable",
+    th: "ลูกหนี้รวม",
+  },
+  "invoiceCollections.overview.totalReceived": {
+    zh: "总已收（收到的钱）",
+    en: "Total received (cash in)",
+    th: "รับแล้วรวม (เงินเข้า)",
+  },
+  "invoiceCollections.overview.totalAllocated": {
+    zh: "已分配（已冲账）",
+    en: "Allocated (applied)",
+    th: "จัดสรรแล้ว (หักแล้ว)",
+  },
+  "invoiceCollections.overview.totalPrepaid": {
+    zh: "预收（未分配来款）",
+    en: "Prepaid (unallocated)",
+    th: "รับล่วงหน้า (ยังไม่จัดสรร)",
+  },
+  "invoiceCollections.overview.totalOpen": {
+    zh: "总未收",
+    en: "Total open",
+    th: "ค้างรับรวม",
+  },
+  "invoiceCollections.overview.bankBreakdownTitle": {
+    zh: "各户口入账",
+    en: "Bank account receipts",
+    th: "ยอดเข้าแต่ละบัญชี",
+  },
+  "invoiceCollections.overview.bankBreakdownHint": {
+    zh: "按来款户口统计实际入账，与冲账无关",
+    en: "Receipts by payment bank account; independent of allocation",
+    th: "ยอดรับตามบัญชีที่รับเงิน ไม่เกี่ยวกับการจัดสรร",
+  },
+  "invoiceCollections.filters.title": {
+    zh: "列表筛选",
+    en: "List filters",
+    th: "ตัวกรองรายการ",
+  },
+  "invoiceCollections.filters.scopeHint": {
+    zh: "仅筛选下方客户账本列表；顶部总览仍按月份范围全量统计",
+    en: "Filters the customer ledger list only; overview uses the full month range",
+    th: "กรองเฉพาะรายการลูกหนี้ด้านล่าง สรุปด้านบนใช้ช่วงเดือนทั้งหมด",
+  },
+  "invoiceCollections.filters.reset": {
+    zh: "重置筛选",
+    en: "Reset filters",
+    th: "ล้างตัวกรอง",
+  },
+  "invoiceCollections.filters.customer": {
+    zh: "客户",
+    en: "Customer",
+    th: "ลูกค้า",
+  },
+  "invoiceCollections.filters.customerPlaceholder": {
+    zh: "名称 / 代码 / 关键字",
+    en: "Name / code / keyword",
+    th: "ชื่อ / รหัส / คำค้น",
+  },
+  "invoiceCollections.filters.bankAccount": {
+    zh: "来款户口",
+    en: "Payment bank account",
+    th: "บัญชีรับเงิน",
+  },
+  "invoiceCollections.filters.status": {
+    zh: "收款状态",
+    en: "Collection status",
+    th: "สถานะการเก็บเงิน",
+  },
+  "invoiceCollections.filters.currency": {
+    zh: "币种",
+    en: "Currency",
+    th: "สกุลเงิน",
+  },
+  "invoiceCollections.filters.all": {
+    zh: "全部",
+    en: "All",
+    th: "ทั้งหมด",
+  },
+  "invoiceCollections.filters.noResults": {
+    zh: "没有符合筛选条件的客户账本",
+    en: "No customer ledgers match the filters",
+    th: "ไม่มีบัญชีลูกหนี้ที่ตรงกับตัวกรอง",
+  },
   "invoiceCollections.col.customer": {
     zh: "客户",
     en: "Customer",

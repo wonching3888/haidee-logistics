@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections";
+import { InvoiceCollectionsListFilterBar } from "@/components/invoice-collections/InvoiceCollectionsListFilterBar";
+import { InvoiceCollectionsOverviewCards } from "@/components/invoice-collections/InvoiceCollectionsOverviewCards";
 import { InvoicePaymentDialog } from "@/components/invoice-collections/InvoicePaymentDialog";
 import { InvoicePaymentSection } from "@/components/invoice-collections/InvoicePaymentSection";
 import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
@@ -25,6 +27,15 @@ import {
   buildInvoiceCollectionsUrlScopeKey,
   isDetailDataForUrlScope,
 } from "@/lib/invoice-collections-detail";
+import {
+  applyListFiltersToUrlParams,
+  EMPTY_INVOICE_COLLECTIONS_LIST_FILTERS,
+  filterInvoiceCollectionLedgers,
+  hasActiveListFilters,
+  parseInvoiceCollectionsListFilters,
+  type InvoiceCollectionsListFilters,
+} from "@/lib/invoice-collections-overview";
+import type { InvoiceBankAccount } from "@/lib/constants/invoice-bank-accounts";
 import { currentCalendarYearMonth } from "@/lib/parse-year-month-params";
 import { isReportQueryRequested } from "@/lib/reports/report-query-params";
 import {
@@ -34,7 +45,7 @@ import {
   stickyFirstColTableClass,
 } from "@/lib/table-scroll";
 import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable-invoices";
-import type { InvoiceCollectionStatus } from "@/lib/invoice-allocation";
+import type { InvoiceCollectionStatus } from "@/lib/invoice-collections-overview";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
@@ -122,12 +133,18 @@ function formatModeSuffix(
 
 export function InvoiceCollectionsView() {
   const { t } = useT();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const customerKey = searchParams.get("customerKey");
   const currencyParam = searchParams.get("currency");
   const isDetailView = Boolean(customerKey && currencyParam);
+
+  const listFilters = useMemo(
+    () => parseInvoiceCollectionsListFilters(searchParams),
+    [searchParams]
+  );
 
   const initialDraft = useMemo(
     () => buildInitialDraft(searchParams),
@@ -167,9 +184,10 @@ export function InvoiceCollectionsView() {
       params.set("toMonth", String(draft.toMonth));
       if (customerKey) params.set("customerKey", customerKey);
       if (currencyParam) params.set("currency", currencyParam);
+      applyListFiltersToUrlParams(params, listFilters);
       return params;
     },
-    [currencyParam, customerKey]
+    [currencyParam, customerKey, listFilters]
   );
 
   const {
@@ -192,6 +210,21 @@ export function InvoiceCollectionsView() {
   });
 
   const queryDraft = applied ?? draft;
+
+  const syncListFiltersToUrl = useCallback(
+    (next: InvoiceCollectionsListFilters) => {
+      const params = buildUrlParams(applied ?? draft);
+      applyListFiltersToUrlParams(params, next);
+      if (hasQueried || isReportQueryRequested(searchParams)) {
+        params.set("q", "1");
+      }
+      router.replace(`/financial/invoice-collections?${params.toString()}`, {
+        scroll: false,
+      });
+    },
+    [applied, buildUrlParams, draft, hasQueried, router, searchParams]
+  );
+
   const urlScopeKey = buildInvoiceCollectionsUrlScopeKey({
     customerKey,
     currency: currencyParam,
@@ -230,6 +263,26 @@ export function InvoiceCollectionsView() {
   const pageData = data;
   const detailData = pageData?.detail ?? null;
   const canWritePayments = pageData?.canWritePayments ?? false;
+
+  const ledgerBankAccounts = useMemo(() => {
+    const map = new Map<string, InvoiceBankAccount[]>();
+    if (!pageData?.ledgerBankAccounts) return map;
+    for (const [key, banks] of Object.entries(pageData.ledgerBankAccounts)) {
+      map.set(key, banks);
+    }
+    return map;
+  }, [pageData?.ledgerBankAccounts]);
+
+  const filteredLedgers = useMemo(() => {
+    if (!pageData) return [];
+    return filterInvoiceCollectionLedgers(
+      pageData.ledgers,
+      ledgerBankAccounts,
+      listFilters
+    );
+  }, [ledgerBankAccounts, listFilters, pageData]);
+
+  const listFiltersActive = hasActiveListFilters(listFilters);
 
   const verifiedDetail = isDetailDataForUrlScope(
     detailData,
@@ -331,34 +384,7 @@ export function InvoiceCollectionsView() {
 
       {hasQueried && pageData && (
         <>
-          <section className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
-              <p className="text-sm text-haidee-muted">
-                {t("invoiceCollections.overview.thb")}
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-haidee-text">
-                {formatMoney(pageData.overview.thb.totalReceivable, "THB")}
-              </p>
-              <p className="mt-1 text-xs text-haidee-muted">
-                {pageData.overview.thb.invoiceCount} invoices
-              </p>
-            </div>
-            <div className="rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
-              <p className="text-sm text-haidee-muted">
-                {t("invoiceCollections.overview.myr")}
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-haidee-text">
-                {formatMoney(pageData.overview.myr.totalReceivable, "MYR")}
-              </p>
-              <p className="mt-1 text-xs text-haidee-muted">
-                {pageData.overview.myr.invoiceCount} invoices
-              </p>
-            </div>
-          </section>
-
-          <p className="text-xs text-haidee-muted">
-            {t("invoiceCollections.overview.bankAccountsPending")}
-          </p>
+          <InvoiceCollectionsOverviewCards overview={pageData.overview} />
 
           {showDetailLoading ? (
             <section className="rounded-xl border border-haidee-border bg-white px-4 py-12 shadow-sm">
@@ -537,100 +563,119 @@ export function InvoiceCollectionsView() {
                   }))}
               />
             </section>
+          ) : !isDetailView && pageData.ledgers.length > 0 ? (
+            <>
+              <InvoiceCollectionsListFilterBar
+                filters={listFilters}
+                onChange={syncListFiltersToUrl}
+                onReset={() =>
+                  syncListFiltersToUrl(EMPTY_INVOICE_COLLECTIONS_LIST_FILTERS)
+                }
+                showReset={listFiltersActive}
+              />
+
+              {filteredLedgers.length === 0 ? (
+                <section className="rounded-xl border border-haidee-border bg-white px-4 py-6 shadow-sm">
+                  <p className="text-sm text-haidee-muted">
+                    {t("invoiceCollections.filters.noResults")}
+                  </p>
+                </section>
+              ) : (
+                <ScrollMatrixTable heightOffset={300}>
+                  <Table noScrollContainer className={stickyFirstColTableClass}>
+                    <TableHeader>
+                      <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
+                        <TableHead
+                          className={cn(
+                            CUSTOMER_COL_WIDTH,
+                            STICKY_HEAD_FIRST,
+                            "whitespace-normal align-top"
+                          )}
+                        >
+                          {t("invoiceCollections.col.customer")}
+                        </TableHead>
+                        <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
+                        <TableHead>{t("invoiceCollections.col.earliestMonth")}</TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.totalReceivable")}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.received")}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.open")}
+                        </TableHead>
+                        <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
+                        <TableHead className="text-right">
+                          {t("invoiceCollections.col.invoiceCount")}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLedgers.map((ledger) => (
+                        <TableRow key={`${ledger.customerKey}|${ledger.currency}`}>
+                          <TableCell
+                            className={cn(
+                              CUSTOMER_COL_WIDTH,
+                              STICKY_BODY_FIRST,
+                              "whitespace-normal align-top"
+                            )}
+                          >
+                            <Link
+                              href={listHrefForLedger(
+                                ledger.customerKey,
+                                ledger.currency
+                              )}
+                              className="block font-medium leading-snug text-haidee-blue hover:underline"
+                            >
+                              <span className="block break-words">
+                                {ledger.customerName}
+                              </span>
+                              {ledger.customerCode ? (
+                                <span className="mt-0.5 block text-xs text-muted-foreground">
+                                  {ledger.customerCode}
+                                </span>
+                              ) : null}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{ledger.currency}</TableCell>
+                          <TableCell>{ledger.earliestYearMonth}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(ledger.totalReceivable, ledger.currency)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(ledger.totalAllocated, ledger.currency)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(ledger.totalOpen, ledger.currency)}
+                          </TableCell>
+                          <TableCell>
+                            <span className="block">
+                              {t(collectionStatusMessageKey(ledger.collectionStatus))}
+                            </span>
+                            {ledger.hasPrepayment ? (
+                              <span className="mt-0.5 block text-xs text-haidee-muted">
+                                {t("invoiceCollections.status.hasPrepayment")}
+                              </span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {ledger.invoiceCount}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollMatrixTable>
+              )}
+            </>
           ) : pageData.ledgers.length === 0 ? (
             <section className="rounded-xl border border-haidee-border bg-white px-4 py-6 shadow-sm">
               <p className="text-sm text-haidee-muted">
                 {t("invoiceCollections.empty")}
               </p>
             </section>
-          ) : (
-            <ScrollMatrixTable heightOffset={300}>
-              <Table noScrollContainer className={stickyFirstColTableClass}>
-                <TableHeader>
-                  <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-                    <TableHead
-                      className={cn(
-                        CUSTOMER_COL_WIDTH,
-                        STICKY_HEAD_FIRST,
-                        "whitespace-normal align-top"
-                      )}
-                    >
-                      {t("invoiceCollections.col.customer")}
-                    </TableHead>
-                    <TableHead>{t("invoiceCollections.col.currency")}</TableHead>
-                    <TableHead>{t("invoiceCollections.col.earliestMonth")}</TableHead>
-                    <TableHead className="text-right">
-                      {t("invoiceCollections.col.totalReceivable")}
-                    </TableHead>
-                    <TableHead className="text-right">
-                      {t("invoiceCollections.col.received")}
-                    </TableHead>
-                    <TableHead className="text-right">
-                      {t("invoiceCollections.col.open")}
-                    </TableHead>
-                    <TableHead>{t("invoiceCollections.col.collectionStatus")}</TableHead>
-                    <TableHead className="text-right">
-                      {t("invoiceCollections.col.invoiceCount")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pageData.ledgers.map((ledger) => (
-                    <TableRow key={`${ledger.customerKey}|${ledger.currency}`}>
-                      <TableCell
-                        className={cn(
-                          CUSTOMER_COL_WIDTH,
-                          STICKY_BODY_FIRST,
-                          "whitespace-normal align-top"
-                        )}
-                      >
-                        <Link
-                          href={listHrefForLedger(
-                            ledger.customerKey,
-                            ledger.currency
-                          )}
-                          className="block font-medium leading-snug text-haidee-blue hover:underline"
-                        >
-                          <span className="block break-words">
-                            {ledger.customerName}
-                          </span>
-                          {ledger.customerCode ? (
-                            <span className="mt-0.5 block text-xs text-muted-foreground">
-                              {ledger.customerCode}
-                            </span>
-                          ) : null}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{ledger.currency}</TableCell>
-                      <TableCell>{ledger.earliestYearMonth}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatMoney(ledger.totalReceivable, ledger.currency)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatMoney(ledger.totalAllocated, ledger.currency)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatMoney(ledger.totalOpen, ledger.currency)}
-                      </TableCell>
-                      <TableCell>
-                        <span className="block">
-                          {t(collectionStatusMessageKey(ledger.collectionStatus))}
-                        </span>
-                        {ledger.hasPrepayment ? (
-                          <span className="mt-0.5 block text-xs text-haidee-muted">
-                            {t("invoiceCollections.status.hasPrepayment")}
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {ledger.invoiceCount}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollMatrixTable>
-          )}
+          ) : null}
         </>
       )}
     </div>

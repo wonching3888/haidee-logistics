@@ -47,6 +47,7 @@ export default defineConfig({
       "lib/receivable-invoices.test.ts",
       "lib/invoice-allocation.test.ts",
       "lib/invoice-collections-detail.test.ts",
+      "lib/invoice-collections-overview.test.ts",
     ],
   },
   resolve: {

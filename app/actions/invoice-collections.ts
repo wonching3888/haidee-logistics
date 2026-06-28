@@ -6,6 +6,10 @@ import {
   canWriteInvoiceCollections,
 } from "@/lib/auth-roles";
 import {
+  buildInvoiceCollectionsOverview,
+} from "@/lib/invoice-collections-overview";
+import { loadPaymentOverviewForRange } from "@/lib/invoice-collections-payment-overview";
+import {
   enrichCustomerLedgersWithCollection,
   enrichInvoicesWithCollection,
   loadAllocatedAmountsForInvoices,
@@ -17,7 +21,6 @@ import {
   filterReceivableInvoicesForLedger,
   groupReceivableCustomerLedgers,
   loadReceivableInvoicesForRange,
-  summarizeReceivableOverview,
   type ReceivableCurrency,
 } from "@/lib/receivable-invoices";
 
@@ -77,17 +80,29 @@ export async function getInvoiceCollectionsPageData(input: {
   });
 
   const baseLedgers = groupReceivableCustomerLedgers(invoices);
-  const [allocatedByInvoice, unallocatedByLedger] = await Promise.all([
-    loadAllocatedAmountsForInvoices(invoices),
-    loadUnallocatedAmountsByLedger(baseLedgers),
-  ]);
+  const [allocatedByInvoice, unallocatedByLedger, paymentOverview] =
+    await Promise.all([
+      loadAllocatedAmountsForInvoices(invoices),
+      loadUnallocatedAmountsByLedger(baseLedgers),
+      loadPaymentOverviewForRange({
+        fromYear: input.fromYear,
+        fromMonth: input.fromMonth,
+        toYear: input.toYear,
+        toMonth: input.toMonth,
+      }),
+    ]);
   const ledgers = enrichCustomerLedgersWithCollection(
     baseLedgers,
     invoices,
     allocatedByInvoice,
     unallocatedByLedger
   );
-  const overview = summarizeReceivableOverview(invoices);
+  const overview = buildInvoiceCollectionsOverview({
+    invoices,
+    allocatedByInvoice,
+    paymentTotalsByCurrency: paymentOverview.paymentTotalsByCurrency,
+    bankAmountsByCurrency: paymentOverview.bankAmountsByCurrency,
+  });
 
   let detail: {
     customerKey: string;
@@ -139,6 +154,9 @@ export async function getInvoiceCollectionsPageData(input: {
     toMonth: input.toMonth,
     ledgers,
     overview,
+    ledgerBankAccounts: Object.fromEntries(
+      paymentOverview.ledgerBankAccounts.entries()
+    ),
     invoiceCount: invoices.length,
     detail,
     canWritePayments: canWriteInvoiceCollections(user.role as UserRole),
