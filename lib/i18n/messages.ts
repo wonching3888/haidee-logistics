@@ -196,6 +196,136 @@ export const MESSAGES = {
     en: "Driver Payroll",
     th: "เงินเดือนคนขับ",
   },
+  "nav.invoiceCollections": {
+    zh: "Invoice 收账",
+    en: "Invoice Collections",
+    th: "เก็บเงินใบแจ้งหนี้",
+  },
+  "invoiceCollections.title": {
+    zh: "Invoice 收账",
+    en: "Invoice Collections",
+    th: "เก็บเงินใบแจ้งหนี้",
+  },
+  "invoiceCollections.subtitle": {
+    zh: "客户应收账本 · 三种月结 Invoice 只读总览（本批不含来款冲账）",
+    en: "Customer receivable ledger · read-only invoice overview (payments not yet available)",
+    th: "บัญชีลูกหนี้ · ดูใบแจ้งหนี้แบบอ่านอย่างเดียว (ยังไม่มีการรับเงิน)",
+  },
+  "invoiceCollections.overview.thb": {
+    zh: "THB 总应收",
+    en: "THB total receivable",
+    th: "ลูกหนี้รวม THB",
+  },
+  "invoiceCollections.overview.myr": {
+    zh: "MYR 总应收",
+    en: "MYR total receivable",
+    th: "ลูกหนี้รวม MYR",
+  },
+  "invoiceCollections.overview.bankAccountsPending": {
+    zh: "户口入账统计将在录款功能上线后提供",
+    en: "Bank account breakdown will be available after payment entry is implemented",
+    th: "สรุปตามบัญชีธนาคารจะมีหลังเปิดรับบันทึกการรับเงิน",
+  },
+  "invoiceCollections.col.customer": {
+    zh: "客户",
+    en: "Customer",
+    th: "ลูกค้า",
+  },
+  "invoiceCollections.col.currency": {
+    zh: "币种",
+    en: "Currency",
+    th: "สกุลเงิน",
+  },
+  "invoiceCollections.col.earliestMonth": {
+    zh: "最早账单月",
+    en: "Earliest invoice month",
+    th: "เดือนใบแจ้งหนี้แรก",
+  },
+  "invoiceCollections.col.totalReceivable": {
+    zh: "总应收",
+    en: "Total receivable",
+    th: "ลูกหนี้รวม",
+  },
+  "invoiceCollections.col.invoiceCount": {
+    zh: "Invoice 张数",
+    en: "Invoice count",
+    th: "จำนวนใบแจ้งหนี้",
+  },
+  "invoiceCollections.col.month": {
+    zh: "月份",
+    en: "Month",
+    th: "เดือน",
+  },
+  "invoiceCollections.col.type": {
+    zh: "类型",
+    en: "Type",
+    th: "ประเภท",
+  },
+  "invoiceCollections.col.invoiceNo": {
+    zh: "Invoice 号",
+    en: "Invoice no.",
+    th: "เลขใบแจ้งหนี้",
+  },
+  "invoiceCollections.col.amount": {
+    zh: "金额",
+    en: "Amount",
+    th: "จำนวนเงิน",
+  },
+  "invoiceCollections.col.collectionStatus": {
+    zh: "收款状态",
+    en: "Collection status",
+    th: "สถานะการเก็บเงิน",
+  },
+  "invoiceCollections.status.unpaid": {
+    zh: "未收",
+    en: "Unpaid",
+    th: "ยังไม่รับ",
+  },
+  "invoiceCollections.type.freight": {
+    zh: "车力",
+    en: "Freight",
+    th: "ค่าขนส่ง",
+  },
+  "invoiceCollections.type.crateReturn": {
+    zh: "回收桶",
+    en: "Crate return",
+    th: "คืนลัง",
+  },
+  "invoiceCollections.type.charter": {
+    zh: "包车",
+    en: "Charter",
+    th: "เหมารถ",
+  },
+  "invoiceCollections.backToList": {
+    zh: "返回客户列表",
+    en: "Back to customer list",
+    th: "กลับรายชื่อลูกค้า",
+  },
+  "invoiceCollections.detailTitle": {
+    zh: "客户应收账本",
+    en: "Customer receivable ledger",
+    th: "บัญชีลูกหนี้ลูกค้า",
+  },
+  "invoiceCollections.empty": {
+    zh: "所选月份范围内暂无 Invoice",
+    en: "No invoices in the selected period",
+    th: "ไม่มีใบแจ้งหนี้ในช่วงที่เลือก",
+  },
+  "invoiceCollections.openPrint": {
+    zh: "查看打印",
+    en: "Open print",
+    th: "เปิดพิมพ์",
+  },
+  "invoiceCollections.loadFailed": {
+    zh: "加载失败",
+    en: "Failed to load",
+    th: "โหลดไม่สำเร็จ",
+  },
+  "invoiceCollections.awaitingQuery": {
+    zh: "请选择月份范围并点击「查询」",
+    en: "Select a month range and click Search",
+    th: "เลือกช่วงเดือนแล้วกดค้นหา",
+  },
   "nav.history": {
     zh: "修改记录",
     en: "History",

@@ -3,6 +3,7 @@ import {
   canAccessSettings,
   canViewDriverPayroll,
   canViewInvoiceAmounts,
+  canViewInvoiceCollections,
   canViewPnlOperations,
   canWrite,
 } from "@/lib/auth-roles";
@@ -28,7 +29,8 @@ export type PageAccessGate =
   | "payroll"
   | "settings"
   | "history"
-  | "driver-expenses";
+  | "driver-expenses"
+  | "invoice-collections";
 
 function normalizePathname(pathname: string): string {
   const path = pathname.split("?")[0].replace(/\/$/, "") || "/";
@@ -50,6 +52,12 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
   }
   if (path.startsWith("/documents/driver-expenses")) {
     return "driver-expenses";
+  }
+  if (
+    path === "/financial/invoice-collections" ||
+    path.startsWith("/financial/invoice-collections/")
+  ) {
+    return "invoice-collections";
   }
 
   if (
@@ -133,6 +141,8 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
       return canViewDriverPayroll(role);
     case "driver-expenses":
       return canAccessDriverExpenses(role);
+    case "invoice-collections":
+      return canViewInvoiceCollections(role);
     case "settings":
       return canAccessSettings(role);
     case "history":

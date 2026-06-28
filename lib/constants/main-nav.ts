@@ -96,6 +96,11 @@ export const MAIN_NAV_FINANCIAL_DRIVER_PAYROLL: MainNavLink = {
 /** @deprecated Use MAIN_NAV_FINANCIAL_DRIVER_PAYROLL */
 export const MAIN_NAV_REPORTS_DRIVER_PAYROLL = MAIN_NAV_FINANCIAL_DRIVER_PAYROLL;
 
+export const MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS: MainNavLink = {
+  href: "/financial/invoice-collections",
+  messageKey: "nav.invoiceCollections",
+};
+
 export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
   id: "financial-control",
   messageKey: "nav.financialControl",
@@ -103,6 +108,7 @@ export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
   children: [
     MAIN_NAV_FINANCIAL_DRIVER_EXPENSES,
     MAIN_NAV_FINANCIAL_DRIVER_PAYROLL,
+    MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS,
   ],
 };
 

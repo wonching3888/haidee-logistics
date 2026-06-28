@@ -89,6 +89,11 @@ export function canAccessAllDocuments(role: StoredUserRole): boolean {
   }
 }
 
+/** admin + viewer — Invoice 收账审核（本模块只读批次亦用此门） */
+export function canViewInvoiceCollections(role: StoredUserRole): boolean {
+  return role === "admin" || role === "viewer";
+}
+
 /** admin/thai/my ✓ · clerk/viewer/owner ✗ · legacy accounting ✓ */
 export function canViewInvoiceAmounts(role: StoredUserRole): boolean {
   switch (role) {

@@ -44,6 +44,7 @@ export default defineConfig({
       "lib/operations-payroll-warnings.test.ts",
       "lib/payroll-audit.test.ts",
       "lib/dispatch-audit.test.ts",
+      "lib/receivable-invoices.test.ts",
     ],
   },
   resolve: {
