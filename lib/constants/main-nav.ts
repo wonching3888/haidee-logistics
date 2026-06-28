@@ -88,11 +88,22 @@ export const MAIN_NAV_DOCUMENTS: MainNavGroup = {
   ],
 };
 
+export const MAIN_NAV_FINANCIAL_DRIVER_PAYROLL: MainNavLink = {
+  href: "/driver-payroll",
+  messageKey: "nav.driverPayroll",
+};
+
+/** @deprecated Use MAIN_NAV_FINANCIAL_DRIVER_PAYROLL */
+export const MAIN_NAV_REPORTS_DRIVER_PAYROLL = MAIN_NAV_FINANCIAL_DRIVER_PAYROLL;
+
 export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
   id: "financial-control",
   messageKey: "nav.financialControl",
   icon: Landmark,
-  children: [MAIN_NAV_FINANCIAL_DRIVER_EXPENSES],
+  children: [
+    MAIN_NAV_FINANCIAL_DRIVER_EXPENSES,
+    MAIN_NAV_FINANCIAL_DRIVER_PAYROLL,
+  ],
 };
 
 export const MAIN_NAV_CRATE: MainNavGroup = {
@@ -131,11 +142,6 @@ export const MAIN_NAV_REPORTS_PNL: MainNavLink = {
   messageKey: "nav.pnl",
 };
 
-export const MAIN_NAV_REPORTS_DRIVER_PAYROLL: MainNavLink = {
-  href: "/driver-payroll",
-  messageKey: "nav.driverPayroll",
-};
-
 export const MAIN_NAV_REPORTS: MainNavGroup = {
   id: "reports",
   messageKey: "nav.reports",
@@ -144,7 +150,6 @@ export const MAIN_NAV_REPORTS: MainNavGroup = {
     ...MAIN_NAV_REPORTS_BASE,
     MAIN_NAV_REPORTS_OPERATIONS,
     MAIN_NAV_REPORTS_PNL,
-    MAIN_NAV_REPORTS_DRIVER_PAYROLL,
   ],
 };
 
