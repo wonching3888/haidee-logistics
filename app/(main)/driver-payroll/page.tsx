@@ -3,6 +3,9 @@ import {
 } from "@/app/actions/driver-payroll";
 import { DriverPayrollView } from "@/components/driver-payroll/DriverPayrollView";
 import { PageError } from "@/components/shared/PageError";
+import { getCurrentUser } from "@/lib/auth";
+import { canExportPayrollJv } from "@/lib/auth-roles";
+import type { UserRole } from "@/types";
 
 interface DriverPayrollPageProps {
   searchParams: Promise<{ driverId?: string; year?: string; month?: string }>;
@@ -17,7 +20,13 @@ export default async function DriverPayrollPage({
   const month = Number(params.month) || now.getMonth() + 1;
 
   try {
-    const drivers = await getDriverPayrollDrivers();
+    const [drivers, user] = await Promise.all([
+      getDriverPayrollDrivers(),
+      getCurrentUser(),
+    ]);
+    const canExportJv = user
+      ? canExportPayrollJv(user.role as UserRole)
+      : false;
 
     return (
       <div className="space-y-6">
@@ -35,6 +44,7 @@ export default async function DriverPayrollPage({
           initialDriverId={params.driverId}
           initialYear={year}
           initialMonth={month}
+          canExportJv={canExportJv}
         />
       </div>
     );

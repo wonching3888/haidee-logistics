@@ -185,6 +185,11 @@ export function canWriteDriverPayroll(role: StoredUserRole): boolean {
   }
 }
 
+/** admin/my only — payroll JV CSV export */
+export function canExportPayrollJv(role: StoredUserRole): boolean {
+  return canWriteDriverPayroll(role);
+}
+
 /** admin/my ✓ · all others ✗ · legacy accounting ✓ */
 export function canViewDriverPayroll(role: StoredUserRole): boolean {
   switch (role) {

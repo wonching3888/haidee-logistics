@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewDriverPayroll, canWriteDriverPayroll } from "@/lib/auth-roles";
+import { canViewDriverPayroll, canWriteDriverPayroll, canExportPayrollJv } from "@/lib/auth-roles";
 import type { UserRole } from "@/types";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { formatDisplayDate, toDateInputValue } from "@/lib/date-utils";
@@ -45,6 +45,14 @@ async function requirePayrollAccess() {
   const user = await getCurrentUser();
   if (!user || !canViewDriverPayroll(user.role as UserRole)) {
     throw new Error("无权限 Unauthorized");
+  }
+  return user;
+}
+
+async function requirePayrollJvExportAccess() {
+  const user = await requirePayrollAccess();
+  if (!canExportPayrollJv(user.role as UserRole)) {
+    throw new Error("无 JV 导出权限 JV export access denied");
   }
   return user;
 }
@@ -741,4 +749,31 @@ export async function getDriverPayrollSettingsData() {
     orderBy: { name: "asc" },
   });
   return drivers.map(serializeDriver);
+}
+
+export async function getPayrollJvPreview(input: {
+  year: number;
+  month: number;
+}) {
+  await requirePayrollJvExportAccess();
+  const { buildMonthlyDriverJvRows } = await import("@/lib/payroll-jv-export");
+  return buildMonthlyDriverJvRows(input.year, input.month);
+}
+
+export async function exportPayrollJvCsvAction(input: {
+  year: number;
+  month: number;
+}) {
+  await requirePayrollJvExportAccess();
+  const {
+    buildMonthlyDriverJvRows,
+    generatePayrollJvCsv,
+    payrollJvCsvFilename,
+  } = await import("@/lib/payroll-jv-export");
+  const result = await buildMonthlyDriverJvRows(input.year, input.month);
+  const content = generatePayrollJvCsv(result);
+  return {
+    filename: payrollJvCsvFilename(input.year, input.month),
+    content,
+  };
 }

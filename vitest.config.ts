@@ -51,6 +51,7 @@ export default defineConfig({
       "lib/invoice-payment-audit.test.ts",
       "lib/invoice-payments-delete.integration.test.ts",
       "lib/payroll-jv-accounts.test.ts",
+      "lib/payroll-jv-export.test.ts",
     ],
   },
   resolve: {

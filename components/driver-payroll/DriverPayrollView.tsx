@@ -26,6 +26,7 @@ import type { buildPayrollSummary } from "@/lib/payroll-statutory";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getRouteLabel } from "@/lib/payroll-route-label";
 import { DriverPayrollSummaryTable } from "@/components/driver-payroll/DriverPayrollSummaryTable";
+import { PayrollJvExportPanel } from "@/components/driver-payroll/PayrollJvExportPanel";
 import { cn } from "@/lib/utils";
 
 interface DriverOption {
@@ -38,6 +39,7 @@ interface DriverPayrollViewProps {
   initialDriverId?: string;
   initialYear: number;
   initialMonth: number;
+  canExportJv?: boolean;
 }
 
 type PayrollData = Awaited<ReturnType<typeof getDriverPayrollMonth>>;
@@ -56,6 +58,7 @@ export function DriverPayrollView({
   initialDriverId,
   initialYear,
   initialMonth,
+  canExportJv = false,
 }: DriverPayrollViewProps) {
   const [driverId, setDriverId] = useState(initialDriverId ?? drivers[0]?.id ?? "");
   const [year, setYear] = useState(initialYear);
@@ -247,7 +250,16 @@ export function DriverPayrollView({
         isPending && !summaryData ? (
           <div className="h-40 animate-pulse rounded-xl bg-haidee-border/30" />
         ) : summaryData ? (
-          <DriverPayrollSummaryTable data={summaryData} />
+          <div className="space-y-6">
+            <DriverPayrollSummaryTable data={summaryData} />
+            {canExportJv ? (
+              <PayrollJvExportPanel
+                year={year}
+                month={month}
+                isPending={isPending}
+              />
+            ) : null}
+          </div>
         ) : null
       ) : (
         <>
