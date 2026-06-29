@@ -1901,6 +1901,96 @@ export const MESSAGES = {
     en: "Invalid quantity for {code}",
     th: "จำนวนประเภทลัง {code} ไม่ถูกต้อง",
   },
+  "customerCrateStock.agent.manage": {
+    zh: "管理代理",
+    en: "Manage Agents",
+    th: "จัดการตัวแทน",
+  },
+  "customerCrateStock.agent.create": {
+    zh: "新建代理",
+    en: "New Agent",
+    th: "สร้างตัวแทน",
+  },
+  "customerCrateStock.agent.badge": {
+    zh: "代理",
+    en: "Agent",
+    th: "ตัวแทน",
+  },
+  "customerCrateStock.agent.legacyPoolHint": {
+    zh: "宋卡/北大年池：归入仅登记关系，不搬库存",
+    en: "SK/PTN pool: join registers membership only; pool stock unchanged",
+    th: "พูลสงขลา/ปัตตานี: เข้ากลุ่มบันทึกความสัมพันธ์เท่านั้น ไม่ย้ายสต๊อก",
+  },
+  "customerCrateStock.agent.membersTitle": {
+    zh: "组员管理",
+    en: "Members",
+    th: "สมาชิก",
+  },
+  "customerCrateStock.agent.noMembers": {
+    zh: "暂无组员",
+    en: "No members yet",
+    th: "ยังไม่มีสมาชิก",
+  },
+  "customerCrateStock.agent.addMember": {
+    zh: "添加顾客",
+    en: "Add member",
+    th: "เพิ่มลูกค้า",
+  },
+  "customerCrateStock.agent.searchMember": {
+    zh: "搜索运营顾客",
+    en: "Search operational shipper",
+    th: "ค้นหาผู้ส่งปฏิบัติการ",
+  },
+  "customerCrateStock.agent.removeMember": {
+    zh: "移出",
+    en: "Remove",
+    th: "นำออก",
+  },
+  "customerCrateStock.agent.createTitle": {
+    zh: "新建代理主体",
+    en: "Create stock agent",
+    th: "สร้างตัวแทนสต๊อก",
+  },
+  "customerCrateStock.agent.name": {
+    zh: "名称",
+    en: "Name",
+    th: "ชื่อ",
+  },
+  "customerCrateStock.agent.code": {
+    zh: "代码后缀(可选)",
+    en: "Code suffix (optional)",
+    th: "รหัสต่อท้าย (ไม่บังคับ)",
+  },
+  "customerCrateStock.agent.notes": {
+    zh: "备注(可选)",
+    en: "Notes (optional)",
+    th: "หมายเหตุ (ไม่บังคับ)",
+  },
+  "customerCrateStock.agent.confirmJoinTitle": {
+    zh: "确认归入",
+    en: "Confirm join",
+    th: "ยืนยันเข้ากลุ่ม",
+  },
+  "customerCrateStock.agent.confirmJoinBody": {
+    zh: "将 {member} 库存并入 {agent}？并入后该顾客不再独立显示库存。",
+    en: "Merge {member} stock into {agent}? This shipper will no longer show independent stock.",
+    th: "รวมสต๊อก {member} เข้า {agent}? ลูกค้ารายนี้จะไม่แสดงสต๊อกแยกอีก",
+  },
+  "customerCrateStock.agent.confirmRemoveTitle": {
+    zh: "确认移出",
+    en: "Confirm remove",
+    th: "ยืนยันนำออก",
+  },
+  "customerCrateStock.agent.confirmRemoveBody": {
+    zh: "移出后 {member} 库存归零，{agent} 库存不变，需人工调整。确认？",
+    en: "After removal, {member} stock will be zeroed; {agent} stock unchanged. Manual adjustment required. Confirm?",
+    th: "หลังนำออก สต๊อก {member} จะเป็นศูนย์ สต๊อก {agent} ไม่เปลี่ยน ต้องปรับด้วยตนเอง ยืนยัน?",
+  },
+  "customerCrateStock.agent.memberAssigned": {
+    zh: "已归 {agent}",
+    en: "Under {agent}",
+    th: "อยู่ภายใต้ {agent}",
+  },
   "driverExpenses.page.title": {
     zh: "司机费用",
     en: "Driver Expenses",

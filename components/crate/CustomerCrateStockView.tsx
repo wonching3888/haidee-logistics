@@ -9,6 +9,15 @@ import {
   type CustomerCrateStockRow,
   type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
+import type {
+  CrateStockAgentRow,
+  EligibleAgentMemberOption,
+} from "@/app/actions/customer-crate-stock-agent";
+import {
+  CrateStockAgentAddMemberDialog,
+  CrateStockAgentConfirmDialog,
+  CrateStockAgentCreateDialog,
+} from "@/components/crate/CrateStockAgentDialogs";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { useT } from "@/components/shared/locale-context";
@@ -40,8 +49,10 @@ import { cn } from "@/lib/utils";
 interface CustomerCrateStockViewProps {
   crateTypes: CrateTypeColumn[];
   rows: CustomerCrateStockRow[];
+  agents: CrateStockAgentRow[];
   pickupLocationSummaries: PickupLocationStockSummary[];
   initialSearch: string;
+  isAdmin: boolean;
 }
 
 function qtyClass(qty: number) {
@@ -55,18 +66,23 @@ function formatLocationLabel(location: string, unspecified: string) {
   return location || unspecified;
 }
 
-function rowGrandTotal(
-  row: CustomerCrateStockRow,
+function memberStockSummary(
+  quantities: Record<string, number>,
   crateTypes: CrateTypeColumn[]
 ) {
-  return crateTypes.reduce((sum, ct) => sum + (row.quantities[ct.id] ?? 0), 0);
+  const parts = crateTypes
+    .filter((ct) => (quantities[ct.id] ?? 0) !== 0)
+    .map((ct) => `${ct.code} ${quantities[ct.id]}`);
+  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 export function CustomerCrateStockView({
   crateTypes,
   rows,
+  agents,
   pickupLocationSummaries,
   initialSearch,
+  isAdmin,
 }: CustomerCrateStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,6 +90,18 @@ export function CustomerCrateStockView({
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(initialSearch);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [createAgentOpen, setCreateAgentOpen] = useState(false);
+  const [addMemberAgent, setAddMemberAgent] = useState<CrateStockAgentRow | null>(
+    null
+  );
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "join" | "remove";
+    agentId: string;
+    agentName: string;
+    memberId: string;
+    memberName: string;
+  } | null>(null);
   const [editRow, setEditRow] = useState<CustomerCrateStockRow | null>(null);
   const [editLocation, setEditLocation] = useState("");
   const [editQty, setEditQty] = useState<Record<string, string>>({});
@@ -94,6 +122,105 @@ export function CustomerCrateStockView({
 
   function toggleExpand(shipperId: string) {
     setExpandedId((prev) => (prev === shipperId ? null : shipperId));
+  }
+
+  function toggleAgentExpand(agentId: string) {
+    setExpandedAgentId((prev) => (prev === agentId ? null : agentId));
+  }
+
+  const memberAgentLabel = new Map<string, string>();
+  for (const agent of agents) {
+    for (const member of agent.members) {
+      memberAgentLabel.set(member.memberShipperId, agent.shipperName);
+    }
+  }
+
+  function requestJoin(
+    agent: CrateStockAgentRow,
+    member: EligibleAgentMemberOption
+  ) {
+    setConfirmAction({
+      type: "join",
+      agentId: agent.shipperId,
+      agentName: agent.shipperName,
+      memberId: member.id,
+      memberName: member.name,
+    });
+  }
+
+  function requestRemove(agent: CrateStockAgentRow, memberId: string, memberName: string) {
+    setConfirmAction({
+      type: "remove",
+      agentId: agent.shipperId,
+      agentName: agent.shipperName,
+      memberId,
+      memberName,
+    });
+  }
+
+  function renderLocationBreakdown(
+    locations: CustomerCrateStockRow["locations"],
+    title: string
+  ) {
+    const visibleLocations = locations.filter((loc) =>
+      crateTypes.some((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
+    );
+    const grandTotal = crateTypes.reduce(
+      (sum, ct) =>
+        sum +
+        locations.reduce((locSum, loc) => locSum + (loc.quantities[ct.id] ?? 0), 0),
+      0
+    );
+
+    return (
+      <div className="px-4 py-3 font-mono text-sm">
+        <p className="mb-2 text-xs font-semibold text-haidee-muted">
+          <MobileTruncatedName text={title} />
+          <span className="ml-3">
+            {t("common.total")}:{" "}
+            <span className={qtyClass(grandTotal)}>{grandTotal}</span>
+          </span>
+        </p>
+        {visibleLocations.length === 0 ? (
+          <p className="text-haidee-muted">
+            {t("customerCrateStock.noLocationBreakdown")}
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {visibleLocations.map((loc, index) => {
+              const isLast = index === visibleLocations.length - 1;
+              const prefix = isLast ? "└──" : "├──";
+              const crateParts = crateTypes
+                .filter((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
+                .map((ct) => `${ct.code}  ${loc.quantities[ct.id]}`);
+
+              return (
+                <div
+                  key={loc.location || "__empty__"}
+                  className="flex flex-wrap items-baseline gap-x-3 text-haidee-text"
+                >
+                  <span className="text-haidee-muted">{prefix}</span>
+                  <span className="min-w-[88px] font-medium">
+                    {formatLocationLabel(
+                      loc.location,
+                      parts("customerCrateStock.unspecifiedLocation").local
+                    )}
+                  </span>
+                  {crateParts.map((part) => (
+                    <span
+                      key={part}
+                      className={qtyClass(parseInt(part.split(/\s+/)[1], 10))}
+                    >
+                      {part}
+                    </span>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   function openEdit(row: CustomerCrateStockRow) {
@@ -195,6 +322,17 @@ export function CustomerCrateStockView({
         >
           {t("inbound.searchButton")}
         </Button>
+        {isAdmin ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setCreateAgentOpen(true)}
+            disabled={isPending}
+            className="min-h-[44px]"
+          >
+            {t("customerCrateStock.agent.create")}
+          </Button>
+        ) : null}
       </div>
 
       <DataFreshnessBar
@@ -257,6 +395,128 @@ export function CustomerCrateStockView({
                 </TableCell>
               </TableRow>
             ))}
+            {agents.map((agent) => {
+              const isAgentExpanded = expandedAgentId === agent.shipperId;
+              return (
+                <Fragment key={`agent-${agent.shipperId}`}>
+                  <TableRow className="bg-amber-50/40">
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => toggleAgentExpand(agent.shipperId)}
+                        className="flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-muted hover:text-haidee-text"
+                        aria-label={t("customerCrateStock.agent.membersTitle")}
+                      >
+                        {isAgentExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <MobileTruncatedName text={agent.shipperName} />
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                          {t("customerCrateStock.agent.badge")}
+                        </span>
+                      </div>
+                    </TableCell>
+                    {crateTypes.map((ct) => {
+                      const qty = agent.quantities[ct.id] ?? 0;
+                      return (
+                        <TableCell
+                          key={ct.id}
+                          className={cn("text-right", qtyClass(qty))}
+                        >
+                          {qty}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell />
+                  </TableRow>
+                  {isAgentExpanded && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={crateTypes.length + 3}
+                        className="bg-haidee-surface/50 p-0"
+                      >
+                        <div className="space-y-4 border-t border-haidee-border/60 px-4 py-3">
+                          {agent.isLegacyPool ? (
+                            <p className="text-xs text-amber-800">
+                              {t("customerCrateStock.agent.legacyPoolHint")}
+                            </p>
+                          ) : null}
+                          {renderLocationBreakdown(
+                            agent.locations,
+                            agent.shipperName
+                          )}
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-xs font-semibold text-haidee-muted">
+                                {t("customerCrateStock.agent.membersTitle")}
+                              </p>
+                              {isAdmin ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setAddMemberAgent(agent)}
+                                >
+                                  {t("customerCrateStock.agent.addMember")}
+                                </Button>
+                              ) : null}
+                            </div>
+                            {agent.members.length === 0 ? (
+                              <p className="text-sm text-haidee-muted">
+                                {t("customerCrateStock.agent.noMembers")}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {agent.members.map((member) => (
+                                  <div
+                                    key={member.memberShipperId}
+                                    className="rounded-lg border border-haidee-border bg-white p-3"
+                                  >
+                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-sm font-medium">
+                                        {member.memberShipperName}
+                                      </p>
+                                      {isAdmin ? (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            requestRemove(
+                                              agent,
+                                              member.memberShipperId,
+                                              member.memberShipperName
+                                            )
+                                          }
+                                        >
+                                          {t("customerCrateStock.agent.removeMember")}
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                    <p className="font-mono text-xs text-haidee-muted">
+                                      {memberStockSummary(
+                                        member.quantities,
+                                        crateTypes
+                                      )}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
@@ -269,10 +529,6 @@ export function CustomerCrateStockView({
             ) : (
               rows.map((row) => {
                 const isExpanded = expandedId === row.shipperId;
-                const grandTotal = rowGrandTotal(row, crateTypes);
-                const visibleLocations = row.locations.filter((loc) =>
-                  crateTypes.some((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
-                );
 
                 return (
                   <Fragment key={row.shipperId}>
@@ -292,7 +548,16 @@ export function CustomerCrateStockView({
                         </button>
                       </TableCell>
                       <TableCell className="font-medium">
-                        <MobileTruncatedName text={row.shipperName} />
+                        <div className="space-y-1">
+                          <MobileTruncatedName text={row.shipperName} />
+                          {memberAgentLabel.has(row.shipperId) ? (
+                            <p className="text-[11px] text-haidee-muted">
+                              {t("customerCrateStock.agent.memberAssigned", {
+                                agent: memberAgentLabel.get(row.shipperId) ?? "",
+                              })}
+                            </p>
+                          ) : null}
+                        </div>
                       </TableCell>
                       {crateTypes.map((ct) => {
                         const qty = row.quantities[ct.id] ?? 0;
@@ -323,66 +588,7 @@ export function CustomerCrateStockView({
                           colSpan={crateTypes.length + 3}
                           className="bg-haidee-surface/50 p-0"
                         >
-                          <div className="px-4 py-3 font-mono text-sm">
-                            <p className="mb-2 text-xs font-semibold text-haidee-muted">
-                              <MobileTruncatedName text={row.shipperName} />
-                              <span className="ml-3">
-                                {t("common.total")}:{" "}
-                                <span className={qtyClass(grandTotal)}>
-                                  {grandTotal}
-                                </span>
-                              </span>
-                            </p>
-                            {visibleLocations.length === 0 ? (
-                              <p className="text-haidee-muted">
-                                {t("customerCrateStock.noLocationBreakdown")}
-                              </p>
-                            ) : (
-                              <div className="space-y-1">
-                                {visibleLocations.map((loc, index) => {
-                                  const isLast =
-                                    index === visibleLocations.length - 1;
-                                  const prefix = isLast ? "└──" : "├──";
-                                  const crateParts = crateTypes
-                                    .filter(
-                                      (ct) => (loc.quantities[ct.id] ?? 0) !== 0
-                                    )
-                                    .map(
-                                      (ct) =>
-                                        `${ct.code}  ${loc.quantities[ct.id]}`
-                                    );
-
-                                  return (
-                                    <div
-                                      key={loc.location || "__empty__"}
-                                      className="flex flex-wrap items-baseline gap-x-3 text-haidee-text"
-                                    >
-                                      <span className="text-haidee-muted">
-                                        {prefix}
-                                      </span>
-                                      <span className="min-w-[88px] font-medium">
-                                        {formatLocationLabel(
-                                          loc.location,
-                                          parts("customerCrateStock.unspecifiedLocation")
-                                            .local
-                                        )}
-                                      </span>
-                                      {crateParts.map((part) => (
-                                        <span
-                                          key={part}
-                                          className={qtyClass(
-                                            parseInt(part.split(/\s+/)[1], 10)
-                                          )}
-                                        >
-                                          {part}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                          {renderLocationBreakdown(row.locations, row.shipperName)}
                         </TableCell>
                       </TableRow>
                     )}
@@ -485,6 +691,25 @@ export function CustomerCrateStockView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CrateStockAgentCreateDialog
+        open={createAgentOpen}
+        onOpenChange={setCreateAgentOpen}
+      />
+      <CrateStockAgentConfirmDialog
+        action={confirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
+      {addMemberAgent ? (
+        <CrateStockAgentAddMemberDialog
+          open={addMemberAgent !== null}
+          agentName={addMemberAgent.shipperName}
+          onOpenChange={(open) => {
+            if (!open) setAddMemberAgent(null);
+          }}
+          onRequestJoin={(member) => requestJoin(addMemberAgent, member)}
+        />
+      ) : null}
     </div>
   );
 }

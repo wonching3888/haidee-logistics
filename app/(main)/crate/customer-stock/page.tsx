@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getCustomerCrateStock } from "@/app/actions/customerCrateStock";
+import { getCustomerCrateStockPageData } from "@/app/actions/customer-crate-stock-agent";
 import { CustomerCrateStockView } from "@/components/crate/CustomerCrateStockView";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
@@ -16,10 +16,11 @@ export default async function CustomerCrateStockPage({
   const search = params.q?.trim() ?? "";
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
+  const isAdmin = user?.role === "admin";
 
   try {
-    const { crateTypes, rows, pickupLocationSummaries } =
-      await getCustomerCrateStock(search);
+    const { crateTypes, rows, pickupLocationSummaries, agents } =
+      await getCustomerCrateStockPageData(search);
 
     return (
       <div className="space-y-6">
@@ -40,8 +41,10 @@ export default async function CustomerCrateStockPage({
           <CustomerCrateStockView
             crateTypes={crateTypes}
             rows={rows}
+            agents={agents}
             pickupLocationSummaries={pickupLocationSummaries}
             initialSearch={search}
+            isAdmin={isAdmin}
           />
         </Suspense>
       </div>
