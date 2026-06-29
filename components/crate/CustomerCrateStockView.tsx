@@ -10,6 +10,7 @@ import {
   type PickupLocationStockSummary,
 } from "@/app/actions/customerCrateStock";
 import type {
+  AssignedMemberSearchHint,
   CrateStockAgentRow,
   EligibleAgentMemberOption,
 } from "@/app/actions/customer-crate-stock-agent";
@@ -51,6 +52,7 @@ interface CustomerCrateStockViewProps {
   rows: CustomerCrateStockRow[];
   agents: CrateStockAgentRow[];
   pickupLocationSummaries: PickupLocationStockSummary[];
+  assignedMemberHints: AssignedMemberSearchHint[];
   initialSearch: string;
   isAdmin: boolean;
 }
@@ -81,6 +83,7 @@ export function CustomerCrateStockView({
   rows,
   agents,
   pickupLocationSummaries,
+  assignedMemberHints,
   initialSearch,
   isAdmin,
 }: CustomerCrateStockViewProps) {
@@ -128,11 +131,14 @@ export function CustomerCrateStockView({
     setExpandedAgentId((prev) => (prev === agentId ? null : agentId));
   }
 
-  const memberAgentLabel = new Map<string, string>();
-  for (const agent of agents) {
-    for (const member of agent.members) {
-      memberAgentLabel.set(member.memberShipperId, agent.shipperName);
-    }
+  function openEditAgent(agent: CrateStockAgentRow) {
+    openEdit({
+      shipperId: agent.shipperId,
+      shipperCode: agent.shipperCode,
+      shipperName: agent.shipperName,
+      quantities: agent.quantities,
+      locations: agent.locations,
+    });
   }
 
   function requestJoin(
@@ -433,7 +439,17 @@ export function CustomerCrateStockView({
                         </TableCell>
                       );
                     })}
-                    <TableCell />
+                    <TableCell className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEditAgent(agent)}
+                        className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
+                        aria-label={t("common.edit")}
+                        disabled={isPending}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </TableCell>
                   </TableRow>
                   {isAgentExpanded && (
                     <TableRow>
@@ -517,7 +533,31 @@ export function CustomerCrateStockView({
                 </Fragment>
               );
             })}
-            {rows.length === 0 ? (
+            {assignedMemberHints.map((hint) => (
+              <TableRow
+                key={`assigned-${hint.shipperId}`}
+                className="bg-haidee-surface/40 text-haidee-muted"
+              >
+                <TableCell />
+                <TableCell>
+                  <div className="space-y-1">
+                    <MobileTruncatedName text={hint.shipperName} />
+                    <p className="text-[11px]">
+                      {t("customerCrateStock.agent.memberAssigned", {
+                        agent: hint.agentName,
+                      })}
+                    </p>
+                  </div>
+                </TableCell>
+                {crateTypes.map((ct) => (
+                  <TableCell key={ct.id} className="text-right font-mono">
+                    —
+                  </TableCell>
+                ))}
+                <TableCell />
+              </TableRow>
+            ))}
+            {rows.length === 0 && assignedMemberHints.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={crateTypes.length + 3}
@@ -548,16 +588,7 @@ export function CustomerCrateStockView({
                         </button>
                       </TableCell>
                       <TableCell className="font-medium">
-                        <div className="space-y-1">
-                          <MobileTruncatedName text={row.shipperName} />
-                          {memberAgentLabel.has(row.shipperId) ? (
-                            <p className="text-[11px] text-haidee-muted">
-                              {t("customerCrateStock.agent.memberAssigned", {
-                                agent: memberAgentLabel.get(row.shipperId) ?? "",
-                              })}
-                            </p>
-                          ) : null}
-                        </div>
+                        <MobileTruncatedName text={row.shipperName} />
                       </TableCell>
                       {crateTypes.map((ct) => {
                         const qty = row.quantities[ct.id] ?? 0;

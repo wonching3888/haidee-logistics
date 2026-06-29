@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
-import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
+import { CUSTOMER_CRATE_STOCK_LIST_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
@@ -156,7 +156,7 @@ export async function getCustomerCrateStock(search?: string) {
 
   const shippers = await prisma.shipper.findMany({
     where: {
-      ...OPERATIONAL_SHIPPER_WHERE,
+      ...CUSTOMER_CRATE_STOCK_LIST_SHIPPER_WHERE,
       ...(search?.trim()
         ? {
             OR: [

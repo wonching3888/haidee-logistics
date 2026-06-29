@@ -22,6 +22,10 @@ import {
   zeroMemberStockOnRemoveInTx,
 } from "@/lib/crate-stock-agent-membership-write";
 import { OPERATIONAL_SHIPPER_WHERE, SHIPPER_KIND } from "@/lib/constants/shipper-kind";
+import {
+  filterPickupSummariesDedupedByAgents,
+  sortAgentsForCustomerStockList,
+} from "@/lib/customer-crate-stock-list";
 
 export interface CrateStockAgentMemberRow {
   memberShipperId: string;
@@ -45,6 +49,47 @@ export interface EligibleAgentMemberOption {
   id: string;
   code: string;
   name: string;
+}
+
+export interface AssignedMemberSearchHint {
+  shipperId: string;
+  shipperName: string;
+  agentName: string;
+}
+
+async function loadAssignedMemberSearchHints(
+  search: string
+): Promise<AssignedMemberSearchHint[]> {
+  const term = search.trim();
+  if (!term) return [];
+
+  const members = await prisma.shipper.findMany({
+    where: {
+      active: true,
+      shipperKind: SHIPPER_KIND.OPERATIONAL,
+      crateStockAgentMembership: { isNot: null },
+      OR: [
+        { name: { contains: term, mode: "insensitive" } },
+        { code: { contains: term, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      crateStockAgentMembership: {
+        select: {
+          agentShipper: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  return members.map((member) => ({
+    shipperId: member.id,
+    shipperName: member.name,
+    agentName: member.crateStockAgentMembership!.agentShipper.name,
+  }));
 }
 
 async function requireAdmin() {
@@ -174,8 +219,15 @@ function eligibleMemberWhere(search?: string): Prisma.ShipperWhereInput {
 export async function getCustomerCrateStockPageData(search?: string) {
   await requireWrite();
   const base = await getCustomerCrateStock(search);
-  const agents = await loadCrateStockAgentRows(base.crateTypes);
-  return { ...base, agents };
+  const agents = sortAgentsForCustomerStockList(
+    await loadCrateStockAgentRows(base.crateTypes)
+  );
+  const pickupLocationSummaries = filterPickupSummariesDedupedByAgents(
+    base.pickupLocationSummaries,
+    agents
+  );
+  const assignedMemberHints = await loadAssignedMemberSearchHints(search ?? "");
+  return { ...base, agents, pickupLocationSummaries, assignedMemberHints };
 }
 
 export async function searchEligibleAgentMembers(

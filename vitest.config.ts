@@ -10,6 +10,7 @@ export default defineConfig({
       "lib/inbound-crate-stock-account.test.ts",
       "lib/customer-crate-stock-account.test.ts",
       "lib/customer-crate-stock-ledger-notes.test.ts",
+      "lib/customer-crate-stock-list.test.ts",
       "lib/inbound-crate-stock-p1.test.ts",
       "lib/crate-stock-agent-transfer.test.ts",
       "lib/market-do-route-groups.test.ts",

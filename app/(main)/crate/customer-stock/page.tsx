@@ -19,7 +19,7 @@ export default async function CustomerCrateStockPage({
   const isAdmin = user?.role === "admin";
 
   try {
-    const { crateTypes, rows, pickupLocationSummaries, agents } =
+    const { crateTypes, rows, pickupLocationSummaries, agents, assignedMemberHints } =
       await getCustomerCrateStockPageData(search);
 
     return (
@@ -43,6 +43,7 @@ export default async function CustomerCrateStockPage({
             rows={rows}
             agents={agents}
             pickupLocationSummaries={pickupLocationSummaries}
+            assignedMemberHints={assignedMemberHints}
             initialSearch={search}
             isAdmin={isAdmin}
           />
