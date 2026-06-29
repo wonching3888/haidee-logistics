@@ -42,16 +42,14 @@ import type {
   ReceivableCustomerKind,
 } from "@/lib/receivable-invoices";
 import { cn } from "@/lib/utils";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 const DETAIL_PAYMENT_TABLE_HEIGHT = 260;
 const COMPACT_COL_RIGHT = "min-w-[4.25rem] max-w-[5.5rem] w-[4.75rem] text-right";
 
 function formatMoney(value: number, currency: string) {
-  return `${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 interface LedgerOption {

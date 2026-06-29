@@ -23,6 +23,7 @@ import {
   isMonthlyInvoiceMode,
 } from "@/lib/constants/monthly-invoice";
 import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { ReportFilterBar } from "@/components/shared/ReportFilterBar";
 import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
@@ -70,7 +71,7 @@ const MODE_DISPLAY: Record<string, string> = {
 };
 
 function formatAmount(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 interface MonthlyInvoicePickerProps {

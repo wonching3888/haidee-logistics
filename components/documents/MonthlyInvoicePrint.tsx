@@ -1,14 +1,15 @@
 import type { MonthlyInvoiceData } from "@/lib/monthly-invoice";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface MonthlyInvoicePrintProps {
   data: MonthlyInvoiceData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
@@ -90,30 +91,30 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
                   <td className="text-left">{line.stallLabel}</td>
                   <td>{line.marketLabel}</td>
                   <td>{line.tongTypeCode}</td>
-                  <td className="text-right">{line.quantity}</td>
+                  <td className="text-right">{formatQty(line.quantity)}</td>
                   {dualSegment ? (
                     <>
                       <td className="text-right">
-                        {(line.thUnitRate ?? 0).toFixed(2)}
+                        {formatMoneyAmount(line.thUnitRate ?? 0)}
                       </td>
                       <td className="text-right">
-                        {(line.thSubtotal ?? 0).toFixed(2)}
+                        {formatMoneyAmount(line.thSubtotal ?? 0)}
                       </td>
                       <td className="text-right">
-                        {(line.myUnitRate ?? 0).toFixed(2)}
+                        {formatMoneyAmount(line.myUnitRate ?? 0)}
                       </td>
                       <td className="text-right">
-                        {(line.mySubtotal ?? 0).toFixed(2)}
+                        {formatMoneyAmount(line.mySubtotal ?? 0)}
                       </td>
-                      <td className="text-right">{line.subtotal.toFixed(2)}</td>
+                      <td className="text-right">{formatMoneyAmount(line.subtotal)}</td>
                     </>
                   ) : (
                     <>
                       <td className="text-right">
-                        {line.unitRate.toFixed(2)}
+                        {formatMoneyAmount(line.unitRate)}
                       </td>
                       <td className="text-right">
-                        {line.subtotal.toFixed(2)}
+                        {formatMoneyAmount(line.subtotal)}
                       </td>
                     </>
                   )}
@@ -123,26 +124,26 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
                 <td colSpan={4} className="text-right">
                   {section.title} 小计 Subtotal
                 </td>
-                <td className="text-right">{section.totalQty}</td>
+                <td className="text-right">{formatQty(section.totalQty)}</td>
                 {dualSegment ? (
                   <>
                     <td />
                     <td className="text-right">
-                      {formatMoney(section.thTotalAmount ?? 0, data.currency)}
+                      {formatMoneyWithCurrency(section.thTotalAmount ?? 0, data.currency)}
                     </td>
                     <td />
                     <td className="text-right">
-                      {formatMoney(section.myTotalAmount ?? 0, data.currency)}
+                      {formatMoneyWithCurrency(section.myTotalAmount ?? 0, data.currency)}
                     </td>
                     <td className="text-right">
-                      {formatMoney(section.totalAmount, data.currency)}
+                      {formatMoneyWithCurrency(section.totalAmount, data.currency)}
                     </td>
                   </>
                 ) : (
                   <>
                     <td />
                     <td className="text-right">
-                      {formatMoney(section.totalAmount, data.currency)}
+                      {formatMoneyWithCurrency(section.totalAmount, data.currency)}
                     </td>
                   </>
                 )}
@@ -158,26 +159,26 @@ export function MonthlyInvoicePrint({ data }: MonthlyInvoicePrintProps) {
             <td colSpan={4} className="text-right">
               总计 Grand Total
             </td>
-            <td className="text-right">{data.grandTotalQty}</td>
+            <td className="text-right">{formatQty(data.grandTotalQty)}</td>
             {dualSegment ? (
               <>
                 <td />
                 <td className="text-right">
-                  {formatMoney(data.grandThTotalAmount ?? 0, data.currency)}
+                  {formatMoneyWithCurrency(data.grandThTotalAmount ?? 0, data.currency)}
                 </td>
                 <td />
                 <td className="text-right">
-                  {formatMoney(data.grandMyTotalAmount ?? 0, data.currency)}
+                  {formatMoneyWithCurrency(data.grandMyTotalAmount ?? 0, data.currency)}
                 </td>
                 <td className="text-right">
-                  {formatMoney(data.grandTotalAmount, data.currency)}
+                  {formatMoneyWithCurrency(data.grandTotalAmount, data.currency)}
                 </td>
               </>
             ) : (
               <>
                 <td />
                 <td className="text-right">
-                  {formatMoney(data.grandTotalAmount, data.currency)}
+                  {formatMoneyWithCurrency(data.grandTotalAmount, data.currency)}
                 </td>
               </>
             )}

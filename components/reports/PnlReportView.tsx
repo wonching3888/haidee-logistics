@@ -41,6 +41,7 @@ import {
   isReportQueryRequested,
   withReportQueryFlag,
 } from "@/lib/reports/report-query-params";
+import { formatMoneyAmount } from "@/lib/number-format";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 type PnlTab = "trip" | "period" | "customer";
@@ -55,10 +56,7 @@ function getTodayDateInput() {
 }
 
 function formatMyr(value: number) {
-  return value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatMoneyAmount(value);
 }
 
 function formatPct(value: number) {

@@ -10,6 +10,7 @@ import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChang
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
 import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
+import { formatMoneyAmount } from "@/lib/number-format";
 import {
   Table,
   TableBody,
@@ -29,12 +30,6 @@ interface CharterInvoiceQueryData {
   totalAmountMyr: number;
 }
 
-function formatMyr(value: number) {
-  return value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 interface CharterInvoicePickerProps {
   /** When true, year/month filter is owned by the parent tab hub (not rendered here). */
@@ -149,7 +144,7 @@ export function CharterInvoicePicker({
       {hasQueried && data && (
         <>
           <div className="text-sm text-haidee-muted">
-            合计 Total: <strong>{formatMyr(data.totalAmountMyr)} MYR</strong> ·{" "}
+            合计 Total: <strong>{formatMoneyAmount(data.totalAmountMyr)} MYR</strong> ·{" "}
             {data.trips.length} 单
           </div>
 
@@ -179,7 +174,7 @@ export function CharterInvoicePicker({
                     <TableCell>{trip.billToDisplayLabel ?? "—"}</TableCell>
                     <TableCell>{trip.billingCompanyLabel}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {formatMyr(trip.amountMyr)}
+                      {formatMoneyAmount(trip.amountMyr)}
                     </TableCell>
                     <TableCell className="text-right">
                       <Link

@@ -7,12 +7,10 @@ import {
   type InvoiceBankAccount,
 } from "@/lib/constants/invoice-bank-accounts";
 import type { ReceivableCurrency } from "@/lib/receivable-invoices";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 
 function formatMoney(value: number, currency: string) {
-  return `${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 function CurrencyOverviewCard({

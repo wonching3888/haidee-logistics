@@ -1,6 +1,7 @@
 import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import type { InvoiceListingData } from "@/lib/monthly-invoice-aggregate";
+import { formatQty, formatQtyOrBlank } from "@/lib/number-format";
 import {
   PrintLetterhead,
   WtlExpressInvoiceLetterhead,
@@ -55,20 +56,25 @@ export function InvoiceListingPrint({
                   <td>{row.dateLabel}</td>
                   {section.columns.map((column) => (
                     <td key={column.marketCode} className="text-right">
-                      {row.values[column.marketCode] || ""}
+                      {formatQtyOrBlank(row.values[column.marketCode])}
                     </td>
                   ))}
-                  <td className="text-right">{row.rowTotal}</td>
+                  <td className="text-right">{formatQty(row.rowTotal)}</td>
                 </tr>
               ))}
               <tr className="monthly-invoice-section-total">
-                <td className="text-right">小计 Subtotal</td>
+                <td className="mode4-listing-subtotal-cell">
+                  <span className="mode4-listing-entry-count">
+                    共 {formatQty(section.rows.length)} 笔 · {formatQty(section.rows.length)} entries
+                  </span>
+                  <span className="mode4-listing-subtotal-label">小计 Subtotal</span>
+                </td>
                 {section.columns.map((column) => (
                   <td key={column.marketCode} className="text-right">
-                    {section.columnTotals[column.marketCode] || ""}
+                    {formatQtyOrBlank(section.columnTotals[column.marketCode])}
                   </td>
                 ))}
-                <td className="text-right">{section.grandTotal}</td>
+                <td className="text-right">{formatQty(section.grandTotal)}</td>
               </tr>
             </tbody>
           </table>

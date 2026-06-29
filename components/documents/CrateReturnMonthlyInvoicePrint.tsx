@@ -1,14 +1,15 @@
 import type { CrateReturnMonthlyInvoicePrintData } from "@/lib/crate-return-billing";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
 
 interface CrateReturnMonthlyInvoicePrintProps {
   data: CrateReturnMonthlyInvoicePrintData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 export function CrateReturnMonthlyInvoicePrint({
@@ -86,9 +87,9 @@ export function CrateReturnMonthlyInvoicePrint({
                   ) : null}
                 </td>
                 <td className="text-left">{row.crateType}</td>
-                <td className="text-right">{row.quantity}</td>
-                <td className="text-right">{row.unitRateMyr.toFixed(2)}</td>
-                <td className="text-right">{row.amountMyr.toFixed(2)}</td>
+                <td className="text-right">{formatQty(row.quantity)}</td>
+                <td className="text-right">{formatMoneyAmount(row.unitRateMyr)}</td>
+                <td className="text-right">{formatMoneyAmount(row.amountMyr)}</td>
               </tr>
             ))}
 
@@ -98,20 +99,20 @@ export function CrateReturnMonthlyInvoicePrint({
                   <td className="text-right" colSpan={4}>
                     车力费小计 Freight Subtotal
                   </td>
-                  <td className="text-right">{data.quantity}</td>
+                  <td className="text-right">{formatQty(data.quantity)}</td>
                   <td />
                   <td className="text-right">
-                    {formatMoney(data.freightAmountMyr, data.currency)}
+                    {formatMoneyWithCurrency(data.freightAmountMyr, data.currency)}
                   </td>
                 </tr>
                 <tr className="monthly-invoice-section-total">
                   <td className="text-right" colSpan={4}>
                     收桶费小计 Collection Subtotal
                   </td>
-                  <td className="text-right">{data.quantity}</td>
+                  <td className="text-right">{formatQty(data.quantity)}</td>
                   <td />
                   <td className="text-right">
-                    {formatMoney(data.collectionAmountMyr, data.currency)}
+                    {formatMoneyWithCurrency(data.collectionAmountMyr, data.currency)}
                   </td>
                 </tr>
               </>
@@ -120,10 +121,10 @@ export function CrateReturnMonthlyInvoicePrint({
                 <td className="text-right" colSpan={4}>
                   小计 Subtotal
                 </td>
-                <td className="text-right">{data.quantity}</td>
+                <td className="text-right">{formatQty(data.quantity)}</td>
                 <td />
                 <td className="text-right">
-                  {formatMoney(data.freightAmountMyr, data.currency)}
+                  {formatMoneyWithCurrency(data.freightAmountMyr, data.currency)}
                 </td>
               </tr>
             )}
@@ -133,7 +134,7 @@ export function CrateReturnMonthlyInvoicePrint({
                 总计 Grand Total
               </td>
               <td className="text-right">
-                {formatMoney(data.totalAmountMyr, data.currency)}
+                {formatMoneyWithCurrency(data.totalAmountMyr, data.currency)}
               </td>
             </tr>
           </tbody>

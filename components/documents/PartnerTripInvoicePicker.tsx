@@ -11,6 +11,7 @@ import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
+import { formatMoneyAmount } from "@/lib/number-format";
 import {
   Table,
   TableBody,
@@ -30,12 +31,6 @@ interface PartnerTripQueryData {
   totalAmountMyr: number;
 }
 
-function formatMyr(value: number) {
-  return value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export function PartnerTripInvoicePicker() {
   const searchParams = useSearchParams();
@@ -122,7 +117,7 @@ export function PartnerTripInvoicePicker() {
       {hasQueried && data && (
         <>
           <div className="text-sm text-haidee-muted">
-            合计 Total: <strong>{formatMyr(data.totalAmountMyr)} MYR</strong> ·{" "}
+            合计 Total: <strong>{formatMoneyAmount(data.totalAmountMyr)} MYR</strong> ·{" "}
             {data.trips.length} 趟
           </div>
 
@@ -152,10 +147,10 @@ export function PartnerTripInvoicePicker() {
                     <TableCell>{trip.marketLabel}</TableCell>
                     <TableCell className="text-right">{trip.quantity}</TableCell>
                     <TableCell className="text-right">
-                      {trip.unitRateMyr.toFixed(2)}
+                      {formatMoneyAmount(trip.unitRateMyr)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatMyr(trip.amountMyr)}
+                      {formatMoneyAmount(trip.amountMyr)}
                     </TableCell>
                     <TableCell className="font-mono">
                       {trip.invoiceNo ?? "—"}

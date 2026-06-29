@@ -1,13 +1,14 @@
 import type { PartnerTripInvoicePrintData } from "@/lib/partner-freight";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 
 interface PartnerTripInvoicePrintProps {
   data: PartnerTripInvoicePrintData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) {
@@ -64,18 +65,18 @@ export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) 
             <tr>
               <td className="text-left">{data.lineDescription}</td>
               <td className="text-center">{data.taxCode}</td>
-              <td className="text-right">{data.quantity}</td>
-              <td className="text-right">{data.unitRateMyr.toFixed(2)}</td>
-              <td className="text-right">{data.amountMyr.toFixed(2)}</td>
+              <td className="text-right">{formatQty(data.quantity)}</td>
+              <td className="text-right">{formatMoneyAmount(data.unitRateMyr)}</td>
+              <td className="text-right">{formatMoneyAmount(data.amountMyr)}</td>
             </tr>
             <tr className="monthly-invoice-section-total">
               <td colSpan={2} className="text-right">
                 Subtotal
               </td>
-              <td className="text-right">{data.quantity}</td>
+              <td className="text-right">{formatQty(data.quantity)}</td>
               <td />
               <td className="text-right">
-                {formatMoney(data.amountMyr, data.currency)}
+                {formatMoneyWithCurrency(data.amountMyr, data.currency)}
               </td>
             </tr>
           </tbody>
@@ -86,15 +87,15 @@ export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) 
         rows={[
           {
             label: "Sub Total (Excluding Tax)",
-            amount: formatMoney(data.amountMyr, data.currency),
+            amount: formatMoneyWithCurrency(data.amountMyr, data.currency),
           },
           {
-            label: `Service Tax @ ${taxPercent}% on ${data.amountMyr.toFixed(2)}`,
-            amount: formatMoney(data.taxAmountMyr, data.currency),
+            label: `Service Tax @ ${taxPercent}% on ${formatMoneyAmount(data.amountMyr)}`,
+            amount: formatMoneyWithCurrency(data.taxAmountMyr, data.currency),
           },
           {
             label: "Total (Inclusive of Tax)",
-            amount: formatMoney(data.totalMyr, data.currency),
+            amount: formatMoneyWithCurrency(data.totalMyr, data.currency),
             grand: true,
           },
         ]}
@@ -115,8 +116,8 @@ export function PartnerTripInvoicePrint({ data }: PartnerTripInvoicePrintProps) 
               <td className="text-left">
                 Service Tax @ {taxPercent}% ({data.taxCode})
               </td>
-              <td className="text-right">{data.amountMyr.toFixed(2)}</td>
-              <td className="text-right">{data.taxAmountMyr.toFixed(2)}</td>
+              <td className="text-right">{formatMoneyAmount(data.amountMyr)}</td>
+              <td className="text-right">{formatMoneyAmount(data.taxAmountMyr)}</td>
             </tr>
           </tbody>
         </table>

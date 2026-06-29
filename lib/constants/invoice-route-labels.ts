@@ -1,5 +1,5 @@
 /** Thailand transit hub label for WTL dual-segment TH rows (no SST, no tax code). */
-export const INVOICE_TH_SEGMENT_ROUTE_LABEL = "BKT KAYU HITAM";
+export const INVOICE_TH_SEGMENT_ROUTE_LABEL = "THAILAND TO BKT KAYU HITAM";
 
 export const INVOICE_ROUTE_PREFIX = "BKT KAYU HITAM TO ";
 

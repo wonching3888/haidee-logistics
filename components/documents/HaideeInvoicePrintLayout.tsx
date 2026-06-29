@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import { formatMoneyAmount, formatMoneyWithCurrency } from "@/lib/number-format";
 import { cn } from "@/lib/utils";
 
 export function formatHaideeInvoiceMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 interface HaideeInvoicePrintDocumentProps {
@@ -126,7 +127,7 @@ export function HaideeInvoiceDescriptionAmountTable({
           {lines.map((line, index) => (
             <tr key={`${line.description}-${index}`}>
               <td className="text-left">{line.description}</td>
-              <td className="text-right">{line.amountMyr.toFixed(2)}</td>
+              <td className="text-right">{formatMoneyAmount(line.amountMyr)}</td>
             </tr>
           ))}
         </tbody>

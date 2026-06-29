@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
     include: [
+      "lib/number-format.test.ts",
       "lib/inbound-crate-stock-account.test.ts",
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",

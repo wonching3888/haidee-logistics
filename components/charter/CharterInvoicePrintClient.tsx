@@ -4,6 +4,7 @@ import type { CharterInvoiceData } from "@/lib/charter-invoice";
 import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { CharterHaideeInvoicePrint } from "@/components/charter/CharterHaideeInvoicePrint";
 import { CharterWtlInvoicePrint } from "@/components/charter/CharterWtlInvoicePrint";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 import "@/components/documents/document-print.css";
 
 interface CharterInvoicePrintClientProps {
@@ -18,7 +19,7 @@ export function CharterInvoicePrintClient({
   const shareText = [
     `Charter Invoice ${data.charterNo}`,
     `${data.billTo.name} · ${data.truckPlate}`,
-    `Total ${data.grandTotalMyr.toFixed(2)} ${data.currency}`,
+    `Total ${formatMoneyWithCurrency(data.grandTotalMyr, data.currency)}`,
   ].join("\n");
 
   return (

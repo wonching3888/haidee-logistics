@@ -800,6 +800,14 @@
   font-size: 9pt;
 }
 
+.mode4-listing-print .mode4-listing-subtotal-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .wtl-invoice-letterhead {
   display: flex;
   align-items: center;

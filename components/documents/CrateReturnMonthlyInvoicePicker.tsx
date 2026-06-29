@@ -11,6 +11,7 @@ import { ReportAwaitingQuery } from "@/components/shared/ReportAwaitingQuery";
 import { ReportFiltersChangedHint } from "@/components/shared/ReportFiltersChangedHint";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
+import { formatMoneyAmount } from "@/lib/number-format";
 import {
   Table,
   TableBody,
@@ -30,12 +31,6 @@ interface CrateReturnQueryData {
   totalAmountMyr: number;
 }
 
-function formatMyr(value: number) {
-  return value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export function CrateReturnMonthlyInvoicePicker() {
   const searchParams = useSearchParams();
@@ -122,7 +117,7 @@ export function CrateReturnMonthlyInvoicePicker() {
       {hasQueried && data && (
         <>
           <div className="text-sm text-haidee-muted">
-            合计 Total: <strong>{formatMyr(data.totalAmountMyr)} MYR</strong> ·{" "}
+            合计 Total: <strong>{formatMoneyAmount(data.totalAmountMyr)} MYR</strong> ·{" "}
             {data.invoices.length} 张
           </div>
 
@@ -156,13 +151,13 @@ export function CrateReturnMonthlyInvoicePicker() {
                     </TableCell>
                     <TableCell className="text-right">{invoice.quantity}</TableCell>
                     <TableCell className="text-right">
-                      {formatMyr(invoice.freightAmountMyr)}
+                      {formatMoneyAmount(invoice.freightAmountMyr)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatMyr(invoice.collectionAmountMyr)}
+                      {formatMoneyAmount(invoice.collectionAmountMyr)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatMyr(invoice.totalAmountMyr)}
+                      {formatMoneyAmount(invoice.totalAmountMyr)}
                     </TableCell>
                     <TableCell className="font-mono">{invoice.invoiceNo}</TableCell>
                     <TableCell className="text-right">

@@ -12,6 +12,7 @@ import { YearMonthFields } from "@/components/shared/YearMonthFields";
 import { useReportQuery } from "@/lib/hooks/use-report-query";
 import { parseYearMonthFromSearchParams } from "@/lib/parse-year-month-params";
 import { OperationsPayrollWarningsBlock } from "@/components/operations/OperationsPayrollWarningsBlock";
+import { formatMoneyAmount, formatQty } from "@/lib/number-format";
 
 interface YearMonthDraft {
   year: number;
@@ -19,17 +20,11 @@ interface YearMonthDraft {
 }
 
 function formatMyr(value: number) {
-  return `${value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} MYR`;
+  return `${formatMoneyAmount(value)} MYR`;
 }
 
 function formatThb(value: number) {
-  return `${value.toLocaleString("en-MY", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })} THB`;
+  return `${formatQty(value)} THB`;
 }
 
 const GAP_REASON_LABELS: Record<InboundFreightGapReason, string> = {

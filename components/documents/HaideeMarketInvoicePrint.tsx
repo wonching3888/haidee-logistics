@@ -1,5 +1,6 @@
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
+import { formatMoneyAmount, formatQty } from "@/lib/number-format";
 import {
   formatHaideeInvoiceMoney,
   HaideeInvoiceDescriptionAmountTable,
@@ -62,14 +63,14 @@ export function HaideeMarketInvoicePrint({ data }: HaideeMarketInvoicePrintProps
               {section.rows.map((row) => (
                 <tr key={`${section.kind}-${row.marketCode}`}>
                   <td className="text-left">{row.marketLabel}</td>
-                  <td className="text-right">{row.quantity}</td>
-                  <td className="text-right">{row.unitRate.toFixed(2)}</td>
-                  <td className="text-right">{row.amount.toFixed(2)}</td>
+                  <td className="text-right">{formatQty(row.quantity)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
                 </tr>
               ))}
               <tr className="monthly-invoice-section-total">
                 <td className="text-right">{section.title} 小计 Subtotal</td>
-                <td className="text-right">{section.totalQty}</td>
+                <td className="text-right">{formatQty(section.totalQty)}</td>
                 <td />
                 <td className="text-right">
                   {formatHaideeInvoiceMoney(section.totalAmount, data.currency)}

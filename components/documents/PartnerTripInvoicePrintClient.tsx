@@ -3,6 +3,11 @@
 import type { PartnerTripInvoicePrintData } from "@/lib/partner-freight";
 import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { PartnerTripInvoicePrint } from "@/components/documents/PartnerTripInvoicePrint";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 
 interface PartnerTripInvoicePrintClientProps {
   data: PartnerTripInvoicePrintData;
@@ -16,7 +21,7 @@ export function PartnerTripInvoicePrintClient({
   const shareText = [
     `Partner Trip Invoice ${data.invoiceNo}`,
     `${data.billToName} · ${data.truckPlate} · ${data.marketLabel}`,
-    `Qty ${data.quantity} × ${data.unitRateMyr.toFixed(2)} = ${data.totalMyr.toFixed(2)} ${data.currency}`,
+    `Qty ${formatQty(data.quantity)} × ${formatMoneyAmount(data.unitRateMyr)} = ${formatMoneyWithCurrency(data.totalMyr, data.currency)}`,
   ].join("\n");
 
   return (

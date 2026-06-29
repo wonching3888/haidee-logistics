@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ReceivableCurrency, ReceivableInvoiceType } from "@/lib/receivable-invoices";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 
 interface ManualInvoiceOption {
   invoiceType: ReceivableInvoiceType;
@@ -47,10 +48,7 @@ interface InvoiceManualAllocationDialogProps {
 }
 
 function formatMoney(value: number, currency: string) {
-  return `${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 function invoiceSelectValue(row: ManualRow) {

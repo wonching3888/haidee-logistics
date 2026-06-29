@@ -1,13 +1,14 @@
 import type { WtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 
 interface Mode4TaxInvoicePrintProps {
   data: WtlMonthlyInvoiceData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 function billToLabel(role: WtlMonthlyInvoiceData["billToRole"]) {
@@ -63,12 +64,12 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
                 <tr>
                   <td className="text-left">{section.thRow.routeLabel}</td>
                   <td />
-                  <td className="text-right">{section.thRow.quantity}</td>
+                  <td className="text-right">{formatQty(section.thRow.quantity)}</td>
                   <td className="text-right">
-                    {section.thRow.unitRate.toFixed(2)}
+                    {formatMoneyAmount(section.thRow.unitRate)}
                   </td>
                   <td className="text-right">
-                    {section.thRow.amount.toFixed(2)}
+                    {formatMoneyAmount(section.thRow.amount)}
                   </td>
                 </tr>
               )}
@@ -76,19 +77,19 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
                 <tr key={`${section.kind}-${row.marketCode}`}>
                   <td className="text-left">{row.routeLabel}</td>
                   <td className="text-center">{row.taxCode}</td>
-                  <td className="text-right">{row.quantity}</td>
-                  <td className="text-right">{row.unitRate.toFixed(2)}</td>
-                  <td className="text-right">{row.amount.toFixed(2)}</td>
+                  <td className="text-right">{formatQty(row.quantity)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
                 </tr>
               ))}
               <tr className="monthly-invoice-section-total">
                 <td colSpan={2} className="text-right">
                   {section.title} 小计 Subtotal
                 </td>
-                <td className="text-right">{section.totalQty}</td>
+                <td className="text-right">{formatQty(section.totalQty)}</td>
                 <td />
                 <td className="text-right">
-                  {formatMoney(section.totalAmount, data.currency)}
+                  {formatMoneyWithCurrency(section.totalAmount, data.currency)}
                 </td>
               </tr>
             </tbody>
@@ -117,8 +118,8 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
                   <td className="text-left">{row.description}</td>
                   <td className="text-center">ESV-6</td>
                   <td className="text-right">1</td>
-                  <td className="text-right">{row.amount.toFixed(2)}</td>
-                  <td className="text-right">{row.amount.toFixed(2)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
+                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -130,15 +131,24 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
         rows={[
           {
             label: "Sub Total (Excluding Tax)",
-            amount: formatMoney(taxInvoice.totals.subTotalExcludingTax, data.currency),
+            amount: formatMoneyWithCurrency(
+              taxInvoice.totals.subTotalExcludingTax,
+              data.currency
+            ),
           },
           {
-            label: `Service Tax @ 6% on ${taxInvoice.totals.sstBase.toFixed(2)}`,
-            amount: formatMoney(taxInvoice.totals.sstAmount, data.currency),
+            label: `Service Tax @ 6% on ${formatMoneyAmount(taxInvoice.totals.sstBase)}`,
+            amount: formatMoneyWithCurrency(
+              taxInvoice.totals.sstAmount,
+              data.currency
+            ),
           },
           {
             label: "Total (Inclusive of Tax)",
-            amount: formatMoney(taxInvoice.totals.totalInclusive, data.currency),
+            amount: formatMoneyWithCurrency(
+              taxInvoice.totals.totalInclusive,
+              data.currency
+            ),
             grand: true,
           },
         ]}
@@ -158,10 +168,10 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
             <tr>
               <td className="text-left">Service Tax @ 6%</td>
               <td className="text-right">
-                {taxInvoice.taxSummary.sstBase.toFixed(2)}
+                {formatMoneyAmount(taxInvoice.taxSummary.sstBase)}
               </td>
               <td className="text-right">
-                {taxInvoice.taxSummary.sstAmount.toFixed(2)}
+                {formatMoneyAmount(taxInvoice.taxSummary.sstAmount)}
               </td>
             </tr>
           </tbody>

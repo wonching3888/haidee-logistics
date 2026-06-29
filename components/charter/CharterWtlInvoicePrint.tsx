@@ -1,13 +1,13 @@
 import type { CharterInvoiceData } from "@/lib/charter-invoice";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+} from "@/lib/number-format";
 
 interface CharterWtlInvoicePrintProps {
   data: CharterInvoiceData;
-}
-
-function formatMoney(value: number, currency: string) {
-  return `${value.toFixed(2)} ${currency}`;
 }
 
 export function CharterWtlInvoicePrint({ data }: CharterWtlInvoicePrintProps) {
@@ -72,13 +72,13 @@ export function CharterWtlInvoicePrint({ data }: CharterWtlInvoicePrintProps) {
             {data.lines.map((line, index) => (
               <tr key={`${line.description}-${index}`}>
                 <td className="text-left">{line.description}</td>
-                <td className="text-right">{line.amountMyr.toFixed(2)}</td>
+                <td className="text-right">{formatMoneyAmount(line.amountMyr)}</td>
               </tr>
             ))}
             <tr className="monthly-invoice-section-total">
               <td className="text-right">Subtotal (Incl. Tax)</td>
               <td className="text-right">
-                {formatMoney(data.grandTotalMyr, data.currency)}
+                {formatMoneyWithCurrency(data.grandTotalMyr, data.currency)}
               </td>
             </tr>
           </tbody>
@@ -89,15 +89,15 @@ export function CharterWtlInvoicePrint({ data }: CharterWtlInvoicePrintProps) {
         rows={[
           {
             label: "Sub Total (Excluding Tax)",
-            amount: formatMoney(sst.subTotalExTax, data.currency),
+            amount: formatMoneyWithCurrency(sst.subTotalExTax, data.currency),
           },
           {
-            label: `Service Tax @ 6% on ${sst.subTotalExTax.toFixed(2)}`,
-            amount: formatMoney(sst.sstAmount, data.currency),
+            label: `Service Tax @ 6% on ${formatMoneyAmount(sst.subTotalExTax)}`,
+            amount: formatMoneyWithCurrency(sst.sstAmount, data.currency),
           },
           {
             label: "Total (Inclusive of Tax)",
-            amount: formatMoney(sst.totalInclusive, data.currency),
+            amount: formatMoneyWithCurrency(sst.totalInclusive, data.currency),
             grand: true,
           },
         ]}

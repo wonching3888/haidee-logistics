@@ -184,11 +184,10 @@ export const VOUCHER_PRINT_LINE_ITEMS = [
   },
 ] as const;
 
+import { formatMoneyAmount } from "@/lib/number-format";
+
 export function formatMyr(value: number) {
-  return value.toLocaleString("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatMoneyAmount(value);
 }
 
 export function roundMoney(value: number) {

@@ -46,6 +46,7 @@ import {
 import type { InvoiceBankAccount } from "@/lib/constants/invoice-bank-accounts";
 import { currentCalendarYearMonth } from "@/lib/parse-year-month-params";
 import { isReportQueryRequested } from "@/lib/reports/report-query-params";
+import { formatMoneyWithCurrency } from "@/lib/number-format";
 import {
   FIRST_COL_WIDTH,
   STICKY_BODY_FIRST,
@@ -101,10 +102,7 @@ function buildInitialDraft(
 }
 
 function formatMoney(value: number, currency: string) {
-  return `${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
+  return formatMoneyWithCurrency(value, currency);
 }
 
 function invoiceTypeMessageKey(
