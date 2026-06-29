@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import {
   updateCustomerCrateStock,
@@ -23,6 +23,7 @@ import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { useT } from "@/components/shared/locale-context";
 import { formatPickupLocationLabel } from "@/lib/constants/pickup-locations";
+import { filterCrateTypesForCustomerStockDisplay } from "@/lib/constants/customer-crate-stock-display";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -111,6 +112,11 @@ export function CustomerCrateStockView({
   const [editNotes, setEditNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const visibleCrateTypes = useMemo(
+    () => filterCrateTypesForCustomerStockDisplay(crateTypes),
+    [crateTypes]
+  );
+
   function applySearch() {
     const params = new URLSearchParams(searchParams.toString());
     if (search.trim()) {
@@ -169,9 +175,9 @@ export function CustomerCrateStockView({
     title: string
   ) {
     const visibleLocations = locations.filter((loc) =>
-      crateTypes.some((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
+      visibleCrateTypes.some((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
     );
-    const grandTotal = crateTypes.reduce(
+    const grandTotal = visibleCrateTypes.reduce(
       (sum, ct) =>
         sum +
         locations.reduce((locSum, loc) => locSum + (loc.quantities[ct.id] ?? 0), 0),
@@ -196,7 +202,7 @@ export function CustomerCrateStockView({
             {visibleLocations.map((loc, index) => {
               const isLast = index === visibleLocations.length - 1;
               const prefix = isLast ? "└──" : "├──";
-              const crateParts = crateTypes
+              const crateParts = visibleCrateTypes
                 .filter((ct) => (loc.quantities[ct.id] ?? 0) !== 0)
                 .map((ct) => `${ct.code}  ${loc.quantities[ct.id]}`);
 
@@ -241,7 +247,7 @@ export function CustomerCrateStockView({
       row.locations.find((l) => l.location === defaultLoc) ??
       row.locations[0];
     const qty: Record<string, string> = {};
-    for (const crateType of crateTypes) {
+    for (const crateType of visibleCrateTypes) {
       qty[crateType.id] = String(locRow?.quantities[crateType.id] ?? 0);
     }
     setEditQty(qty);
@@ -266,7 +272,7 @@ export function CustomerCrateStockView({
     setEditLocation(location);
     const locRow = editRow.locations.find((l) => l.location === location);
     const qty: Record<string, string> = {};
-    for (const crateType of crateTypes) {
+    for (const crateType of visibleCrateTypes) {
       qty[crateType.id] = String(locRow?.quantities[crateType.id] ?? 0);
     }
     setEditQty(qty);
@@ -280,7 +286,7 @@ export function CustomerCrateStockView({
         const locRow = editRow.locations.find(
           (l) => l.location === editLocation
         );
-        for (const crateType of crateTypes) {
+        for (const crateType of visibleCrateTypes) {
           const nextQty = parseInt(editQty[crateType.id] ?? "0", 10);
           if (Number.isNaN(nextQty)) {
             throw new Error(
@@ -360,7 +366,7 @@ export function CustomerCrateStockView({
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead className="w-8" />
               <TableHead>{t("common.consignor")}</TableHead>
-              {crateTypes.map((ct) => (
+              {visibleCrateTypes.map((ct) => (
                 <TableHead key={ct.id} className="text-right font-mono text-xs">
                   {ct.code}
                 </TableHead>
@@ -375,7 +381,7 @@ export function CustomerCrateStockView({
                 <TableCell className="font-medium">
                   <MobileTruncatedName text={summary.title} />
                 </TableCell>
-                {crateTypes.map((ct) => {
+                {visibleCrateTypes.map((ct) => {
                   const qty = summary.quantities[ct.id] ?? 0;
                   return (
                     <TableCell
@@ -428,7 +434,7 @@ export function CustomerCrateStockView({
                         </span>
                       </div>
                     </TableCell>
-                    {crateTypes.map((ct) => {
+                    {visibleCrateTypes.map((ct) => {
                       const qty = agent.quantities[ct.id] ?? 0;
                       return (
                         <TableCell
@@ -454,7 +460,7 @@ export function CustomerCrateStockView({
                   {isAgentExpanded && (
                     <TableRow>
                       <TableCell
-                        colSpan={crateTypes.length + 3}
+                        colSpan={visibleCrateTypes.length + 3}
                         className="bg-haidee-surface/50 p-0"
                       >
                         <div className="space-y-4 border-t border-haidee-border/60 px-4 py-3">
@@ -518,7 +524,7 @@ export function CustomerCrateStockView({
                                     <p className="font-mono text-xs text-haidee-muted">
                                       {memberStockSummary(
                                         member.quantities,
-                                        crateTypes
+                                        visibleCrateTypes
                                       )}
                                     </p>
                                   </div>
@@ -549,7 +555,7 @@ export function CustomerCrateStockView({
                     </p>
                   </div>
                 </TableCell>
-                {crateTypes.map((ct) => (
+                {visibleCrateTypes.map((ct) => (
                   <TableCell key={ct.id} className="text-right font-mono">
                     —
                   </TableCell>
@@ -560,7 +566,7 @@ export function CustomerCrateStockView({
             {rows.length === 0 && assignedMemberHints.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={crateTypes.length + 3}
+                  colSpan={visibleCrateTypes.length + 3}
                   className="py-8 text-center text-haidee-muted"
                 >
                   {t("customerCrateStock.emptySearch")}
@@ -590,7 +596,7 @@ export function CustomerCrateStockView({
                       <TableCell className="font-medium">
                         <MobileTruncatedName text={row.shipperName} />
                       </TableCell>
-                      {crateTypes.map((ct) => {
+                      {visibleCrateTypes.map((ct) => {
                         const qty = row.quantities[ct.id] ?? 0;
                         return (
                           <TableCell
@@ -616,7 +622,7 @@ export function CustomerCrateStockView({
                     {isExpanded && (
                       <TableRow>
                         <TableCell
-                          colSpan={crateTypes.length + 3}
+                          colSpan={visibleCrateTypes.length + 3}
                           className="bg-haidee-surface/50 p-0"
                         >
                           {renderLocationBreakdown(row.locations, row.shipperName)}
@@ -669,7 +675,7 @@ export function CustomerCrateStockView({
                 </select>
               </div>
             )}
-            {crateTypes.map((ct) => (
+            {visibleCrateTypes.map((ct) => (
               <div
                 key={ct.id}
                 className="flex items-center justify-between gap-4"
