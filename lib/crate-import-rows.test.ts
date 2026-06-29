@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CRATE_IMPORT_NO_RETURN_NOTE,
+  CRATE_IMPORT_PENDING_QTY_NOTE,
   deriveCrateImportRowState,
   emptyCrateImportQuantities,
   mergeImportRowsWithDispatch,
@@ -9,12 +10,10 @@ import {
 
 describe("mergeImportRowsWithDispatch", () => {
   it("seeds empty rows for all dispatched trucks when no imports exist", () => {
-    const rows = mergeImportRowsWithDispatch([], ["A", "B", "C"], {
-      B: "KL",
-    });
+    const rows = mergeImportRowsWithDispatch([], ["A", "B", "C"]);
     expect(rows).toHaveLength(3);
     expect(rows.map((r) => r.truckPlate)).toEqual(["A", "B", "C"]);
-    expect(rows[1]?.marketCode).toBe("KL");
+    expect(rows[1]?.marketCode).toBe("");
     expect(rows[0]?.quantities.ABB).toBe("");
   });
 
@@ -36,6 +35,29 @@ describe("mergeImportRowsWithDispatch", () => {
     expect(rows[2]?.truckPlate).toBe("T3");
   });
 
+  it("preserves multiple market rows for the same plate", () => {
+    const existing = [
+      {
+        truckPlate: "T1",
+        marketCode: "KL",
+        quantities: emptyCrateImportQuantities(),
+        awaitingQty: true,
+        notes: "",
+        status: "on_the_way" as const,
+      },
+      {
+        truckPlate: "T1",
+        marketCode: "A",
+        quantities: { ...emptyCrateImportQuantities(), ABB: "2" },
+        notes: "",
+        status: "on_the_way" as const,
+      },
+    ];
+    const rows = mergeImportRowsWithDispatch(existing, ["T1"]);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.marketCode).sort()).toEqual(["A", "KL"]);
+  });
+
   it("preserves manual import rows for plates not on dispatch list", () => {
     const existing = [
       {
@@ -53,7 +75,7 @@ describe("mergeImportRowsWithDispatch", () => {
 });
 
 describe("deriveCrateImportRowState", () => {
-  it("detects recorded, pending, and no_return states", () => {
+  it("detects recorded, pending, awaiting_qty, and no_return states", () => {
     const qty = emptyCrateImportQuantities();
     expect(
       deriveCrateImportRowState({
@@ -80,6 +102,27 @@ describe("deriveCrateImportRowState", () => {
         truckPlate: "T1",
         marketCode: "KL",
         quantities: qty,
+        awaitingQty: true,
+        notes: "",
+        status: "on_the_way",
+      })
+    ).toBe("awaiting_qty");
+
+    expect(
+      deriveCrateImportRowState({
+        truckPlate: "T1",
+        marketCode: "KL",
+        quantities: qty,
+        notes: CRATE_IMPORT_PENDING_QTY_NOTE,
+        status: "on_the_way",
+      })
+    ).toBe("awaiting_qty");
+
+    expect(
+      deriveCrateImportRowState({
+        truckPlate: "T1",
+        marketCode: "KL",
+        quantities: qty,
         notes: CRATE_IMPORT_NO_RETURN_NOTE,
         status: "arrived",
         noReturn: true,
@@ -89,7 +132,7 @@ describe("deriveCrateImportRowState", () => {
 });
 
 describe("shouldPersistCrateImportRow", () => {
-  it("persists no_return and qty rows only when market is set", () => {
+  it("persists any row with plate+market; skips empty market", () => {
     const qty = emptyCrateImportQuantities();
     expect(
       shouldPersistCrateImportRow({
@@ -123,6 +166,15 @@ describe("shouldPersistCrateImportRow", () => {
     expect(
       shouldPersistCrateImportRow({
         truckPlate: "T1",
+        marketCode: "KL",
+        quantities: qty,
+        notes: "",
+        status: "on_the_way",
+      })
+    ).toBe(true);
+    expect(
+      shouldPersistCrateImportRow({
+        truckPlate: "",
         marketCode: "KL",
         quantities: qty,
         notes: "",

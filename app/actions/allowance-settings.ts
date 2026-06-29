@@ -7,6 +7,7 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import {
   DEFAULT_BP_CRATE_COMMISSION_BIG_TRUCK,
   DEFAULT_BP_CRATE_COMMISSION_SMALL_TRUCK,
+  DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
   DEFAULT_EXTRA_MARKET_ALLOWANCE,
 } from "@/lib/constants/payroll-allowance";
 async function requireAdmin() {
@@ -33,6 +34,7 @@ async function ensurePayrollAllowanceSettings() {
       extraMarketAllowance: DEFAULT_EXTRA_MARKET_ALLOWANCE,
       bpCrateCommissionBigTruck: DEFAULT_BP_CRATE_COMMISSION_BIG_TRUCK,
       bpCrateCommissionSmallTruck: DEFAULT_BP_CRATE_COMMISSION_SMALL_TRUCK,
+      crateReturnMultiMarketAllowance: DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
     },
     update: {},
   });
@@ -70,6 +72,9 @@ export async function getAllowanceSettingsData() {
     bpCrateCommissionSmallTruck: decimalToNumber(
       settings.bpCrateCommissionSmallTruck
     ),
+    crateReturnMultiMarketAllowance:
+      decimalToNumber(settings.crateReturnMultiMarketAllowance) ??
+      DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
   };
 }
 
@@ -80,6 +85,7 @@ export async function saveAllowanceSettings(input: {
   smallTruckCrateCommission?: number | null;
   bpCrateCommissionBigTruck?: number | null;
   bpCrateCommissionSmallTruck?: number | null;
+  crateReturnMultiMarketAllowance?: number | null;
 }) {
   await requireAdmin();
 
@@ -111,6 +117,9 @@ export async function saveAllowanceSettings(input: {
         bpCrateCommissionSmallTruck: parseOptionalRate(
           input.bpCrateCommissionSmallTruck
         ),
+        crateReturnMultiMarketAllowance:
+          parseOptionalRate(input.crateReturnMultiMarketAllowance) ??
+          DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
       },
       update: {
         extraMarketAllowance: parseOptionalRate(input.extraMarketAllowance),
@@ -125,6 +134,9 @@ export async function saveAllowanceSettings(input: {
         ),
         bpCrateCommissionSmallTruck: parseOptionalRate(
           input.bpCrateCommissionSmallTruck
+        ),
+        crateReturnMultiMarketAllowance: parseOptionalRate(
+          input.crateReturnMultiMarketAllowance
         ),
       },
     }),
@@ -163,5 +175,8 @@ export async function loadPayrollAllowanceContext() {
     bpCrateCommissionSmallTruck: decimalToNumber(
       settings.bpCrateCommissionSmallTruck
     ),
+    crateReturnMultiMarketAllowance:
+      decimalToNumber(settings.crateReturnMultiMarketAllowance) ??
+      DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
   };
 }

@@ -1,6 +1,6 @@
 import { sortMarkets } from "@/lib/markets";
 import { toDateInputValue } from "@/lib/date-utils";
-import { getRouteGroups, getRouteLabel } from "@/lib/payroll-route-label";
+import { getRouteGroupForMarket, getRouteGroups, getRouteLabel } from "@/lib/payroll-route-label";
 
 export { getRouteGroups, getRouteLabel } from "@/lib/payroll-route-label";
 
@@ -253,6 +253,8 @@ export interface CrateReturnCommissionRates {
 export interface CrateReturnPlateDayInfo {
   hasReturn: boolean;
   hasBpReturn: boolean;
+  /** Distinct primary route groups with qty>0 (BM/P/TP/KT/NT/SA = one BM group). */
+  returnMarketGroupCount: number;
 }
 
 /** One physical return (date+plate) earns at most one commission, assigned to one payroll trip. */
@@ -279,14 +281,26 @@ export function buildCrateReturnImportContext(
   }[]
 ) {
   const context = new Map<string, CrateReturnPlateDayInfo>();
+  const groupsByPlateDay = new Map<string, Set<string>>();
+
   for (const row of imports) {
     if (row.quantity <= 0) continue;
     const key = crateReturnPlateDayKey(row.date, row.truck.plate);
-    const existing = context.get(key) ?? { hasReturn: false, hasBpReturn: false };
+    const existing = context.get(key) ?? {
+      hasReturn: false,
+      hasBpReturn: false,
+      returnMarketGroupCount: 0,
+    };
     existing.hasReturn = true;
     if (row.market.code.trim().toUpperCase() === "BP") {
       existing.hasBpReturn = true;
     }
+
+    const groups = groupsByPlateDay.get(key) ?? new Set<string>();
+    groups.add(getRouteGroupForMarket(row.market.code));
+    groupsByPlateDay.set(key, groups);
+
+    existing.returnMarketGroupCount = groups.size;
     context.set(key, existing);
   }
   return context;
@@ -329,6 +343,28 @@ export function crateReturnCommissionForTrip(input: {
     truckType: input.truckType,
     plateDay: input.plateDay,
     rates: input.rates,
+  });
+}
+
+/** Flat bonus when same truck+day returns crates from 2+ distinct primary markets (qty>0). */
+export function crateReturnMultiMarketAllowanceAmount(input: {
+  plateDay: CrateReturnPlateDayInfo | undefined;
+  allowanceRate: number;
+}) {
+  if (!input.plateDay?.hasReturn) return 0;
+  if (input.plateDay.returnMarketGroupCount < 2) return 0;
+  return input.allowanceRate;
+}
+
+export function crateReturnMultiMarketAllowanceForTrip(input: {
+  isCommissionRecipient: boolean;
+  plateDay: CrateReturnPlateDayInfo | undefined;
+  allowanceRate: number;
+}) {
+  if (!input.isCommissionRecipient) return 0;
+  return crateReturnMultiMarketAllowanceAmount({
+    plateDay: input.plateDay,
+    allowanceRate: input.allowanceRate,
   });
 }
 

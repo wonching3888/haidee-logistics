@@ -666,7 +666,8 @@ function TripRow({
     (Number(tripAllowance) || 0) +
     trip.charterSalary +
     (Number(extraAllowance) || 0) +
-    trip.crateReturnCommission;
+    trip.crateReturnCommission +
+    (trip.crateReturnMultiMarketAllowance ?? 0);
 
   const compactInputClass =
     "h-8 w-[90px] px-2 text-right font-mono text-xs tabular-nums";
@@ -710,9 +711,16 @@ function TripRow({
       <TableCell className="px-2 py-1.5">
         <div
           className="flex h-8 w-[90px] items-center justify-end rounded-md border border-haidee-border bg-gray-100 px-2 font-mono text-xs tabular-nums text-haidee-text"
-          title="从派车回桶记录自动计算"
+          title={
+            (trip.crateReturnMultiMarketAllowance ?? 0) > 0
+              ? `提成 ${trip.crateReturnCommission} + 多市场 ${trip.crateReturnMultiMarketAllowance}`
+              : "从派车回桶记录自动计算"
+          }
         >
-          {money(trip.crateReturnCommission)}
+          {money(
+            trip.crateReturnCommission +
+              (trip.crateReturnMultiMarketAllowance ?? 0)
+          )}
         </div>
       </TableCell>
       <TableCell className="px-2 py-1.5">

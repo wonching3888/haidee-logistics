@@ -100,6 +100,7 @@ describe("company payroll includes charterSalary (Step 2+3)", () => {
         tripAllowanceTotal: 0,
         charterSalaryTotal: 0,
         crateCommissionTotal: 50,
+        crateMultiMarketTotal: 0,
         tripExtraAllowanceTotal: 0,
         extraAllowanceTotal: 0,
         advanceTotal: 0,

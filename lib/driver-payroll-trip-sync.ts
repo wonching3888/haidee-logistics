@@ -13,6 +13,7 @@ import {
   calculateTripAllowance,
   countPayrollMarketGroups,
   crateReturnCommissionForTrip,
+  crateReturnMultiMarketAllowanceForTrip,
   getCrateReturnPlateDayInfo,
   type CrateReturnCommissionRates,
   type CrateReturnCommissionTripRef,
@@ -177,7 +178,7 @@ async function isCrateReturnCommissionRecipient(input: {
   );
 }
 
-async function computeCrateReturnCommission(input: {
+async function computeCrateReturnPayrollAmounts(input: {
   date: Date;
   truckId: string;
   truckType: string;
@@ -197,12 +198,19 @@ async function computeCrateReturnCommission(input: {
     tripRef: input.tripRef,
   });
 
-  return crateReturnCommissionForTrip({
-    truckType: input.truckType,
-    isCommissionRecipient,
-    plateDay,
-    rates: crateReturnRatesFromContext(input.allowanceContext),
-  });
+  return {
+    crateReturnCommission: crateReturnCommissionForTrip({
+      truckType: input.truckType,
+      isCommissionRecipient,
+      plateDay,
+      rates: crateReturnRatesFromContext(input.allowanceContext),
+    }),
+    crateReturnMultiMarketAllowance: crateReturnMultiMarketAllowanceForTrip({
+      isCommissionRecipient,
+      plateDay,
+      allowanceRate: input.allowanceContext.crateReturnMultiMarketAllowance,
+    }),
+  };
 }
 
 async function resolveDriverForDispatch(driverName: string | null) {
@@ -258,7 +266,7 @@ async function computeAutoTripAllowance(
     routes: allowanceContext.routes,
     extraMarketAllowance: allowanceContext.extraMarketAllowance,
   });
-  const crateReturnCommission = await computeCrateReturnCommission({
+  const crateReturnAmounts = await computeCrateReturnPayrollAmounts({
     date: order.date,
     truckId: order.truckId,
     truckType: order.truck.type,
@@ -276,7 +284,9 @@ async function computeAutoTripAllowance(
       allowanceContext.routes
     ),
     routeLabel: getRouteLabel(allowanceMarkets),
-    crateReturnCommission,
+    crateReturnCommission: crateReturnAmounts.crateReturnCommission,
+    crateReturnMultiMarketAllowance:
+      crateReturnAmounts.crateReturnMultiMarketAllowance,
   };
 }
 
@@ -348,7 +358,9 @@ export async function syncDriverPayrollTripForDispatch(
       decimalToNumber(existing.tripAllowance) === computed.tripAllowance;
     const commissionUnchanged =
       decimalToNumber(existing.crateReturnCommission) ===
-      computed.crateReturnCommission;
+        computed.crateReturnCommission &&
+      decimalToNumber(existing.crateReturnMultiMarketAllowance) ===
+        computed.crateReturnMultiMarketAllowance;
 
     if (tripAllowanceUnchanged && commissionUnchanged) {
       await prisma.driverPayrollTrip.update({
@@ -370,6 +382,8 @@ export async function syncDriverPayrollTripForDispatch(
         ...sharedMetadata,
         tripAllowance: computed.tripAllowance,
         crateReturnCommission: computed.crateReturnCommission,
+        crateReturnMultiMarketAllowance:
+          computed.crateReturnMultiMarketAllowance,
       },
     });
 
@@ -393,6 +407,7 @@ export async function syncDriverPayrollTripForDispatch(
       tripAllowance: computed.tripAllowance,
       extraAllowance: 0,
       crateReturnCommission: computed.crateReturnCommission,
+      crateReturnMultiMarketAllowance: computed.crateReturnMultiMarketAllowance,
       ...sharedMetadata,
     },
   });
@@ -436,7 +451,7 @@ export async function syncDriverPayrollTripForCharter(
     loadCrateReturnImportContextForDate(charter.date),
   ]);
 
-  const crateReturnCommission = await computeCrateReturnCommission({
+  const crateReturnAmounts = await computeCrateReturnPayrollAmounts({
     date: charter.date,
     truckId: charter.truckId,
     truckType: charter.truck.type,
@@ -464,7 +479,10 @@ export async function syncDriverPayrollTripForCharter(
 
   if (existing) {
     const commissionUnchanged =
-      decimalToNumber(existing.crateReturnCommission) === crateReturnCommission;
+      decimalToNumber(existing.crateReturnCommission) ===
+        crateReturnAmounts.crateReturnCommission &&
+      decimalToNumber(existing.crateReturnMultiMarketAllowance) ===
+        crateReturnAmounts.crateReturnMultiMarketAllowance;
     const charterSalaryUnchanged =
       decimalToNumber(existing.charterSalary) === charterSalary;
 
@@ -478,7 +496,7 @@ export async function syncDriverPayrollTripForCharter(
         charterTripId,
         tripId: existing.id,
         tripAllowance: 0,
-        crateReturnCommission,
+        crateReturnCommission: crateReturnAmounts.crateReturnCommission,
       };
     }
 
@@ -486,7 +504,9 @@ export async function syncDriverPayrollTripForCharter(
       where: { id: existing.id },
       data: {
         ...sharedMetadata,
-        crateReturnCommission,
+        crateReturnCommission: crateReturnAmounts.crateReturnCommission,
+        crateReturnMultiMarketAllowance:
+          crateReturnAmounts.crateReturnMultiMarketAllowance,
       },
     });
 
@@ -495,7 +515,7 @@ export async function syncDriverPayrollTripForCharter(
       charterTripId,
       tripId: updated.id,
       tripAllowance: 0,
-      crateReturnCommission,
+      crateReturnCommission: crateReturnAmounts.crateReturnCommission,
     };
   }
 
@@ -508,7 +528,9 @@ export async function syncDriverPayrollTripForCharter(
       charterTripId,
       sortOrder: tripCount,
       extraAllowance: 0,
-      crateReturnCommission,
+      crateReturnCommission: crateReturnAmounts.crateReturnCommission,
+      crateReturnMultiMarketAllowance:
+        crateReturnAmounts.crateReturnMultiMarketAllowance,
       ...sharedMetadata,
     },
   });
@@ -518,7 +540,7 @@ export async function syncDriverPayrollTripForCharter(
     charterTripId,
     tripId: created.id,
     tripAllowance: 0,
-    crateReturnCommission,
+    crateReturnCommission: crateReturnAmounts.crateReturnCommission,
   };
 }
 

@@ -33,6 +33,7 @@ export interface DriverPayrollMonthInput {
     charterSalary: unknown;
     extraAllowance: unknown;
     crateReturnCommission: unknown;
+    crateReturnMultiMarketAllowance?: unknown;
   }[];
   extras: { type: string; amount: unknown }[];
   epfEmployeeOverride?: unknown;
@@ -89,7 +90,12 @@ const EMPTY_OVERRIDES = {
 
 function sumTripField(
   trips: DriverPayrollMonthInput["trips"],
-  field: "tripAllowance" | "charterSalary" | "extraAllowance" | "crateReturnCommission"
+  field:
+    | "tripAllowance"
+    | "charterSalary"
+    | "extraAllowance"
+    | "crateReturnCommission"
+    | "crateReturnMultiMarketAllowance"
 ) {
   return roundMoney(
     trips.reduce(
@@ -129,6 +135,10 @@ function earningsFromTrips(
     tripAllowanceTotal: sumTripField(trips, "tripAllowance"),
     charterSalaryTotal,
     crateCommissionTotal: sumTripField(trips, "crateReturnCommission"),
+    crateMultiMarketTotal: sumTripField(
+      trips,
+      "crateReturnMultiMarketAllowance"
+    ),
     tripExtraAllowanceTotal: sumTripField(trips, "extraAllowance"),
     extraAllowanceTotal: roundMoney(
       extras

@@ -850,6 +850,7 @@ function driverTripAllowance(dispatch: {
     tripAllowance: unknown;
     extraAllowance: unknown;
     crateReturnCommission: unknown;
+    crateReturnMultiMarketAllowance: unknown;
   } | null;
 }) {
   const fromDispatch = decimalToNumber(dispatch.driverAllowanceAmount);
@@ -861,7 +862,8 @@ function driverTripAllowance(dispatch: {
   return roundMoney(
     (decimalToNumber(trip.tripAllowance) ?? 0) +
       (decimalToNumber(trip.extraAllowance) ?? 0) +
-      (decimalToNumber(trip.crateReturnCommission) ?? 0)
+      (decimalToNumber(trip.crateReturnCommission) ?? 0) +
+      (decimalToNumber(trip.crateReturnMultiMarketAllowance) ?? 0)
   );
 }
 
@@ -878,6 +880,7 @@ const dispatchPnlSelect = {
       tripAllowance: true,
       extraAllowance: true,
       crateReturnCommission: true,
+      crateReturnMultiMarketAllowance: true,
     },
   },
   lines: {
@@ -939,6 +942,7 @@ type DispatchPnlRow = {
     tripAllowance: unknown;
     extraAllowance: unknown;
     crateReturnCommission: unknown;
+    crateReturnMultiMarketAllowance: unknown;
   } | null;
   lines: Array<{
     inboundLine: {

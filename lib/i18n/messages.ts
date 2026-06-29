@@ -1686,6 +1686,21 @@ export const MESSAGES = {
     en: "No crates",
     th: "ไม่มีลัง",
   },
+  "crateImport.rowState.awaitingQty": {
+    zh: "待司机报数 · 市场已通知司机",
+    en: "Awaiting driver qty · market notified",
+    th: "รอคนขับรายงานจำนวน · แจ้งตลาดแล้ว",
+  },
+  "crateImport.addMarketForPlate": {
+    zh: "+ 同车加市场",
+    en: "+ Add market (same truck)",
+    th: "+ เพิ่มตลาด (รถคันเดียวกัน)",
+  },
+  "crateImport.saveResult": {
+    zh: "已保存 {saved} 行；{skipped} 行未选市场已跳过",
+    en: "Saved {saved} row(s); {skipped} row(s) skipped (no market)",
+    th: "บันทึก {saved} แถว; ข้าม {skipped} แถว (ยังไม่เลือกตลาด)",
+  },
   "crateImport.error.noReturnNeedsMarket": {
     zh: "确认无回桶时需选择来源市场",
     en: "Select a source market before confirming no return",

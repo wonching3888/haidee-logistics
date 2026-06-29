@@ -30,6 +30,7 @@ interface PayrollSettingsSectionProps {
   smallTruckCrateCommission: number | null;
   bpCrateCommissionBigTruck: number | null;
   bpCrateCommissionSmallTruck: number | null;
+  crateReturnMultiMarketAllowance: number;
 }
 
 export function PayrollSettingsSection({
@@ -39,6 +40,7 @@ export function PayrollSettingsSection({
   smallTruckCrateCommission,
   bpCrateCommissionBigTruck,
   bpCrateCommissionSmallTruck,
+  crateReturnMultiMarketAllowance,
 }: PayrollSettingsSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -56,6 +58,9 @@ export function PayrollSettingsSection({
   );
   const [bpSmallTruckCrate, setBpSmallTruckCrate] = useState(
     bpCrateCommissionSmallTruck != null ? String(bpCrateCommissionSmallTruck) : ""
+  );
+  const [crateReturnMultiMarket, setCrateReturnMultiMarket] = useState(
+    String(crateReturnMultiMarketAllowance)
   );
 
   useEffect(() => {
@@ -82,6 +87,7 @@ export function PayrollSettingsSection({
         ? String(bpCrateCommissionSmallTruck)
         : ""
     );
+    setCrateReturnMultiMarket(String(crateReturnMultiMarketAllowance));
   }, [
     routes,
     extraMarketAllowance,
@@ -89,6 +95,7 @@ export function PayrollSettingsSection({
     smallTruckCrateCommission,
     bpCrateCommissionBigTruck,
     bpCrateCommissionSmallTruck,
+    crateReturnMultiMarketAllowance,
   ]);
 
   function parseOptionalRate(value: string, label: string) {
@@ -129,6 +136,10 @@ export function PayrollSettingsSection({
           bpCrateCommissionSmallTruck: parseOptionalRate(
             bpSmallTruckCrate,
             "BP 小车回桶提成"
+          ),
+          crateReturnMultiMarketAllowance: parseOptionalRate(
+            crateReturnMultiMarket,
+            "回桶多市场补贴"
           ),
         });
         router.refresh();
@@ -251,6 +262,20 @@ export function PayrollSettingsSection({
             />
           </label>
         </div>
+        <h4 className="mb-2 mt-4 text-sm font-semibold text-haidee-text">
+          回桶多市场补贴 Crate Return Multi-Market Bonus
+        </h4>
+        <p className="mb-3 text-xs text-haidee-muted">
+          同一车同日回桶来自 2 个不同主要市场（qty&gt;0，BM 组算 1 个）时额外补贴，与出货路线津贴无关。
+        </p>
+        <label className="block max-w-xs space-y-1 text-sm">
+          回桶多市场补贴 (MYR/趟，封顶一次)
+          <Input
+            value={crateReturnMultiMarket}
+            onChange={(e) => setCrateReturnMultiMarket(e.target.value)}
+            className="min-h-[44px] font-mono"
+          />
+        </label>
         <div className="mt-4 flex justify-end">
           <Button
             type="button"

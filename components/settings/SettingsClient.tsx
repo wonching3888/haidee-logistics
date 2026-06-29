@@ -210,6 +210,7 @@ interface SettingsClientProps {
     smallTruckCrateCommission: number | null;
     bpCrateCommissionBigTruck: number | null;
     bpCrateCommissionSmallTruck: number | null;
+    crateReturnMultiMarketAllowance: number;
   } | null;
   crateRentalRates: {
     id: string;
@@ -743,6 +744,9 @@ export function SettingsClient({
             bpCrateCommissionBigTruck={payrollSettings.bpCrateCommissionBigTruck}
             bpCrateCommissionSmallTruck={
               payrollSettings.bpCrateCommissionSmallTruck
+            }
+            crateReturnMultiMarketAllowance={
+              payrollSettings.crateReturnMultiMarketAllowance
             }
           />
         )}

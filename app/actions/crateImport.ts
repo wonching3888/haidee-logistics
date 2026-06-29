@@ -14,9 +14,11 @@ import {
 import { CRATE_IMPORT_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   CRATE_IMPORT_NO_RETURN_NOTE,
+  CRATE_IMPORT_PENDING_QTY_NOTE,
   emptyCrateImportQuantities,
   mergeImportRowsWithDispatch,
   parseCrateImportRowKey,
+  rowHasPositiveCrateQty,
   shouldPersistCrateImportRow,
 } from "@/lib/crate-import-rows";
 import { ensureCrateReturnMonthlyInvoicesForCrateTypes } from "@/lib/crate-return-billing";
@@ -58,11 +60,17 @@ export interface CrateImportLoadedRow {
   notes: string;
   status: "on_the_way" | "arrived";
   noReturn?: boolean;
+  awaitingQty?: boolean;
 }
 
 export interface InTransitImportRow extends CrateImportLoadedRow {
   dateInput: string;
   dateStr: string;
+}
+
+export interface SaveCrateImportResult {
+  savedCount: number;
+  skippedCount: number;
 }
 
 type TongImportRecord = {
@@ -100,7 +108,6 @@ export async function getDispatchedTrucksForImportDate(dateStr: string) {
   });
 
   const plates: string[] = [];
-  const suggestedMarketByPlate: Record<string, string> = {};
   const seen = new Set<string>();
 
   for (const order of orders) {
@@ -108,12 +115,9 @@ export async function getDispatchedTrucksForImportDate(dateStr: string) {
     if (seen.has(plate)) continue;
     seen.add(plate);
     plates.push(plate);
-    if (order.markets.length > 0) {
-      suggestedMarketByPlate[plate] = order.markets[0]!;
-    }
   }
 
-  return { plates, suggestedMarketByPlate };
+  return { plates };
 }
 
 export async function getDispatchedTruckPlatesForDate(
@@ -138,6 +142,7 @@ function groupTongImportsToRows(imports: TongImportRecord[]) {
         notes: "",
         status: imp.status as "on_the_way" | "arrived",
         noReturn: false,
+        awaitingQty: false,
       };
       rowMap.set(key, row);
     }
@@ -147,6 +152,15 @@ function groupTongImportsToRows(imports: TongImportRecord[]) {
       imp.quantity === 0
     ) {
       row.noReturn = true;
+      row.status = imp.status as "on_the_way" | "arrived";
+      continue;
+    }
+
+    if (
+      imp.notes === CRATE_IMPORT_PENDING_QTY_NOTE &&
+      imp.quantity === 0
+    ) {
+      row.awaitingQty = true;
       row.status = imp.status as "on_the_way" | "arrived";
       continue;
     }
@@ -165,7 +179,11 @@ function groupTongImportsToRows(imports: TongImportRecord[]) {
       dynamicColNames.add(name);
     }
 
-    if (imp.notes && imp.notes !== CRATE_IMPORT_NO_RETURN_NOTE) {
+    if (
+      imp.notes &&
+      imp.notes !== CRATE_IMPORT_NO_RETURN_NOTE &&
+      imp.notes !== CRATE_IMPORT_PENDING_QTY_NOTE
+    ) {
       row.notes = imp.notes;
     }
   }
@@ -196,12 +214,14 @@ export async function loadCrateImportsForDate(dateStr: string) {
   const grouped = groupTongImportsToRows(imports);
   const rows = mergeImportRowsWithDispatch(
     grouped.rows,
-    dispatch.plates,
-    dispatch.suggestedMarketByPlate
+    dispatch.plates
   ).map((row) => ({
     ...row,
     notes:
-      row.notes === CRATE_IMPORT_NO_RETURN_NOTE ? "" : (row.notes ?? ""),
+      row.notes === CRATE_IMPORT_NO_RETURN_NOTE ||
+      row.notes === CRATE_IMPORT_PENDING_QTY_NOTE
+        ? ""
+        : (row.notes ?? ""),
     status: row.status ?? "on_the_way",
   }));
 
@@ -214,7 +234,10 @@ export async function loadCrateImportsForDate(dateStr: string) {
 
 export async function loadInTransitCrateImports() {
   const imports = await prisma.tongImport.findMany({
-    where: { status: "on_the_way" },
+    where: {
+      status: "on_the_way",
+      NOT: { notes: CRATE_IMPORT_PENDING_QTY_NOTE },
+    },
     include: tongImportInclude,
     orderBy: [{ date: "desc" }, { createdAt: "asc" }],
   });
@@ -344,6 +367,34 @@ function buildNoReturnRecords(input: {
   ];
 }
 
+function buildAwaitingQtyRecords(input: {
+  row: CrateImportRowInput;
+  date: Date;
+  userId: string;
+  truckId: string;
+  marketId: string;
+  fallbackTongTypeId: string | undefined;
+  otherTongTypeId: string | undefined;
+}): Prisma.TongImportCreateManyInput[] {
+  const tongTypeId = input.otherTongTypeId ?? input.fallbackTongTypeId;
+  if (!tongTypeId) return [];
+
+  const status = input.row.status ?? "on_the_way";
+  return [
+    {
+      date: input.date,
+      truckId: input.truckId,
+      marketId: input.marketId,
+      tongTypeId,
+      quantity: 0,
+      notes: CRATE_IMPORT_PENDING_QTY_NOTE,
+      status,
+      arrivedAt: status === "arrived" ? new Date() : null,
+      createdById: input.userId,
+    },
+  ];
+}
+
 function buildQuantityRecordsForRow(
   row: CrateImportRowInput,
   date: Date,
@@ -424,6 +475,7 @@ function buildRecordsForPersistedRow(
   tongMap: Record<string, string>,
   otherTongTypeId: string | undefined,
   fallbackTongTypeId: string | undefined,
+  dynamicColumnKeys: string[],
   locale: UserLanguage
 ): {
   truckId: string;
@@ -464,18 +516,34 @@ function buildRecordsForPersistedRow(
     };
   }
 
+  if (rowHasPositiveCrateQty(row.quantities, dynamicColumnKeys)) {
+    return {
+      truckId,
+      marketId,
+      records: buildQuantityRecordsForRow(
+        row,
+        date,
+        userId,
+        truckId,
+        marketId,
+        tongMap,
+        otherTongTypeId
+      ),
+    };
+  }
+
   return {
     truckId,
     marketId,
-    records: buildQuantityRecordsForRow(
+    records: buildAwaitingQtyRecords({
       row,
       date,
       userId,
       truckId,
       marketId,
-      tongMap,
-      otherTongTypeId
-    ),
+      fallbackTongTypeId,
+      otherTongTypeId,
+    }),
   };
 }
 
@@ -483,7 +551,7 @@ export async function saveCrateImport(
   dateStr: string,
   rows: CrateImportRowInput[],
   deletedRowKeys: string[] = []
-) {
+): Promise<SaveCrateImportResult> {
   const user = await requireWrite();
   const locale = user.language;
 
@@ -504,8 +572,14 @@ export async function saveCrateImport(
 
   const persistedRecords: Prisma.TongImportCreateManyInput[] = [];
   const affectedPlates = new Set<string>();
+  let savedCount = 0;
+  let skippedCount = 0;
+
   for (const row of rows) {
     if (row.truckPlate.trim()) affectedPlates.add(row.truckPlate.trim());
+    if (row.truckPlate.trim() && !row.marketCode.trim()) {
+      skippedCount += 1;
+    }
   }
   for (const key of deletedRowKeys) {
     const { truckPlate } = parseCrateImportRowKey(key);
@@ -525,7 +599,7 @@ export async function saveCrateImport(
     }
 
     for (const row of rows) {
-      if (!shouldPersistCrateImportRow(row, dynamicColumnKeys)) continue;
+      if (!shouldPersistCrateImportRow(row)) continue;
 
       const built = buildRecordsForPersistedRow(
         row,
@@ -536,6 +610,7 @@ export async function saveCrateImport(
         tongMap,
         otherTongTypeId,
         fallbackTongTypeId,
+        dynamicColumnKeys,
         locale
       );
       if (!built || built.records.length === 0) continue;
@@ -549,6 +624,7 @@ export async function saveCrateImport(
       });
       await tx.tongImport.createMany({ data: built.records });
       persistedRecords.push(...built.records);
+      savedCount += 1;
     }
   });
 
@@ -584,6 +660,8 @@ export async function saveCrateImport(
   revalidatePath("/crate/stock");
   revalidatePath("/documents/crate-return-invoice");
   revalidatePath("/driver-payroll");
+
+  return { savedCount, skippedCount };
 }
 
 /** Mark in-transit imports as arrived — SADAO stock +quantity per crate type. */

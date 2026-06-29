@@ -3,7 +3,14 @@ import { TONG_IMPORT_DEFAULT_COLUMNS } from "@/lib/constants/tong-import-columns
 /** Stored in tong_imports.notes when clerk confirms no crate return for a trip. */
 export const CRATE_IMPORT_NO_RETURN_NOTE = "NO_RETURN";
 
-export type CrateImportRowState = "pending" | "recorded" | "no_return";
+/** Stored when market is set but driver has not reported crate quantities yet. */
+export const CRATE_IMPORT_PENDING_QTY_NOTE = "PENDING_QTY";
+
+export type CrateImportRowState =
+  | "pending"
+  | "awaiting_qty"
+  | "recorded"
+  | "no_return";
 
 export interface CrateImportRowShape {
   truckPlate: string;
@@ -12,6 +19,7 @@ export interface CrateImportRowShape {
   notes?: string;
   status?: "on_the_way" | "arrived";
   noReturn?: boolean;
+  awaitingQty?: boolean;
 }
 
 export function emptyCrateImportQuantities(): Record<string, string> {
@@ -54,14 +62,16 @@ export function deriveCrateImportRowState(
   if (rowHasPositiveCrateQty(row.quantities, dynamicColumnKeys)) {
     return "recorded";
   }
+  if (row.awaitingQty || row.notes === CRATE_IMPORT_PENDING_QTY_NOTE) {
+    return "awaiting_qty";
+  }
   return "pending";
 }
 
 /** Merge dispatch-day trucks with existing import rows (always show every dispatched truck). */
 export function mergeImportRowsWithDispatch(
   importRows: CrateImportRowShape[],
-  dispatchedPlates: string[],
-  suggestedMarketByPlate: Record<string, string> = {}
+  dispatchedPlates: string[]
 ): CrateImportRowShape[] {
   const rowsByPlate = new Map<string, CrateImportRowShape[]>();
   for (const row of importRows) {
@@ -83,11 +93,12 @@ export function mergeImportRowsWithDispatch(
     }
     merged.push({
       truckPlate: plate,
-      marketCode: suggestedMarketByPlate[plate] ?? "",
+      marketCode: "",
       quantities: emptyCrateImportQuantities(),
       notes: "",
       status: "on_the_way",
       noReturn: false,
+      awaitingQty: false,
     });
   }
 
@@ -99,11 +110,8 @@ export function mergeImportRowsWithDispatch(
   return merged;
 }
 
-export function shouldPersistCrateImportRow(
-  row: CrateImportRowShape,
-  dynamicColumnKeys: string[] = []
-) {
-  if (!row.truckPlate || !row.marketCode) return false;
-  if (row.noReturn) return true;
-  return rowHasPositiveCrateQty(row.quantities, dynamicColumnKeys);
+export function shouldPersistCrateImportRow(row: CrateImportRowShape) {
+  if (!row.truckPlate?.trim()) return false;
+  if (!row.marketCode?.trim()) return false;
+  return true;
 }

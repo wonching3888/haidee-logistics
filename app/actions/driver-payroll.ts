@@ -128,6 +128,7 @@ function buildSummaryFromRecords(input: {
     charterSalary: unknown;
     extraAllowance: unknown;
     crateReturnCommission: unknown;
+    crateReturnMultiMarketAllowance?: unknown;
   }[];
   extras: { type: string; amount: unknown }[];
   overrides: {
@@ -242,6 +243,8 @@ export async function getDriverPayrollMonth(input: {
     },
     trips: record.trips.map((trip) => {
       const crateReturnCommission = decimalToNumber(trip.crateReturnCommission) ?? 0;
+      const crateReturnMultiMarketAllowance =
+        decimalToNumber(trip.crateReturnMultiMarketAllowance) ?? 0;
       const charterSalary = decimalToNumber(trip.charterSalary) ?? 0;
       const autoTripAllowanceDebug =
         input.month === 6
@@ -308,6 +311,7 @@ export async function getDriverPayrollMonth(input: {
         charterSalary,
         extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
         crateReturnCommission,
+        crateReturnMultiMarketAllowance,
         truckType: trip.truckType,
         notes: trip.notes,
       };

@@ -104,6 +104,7 @@ export interface PayrollSummaryInput {
   tripAllowanceTotal: number;
   charterSalaryTotal: number;
   crateCommissionTotal: number;
+  crateMultiMarketTotal: number;
   tripExtraAllowanceTotal: number;
   extraAllowanceTotal: number;
   advanceTotal: number;
@@ -135,6 +136,7 @@ export function buildPayrollSummary(input: {
       input.earnings.tripAllowanceTotal +
       input.earnings.charterSalaryTotal +
       input.earnings.crateCommissionTotal +
+      input.earnings.crateMultiMarketTotal +
       extraAllowanceTotal
   );
 

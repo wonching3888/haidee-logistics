@@ -38,6 +38,7 @@ import {
 import {
   crateImportRowKey,
   deriveCrateImportRowState,
+  parseCrateImportRowKey,
   type CrateImportRowState,
 } from "@/lib/crate-import-rows";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ interface ImportRow {
   notes: string;
   status: "on_the_way" | "arrived";
   noReturn: boolean;
+  awaitingQty?: boolean;
   persistedKey?: string;
 }
 
@@ -72,6 +74,7 @@ function rowStateLabel(
 ) {
   if (state === "recorded") return t("crateImport.rowState.recorded");
   if (state === "no_return") return t("crateImport.rowState.noReturn");
+  if (state === "awaiting_qty") return t("crateImport.rowState.awaitingQty");
   return t("crateImport.rowState.pending");
 }
 
@@ -81,6 +84,9 @@ function rowStateClassName(state: CrateImportRowState) {
   }
   if (state === "no_return") {
     return "bg-slate-50 ring-1 ring-slate-200";
+  }
+  if (state === "awaiting_qty") {
+    return "bg-sky-50/80 ring-1 ring-sky-200/80";
   }
   return "bg-amber-50/80 ring-1 ring-amber-200/80";
 }
@@ -100,6 +106,7 @@ function emptyRow(): ImportRow {
     notes: "",
     status: "on_the_way",
     noReturn: false,
+    awaitingQty: false,
   };
 }
 
@@ -112,14 +119,10 @@ function rowFromLoaded(row: CrateImportLoadedRow): ImportRow {
     notes: row.notes,
     status: row.status,
     noReturn: row.noReturn ?? false,
-    persistedKey:
-      row.marketCode &&
-      (row.noReturn ||
-        Object.values(row.quantities).some(
-          (value) => (parseInt(value ?? "0", 10) || 0) > 0
-        ))
-        ? crateImportRowKey(row.truckPlate, row.marketCode)
-        : undefined,
+    awaitingQty: row.awaitingQty ?? false,
+    persistedKey: row.marketCode
+      ? crateImportRowKey(row.truckPlate, row.marketCode)
+      : undefined,
   };
 }
 
@@ -185,6 +188,7 @@ interface ImportRowEditorProps {
   onUpdateQty: (key: string, value: string) => void;
   onRemove: () => void;
   onRemoveDynamicColumn: (name: string) => void;
+  onAddMarketForPlate?: () => void;
   variant: "table-row" | "card";
   inputClass: string;
   selectClass: string;
@@ -199,6 +203,7 @@ function ImportRowEditor({
   onUpdateQty,
   onRemove,
   onRemoveDynamicColumn,
+  onAddMarketForPlate,
   variant,
   inputClass,
   selectClass,
@@ -214,9 +219,11 @@ function ImportRowEditor({
       <input
         type="checkbox"
         checked={row.noReturn}
+        disabled={rowState === "awaiting_qty"}
         onChange={(e) =>
           onUpdate({
             noReturn: e.target.checked,
+            awaitingQty: false,
             quantities: e.target.checked ? emptyQuantities() : row.quantities,
             notes: e.target.checked ? "" : row.notes,
             status: e.target.checked ? "arrived" : row.status,
@@ -228,12 +235,25 @@ function ImportRowEditor({
     </label>
   );
 
+  const addMarketButton =
+    row.truckPlate && onAddMarketForPlate ? (
+      <button
+        type="button"
+        onClick={onAddMarketForPlate}
+        className="mt-1 inline-flex items-center gap-1 rounded border border-dashed border-haidee-border px-2 py-1 text-[11px] font-medium text-haidee-blue hover:bg-haidee-surface"
+      >
+        <Plus className="h-3 w-3" />
+        {t("crateImport.addMarketForPlate")}
+      </button>
+    ) : null;
+
   const stateBadge = (
     <span
       className={cn(
         "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
         rowState === "recorded" && "bg-green-100 text-green-800",
         rowState === "no_return" && "bg-slate-200 text-slate-700",
+        rowState === "awaiting_qty" && "bg-sky-100 text-sky-800",
         rowState === "pending" && "bg-amber-100 text-amber-800"
       )}
     >
@@ -337,6 +357,7 @@ function ImportRowEditor({
           {statusSelect}
           {removeButton}
         </div>
+        {addMarketButton}
 
         <div className="mt-3 space-y-2">
           {TONG_IMPORT_DEFAULT_COLUMNS.map((col) => (
@@ -353,7 +374,7 @@ function ImportRowEditor({
                 inputMode="numeric"
                 value={row.quantities[col.key] ?? ""}
                 onChange={(e) => {
-                  onUpdate({ noReturn: false });
+                  onUpdate({ noReturn: false, awaitingQty: false });
                   onUpdateQty(col.key, e.target.value);
                 }}
                 disabled={qtyDisabled}
@@ -379,7 +400,7 @@ function ImportRowEditor({
                 inputMode="numeric"
                 value={row.quantities[name] ?? ""}
                 onChange={(e) => {
-                  onUpdate({ noReturn: false });
+                  onUpdate({ noReturn: false, awaitingQty: false });
                   onUpdateQty(name, e.target.value);
                 }}
                 disabled={qtyDisabled}
@@ -428,6 +449,7 @@ function ImportRowEditor({
         <div className="space-y-1">
           {plateSelect}
           {stateBadge}
+          {addMarketButton}
         </div>
       </td>
       <td className="px-1 py-1">{marketSelect}</td>
@@ -438,7 +460,7 @@ function ImportRowEditor({
             inputMode="numeric"
             value={row.quantities[col.key] ?? ""}
             onChange={(e) => {
-              onUpdate({ noReturn: false });
+              onUpdate({ noReturn: false, awaitingQty: false });
               onUpdateQty(col.key, e.target.value);
             }}
             disabled={qtyDisabled}
@@ -453,7 +475,7 @@ function ImportRowEditor({
             inputMode="numeric"
             value={row.quantities[name] ?? ""}
             onChange={(e) => {
-              onUpdate({ noReturn: false });
+              onUpdate({ noReturn: false, awaitingQty: false });
               onUpdateQty(name, e.target.value);
             }}
             disabled={qtyDisabled}
@@ -639,6 +661,7 @@ export function TongImportForm({
   const [deletedRowKeys, setDeletedRowKeys] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [selectedColumnCode, setSelectedColumnCode] = useState("");
 
@@ -653,6 +676,7 @@ export function TongImportForm({
       data.rows.length > 0 ? data.rows.map(rowFromLoaded) : [emptyRow()]
     );
     setDeletedRowKeys([]);
+    setSaveMessage(null);
   }
 
   useEffect(() => {
@@ -755,7 +779,49 @@ export function TongImportForm({
   }
 
   function updateRow(id: string, patch: Partial<ImportRow>) {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setRows((prev) => {
+      const row = prev.find((r) => r.id === id);
+      if (
+        row?.persistedKey &&
+        patch.marketCode !== undefined &&
+        patch.marketCode !== parseCrateImportRowKey(row.persistedKey).marketCode
+      ) {
+        setDeletedRowKeys((keys) =>
+          keys.includes(row.persistedKey!) ? keys : [...keys, row.persistedKey!]
+        );
+      }
+
+      return prev.map((r) => {
+        if (r.id !== id) return r;
+        const next = { ...r, ...patch };
+        if (
+          patch.marketCode !== undefined &&
+          r.persistedKey &&
+          patch.marketCode !== parseCrateImportRowKey(r.persistedKey).marketCode
+        ) {
+          next.persistedKey = undefined;
+        }
+        return next;
+      });
+    });
+  }
+
+  function addMarketRowForPlate(plate: string) {
+    if (!plate.trim()) return;
+    const newRow: ImportRow = {
+      ...emptyRow(),
+      truckPlate: plate,
+    };
+    setRows((prev) => {
+      let insertAt = prev.length;
+      for (let i = prev.length - 1; i >= 0; i -= 1) {
+        if (prev[i]?.truckPlate === plate) {
+          insertAt = i + 1;
+          break;
+        }
+      }
+      return [...prev.slice(0, insertAt), newRow, ...prev.slice(insertAt)];
+    });
   }
 
   function updateQty(id: string, key: string, value: string) {
@@ -824,7 +890,7 @@ export function TongImportForm({
           throw new Error(t("crateImport.error.noReturnNeedsMarket"));
         }
 
-        await saveTongImport(
+        const result = await saveTongImport(
           selectedDate,
           rows.map((r) => ({
             truckPlate: r.truckPlate,
@@ -840,6 +906,12 @@ export function TongImportForm({
         applyLoadedImportData(data);
         await refreshInTransit();
         setSuccess(true);
+        setSaveMessage(
+          t("crateImport.saveResult", {
+            saved: String(result.savedCount),
+            skipped: String(result.skippedCount),
+          })
+        );
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : t("error.saveFailed"));
@@ -921,6 +993,7 @@ export function TongImportForm({
                 onUpdateQty={(key, value) => updateQty(row.id, key, value)}
                 onRemove={() => removeRow(row)}
                 onRemoveDynamicColumn={removeDynamicColumn}
+                onAddMarketForPlate={() => addMarketRowForPlate(row.truckPlate)}
                 variant="card"
                 inputClass={inputClass}
                 selectClass={selectClass}
@@ -1002,6 +1075,7 @@ export function TongImportForm({
                     onUpdateQty={(key, value) => updateQty(row.id, key, value)}
                     onRemove={() => removeRow(row)}
                     onRemoveDynamicColumn={removeDynamicColumn}
+                    onAddMarketForPlate={() => addMarketRowForPlate(row.truckPlate)}
                     variant="table-row"
                     inputClass={inputClass}
                     selectClass={selectClass}
@@ -1199,7 +1273,7 @@ export function TongImportForm({
       )}
       {success && (
         <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-haidee-green">
-          {t("crateImport.saveSuccess")}
+          {saveMessage ?? t("crateImport.saveSuccess")}
         </p>
       )}
 

@@ -18,7 +18,6 @@ import {
   type CrateImportRowInput,
 } from "@/app/actions/crateImport";
 import {
-  IMPORT_MARKET_ORDER,
   sortMarketsForImport,
 } from "@/lib/constants/import-markets";
 import { getMarketDisplayName } from "@/lib/constants/market-names";
@@ -50,10 +49,7 @@ export async function getTrucksForImport() {
 
 export async function getMarketsForImport() {
   const markets = await prisma.market.findMany({
-    where: {
-      active: true,
-      code: { in: [...IMPORT_MARKET_ORDER] },
-    },
+    where: { active: true },
     select: { id: true, code: true, name: true },
   });
   return sortMarketsForImport(markets).map((market) => ({

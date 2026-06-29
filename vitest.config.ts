@@ -43,6 +43,7 @@ export default defineConfig({
       "lib/crate-import-rows.test.ts",
       "lib/crate-return-billing.test.ts",
       "lib/driver-payroll-crate-commission.test.ts",
+      "lib/driver-payroll-crate-multi-market.test.ts",
       "lib/driver-payroll-trip-sync.test.ts",
       "lib/payroll-charter-salary.test.ts",
       "lib/charter-payroll-salary.test.ts",

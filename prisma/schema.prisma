@@ -295,6 +295,7 @@ model PayrollAllowanceSettings {
   smallTruckCrateCommission Decimal? @map("small_truck_crate_commission") @db.Decimal(10, 2)
   bpCrateCommissionBigTruck   Decimal? @default(210) @map("bp_crate_commission_big_truck") @db.Decimal(10, 2)
   bpCrateCommissionSmallTruck Decimal? @default(190) @map("bp_crate_commission_small_truck") @db.Decimal(10, 2)
+  crateReturnMultiMarketAllowance Decimal? @default(30) @map("crate_return_multi_market_allowance") @db.Decimal(10, 2)
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
   @@map("payroll_allowance_settings")
@@ -393,6 +394,7 @@ model DriverPayrollTrip {
   tripAllowance         Decimal  @default(0) @map("trip_allowance") @db.Decimal(10, 2)
   extraAllowance        Decimal  @default(0) @map("extra_allowance") @db.Decimal(10, 2)
   crateReturnCommission Decimal  @default(0) @map("crate_return_commission") @db.Decimal(10, 2)
+  crateReturnMultiMarketAllowance Decimal @default(0) @map("crate_return_multi_market_allowance") @db.Decimal(10, 2)
   charterSalary         Decimal  @default(0) @map("charter_salary") @db.Decimal(10, 2)
   truckType             String?  @map("truck_type")
   notes                 String?
