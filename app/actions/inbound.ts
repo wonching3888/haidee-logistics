@@ -21,7 +21,9 @@ import {
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
 import { loadLocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
-import { resolveInboundCrateStockAccount } from "@/lib/inbound-crate-stock-account";
+import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
+import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
+import { buildCustomerCrateStockLedgerNotes } from "@/lib/customer-crate-stock-ledger-notes";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   getStallDisplayLabel,
@@ -150,26 +152,49 @@ async function removeDispatchLinksForLines(
 
 async function applyCrateStockAdjustments(
   adjustments: ReturnType<typeof computeCrateStockAdjustments>,
-  note: string
+  baseNote: string,
+  resolveOperational?: (
+    adjustment: ReturnType<typeof computeCrateStockAdjustments>[number]
+  ) => { id: string; name: string }
 ) {
   const bucketKey = (shipperId: string, location: string) =>
     `${shipperId}:${location}`;
 
   const additionsByBucket = new Map<
     string,
-    { shipperId: string; location: string; items: { crateTypeId: string; quantity: number }[] }
+    {
+      shipperId: string;
+      location: string;
+      note: string;
+      items: { crateTypeId: string; quantity: number }[];
+    }
   >();
   const deductionsByBucket = new Map<
     string,
-    { shipperId: string; location: string; items: { crateTypeId: string; quantity: number }[] }
+    {
+      shipperId: string;
+      location: string;
+      note: string;
+      items: { crateTypeId: string; quantity: number }[];
+    }
   >();
 
   for (const adjustment of adjustments) {
+    const operational = resolveOperational?.(adjustment);
+    const note =
+      buildCustomerCrateStockLedgerNotes({
+        baseNote,
+        operationalShipperId: operational?.id ?? adjustment.shipperId,
+        operationalShipperName: operational?.name,
+        stockAccountShipperId: adjustment.shipperId,
+      }) ?? baseNote;
+
     const key = bucketKey(adjustment.shipperId, adjustment.location);
     if (adjustment.delta > 0) {
       const bucket = additionsByBucket.get(key) ?? {
         shipperId: adjustment.shipperId,
         location: adjustment.location,
+        note,
         items: [],
       };
       bucket.items.push({
@@ -181,6 +206,7 @@ async function applyCrateStockAdjustments(
       const bucket = deductionsByBucket.get(key) ?? {
         shipperId: adjustment.shipperId,
         location: adjustment.location,
+        note,
         items: [],
       };
       bucket.items.push({
@@ -197,7 +223,7 @@ async function applyCrateStockAdjustments(
       bucket.items,
       "inbound-edit",
       bucket.location,
-      note
+      bucket.note
     );
   }
 
@@ -207,7 +233,7 @@ async function applyCrateStockAdjustments(
       bucket.items,
       "inbound-edit",
       bucket.location,
-      note
+      bucket.note
     );
   }
 }
@@ -238,10 +264,11 @@ async function loadTongTypeMap(tongTypeIds: string[]) {
 type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
 
 async function applyInboundCrateDeduction(
-  shipperId: string,
-  location: string,
+  stockAccount: { shipperId: string; location: string },
+  operationalShipper: { id: string; name: string },
   lines: { tongTypeId: string; quantity: number }[],
-  typeMap?: Map<string, TongTypeMeta>
+  typeMap?: Map<string, TongTypeMeta>,
+  baseNote?: string
 ) {
   if (lines.length === 0) return;
 
@@ -253,19 +280,28 @@ async function applyInboundCrateDeduction(
     ([crateTypeId, quantity]) => ({ crateTypeId, quantity })
   );
 
+  const notes = buildCustomerCrateStockLedgerNotes({
+    baseNote,
+    operationalShipperId: operationalShipper.id,
+    operationalShipperName: operationalShipper.name,
+    stockAccountShipperId: stockAccount.shipperId,
+  });
+
   await deductCustomerCratesBatch(
-    shipperId,
+    stockAccount.shipperId,
     deductions,
     "inbound",
-    location?.trim() ?? ""
+    stockAccount.location?.trim() ?? "",
+    notes
   );
 }
 
 async function reverseInboundCrateDeduction(
-  shipperId: string,
-  location: string,
+  stockAccount: { shipperId: string; location: string },
+  operationalShipper: { id: string; name: string },
   lines: { tongTypeId: string; quantity: number }[],
-  typeMap?: Map<string, TongTypeMeta>
+  typeMap?: Map<string, TongTypeMeta>,
+  baseNote?: string
 ) {
   if (lines.length === 0) return;
 
@@ -277,11 +313,19 @@ async function reverseInboundCrateDeduction(
     ([crateTypeId, quantity]) => ({ crateTypeId, quantity })
   );
 
+  const notes = buildCustomerCrateStockLedgerNotes({
+    baseNote,
+    operationalShipperId: operationalShipper.id,
+    operationalShipperName: operationalShipper.name,
+    stockAccountShipperId: stockAccount.shipperId,
+  });
+
   await addCustomerCratesBatch(
-    shipperId,
+    stockAccount.shipperId,
     additions,
     "inbound-delete",
-    location?.trim() ?? ""
+    stockAccount.location?.trim() ?? "",
+    notes
   );
 }
 
@@ -963,13 +1007,16 @@ export async function saveInboundSession(input: SaveInboundInput) {
   );
   const shipper = await prisma.shipper.findUnique({
     where: { id: input.shipperId },
-    select: { pickupLocation: true, currency: true },
+    select: { pickupLocation: true, currency: true, name: true },
   });
   const effectivePickup = resolveSessionPickupLocation(
     sessionPickupLocation,
     shipper?.pickupLocation
   );
-  const poolIds = await loadLocationPoolShipperIds();
+  const [poolIds, agentMembershipByMemberId] = await Promise.all([
+    loadLocationPoolShipperIds(),
+    loadCrateStockAgentMembershipByMemberId(),
+  ]);
   const activeLines = input.lines.filter(
     (l) => l.quantity > 0 && !l.stallId.startsWith("new-")
   );
@@ -1081,7 +1128,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       existing.shipper.pickupLocation,
       existing.pickupLocation,
       existing.areaNote,
-      poolIds
+      poolIds,
+      agentMembershipByMemberId
     );
     const afterBucket = resolveCrateStockBucket(
       date,
@@ -1089,7 +1137,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       afterShipper.pickupLocation,
       sessionPickupLocation,
       input.areaNote,
-      poolIds
+      poolIds,
+      agentMembershipByMemberId
     );
 
     const beforeLinesForCrate =
@@ -1197,18 +1246,34 @@ export async function saveInboundSession(input: SaveInboundInput) {
         afterBucket,
         typeMap,
       });
-      await applyCrateStockAdjustments(adjustments, editNote);
+      await applyCrateStockAdjustments(
+        adjustments,
+        editNote,
+        (adjustment) => {
+          if (
+            adjustment.shipperId === beforeBucket.shipperId &&
+            adjustment.location === beforeBucket.location
+          ) {
+            return {
+              id: beforeSnapshot.shipperId,
+              name: beforeSnapshot.shipperName,
+            };
+          }
+          return { id: afterShipper.id, name: afterShipper.name };
+        }
+      );
     } else if (existing.status === "confirmed" && status === "draft") {
       await reverseInboundCrateDeduction(
-        beforeBucket.shipperId,
-        beforeBucket.location,
+        beforeBucket,
+        { id: beforeSnapshot.shipperId, name: beforeSnapshot.shipperName },
         beforeLinesForCrate,
-        typeMap
+        typeMap,
+        editNote
       );
     } else if (existing.status === "draft" && status === "confirmed") {
       await applyInboundCrateDeduction(
-        afterBucket.shipperId,
-        afterBucket.location,
+        afterBucket,
+        { id: afterShipper.id, name: afterShipper.name },
         allLines,
         typeMap
       );
@@ -1333,17 +1398,21 @@ export async function saveInboundSession(input: SaveInboundInput) {
   }
 
   if (status === "confirmed") {
-    const crateStockAccount = resolveInboundCrateStockAccount({
+    const crateStockAccount = resolveCustomerCrateStockAccount({
       sessionDate: date,
       operationalShipperId: input.shipperId,
       sessionPickupLocation,
       shipperPickupLocation: shipper?.pickupLocation,
       areaNote: input.areaNote,
       poolIds,
+      agentMembershipByMemberId,
     });
     await applyInboundCrateDeduction(
-      crateStockAccount.shipperId,
-      crateStockAccount.location,
+      crateStockAccount,
+      {
+        id: input.shipperId,
+        name: shipper?.name ?? input.shipperId,
+      },
       allLines,
       typeMap
     );
@@ -1367,7 +1436,7 @@ export async function deleteInboundSession(sessionId: string) {
   const session = await prisma.inboundSession.findUnique({
     where: { id: sessionId },
     include: {
-      shipper: { select: { pickupLocation: true } },
+      shipper: { select: { pickupLocation: true, name: true } },
       lines: {
         select: {
           id: true,
@@ -1391,18 +1460,22 @@ export async function deleteInboundSession(sessionId: string) {
   );
 
   if (session.status === "confirmed") {
-    const poolIds = await loadLocationPoolShipperIds();
-    const crateStockAccount = resolveInboundCrateStockAccount({
+    const [poolIds, agentMembershipByMemberId] = await Promise.all([
+      loadLocationPoolShipperIds(),
+      loadCrateStockAgentMembershipByMemberId(),
+    ]);
+    const crateStockAccount = resolveCustomerCrateStockAccount({
       sessionDate: session.date,
       operationalShipperId: session.shipperId,
       sessionPickupLocation: session.pickupLocation,
       shipperPickupLocation: session.shipper.pickupLocation,
       areaNote: session.areaNote,
       poolIds,
+      agentMembershipByMemberId,
     });
     await reverseInboundCrateDeduction(
-      crateStockAccount.shipperId,
-      crateStockAccount.location,
+      crateStockAccount,
+      { id: session.shipperId, name: session.shipper.name },
       session.lines
     );
   }

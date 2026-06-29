@@ -15,6 +15,9 @@ import {
   type CrateExportListRow,
 } from "@/lib/crate-export-list";
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
+import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
+import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
+import { buildCustomerCrateStockLedgerNotes } from "@/lib/customer-crate-stock-ledger-notes";
 import { t } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { UserLanguage } from "@/types";
@@ -235,12 +238,26 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   await prisma.tongExport.createMany({ data: exportRows });
 
   if (crateAdditions.length > 0) {
+    const agentMembershipByMemberId =
+      await loadCrateStockAgentMembershipByMemberId();
+    const stockAccount = resolveCustomerCrateStockAccount({
+      operationalShipperId: input.shipperId,
+      location: customerStockLocation,
+      agentMembershipByMemberId,
+    });
+    const ledgerNotes = buildCustomerCrateStockLedgerNotes({
+      baseNote: exportNo ? `归还 ${exportNo}` : undefined,
+      operationalShipperId: input.shipperId,
+      operationalShipperName: shipper.name,
+      stockAccountShipperId: stockAccount.shipperId,
+    });
+
     await addCustomerCratesBatch(
-      input.shipperId,
+      stockAccount.shipperId,
       crateAdditions,
       "export",
-      customerStockLocation,
-      exportNo ? `归还 ${exportNo}` : undefined
+      stockAccount.location,
+      ledgerNotes
     );
   }
 
@@ -260,29 +277,48 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   };
 }
 
+async function resolveCrateExportStockAccount(
+  exportNo: string,
+  operationalShipperId: string,
+  fallbackLocation: string
+): Promise<{ shipperId: string; location: string }> {
+  const trimmed = exportNo.trim();
+  if (trimmed) {
+    const ledger = await prisma.customerCrateLedger.findFirst({
+      where: {
+        changeType: "export",
+        notes: { contains: trimmed },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { shipperId: true, location: true },
+    });
+    if (ledger) {
+      return { shipperId: ledger.shipperId, location: ledger.location };
+    }
+  }
+
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: operationalShipperId },
+    select: { code: true },
+  });
+  const poolLoc = shipper ? stockLocationForPoolShipperCode(shipper.code) : null;
+  const location = poolLoc ?? fallbackLocation;
+
+  const agentMembershipByMemberId =
+    await loadCrateStockAgentMembershipByMemberId();
+  return resolveCustomerCrateStockAccount({
+    operationalShipperId,
+    location,
+    agentMembershipByMemberId,
+  });
+}
+
 async function resolveCrateExportStockLocation(
   exportNo: string,
   shipperId: string
 ): Promise<string> {
-  const shipper = await prisma.shipper.findUnique({
-    where: { id: shipperId },
-    select: { code: true },
-  });
-  if (!shipper) return "";
-
-  const poolLoc = stockLocationForPoolShipperCode(shipper.code);
-  if (poolLoc) return poolLoc;
-
-  const ledger = await prisma.customerCrateLedger.findFirst({
-    where: {
-      shipperId,
-      changeType: "export",
-      notes: `归还 ${exportNo}`,
-    },
-    select: { location: true },
-  });
-
-  return ledger?.location ?? "";
+  const account = await resolveCrateExportStockAccount(exportNo, shipperId, "");
+  return account.location;
 }
 
 async function reverseCrateExportInternal(
@@ -307,8 +343,16 @@ async function reverseCrateExportInternal(
     throw new Error(t("crateExport.error.notFound", locale));
   }
 
-  const shipperId = rows[0].shipperId;
-  const location = await resolveCrateExportStockLocation(trimmed, shipperId);
+  const operationalShipperId = rows[0].shipperId;
+  const operationalShipper = await prisma.shipper.findUnique({
+    where: { id: operationalShipperId },
+    select: { name: true },
+  });
+  const stockAccount = await resolveCrateExportStockAccount(
+    trimmed,
+    operationalShipperId,
+    ""
+  );
 
   const deductions = rows
     .filter((row) => row.quantityActual > 0)
@@ -318,12 +362,19 @@ async function reverseCrateExportInternal(
     }));
 
   if (deductions.length > 0) {
+    const ledgerNotes = buildCustomerCrateStockLedgerNotes({
+      baseNote: `作废 ${trimmed}`,
+      operationalShipperId,
+      operationalShipperName: operationalShipper?.name,
+      stockAccountShipperId: stockAccount.shipperId,
+    });
+
     await deductCustomerCratesBatch(
-      shipperId,
+      stockAccount.shipperId,
       deductions,
       "export_void",
-      location,
-      `作废 ${trimmed}`
+      stockAccount.location,
+      ledgerNotes
     );
   }
 

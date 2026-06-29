@@ -4,9 +4,9 @@ import {
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
 import {
-  resolveInboundCrateStockAccount,
-  type InboundCrateStockAccount,
-} from "@/lib/inbound-crate-stock-account";
+  resolveCustomerCrateStockAccount,
+  type CustomerCrateStockAccount,
+} from "@/lib/customer-crate-stock-account";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 
 type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
@@ -202,15 +202,19 @@ export function resolveCrateStockBucket(
   shipperPickupLocation: string | null | undefined,
   sessionPickupLocation: string | null | undefined,
   areaNote: string | null | undefined,
-  poolIds: LocationPoolShipperIds
-): InboundCrateStockAccount {
-  return resolveInboundCrateStockAccount({
+  poolIds: LocationPoolShipperIds,
+  agentMembershipByMemberId?:
+    | ReadonlyMap<string, string>
+    | Record<string, string>
+): CustomerCrateStockAccount {
+  return resolveCustomerCrateStockAccount({
     sessionDate,
     operationalShipperId,
     sessionPickupLocation,
     shipperPickupLocation,
     areaNote,
     poolIds,
+    agentMembershipByMemberId,
   });
 }
 
