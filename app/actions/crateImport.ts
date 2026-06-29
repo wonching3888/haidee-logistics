@@ -236,7 +236,10 @@ export async function loadInTransitCrateImports() {
   const imports = await prisma.tongImport.findMany({
     where: {
       status: "on_the_way",
-      NOT: { notes: CRATE_IMPORT_PENDING_QTY_NOTE },
+      OR: [
+        { notes: null },
+        { notes: { not: CRATE_IMPORT_PENDING_QTY_NOTE } },
+      ],
     },
     include: tongImportInclude,
     orderBy: [{ date: "desc" }, { createdAt: "asc" }],
