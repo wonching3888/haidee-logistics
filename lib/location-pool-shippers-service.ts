@@ -3,6 +3,7 @@ import {
   LOCATION_POOL_SHIPPER_LIST,
   stockLocationForPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
+import { SHIPPER_KIND } from "@/lib/constants/shipper-kind";
 import type { PICKUP_CRATE_STOCK_LOCATIONS } from "@/lib/constants/pickup-locations";
 
 export type LocationPoolShipperIds = Record<
@@ -19,11 +20,13 @@ export async function ensureLocationPoolShippersForStock() {
         code: spec.code,
         name: spec.name,
         pickupLocation: spec.pickupLocation,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
         active: true,
       },
       update: {
         name: spec.name,
         pickupLocation: spec.pickupLocation,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
         active: true,
       },
       select: { id: true, code: true, name: true },

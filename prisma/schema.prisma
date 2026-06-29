@@ -24,6 +24,8 @@ model User {
   tongExports     TongExport[]
   tongStockAdjustments TongStockAdjustment[]
   inboundChangeLogs InboundChangeLog[]
+  crateStockAgentMembersJoined CrateStockAgentMember[]
+  crateStockAgentMembershipLogs CrateStockAgentMembershipLog[]
 
   @@map("users")
 }
@@ -121,7 +123,7 @@ model Shipper {
   paymentParty     String   @default("shipper") @map("payment_party")
   company          String   @default("haidee")
   currency         String   @default("THB")
-  /// operational | logistics_partner — partners are bill-to only, excluded from inbound.
+  /// operational | logistics_partner | crate_stock_agent — agents hold pooled crate stock.
   shipperKind      String   @default("operational") @map("shipper_kind")
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
@@ -140,6 +142,10 @@ model Shipper {
   partnerTripInvoices  PartnerTripInvoice[]  @relation("PartnerTripBillTo")
   crateReturnFreightRates   CrateReturnFreightRate[]   @relation("CrateReturnFreightBillTo")
   crateReturnMonthlyInvoices CrateReturnMonthlyInvoice[] @relation("CrateReturnMonthlyBillTo")
+  crateStockAgentMembership   CrateStockAgentMember?  @relation("CrateStockAgentMember")
+  crateStockAgentMembers      CrateStockAgentMember[] @relation("CrateStockAgentAgent")
+  crateStockAgentMembershipLogsAsAgent  CrateStockAgentMembershipLog[] @relation("MembershipLogAgent")
+  crateStockAgentMembershipLogsAsMember CrateStockAgentMembershipLog[] @relation("MembershipLogMember")
 
   @@map("shippers")
 }
@@ -922,6 +928,40 @@ model CustomerCrateLedger {
   crateType TongType @relation(fields: [crateTypeId], references: [id])
 
   @@map("customer_crate_ledger")
+}
+
+model CrateStockAgentMember {
+  id              String   @id @default(uuid()) @db.Uuid
+  agentShipperId  String   @map("agentShipperId") @db.Uuid
+  memberShipperId String   @unique @map("memberShipperId") @db.Uuid
+  joinedAt        DateTime @default(now()) @map("joinedAt")
+  joinedById      String?  @map("joinedById") @db.Uuid
+
+  agentShipper  Shipper @relation("CrateStockAgentAgent", fields: [agentShipperId], references: [id])
+  memberShipper Shipper @relation("CrateStockAgentMember", fields: [memberShipperId], references: [id])
+  joinedBy      User?   @relation(fields: [joinedById], references: [id])
+
+  @@index([agentShipperId])
+  @@map("crate_stock_agent_members")
+}
+
+model CrateStockAgentMembershipLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  action          String
+  agentShipperId  String   @map("agentShipperId") @db.Uuid
+  memberShipperId String   @map("memberShipperId") @db.Uuid
+  userId          String?  @map("userId") @db.Uuid
+  stockSnapshot   Json?    @map("stockSnapshot")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("createdAt")
+
+  agentShipper  Shipper @relation("MembershipLogAgent", fields: [agentShipperId], references: [id])
+  memberShipper Shipper @relation("MembershipLogMember", fields: [memberShipperId], references: [id])
+  user          User?   @relation(fields: [userId], references: [id])
+
+  @@index([agentShipperId, memberShipperId])
+  @@index([createdAt])
+  @@map("crate_stock_agent_membership_logs")
 }
 
 // ─── Driver Expense Module ─────────────────────────────────────────────────────

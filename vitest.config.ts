@@ -8,6 +8,7 @@ export default defineConfig({
     include: [
       "lib/number-format.test.ts",
       "lib/inbound-crate-stock-account.test.ts",
+      "lib/customer-crate-stock-account.test.ts",
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",
       "lib/sadao-stock.test.ts",

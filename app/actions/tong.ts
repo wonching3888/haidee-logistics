@@ -25,7 +25,10 @@ import { getMarketDisplayName } from "@/lib/constants/market-names";
 import {
   LOCATION_POOL_SHIPPER_LIST,
 } from "@/lib/constants/location-pool-shippers";
-import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
+import {
+  OPERATIONAL_SHIPPER_WHERE,
+  SHIPPER_KIND,
+} from "@/lib/constants/shipper-kind";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import {
   saveCrateExport,
@@ -116,11 +119,13 @@ export async function ensureLocationPoolShippers() {
         code: spec.code,
         name: spec.name,
         pickupLocation: spec.pickupLocation,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
         active: true,
       },
       update: {
         name: spec.name,
         pickupLocation: spec.pickupLocation,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
         active: true,
       },
       select: { id: true, code: true, name: true },
