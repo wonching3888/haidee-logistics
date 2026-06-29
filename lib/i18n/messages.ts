@@ -201,6 +201,11 @@ export const MESSAGES = {
     en: "Invoice Collections",
     th: "เก็บเงินใบแจ้งหนี้",
   },
+  "nav.autocountExport": {
+    zh: "AutoCount 导出",
+    en: "AutoCount Export",
+    th: "ส่งออก AutoCount",
+  },
   "invoiceCollections.title": {
     zh: "Invoice 收账",
     en: "Invoice Collections",

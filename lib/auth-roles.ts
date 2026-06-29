@@ -190,6 +190,16 @@ export function canExportPayrollJv(role: StoredUserRole): boolean {
   return canWriteDriverPayroll(role);
 }
 
+/** admin/my only — AR Invoice CSV export (same gate as payroll JV). */
+export function canExportArInvoice(role: StoredUserRole): boolean {
+  return canExportPayrollJv(role);
+}
+
+/** admin/my only — AutoCount export hub (AR + payroll JV). */
+export function canAccessAutocountExport(role: StoredUserRole): boolean {
+  return canExportArInvoice(role);
+}
+
 /** admin/my ✓ · all others ✗ · legacy accounting ✓ */
 export function canViewDriverPayroll(role: StoredUserRole): boolean {
   switch (role) {

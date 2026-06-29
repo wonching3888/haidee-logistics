@@ -55,7 +55,8 @@ export interface ArInvoiceAmountSource {
   month: number;
   /** Charter only — ISO date YYYY-MM-DD */
   tripDate?: string;
-  amountMyr: number;
+  amount: number;
+  currency: "THB" | "MYR";
 }
 
 /**
@@ -163,6 +164,7 @@ export interface BuildArInvoiceRowInput {
   year: number;
   month: number;
   tripDate?: string;
+  currency?: "THB" | "MYR" | "";
 }
 
 /** Assemble one AutoCount AR import row from export rules (Batch 1 — amount passed in). */
@@ -181,7 +183,7 @@ export function buildArInvoiceRow(input: BuildArInvoiceRowInput): ArInvoiceRow {
     refNo2: "",
     detailDescription: "",
     toAccountRate: "",
-    currency: "",
+    currency: input.currency ?? "",
     taxableAmt: "",
   };
 }

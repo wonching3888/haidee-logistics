@@ -61,6 +61,7 @@ export default defineConfig({
       "lib/payroll-jv-accounts.test.ts",
       "lib/payroll-jv-export.test.ts",
       "lib/ar-invoice-export/ar-invoice-export.test.ts",
+      "lib/ar-invoice-export/ar-invoice-freight-export.test.ts",
     ],
   },
   resolve: {
