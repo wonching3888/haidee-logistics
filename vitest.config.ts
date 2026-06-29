@@ -60,6 +60,7 @@ export default defineConfig({
       "lib/invoice-payments-delete.integration.test.ts",
       "lib/payroll-jv-accounts.test.ts",
       "lib/payroll-jv-export.test.ts",
+      "lib/ar-invoice-export/ar-invoice-export.test.ts",
     ],
   },
   resolve: {
