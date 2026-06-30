@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDisplay } from "@/lib/date-utils";
 import { toDateInputValue } from "@/lib/inbound-utils";
+import type { CrateExportPrefillTarget } from "@/lib/crate-export-due-today";
 
 interface ShipperOption {
   id: string;
@@ -51,6 +52,9 @@ interface TongExportFormProps {
   mode?: "create" | "edit";
   exportNo?: string;
   initialData?: CrateExportEditData;
+  prefill?: CrateExportPrefillTarget | null;
+  prefillToken?: number;
+  extraShipper?: ShipperOption | null;
 }
 
 export function TongExportForm({
@@ -59,6 +63,9 @@ export function TongExportForm({
   mode = "create",
   exportNo,
   initialData,
+  prefill,
+  prefillToken = 0,
+  extraShipper,
 }: TongExportFormProps) {
   const router = useRouter();
   const { t, parts } = useT();
@@ -77,7 +84,12 @@ export function TongExportForm({
   const [lines, setLines] = useState<ExportLineState[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedShipper = shippers.find((s) => s.id === shipperId);
+  const shipperOptions =
+    extraShipper && !shippers.some((s) => s.id === extraShipper.id)
+      ? [...shippers, extraShipper]
+      : shippers;
+
+  const selectedShipper = shipperOptions.find((s) => s.id === shipperId);
   const poolStockLocation = selectedShipper
     ? stockLocationForPoolShipperCode(selectedShipper.code)
     : null;
@@ -90,6 +102,14 @@ export function TongExportForm({
     initialData?.shipperName ??
     selectedShipper?.name ??
     "";
+
+  useEffect(() => {
+    if (!prefill || prefillToken === 0 || isEdit) return;
+    setDate(prefill.date);
+    setShipperId(prefill.shipperId);
+    setLocation(prefill.location);
+    setAreaNote(prefill.areaNote);
+  }, [prefill, prefillToken, isEdit]);
 
   useEffect(() => {
     if (!shipperId) {
@@ -307,7 +327,7 @@ export function TongExportForm({
               className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
             >
               <option value="">{t("inbound.selectConsignor")}</option>
-              {shippers.map((s) => (
+              {shipperOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>

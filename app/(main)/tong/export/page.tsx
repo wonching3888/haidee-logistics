@@ -3,8 +3,11 @@ import {
   getShippersForExport,
   getTongTypesForExport,
 } from "@/app/actions/tong";
-import { listCrateExportsForDate } from "@/app/actions/crateExport";
-import { TongExportForm } from "@/components/tong/TongExportForm";
+import {
+  getCrateExportDueToday,
+  listCrateExportsForDate,
+} from "@/app/actions/crateExport";
+import { CrateExportWorkbench } from "@/components/tong/CrateExportWorkbench";
 import { CrateExportDateFilter } from "@/components/tong/CrateExportDateFilter";
 import { CrateExportListTable } from "@/components/tong/CrateExportListTable";
 import { CrateExportUpdatedBanner } from "@/components/tong/CrateExportUpdatedBanner";
@@ -28,10 +31,11 @@ export default async function TongExportPage({
   const locale = user?.language ?? "zh";
 
   try {
-    const [shippers, tongTypes, exports] = await Promise.all([
+    const [shippers, tongTypes, exports, dueToday] = await Promise.all([
       getShippersForExport(),
       getTongTypesForExport(),
       listCrateExportsForDate(listDate),
+      getCrateExportDueToday(),
     ]);
 
     return (
@@ -45,7 +49,11 @@ export default async function TongExportPage({
           </p>
         </div>
 
-        <TongExportForm shippers={shippers} tongTypes={tongTypes} />
+        <CrateExportWorkbench
+          dueToday={dueToday}
+          shippers={shippers}
+          tongTypes={tongTypes}
+        />
 
         <section className="space-y-4">
           <div>

@@ -189,3 +189,24 @@ export function getDefaultInboundDate(): Date {
 export function getDefaultDispatchDate(): Date {
   return getDefaultBusinessDate({ cutoffHour: 18 });
 }
+
+/** Calendar today in Thailand (Asia/Bangkok UTC+7), as yyyy-MM-dd — no 18:00 cutoff. */
+export function getBangkokTodayDateInput(now: Date = new Date()): string {
+  const { year, month, day } = getZonedDateParts(now, DISPLAY_TIMEZONE);
+  return format(calendarDateUTC(year, month, day), ISO_DATE_FORMAT);
+}
+
+/** UTC bounds [start, end) for a Bangkok calendar day (for createdAt filters). */
+export function getBangkokDayUtcRange(dateInput: string): {
+  start: Date;
+  end: Date;
+} {
+  const d = parseDateInput(dateInput);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  return {
+    start: new Date(Date.UTC(y, m, day - 1, 17, 0, 0, 0)),
+    end: new Date(Date.UTC(y, m, day, 17, 0, 0, 0)),
+  };
+}

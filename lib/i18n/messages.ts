@@ -1486,6 +1486,51 @@ export const MESSAGES = {
     en: "TH vehicle empty crate return & receipt",
     th: "บันทึกคืนลังเปล่าของรถไทยและพิมพ์ใบรับ",
   },
+  "crateExport.dueTodayTitle": {
+    zh: "今天待归还",
+    en: "Due Today",
+    th: "คืนลังวันนี้",
+  },
+  "crateExport.dueTodayHint": {
+    zh: "泰国时间 {date} · 今日来货该还 − 今日已还 = 欠（不跨日累计）· 点击行直接归还",
+    en: "Bangkok {date} · today's inbound due − returned = owed (no carry-over) · click a row to export",
+    th: "เวลาไทย {date} · มาวันนี้ − คืนวันนี้ = ค้าง (ไม่ยกยอด) · คลิกแถวเพื่อคืนลัง",
+  },
+  "crateExport.dueTodayEmpty": {
+    zh: "今天暂无待归还",
+    en: "No pending returns today",
+    th: "วันนี้ไม่มีลังค้างคืน",
+  },
+  "crateExport.dueTodayDue": {
+    zh: "该还",
+    en: "Due",
+    th: "ต้องคืน",
+  },
+  "crateExport.dueTodayReturned": {
+    zh: "已还",
+    en: "Returned",
+    th: "คืนแล้ว",
+  },
+  "crateExport.dueTodayOwed": {
+    zh: "欠",
+    en: "Owed",
+    th: "ค้าง",
+  },
+  "crateExport.dueTodayAgentBadge": {
+    zh: "代理",
+    en: "Agent",
+    th: "ตัวแทน",
+  },
+  "crateExport.dueTodayPoolBadge": {
+    zh: "池",
+    en: "Pool",
+    th: "พูล",
+  },
+  "crateExport.dueTodayExpandMembers": {
+    zh: "展开旗下客户",
+    en: "Expand members",
+    th: "ขยายลูกค้าในกลุ่ม",
+  },
   "crateExport.todayReturns": {
     zh: "今日归还单",
     en: "Today's Returns",
