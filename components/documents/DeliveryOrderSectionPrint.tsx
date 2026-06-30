@@ -9,7 +9,7 @@ import {
   flattenAreaGroupRows,
   GroupedAreaTruckRows,
 } from "@/components/documents/GroupedAreaTruckRows";
-import { externalDoColumnPercents } from "@/lib/documents/external-do-column-widths";
+import { externalDoColumnWidths } from "@/lib/documents/external-do-column-widths";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 
 /** Handwritten on paper after print — never bind inbound/session fields here. */
@@ -40,7 +40,7 @@ export function DeliveryOrderSectionPrint({
   const totalColSpan = colsBeforeCrates + activeColumns.length + 2;
   const isExternal = !showConsignor;
   const colWidths = isExternal
-    ? externalDoColumnPercents(activeColumns.length)
+    ? externalDoColumnWidths(activeColumns.length)
     : null;
   let rowNo = 0;
 
@@ -67,20 +67,20 @@ export function DeliveryOrderSectionPrint({
       <table className="do-table" style={{ marginTop: 12 }}>
         {colWidths ? (
           <colgroup>
-            <col style={{ width: `${colWidths.no}%` }} />
+            <col style={{ width: colWidths.no }} />
             {showConsignor ? (
               <col style={{ width: "10%" }} />
             ) : null}
-            <col style={{ width: `${colWidths.store}%` }} />
-            <col style={{ width: `${colWidths.area}%` }} />
+            <col style={{ width: colWidths.store }} />
+            <col style={{ width: colWidths.area }} />
             {activeColumns.map((column) => (
               <col
                 key={column.code}
-                style={{ width: `${colWidths.crateEach}%` }}
+                style={{ width: colWidths.crateEach }}
               />
             ))}
-            <col style={{ width: `${colWidths.qty}%` }} />
-            <col style={{ width: `${colWidths.remarks}%` }} />
+            <col style={{ width: colWidths.qty }} />
+            <col />
           </colgroup>
         ) : null}
         <thead>

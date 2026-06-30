@@ -1,24 +1,25 @@
-/** External D/O print column width percentages (no consignor column). */
-export function externalDoColumnPercents(crateColumnCount: number) {
-  const remarks = 40;
-  const store = 14;
-  const qty = 10;
-  const no = 4;
-  const area = 5;
-  const crateTotal = Math.max(100 - remarks - store - qty - no - area, 12);
-  const crateEach =
-    crateColumnCount > 0 ? crateTotal / crateColumnCount : crateTotal;
-  return { no, store, area, crateEach, qty, remarks };
+/** Fixed print widths for non-remarks columns; remarks col fills remaining table width. */
+export const EXTERNAL_DO_FIXED_COL_MM = {
+  no: 8,
+  store: 28,
+  area: 10,
+  crateEach: 7,
+  qty: 14,
+} as const;
+
+export function externalDoColumnWidths(crateColumnCount: number) {
+  void crateColumnCount;
+  return {
+    no: `${EXTERNAL_DO_FIXED_COL_MM.no}mm`,
+    store: `${EXTERNAL_DO_FIXED_COL_MM.store}mm`,
+    area: `${EXTERNAL_DO_FIXED_COL_MM.area}mm`,
+    crateEach: `${EXTERNAL_DO_FIXED_COL_MM.crateEach}mm`,
+    qty: `${EXTERNAL_DO_FIXED_COL_MM.qty}mm`,
+  };
 }
 
-export function externalDoColumnTotalPercent(crateColumnCount: number): number {
-  const w = externalDoColumnPercents(crateColumnCount);
-  return (
-    w.no +
-    w.store +
-    w.area +
-    w.crateEach * crateColumnCount +
-    w.qty +
-    w.remarks
-  );
+/** Sum of fixed non-remarks column widths in mm (remarks = content width − this). */
+export function externalDoFixedColumnsWidthMm(crateColumnCount: number): number {
+  const { no, store, area, crateEach, qty } = EXTERNAL_DO_FIXED_COL_MM;
+  return no + store + area + crateEach * crateColumnCount + qty;
 }

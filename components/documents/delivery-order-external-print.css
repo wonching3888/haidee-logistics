@@ -6,6 +6,14 @@
 .delivery-order-document.delivery-order-external {
   font-size: 12pt;
   line-height: 1.45;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.delivery-order-document.delivery-order-external .delivery-order-print-section {
+  width: 100%;
+  max-width: 100%;
 }
 
 .delivery-order-document.delivery-order-external .header-row {
@@ -37,21 +45,24 @@
   background: #d1d5db;
 }
 
-.delivery-order-document.delivery-order-external .do-no-col,
-.delivery-order-document.delivery-order-external .do-area-col {
+.delivery-order-document.delivery-order-external .do-no-col {
   font-size: 11pt;
   font-weight: 700;
+  text-align: center;
   width: auto;
   min-width: 0;
   max-width: none;
 }
 
+.delivery-order-document.delivery-order-external .do-area-col,
 .delivery-order-document.delivery-order-external .do-crate-col {
   font-size: 11pt;
   font-weight: 700;
-  width: auto;
   min-width: 0;
   max-width: none;
+}
+
+.delivery-order-document.delivery-order-external .do-crate-col {
   padding: 9px 2px;
 }
 
@@ -63,6 +74,9 @@
 }
 
 .delivery-order-document.delivery-order-external .do-remarks-col {
+  width: auto;
+  min-width: 0;
+  max-width: none;
   font-size: 12pt;
   font-weight: 700;
   text-align: left;
@@ -117,9 +131,37 @@
 }
 
 @media print {
+  .delivery-order-document.delivery-order-external:not(.delivery-order-landscape) {
+    page: delivery-order-external-portrait;
+  }
+
+  .delivery-order-document.delivery-order-external.delivery-order-landscape {
+    page: delivery-order-external-landscape;
+  }
+
+  @page delivery-order-external-portrait {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+
+  @page delivery-order-external-landscape {
+    size: A4 landscape;
+    margin: 5mm;
+  }
+
   .delivery-order-document.delivery-order-external {
     font-size: 12pt;
     font-weight: 700 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .delivery-order-document.delivery-order-external .delivery-order-print-section table.do-table {
@@ -151,15 +193,19 @@
     background: #9ca3af !important;
   }
 
+  /* Respect colgroup fixed widths; only lift base max-width caps so table fills page. */
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-no-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-store-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-area-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-crate-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-qty-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-remarks-col {
-    width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-no-col {
+    text-align: center !important;
   }
 
   .delivery-order-document.delivery-order-external .delivery-order-print-section tr.do-data-row {
