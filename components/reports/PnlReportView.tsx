@@ -929,12 +929,12 @@ export function PnlReportView({
                       参考指标 Reference Metric
                     </h4>
                     <p className="mt-1 text-xs leading-relaxed text-haidee-muted">
-                      上方贡献毛利已按趟计入司机津贴（路线 / 多市场 / 回桶提成）。本指标仅再扣全月车队成本中尚未按趟计入的部分（底薪 + 雇主供款 + 津贴差额），不重复扣已摊津贴。计算 = 贡献毛利 −（全月车队成本 − 已按趟津贴）。不等于会计净利润；包车司机薪、Office 等固定费用不在此列。
+                      上方贡献毛利已按趟计入司机津贴（路线 / 多市场 / 回桶提成）。本指标仅再扣全月车队成本中尚未按趟计入的部分（底薪 + 法定代扣 + 雇主供款 + 津贴差额），不重复扣已摊津贴。计算 = 贡献毛利 −（全月车队成本 − 已按趟津贴）。不等于会计净利润；Office 等固定费用不在此列。
                     </p>
                     <dl className="mt-4 space-y-3">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 pb-2">
                         <dt className="text-sm text-haidee-muted">
-                          全月车队成本（实发 + 雇主）Fleet Payroll (net + employer)
+                          全月车队成本（应发 + 雇主）Fleet Payroll (gross + employer)
                         </dt>
                         <dd className="font-mono text-base font-semibold text-haidee-text">
                           {formatMyr(periodData.periodSummary.fleetPayrollTotalMyr)} MYR

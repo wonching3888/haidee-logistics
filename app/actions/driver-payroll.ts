@@ -171,9 +171,10 @@ export async function getDriverPayrollMonthlySummary(input: {
     month: input.month,
     rows: aggregate.rows,
     totals: aggregate.totals,
+    grossMyr: aggregate.grossMyr,
     netMyr: aggregate.netMyr,
     employerMyr: aggregate.employerMyr,
-    totalCostMyr: aggregate.driverTotalCostMyr,
+    totalCostMyr: aggregate.totalCostMyr,
     companyPayrollCostMyr: aggregate.totalCostMyr,
     hasRecords: aggregate.hasRecords,
   };

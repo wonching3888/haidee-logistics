@@ -69,11 +69,12 @@ export interface DriverPayrollSummaryRow {
 export interface FleetPayrollAggregate {
   rows: DriverPayrollSummaryRow[];
   totals: Omit<DriverPayrollSummaryRow, "driverId" | "hasMonthRecord">;
+  grossMyr: number;
   netMyr: number;
   employerMyr: number;
-  /** Company-cost payroll (net + employer). Used by ops/P&L. */
+  /** Full company payroll cost (gross + employer). SSOT via payrollCompanyCostMyr. */
   totalCostMyr: number;
-  /** Full driver payroll cost incl. charter salary + statutory on it. For driver payroll UI. */
+  /** Same as totalCostMyr (per-driver payrollCompanyCostMyr sum). */
   driverTotalCostMyr: number;
   hasRecords: boolean;
 }
@@ -183,9 +184,10 @@ export function buildCompanyPayrollSummaryFromRecords(input: {
   });
 }
 
+/** Single source of truth: accounting full company driver payroll cost. */
 export function payrollCompanyCostMyr(summary: PayrollSummary) {
   return roundMoney(
-    summary.netSalary +
+    summary.grossSalary +
       summary.statutory.epfEmployer +
       summary.statutory.socsoEmployer +
       summary.statutory.eisEmployer
@@ -288,9 +290,9 @@ export function aggregateFleetPayrollRows(
     employerContributionTotal: roundMoney(totals.employerContributionTotal),
   };
 
+  const grossMyr = roundedTotals.grossSalary;
   const netMyr = roundedTotals.netSalary;
   const employerMyr = roundedTotals.employerContributionTotal;
-  const driverTotalCostMyr = roundMoney(netMyr + employerMyr);
   const totalCostMyr = roundMoney(
     rows.reduce(
       (sum, row) => sum + (companyCostByDriverId.get(row.driverId) ?? 0),
@@ -301,10 +303,11 @@ export function aggregateFleetPayrollRows(
   return {
     rows,
     totals: roundedTotals,
+    grossMyr,
     netMyr,
     employerMyr,
     totalCostMyr,
-    driverTotalCostMyr,
+    driverTotalCostMyr: totalCostMyr,
     hasRecords: rows.length > 0 && rows.every((row) => row.hasMonthRecord),
   };
 }

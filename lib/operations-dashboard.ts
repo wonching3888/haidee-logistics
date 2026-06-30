@@ -181,6 +181,7 @@ export function buildOperationsDashboardMetrics(input: {
     warningSamples: OperationsIncomeWarningSample[];
   };
   payroll: {
+    grossMyr: number;
     netMyr: number;
     employerMyr: number;
     totalMyr: number;
@@ -336,7 +337,7 @@ export function buildOperationsDashboardMetrics(input: {
       labelEn: "Driver Payroll",
       amountMyr: input.payroll.totalMyr,
       source: input.payroll.hasRecords ? "actual" : "estimate",
-      detail: `实发 ${input.payroll.netMyr.toFixed(2)} + 雇主供款 ${input.payroll.employerMyr.toFixed(2)}`,
+      detail: `应发 ${input.payroll.grossMyr.toFixed(2)} + 雇主供款 ${input.payroll.employerMyr.toFixed(2)}`,
     },
     {
       key: "fuel",

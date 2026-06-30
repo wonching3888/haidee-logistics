@@ -57,6 +57,37 @@ describe("charterSalary in payroll gross", () => {
   });
 });
 
+describe("payrollCompanyCostMyr (SSOT)", () => {
+  it("equals gross salary plus employer statutory (not net + employer)", () => {
+    const summary = buildDriverPayrollSummaryFromRecords({
+      driver: { ...driver, baseSalary: 1700 },
+      trips: [
+        {
+          tripAllowance: 180,
+          charterSalary: 0,
+          extraAllowance: 0,
+          crateReturnCommission: 50,
+        },
+      ],
+      extras: [],
+    });
+
+    const expected = Math.round(
+      (summary.grossSalary +
+        summary.statutory.epfEmployer +
+        summary.statutory.socsoEmployer +
+        summary.statutory.eisEmployer) *
+        100
+    ) / 100;
+
+    expect(payrollCompanyCostMyr(summary)).toBe(expected);
+    expect(summary.netSalary).toBeLessThan(summary.grossSalary);
+    expect(payrollCompanyCostMyr(summary)).toBeGreaterThan(
+      summary.netSalary + summary.statutory.epfEmployer + summary.statutory.socsoEmployer + summary.statutory.eisEmployer
+    );
+  });
+});
+
 describe("company payroll includes charterSalary (Step 2+3)", () => {
   it("includes charterSalary in company gross and totalCostMyr", () => {
     const trips = [

@@ -56,7 +56,11 @@ export function DriverPayrollSummaryTable({ data }: DriverPayrollSummaryTablePro
               {money(data.totalCostMyr)} MYR
             </span>
             <span className="ml-2 text-xs">
-              （实发 {money(data.netMyr)} + 雇主 {money(data.employerMyr)}）
+              （应发 {money(data.grossMyr)} + 雇主 {money(data.employerMyr)}）
+            </span>
+            <span className="mt-1 block text-xs text-haidee-muted">
+              现金类参考：实发 {money(data.netMyr)} + 雇主 {money(data.employerMyr)} ={" "}
+              {money(data.netMyr + data.employerMyr)} MYR（不含员工代扣上缴）
             </span>
           </p>
         </div>

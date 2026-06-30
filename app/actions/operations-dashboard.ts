@@ -102,6 +102,7 @@ async function aggregateMcThirdParty(year: number, month: number) {
 async function aggregateFleetPayroll(year: number, month: number) {
   const payroll = await loadFleetPayrollAggregate(year, month, { sync: false });
   return {
+    grossMyr: payroll.grossMyr,
     netMyr: payroll.netMyr,
     employerMyr: payroll.employerMyr,
     totalMyr: payroll.totalCostMyr,
