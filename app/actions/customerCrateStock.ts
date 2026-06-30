@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireCustomerCrateStockEdit } from "@/lib/customer-crate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
 import { CUSTOMER_CRATE_STOCK_LIST_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
@@ -219,7 +220,7 @@ export async function updateCustomerCrateStock(
   location: string,
   notes?: string
 ) {
-  await requireWrite();
+  await requireCustomerCrateStockEdit();
 
   const loc = normalizeLocation(location);
 

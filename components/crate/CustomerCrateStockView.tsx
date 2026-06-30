@@ -55,7 +55,7 @@ interface CustomerCrateStockViewProps {
   pickupLocationSummaries: PickupLocationStockSummary[];
   assignedMemberHints: AssignedMemberSearchHint[];
   initialSearch: string;
-  isAdmin: boolean;
+  canEditCustomerCrateStock: boolean;
 }
 
 function qtyClass(qty: number) {
@@ -86,7 +86,7 @@ export function CustomerCrateStockView({
   pickupLocationSummaries,
   assignedMemberHints,
   initialSearch,
-  isAdmin,
+  canEditCustomerCrateStock,
 }: CustomerCrateStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -334,7 +334,7 @@ export function CustomerCrateStockView({
         >
           {t("inbound.searchButton")}
         </Button>
-        {isAdmin ? (
+        {canEditCustomerCrateStock ? (
           <Button
             type="button"
             variant="outline"
@@ -393,7 +393,7 @@ export function CustomerCrateStockView({
                   );
                 })}
                 <TableCell className="text-right">
-                  {summary.shipperId ? (
+                  {canEditCustomerCrateStock && summary.shipperId ? (
                     <button
                       type="button"
                       onClick={() => openEditSummary(summary)}
@@ -446,15 +446,17 @@ export function CustomerCrateStockView({
                       );
                     })}
                     <TableCell className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEditAgent(agent)}
-                        className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
-                        aria-label={t("common.edit")}
-                        disabled={isPending}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      {canEditCustomerCrateStock ? (
+                        <button
+                          type="button"
+                          onClick={() => openEditAgent(agent)}
+                          className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
+                          aria-label={t("common.edit")}
+                          disabled={isPending}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                   {isAgentExpanded && (
@@ -478,7 +480,7 @@ export function CustomerCrateStockView({
                               <p className="text-xs font-semibold text-haidee-muted">
                                 {t("customerCrateStock.agent.membersTitle")}
                               </p>
-                              {isAdmin ? (
+                              {canEditCustomerCrateStock ? (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -504,7 +506,7 @@ export function CustomerCrateStockView({
                                       <p className="text-sm font-medium">
                                         {member.memberShipperName}
                                       </p>
-                                      {isAdmin ? (
+                                      {canEditCustomerCrateStock ? (
                                         <Button
                                           type="button"
                                           size="sm"
@@ -608,15 +610,17 @@ export function CustomerCrateStockView({
                         );
                       })}
                       <TableCell className="text-right">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
-                          aria-label={t("common.edit")}
-                          disabled={isPending}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                        {canEditCustomerCrateStock ? (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(row)}
+                            className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
+                            aria-label={t("common.edit")}
+                            disabled={isPending}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                     {isExpanded && (

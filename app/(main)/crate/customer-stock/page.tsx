@@ -3,6 +3,7 @@ import { getCustomerCrateStockPageData } from "@/app/actions/customer-crate-stoc
 import { CustomerCrateStockView } from "@/components/crate/CustomerCrateStockView";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditCustomerCrateStock } from "@/lib/customer-crate-stock-permissions";
 import { t } from "@/lib/i18n/translate";
 
 interface CustomerCrateStockPageProps {
@@ -16,7 +17,7 @@ export default async function CustomerCrateStockPage({
   const search = params.q?.trim() ?? "";
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
-  const isAdmin = user?.role === "admin";
+  const canEdit = user ? canEditCustomerCrateStock(user.role) : false;
 
   try {
     const { crateTypes, rows, pickupLocationSummaries, agents, assignedMemberHints } =
@@ -45,7 +46,7 @@ export default async function CustomerCrateStockPage({
             pickupLocationSummaries={pickupLocationSummaries}
             assignedMemberHints={assignedMemberHints}
             initialSearch={search}
-            isAdmin={isAdmin}
+            canEditCustomerCrateStock={canEdit}
           />
         </Suspense>
       </div>
