@@ -27,7 +27,8 @@ import {
   getPaymentModeLabel,
   PAYMENT_MODES,
 } from "@/lib/constants/freight-settings";
-import { getDefaultRateEffectiveDateInputs, entityHasFreightRateHistory, parseOptionalRate, type RateCell } from "@/lib/freight-rates";
+import { parseOptionalRateField } from "@/lib/freight-rate-save";
+import { getDefaultRateEffectiveDateInputs, entityHasFreightRateHistory, resolveDisplayedEffectiveDate, type RateCell } from "@/lib/freight-rates";
 import type { RateSaveWarning } from "@/lib/rate-save-warning";
 import { cn } from "@/lib/utils";
 import {
@@ -111,6 +112,7 @@ type RateDialogState =
       entityName: string;
       entityCode: string;
       currencyLabel?: string;
+      displayedEffectiveDate: string | null;
     }
   | null;
 
@@ -235,8 +237,9 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
   const [rateInputs, setRateInputs] = useState<
     Record<string, { tong: string; box: string }>
   >({});
-  const [immediate, setImmediate] = useState(true);
+  const [immediate, setImmediate] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
+  const [rateSaveSuccess, setRateSaveSuccess] = useState<string | null>(null);
   const [rateSaveWarning, setRateSaveWarning] = useState<RateSaveWarning | null>(
     null
   );
@@ -295,15 +298,17 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
     }
     setRateInputs(nextInputs);
     const hasExistingRates = entityHasFreightRateHistory(row.matrix);
+    const displayedEffectiveDate = resolveDisplayedEffectiveDate(row.matrix);
     const defaults = getDefaultRateEffectiveDateInputs(hasExistingRates);
     setImmediate(defaults.immediate);
-    setScheduledDate(defaults.scheduledDate);
+    setScheduledDate(displayedEffectiveDate ?? defaults.scheduledDate);
     setRateSaveWarning(null);
     setRateDialog({
       kind,
       entityId: row.id,
       entityName: row.name,
       entityCode: row.code,
+      displayedEffectiveDate,
       currencyLabel:
         kind === "shipper" && "currency" in row ? row.currency : "MYR",
     });
@@ -316,8 +321,8 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
       const input = rateInputs[market.id] ?? { tong: "", box: "" };
       return {
         marketId: market.id,
-        rateTong: parseOptionalRate(input.tong),
-        rateBox: parseOptionalRate(input.box),
+        rateTong: parseOptionalRateField(input.tong),
+        rateBox: parseOptionalRateField(input.box),
       };
     });
 
@@ -346,6 +351,7 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
 
     setRateDialog(null);
     setRateSaveWarning(null);
+    setRateSaveSuccess(`已保存，生效日 ${result.effectiveDate}`);
     refresh();
   }
 
@@ -368,6 +374,11 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
       {error && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
           {error}
+        </p>
+      )}
+      {rateSaveSuccess && (
+        <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+          {rateSaveSuccess}
         </p>
       )}
       {view === "shipper-rates" && (
@@ -589,6 +600,15 @@ export function FreightRatesSection({ data, view }: FreightRatesSectionProps) {
               {rateDialog?.currencyLabel ? ` · ${rateDialog.currencyLabel}` : ""}
             </DialogTitle>
           </DialogHeader>
+
+          {rateDialog?.displayedEffectiveDate && (
+            <p className="rounded-md bg-haidee-surface px-3 py-2 text-sm">
+              正在编辑生效日版本 Editing effective date:{" "}
+              <span className="font-mono font-semibold">
+                {rateDialog.displayedEffectiveDate}
+              </span>
+            </p>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {data.freightMarkets.map((market) => (

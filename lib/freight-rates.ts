@@ -51,9 +51,20 @@ export function getDefaultRateEffectiveDateInputs(hasExistingRates: boolean) {
     };
   }
   return {
-    immediate: true,
+    immediate: false,
     scheduledDate: toDateInputValue(new Date()),
   };
+}
+
+/** Latest effective date shown in the settings matrix (per-market cells). */
+export function resolveDisplayedEffectiveDate(
+  matrix: Record<string, RateCell>
+): string | null {
+  const dates = Object.values(matrix)
+    .map((cell) => cell.effectiveDate)
+    .filter((date): date is string => Boolean(date?.trim()));
+  if (dates.length === 0) return null;
+  return [...dates].sort().reverse()[0] ?? null;
 }
 
 export function resolveEffectiveDateInput(input: {

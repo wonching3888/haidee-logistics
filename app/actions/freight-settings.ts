@@ -15,12 +15,18 @@ import {
 } from "@/lib/constants/truck-cost";
 import { serializeOperationalSettings } from "@/lib/inbound-freight";
 import {
+  buildFreightRateFieldWrites,
+  hasFreightRateFieldWrites,
+  type PartialFreightRateInput,
+} from "@/lib/freight-rate-save";
+import {
   buildRateMatrix,
   decimalToNumber,
   getCurrentYearMonth,
   getFreightMarketCodes,
   resolveEffectiveDateInput,
 } from "@/lib/freight-rates";
+import { toDateInputValue } from "@/lib/date-utils";
 import { sortMarkets } from "@/lib/markets";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import { parseThaiSegmentRates } from "@/lib/constants/thai-segment-rates";
@@ -31,7 +37,7 @@ import {
 } from "@/lib/rate-save-warning";
 
 export type SaveFreightRatesResult =
-  | { saved: true }
+  | { saved: true; effectiveDate: string }
   | { saved: false; warning: RateSaveWarning };
 
 async function requireAdmin() {
@@ -242,7 +248,7 @@ export async function getFreightSettingsData() {
 
 export async function saveShipperFreightRates(input: {
   shipperId: string;
-  rates: { marketId: string; rateTong?: number | null; rateBox?: number | null }[];
+  rates: PartialFreightRateInput[];
   immediate: boolean;
   scheduledDate?: string;
   acknowledgeWarning?: boolean;
@@ -263,9 +269,10 @@ export async function saveShipperFreightRates(input: {
   });
 
   if (!input.acknowledgeWarning) {
+    const ratesToSave = input.rates.filter(hasFreightRateFieldWrites);
     const warning = await checkShipperRateSaveWarning({
       shipperId: input.shipperId,
-      marketIds: input.rates.map((rate) => rate.marketId),
+      marketIds: ratesToSave.map((rate) => rate.marketId),
       effectiveDate,
     });
     if (warning) {
@@ -273,9 +280,17 @@ export async function saveShipperFreightRates(input: {
     }
   }
 
+  const ratesToSave = input.rates.filter(hasFreightRateFieldWrites);
+  if (ratesToSave.length === 0) {
+    throw new Error(
+      "请至少填写一个市场的费率 Please enter at least one rate"
+    );
+  }
+
   await prisma.$transaction(
-    input.rates.map((rate) =>
-      prisma.freightRate.upsert({
+    ratesToSave.map((rate) => {
+      const { create, update } = buildFreightRateFieldWrites(rate);
+      return prisma.freightRate.upsert({
         where: {
           shipperId_marketId_effectiveDate: {
             shipperId: input.shipperId,
@@ -286,22 +301,21 @@ export async function saveShipperFreightRates(input: {
         create: {
           shipperId: input.shipperId,
           marketId: rate.marketId,
-          rateTong: rate.rateTong ?? null,
-          rateBox: rate.rateBox ?? null,
+          rateTong: create.rateTong,
+          rateBox: create.rateBox,
           currency: shipper.currency,
           effectiveDate,
         },
         update: {
-          rateTong: rate.rateTong ?? null,
-          rateBox: rate.rateBox ?? null,
+          ...update,
           currency: shipper.currency,
         },
-      })
-    )
+      });
+    })
   );
 
   revalidatePath("/settings");
-  return { saved: true };
+  return { saved: true, effectiveDate: toDateInputValue(effectiveDate) };
 }
 
 export async function saveConsignee(input: {
@@ -344,7 +358,7 @@ export async function deleteConsignee(id: string) {
 
 export async function saveConsigneeFreightRates(input: {
   consigneeId: string;
-  rates: { marketId: string; rateTong?: number | null; rateBox?: number | null }[];
+  rates: PartialFreightRateInput[];
   immediate: boolean;
   scheduledDate?: string;
   acknowledgeWarning?: boolean;
@@ -365,9 +379,10 @@ export async function saveConsigneeFreightRates(input: {
   });
 
   if (!input.acknowledgeWarning) {
+    const ratesToSave = input.rates.filter(hasFreightRateFieldWrites);
     const warning = await checkConsigneeRateSaveWarning({
       consigneeId: input.consigneeId,
-      marketIds: input.rates.map((rate) => rate.marketId),
+      marketIds: ratesToSave.map((rate) => rate.marketId),
       effectiveDate,
     });
     if (warning) {
@@ -375,9 +390,17 @@ export async function saveConsigneeFreightRates(input: {
     }
   }
 
+  const ratesToSave = input.rates.filter(hasFreightRateFieldWrites);
+  if (ratesToSave.length === 0) {
+    throw new Error(
+      "请至少填写一个市场的费率 Please enter at least one rate"
+    );
+  }
+
   await prisma.$transaction(
-    input.rates.map((rate) =>
-      prisma.consigneeFreightRate.upsert({
+    ratesToSave.map((rate) => {
+      const { create, update } = buildFreightRateFieldWrites(rate);
+      return prisma.consigneeFreightRate.upsert({
         where: {
           consigneeId_marketId_effectiveDate: {
             consigneeId: input.consigneeId,
@@ -388,20 +411,17 @@ export async function saveConsigneeFreightRates(input: {
         create: {
           consigneeId: input.consigneeId,
           marketId: rate.marketId,
-          rateTong: rate.rateTong ?? null,
-          rateBox: rate.rateBox ?? null,
+          rateTong: create.rateTong,
+          rateBox: create.rateBox,
           effectiveDate,
         },
-        update: {
-          rateTong: rate.rateTong ?? null,
-          rateBox: rate.rateBox ?? null,
-        },
-      })
-    )
+        update,
+      });
+    })
   );
 
   revalidatePath("/settings");
-  return { saved: true };
+  return { saved: true, effectiveDate: toDateInputValue(effectiveDate) };
 }
 
 export async function savePaymentRelation(input: {
