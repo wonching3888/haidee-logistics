@@ -7,6 +7,7 @@ import {
   resolveDateParam,
 } from "@/lib/date-utils";
 import { getCurrentUser } from "@/lib/auth";
+import { canAdjustSadaoGateStock } from "@/lib/sadao-gate-stock-permissions";
 import { t } from "@/lib/i18n/translate";
 
 interface TongStockPageProps {
@@ -19,6 +20,9 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
   const displayDate = formatDisplayDate(parseDateInput(filterDate));
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
+  const canAdjustSadaoStock = user
+    ? canAdjustSadaoGateStock(user.role)
+    : false;
 
   try {
     const [overview, ledger] = await Promise.all([
@@ -43,6 +47,7 @@ export default async function TongStockPage({ searchParams }: TongStockPageProps
           ledger={ledger}
           filterDate={filterDate}
           displayDate={displayDate}
+          canAdjustSadaoStock={canAdjustSadaoStock}
         />
       </div>
     );

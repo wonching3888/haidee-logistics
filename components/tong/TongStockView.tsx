@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import { Pencil } from "lucide-react";
 import { setSadaoTongStockAbsolute } from "@/app/actions/tong";
 import { DateInputField } from "@/components/shared/DateInputField";
-import { useCanWrite } from "@/components/shared/can-write-context";
 import { useT } from "@/components/shared/locale-context";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { formatDisplayDate } from "@/lib/date-utils";
@@ -65,6 +64,7 @@ interface TongStockViewProps {
   ledger: LedgerRow[];
   filterDate: string;
   displayDate: string;
+  canAdjustSadaoStock: boolean;
 }
 
 export function TongStockView({
@@ -73,10 +73,10 @@ export function TongStockView({
   ledger,
   filterDate,
   displayDate,
+  canAdjustSadaoStock,
 }: TongStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const canWrite = useCanWrite();
   const { t, parts } = useT();
   const [isPending, startTransition] = useTransition();
   const [editRow, setEditRow] = useState<StockRow | null>(null);
@@ -141,7 +141,7 @@ export function TongStockView({
               <TableHead className="text-right">{t("crateStock.todayIn")}</TableHead>
               <TableHead className="text-right">{t("crateStock.todayOut")}</TableHead>
               <TableHead className="text-right">{t("crateExport.shortage")}</TableHead>
-              {canWrite ? (
+              {canAdjustSadaoStock ? (
                 <TableHead className="text-right">{t("common.actions")}</TableHead>
               ) : null}
             </TableRow>
@@ -172,7 +172,7 @@ export function TongStockView({
                     "0"
                   )}
                 </TableCell>
-                {canWrite ? (
+                {canAdjustSadaoStock ? (
                   <TableCell className="text-right">
                     <button
                       type="button"

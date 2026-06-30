@@ -33,6 +33,7 @@ import {
   saveCrateExport,
   type CrateExportLineInput,
 } from "@/app/actions/crateExport";
+import { requireSadaoGateStockAdmin } from "@/lib/sadao-gate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 
 export type ImportRowInput = CrateImportRowInput;
@@ -429,7 +430,7 @@ export async function setSadaoTongStockAbsolute(input: {
   date?: string;
   notes?: string;
 }) {
-  const user = await requireWrite();
+  const user = await requireSadaoGateStockAdmin();
 
   if (!Number.isInteger(input.targetQuantity)) {
     throw new Error("Invalid quantity");

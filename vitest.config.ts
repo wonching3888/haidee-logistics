@@ -12,6 +12,7 @@ export default defineConfig({
       "lib/customer-crate-stock-ledger-notes.test.ts",
       "lib/customer-crate-stock-list.test.ts",
       "lib/customer-crate-stock-permissions.test.ts",
+      "lib/sadao-gate-stock-permissions.test.ts",
       "lib/constants/customer-crate-stock-display.test.ts",
       "lib/inbound-crate-stock-p1.test.ts",
       "lib/crate-stock-agent-transfer.test.ts",
