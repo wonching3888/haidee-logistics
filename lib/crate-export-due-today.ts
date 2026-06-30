@@ -5,6 +5,22 @@ import {
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 
+/** Crate types that appear on the due-today list (inbound due / export returned / owed). */
+export const RETURNABLE_CRATE_TYPE_CODES = [
+  "ABB",
+  "WTL",
+  "BHR",
+  "VIO",
+  "SHK",
+  "BRO",
+] as const;
+
+const RETURNABLE_CRATE_TYPE_SET = new Set<string>(RETURNABLE_CRATE_TYPE_CODES);
+
+export function isReturnableCrateTypeCode(code: string): boolean {
+  return RETURNABLE_CRATE_TYPE_SET.has(code);
+}
+
 export type CrateQtyByCode = Record<string, number>;
 
 export interface CrateExportPrefillTarget {
@@ -113,6 +129,14 @@ function emptyQty(): QtyMap {
 function addQty(map: QtyMap, code: string, qty: number) {
   if (qty <= 0) return;
   map.set(code, (map.get(code) ?? 0) + qty);
+}
+
+function filterQtyMapToReturnable(map: QtyMap): QtyMap {
+  const out = emptyQty();
+  for (const [code, qty] of Array.from(map.entries())) {
+    if (isReturnableCrateTypeCode(code)) addQty(out, code, qty);
+  }
+  return out;
 }
 
 function sumMaps(maps: QtyMap[]): QtyMap {
@@ -247,6 +271,7 @@ export function buildCrateExportDueToday(
     const memberDue = emptyQty();
     for (const line of session.lines) {
       if (!line.trackInventory || line.isBox) continue;
+      if (!isReturnableCrateTypeCode(line.tongCode)) continue;
       addQty(memberDue, line.tongCode, line.quantity);
     }
     if (totalOf(memberDue) === 0) continue;
@@ -308,7 +333,9 @@ export function buildCrateExportDueToday(
   for (const [shipperId, due] of Array.from(standaloneDue.entries())) {
     const shipper = input.shippers.get(shipperId);
     if (!shipper) continue;
-    const returned = input.exportsByShipperId.get(shipperId) ?? emptyQty();
+    const returned = filterQtyMapToReturnable(
+      input.exportsByShipperId.get(shipperId) ?? emptyQty()
+    );
     const row = buildRow(
       `standalone:${shipperId}`,
       shipper.name,
@@ -325,8 +352,9 @@ export function buildCrateExportDueToday(
     const [shipperId] = key.split("|");
     const shipper = input.shippers.get(shipperId);
     if (!shipper) continue;
-    const returned =
-      input.exportsByShipperLocation.get(`${shipperId}|${origin}`) ?? emptyQty();
+    const returned = filterQtyMapToReturnable(
+      input.exportsByShipperLocation.get(`${shipperId}|${origin}`) ?? emptyQty()
+    );
     const row = buildRow(
       `multi:${shipperId}:${origin}`,
       `${shipper.name} — ${origin}`,
@@ -350,14 +378,17 @@ export function buildCrateExportDueToday(
 
     if (agent.isPool && agent.pickup) {
       const poolShipperId = input.poolIds[agent.pickup];
-      const poolReturned =
-        input.exportsByShipperId.get(poolShipperId) ?? emptyQty();
+      const poolReturned = filterQtyMapToReturnable(
+        input.exportsByShipperId.get(poolShipperId) ?? emptyQty()
+      );
 
       const memberRows: CrateExportDueRow[] = [];
       const memberDueMaps: QtyMap[] = [];
 
       for (const m of members) {
-        const returned = input.exportsByShipperId.get(m.memberId) ?? emptyQty();
+        const returned = filterQtyMapToReturnable(
+          input.exportsByShipperId.get(m.memberId) ?? emptyQty()
+        );
         memberDueMaps.push(m.due);
         const row = buildRow(
           `pool-member:${agentId}:${m.memberId}`,
@@ -414,11 +445,15 @@ export function buildCrateExportDueToday(
 
     for (const m of members) {
       exportShipperIds.add(m.memberId);
-      let returned = input.exportsByShipperId.get(m.memberId) ?? emptyQty();
+      let returned = filterQtyMapToReturnable(
+        input.exportsByShipperId.get(m.memberId) ?? emptyQty()
+      );
       if (m.isMultiOrigin && m.origin) {
-        returned =
+        returned = filterQtyMapToReturnable(
           input.exportsByShipperLocation.get(`${m.memberId}|${m.origin}`) ??
-          returned;
+            input.exportsByShipperId.get(m.memberId) ??
+            emptyQty()
+        );
       }
       memberReturnedMaps.push(returned);
       memberDueMaps.push(m.due);
@@ -442,7 +477,9 @@ export function buildCrateExportDueToday(
       if (row) memberRows.push(row);
     }
 
-    const agentReturned = input.exportsByShipperId.get(agentId) ?? emptyQty();
+    const agentReturned = filterQtyMapToReturnable(
+      input.exportsByShipperId.get(agentId) ?? emptyQty()
+    );
     const totalDue = sumMaps(memberDueMaps);
     const allReturned = sumMaps([agentReturned, ...memberReturnedMaps]);
     const owed = subtractQty(totalDue, allReturned);

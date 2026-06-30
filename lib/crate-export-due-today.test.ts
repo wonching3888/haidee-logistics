@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseDateInput } from "@/lib/date-utils";
-import { buildCrateExportDueToday } from "@/lib/crate-export-due-today";
+import {
+  buildCrateExportDueToday,
+  RETURNABLE_CRATE_TYPE_CODES,
+} from "@/lib/crate-export-due-today";
 
 const poolIds = { SONGKHLA: "pool-sk", PATTANI: "pool-ptn" };
 const sessionDate = parseDateInput("2026-06-30");
@@ -157,5 +160,86 @@ describe("buildCrateExportDueToday", () => {
     const input = baseInput();
     const result = buildCrateExportDueToday(input);
     expect(result.items).toHaveLength(0);
+  });
+
+  it("only counts returnable crate types in due (mixed inbound)", () => {
+    const input = baseInput();
+    input.inboundSessions.push({
+      shipperId: "shipper-a",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [
+        { tongCode: "ABB", quantity: 20, trackInventory: true, isBox: false },
+        { tongCode: "GKS", quantity: 50, trackInventory: true, isBox: false },
+        { tongCode: "GLY", quantity: 10, trackInventory: true, isBox: false },
+      ],
+    });
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items).toHaveLength(1);
+    if (result.items[0].kind === "row") {
+      expect(result.items[0].row.due).toEqual({ ABB: 20 });
+      expect(result.items[0].row.totalDue).toBe(20);
+      expect(result.items[0].row.due.GKS).toBeUndefined();
+    }
+  });
+
+  it("omits customer when inbound is only non-returnable crate types", () => {
+    const input = baseInput();
+    input.inboundSessions.push({
+      shipperId: "shipper-a",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [
+        { tongCode: "GKS", quantity: 100, trackInventory: true, isBox: false },
+      ],
+    });
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items).toHaveLength(0);
+  });
+
+  it("ignores non-returnable types in returned when computing owed", () => {
+    const input = baseInput();
+    input.inboundSessions.push({
+      shipperId: "shipper-a",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [{ tongCode: "ABB", quantity: 20, trackInventory: true, isBox: false }],
+    });
+    input.exportsByShipperId.set(
+      "shipper-a",
+      new Map([
+        ["ABB", 5],
+        ["GKS", 99],
+      ])
+    );
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items).toHaveLength(1);
+    if (result.items[0].kind === "row") {
+      expect(result.items[0].row.totalReturned).toBe(5);
+      expect(result.items[0].row.totalOwed).toBe(15);
+    }
+  });
+
+  it("exports RETURNABLE_CRATE_TYPE_CODES as the six tracked types", () => {
+    expect([...RETURNABLE_CRATE_TYPE_CODES]).toEqual([
+      "ABB",
+      "WTL",
+      "BHR",
+      "VIO",
+      "SHK",
+      "BRO",
+    ]);
   });
 });
