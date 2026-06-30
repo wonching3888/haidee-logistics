@@ -28,6 +28,7 @@ export function mapReceivableInvoiceToArFreightSource(
 
   return {
     revenueKind: "freight",
+    entityKey: invoice.invoiceKey,
     mode,
     debtorCode: invoice.customerCode.trim(),
     debtorName: invoice.customerName,

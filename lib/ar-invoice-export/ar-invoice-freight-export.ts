@@ -1,9 +1,7 @@
 import type { MonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
 import { getMonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
-import {
-  ArDocNoSequenceAllocator,
-  arDocNoPrefixForMode,
-} from "@/lib/ar-invoice-export/ar-invoice-docno";
+import { arDocNoPrefixForMode } from "@/lib/ar-invoice-export/ar-invoice-docno";
+import { assignDocNosForSources } from "@/lib/ar-invoice-export/ar-invoice-docno-registry";
 import { fetchFreightAmountsForMonth } from "@/lib/ar-invoice-export/ar-invoice-freight-fetcher";
 import {
   buildArInvoiceRow,
@@ -11,14 +9,6 @@ import {
   type ArInvoiceAmountSource,
   type ArInvoiceRow,
 } from "@/lib/ar-invoice-export/ar-invoice-row";
-
-/** Modes that share a DocNo prefix must export in this order (earlier modes reserve slots). */
-const SHARED_PREFIX_PRIOR_MODES: Partial<
-  Record<MonthlyInvoiceMode, MonthlyInvoiceMode[]>
-> = {
-  "1b": ["1a"],
-  "4": ["3"],
-};
 
 export interface ArFreightExportPreviewRow {
   docNo: string;
@@ -47,41 +37,23 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-async function reserveSharedDocNoSlots(
-  allocator: ArDocNoSequenceAllocator,
-  year: number,
-  month: number,
-  mode: MonthlyInvoiceMode
-) {
-  const prefix = arDocNoPrefixForMode(mode);
-  const priorModes = SHARED_PREFIX_PRIOR_MODES[mode] ?? [];
-  for (const priorMode of priorModes) {
-    const priorSources = await fetchFreightAmountsForMonth(
-      year,
-      month,
-      priorMode
-    );
-    if (priorSources.length === 0) continue;
-    allocator.allocateForDebtors(
-      prefix,
-      priorSources.map((source) => source.debtorCode)
-    );
-  }
-}
-
+/** @deprecated Prefer assignDocNosForSources — kept for tests */
 export async function assignFreightDocNos(
   year: number,
   month: number,
-  mode: MonthlyInvoiceMode,
+  _mode: MonthlyInvoiceMode,
   sources: ArInvoiceAmountSource[]
 ): Promise<Map<string, string>> {
-  const allocator = new ArDocNoSequenceAllocator(year, month);
-  const prefix = arDocNoPrefixForMode(mode);
-  await reserveSharedDocNoSlots(allocator, year, month, mode);
-  return allocator.allocateForDebtors(
-    prefix,
-    sources.map((source) => source.debtorCode)
-  );
+  const docNoByEntity = await assignDocNosForSources(year, month, sources);
+  const result = new Map<string, string>();
+  for (const source of sources) {
+    const docNo = docNoByEntity.get(source.entityKey);
+    if (!docNo) {
+      throw new Error(`Missing DocNo for entity ${source.entityKey}`);
+    }
+    result.set(source.debtorCode, docNo);
+  }
+  return result;
 }
 
 export async function buildArFreightExportRows(input: {
@@ -94,17 +66,16 @@ export async function buildArFreightExportRows(input: {
     input.month,
     input.mode
   );
-  const docNoByDebtor = await assignFreightDocNos(
+  const docNoByEntity = await assignDocNosForSources(
     input.year,
     input.month,
-    input.mode,
     sources
   );
 
   return sources.map((source) => {
-    const docNo = docNoByDebtor.get(source.debtorCode);
+    const docNo = docNoByEntity.get(source.entityKey);
     if (!docNo) {
-      throw new Error(`Missing DocNo for debtor ${source.debtorCode}`);
+      throw new Error(`Missing DocNo for entity ${source.entityKey}`);
     }
     return buildArInvoiceRow({
       docNo,

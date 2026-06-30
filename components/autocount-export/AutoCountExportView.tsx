@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ArInvoiceFreightExportPanel } from "@/components/ar-invoice-export/ArInvoiceFreightExportPanel";
+import { ArInvoiceCrateReturnExportPanel } from "@/components/ar-invoice-export/ArInvoiceCrateReturnExportPanel";
+import { ArInvoiceCharterExportPanel } from "@/components/ar-invoice-export/ArInvoiceCharterExportPanel";
 import { PayrollJvExportPanel } from "@/components/driver-payroll/PayrollJvExportPanel";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 
@@ -22,6 +24,10 @@ export function AutoCountExportView() {
       </div>
 
       <ArInvoiceFreightExportPanel />
+
+      <ArInvoiceCrateReturnExportPanel />
+
+      <ArInvoiceCharterExportPanel />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end gap-4">

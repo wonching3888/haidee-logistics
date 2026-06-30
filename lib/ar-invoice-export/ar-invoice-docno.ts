@@ -27,6 +27,28 @@ export function arDocNoPrefixForMode(mode: ArInvoiceDocNoMode): string {
   }
 }
 
+/** Crate-return debtor code prefix → shared monthly DocNo pool (extensible). */
+export const AR_CRATE_RETURN_DEBTOR_PREFIX_RULES: ReadonlyArray<{
+  codePrefix: string;
+  docNoPrefix: "HDR-" | "EXP-";
+}> = [
+  { codePrefix: "3002-", docNoPrefix: "HDR-" },
+  { codePrefix: "3000-", docNoPrefix: "EXP-" },
+];
+
+/** Resolve crate-return DocNo prefix from debtor code (null = not exportable). */
+export function arDocNoPrefixForCrateReturnDebtor(
+  debtorCode: string
+): "HDR-" | "EXP-" | null {
+  const code = debtorCode.trim().toUpperCase();
+  for (const rule of AR_CRATE_RETURN_DEBTOR_PREFIX_RULES) {
+    if (code.startsWith(rule.codePrefix.toUpperCase())) {
+      return rule.docNoPrefix;
+    }
+  }
+  return null;
+}
+
 /**
  * Format AR invoice DocNo: `{prefix}{yyMM}-{NNN}` e.g. HD-2606-001.
  * `prefix` must include its trailing hyphen (HD-, HDR-, EXP-, WTL-).

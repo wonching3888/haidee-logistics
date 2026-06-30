@@ -22,13 +22,26 @@ vi.mock("@/lib/ar-invoice-export/ar-invoice-freight-fetcher", async () => {
   };
 });
 
+vi.mock("@/lib/ar-invoice-export/ar-invoice-docno-registry", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/ar-invoice-export/ar-invoice-docno-registry")
+  >("@/lib/ar-invoice-export/ar-invoice-docno-registry");
+  return {
+    ...actual,
+    assignDocNosForSources: vi.fn(),
+  };
+});
+
 import { fetchFreightAmountsForMonth } from "@/lib/ar-invoice-export/ar-invoice-freight-fetcher";
+import { assignDocNosForSources } from "@/lib/ar-invoice-export/ar-invoice-docno-registry";
 
 const mockedFetch = vi.mocked(fetchFreightAmountsForMonth);
+const mockedAssign = vi.mocked(assignDocNosForSources);
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockedFetch.mockReset();
+  mockedAssign.mockReset();
 });
 
 function freightInvoice(
@@ -56,10 +69,15 @@ function freightInvoice(
 function source(
   overrides: Partial<ArInvoiceAmountSource> & Pick<ArInvoiceAmountSource, "debtorCode">
 ): ArInvoiceAmountSource {
+  const mode = overrides.mode ?? "2";
+  const debtorCode = overrides.debtorCode;
   return {
     revenueKind: "freight",
-    mode: "2",
-    debtorName: overrides.debtorName ?? overrides.debtorCode,
+    entityKey:
+      overrides.entityKey ??
+      `freight:${mode}:consignee:${debtorCode}:2026-06`,
+    mode,
+    debtorName: overrides.debtorName ?? debtorCode,
     year: 2026,
     month: 6,
     amount: 100,
@@ -73,6 +91,7 @@ describe("mapReceivableInvoiceToArFreightSource", () => {
     const invoice = freightInvoice({ invoiceKey: "freight:2:consignee:id-1:2026-06" });
     const mapped = mapReceivableInvoiceToArFreightSource(invoice, 2026, 6);
     expect(mapped).toMatchObject({
+      entityKey: "freight:2:consignee:id-1:2026-06",
       debtorCode: "3002-A001",
       amount: 1234.56,
       currency: "MYR",
@@ -94,64 +113,41 @@ describe("mapReceivableInvoiceToArFreightSource", () => {
   });
 });
 
-describe("assignFreightDocNos shared prefix", () => {
-  it("assigns HDR- DocNos sorted by debtor code for mode 2", async () => {
-    mockedFetch.mockResolvedValueOnce([
-      source({ debtorCode: "3002-C003", amount: 300 }),
-      source({ debtorCode: "3002-A001", amount: 100 }),
-      source({ debtorCode: "3002-B002", amount: 200 }),
-    ]);
+describe("assignFreightDocNos via global registry", () => {
+  it("returns DocNos keyed by debtor code from registry", async () => {
+    const sources = [
+      source({ debtorCode: "3002-C003", entityKey: "freight:2:c3:2026-06" }),
+      source({ debtorCode: "3002-A001", entityKey: "freight:2:a1:2026-06" }),
+      source({ debtorCode: "3002-B002", entityKey: "freight:2:b2:2026-06" }),
+    ];
+    mockedAssign.mockResolvedValueOnce(
+      new Map([
+        ["freight:2:a1:2026-06", "HDR-2606-001"],
+        ["freight:2:b2:2026-06", "HDR-2606-002"],
+        ["freight:2:c3:2026-06", "HDR-2606-003"],
+      ])
+    );
 
-    const docNos = await assignFreightDocNos(2026, 6, "2", [
-      source({ debtorCode: "3002-C003" }),
-      source({ debtorCode: "3002-A001" }),
-      source({ debtorCode: "3002-B002" }),
-    ]);
+    const docNos = await assignFreightDocNos(2026, 6, "2", sources);
 
     expect(docNos.get("3002-A001")).toBe("HDR-2606-001");
     expect(docNos.get("3002-B002")).toBe("HDR-2606-002");
     expect(docNos.get("3002-C003")).toBe("HDR-2606-003");
   });
-
-  it("reserves EXP- slots for mode 3 before allocating mode 4", async () => {
-    mockedFetch
-      .mockResolvedValueOnce([
-        source({ debtorCode: "3000-B001", mode: "3", amount: 1 }),
-        source({ debtorCode: "3000-B002", mode: "3", amount: 2 }),
-      ])
-      .mockResolvedValueOnce([
-        source({ debtorCode: "3001-A001", mode: "4", amount: 3 }),
-        source({ debtorCode: "3001-B002", mode: "4", amount: 4 }),
-      ]);
-
-    const mode4Sources = [
-      source({ debtorCode: "3001-B002", mode: "4" }),
-      source({ debtorCode: "3001-A001", mode: "4" }),
-    ];
-    const docNos = await assignFreightDocNos(2026, 6, "4", mode4Sources);
-
-    expect(docNos.get("3001-A001")).toBe("EXP-2606-003");
-    expect(docNos.get("3001-B002")).toBe("EXP-2606-004");
-  });
-
-  it("reserves HD- slots for mode 1a before allocating mode 1b", async () => {
-    mockedFetch.mockResolvedValueOnce([
-      source({ debtorCode: "3001-A001", mode: "1a", currency: "THB", amount: 1 }),
-    ]);
-
-    const docNos = await assignFreightDocNos(2026, 6, "1b", [
-      source({ debtorCode: "3001-B002", mode: "1b", currency: "THB" }),
-    ]);
-
-    expect(docNos.get("3001-B002")).toBe("HD-2606-002");
-  });
 });
 
 describe("buildArFreightExportPreview", () => {
   it("builds rows with account, tax, currency and CSV output", async () => {
-    mockedFetch.mockResolvedValueOnce([
-      source({ debtorCode: "3000-B002", mode: "3", amount: 500 }),
-    ]);
+    const rowSource = source({
+      debtorCode: "3000-B002",
+      mode: "3",
+      entityKey: "freight:3:b2:2026-06",
+      amount: 500,
+    });
+    mockedFetch.mockResolvedValueOnce([rowSource]);
+    mockedAssign.mockResolvedValueOnce(
+      new Map([["freight:3:b2:2026-06", "EXP-2606-001"]])
+    );
 
     const preview = await buildArFreightExportPreview({
       year: 2026,

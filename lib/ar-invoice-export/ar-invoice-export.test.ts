@@ -164,7 +164,7 @@ describe("ArDocNoSequenceAllocator", () => {
 describe("AR description and DocDate helpers", () => {
   it("formats monthly freight and crate return descriptions", () => {
     expect(formatArFreightDescription(2026, 6)).toBe("运费 2026年6月");
-    expect(formatArCrateReturnDescription(2026, 6)).toBe("回桶费 2026年6月");
+    expect(formatArCrateReturnDescription(2026, 6)).toBe("收桶费 2026年6月");
   });
 
   it("formats monthly DocDate as 01/MM/YYYY", () => {
@@ -229,7 +229,7 @@ describe("buildArInvoiceRow", () => {
 
     expect(row.accNo).toBe("5000-T002");
     expect(row.taxType).toBe("ESV-6");
-    expect(row.description).toBe("回桶费 2026年6月");
+    expect(row.description).toBe("收桶费 2026年6月");
   });
 
   it("assembles charter row with trip date DocDate and description", () => {

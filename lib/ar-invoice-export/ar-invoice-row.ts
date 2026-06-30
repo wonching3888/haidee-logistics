@@ -48,7 +48,9 @@ export const AR_INVOICE_CSV_HEADERS = [
 /** Batch 2/3 — one receivable invoice amount ready for AR row assembly. */
 export interface ArInvoiceAmountSource {
   revenueKind: ArInvoiceRevenueKind;
-  mode: MonthlyInvoiceMode | "charter";
+  /** Receivable invoiceKey — used for global DocNo lookup */
+  entityKey: string;
+  mode?: MonthlyInvoiceMode | "charter";
   debtorCode: string;
   debtorName: string;
   year: number;
@@ -101,11 +103,20 @@ export function formatArFreightDescription(year: number, month: number): string 
   return `运费 ${year}年${month}月`;
 }
 
+/** AR export label per accounting: 收桶费 (not 回桶费). */
+export function formatArCrateCollectionDescription(
+  year: number,
+  month: number
+): string {
+  return `收桶费 ${year}年${month}月`;
+}
+
+/** @deprecated Use formatArCrateCollectionDescription */
 export function formatArCrateReturnDescription(
   year: number,
   month: number
 ): string {
-  return `回桶费 ${year}年${month}月`;
+  return formatArCrateCollectionDescription(year, month);
 }
 
 /** Charter description uses trip date: 运费 YYYY-M-D (no zero-padding on month/day). */
@@ -127,7 +138,7 @@ function resolveDescription(input: {
     case "freight":
       return formatArFreightDescription(input.year, input.month);
     case "crate_return":
-      return formatArCrateReturnDescription(input.year, input.month);
+      return formatArCrateCollectionDescription(input.year, input.month);
     case "charter":
       if (!input.tripDate) {
         throw new Error("Charter AR row requires tripDate");
