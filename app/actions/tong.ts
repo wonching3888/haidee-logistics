@@ -33,6 +33,7 @@ import {
   saveCrateExport,
   type CrateExportLineInput,
 } from "@/app/actions/crateExport";
+import { isReturnableCrateTypeCode } from "@/lib/crate-export-due-today";
 import { requireSadaoGateStockAdmin } from "@/lib/sadao-gate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 
@@ -271,7 +272,7 @@ export async function getStockOverview(dateStr?: string) {
     todayExports.map((e) => [e.tongTypeId, e._sum.quantityActual ?? 0])
   );
 
-  const shortages = await prisma.tongExport.findMany({
+  const shortagesRaw = await prisma.tongExport.findMany({
     where: { shortage: { gt: 0 } },
     include: {
       shipper: { select: { name: true } },
@@ -279,6 +280,10 @@ export async function getStockOverview(dateStr?: string) {
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const shortages = shortagesRaw.filter((s) =>
+    isReturnableCrateTypeCode(s.tongType.code)
+  );
 
   const shortageByTong = Object.fromEntries(
     tongTypeIds.map((id) => {

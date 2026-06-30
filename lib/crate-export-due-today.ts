@@ -3,6 +3,7 @@ import {
   usesOfficePoolInboundStock,
 } from "@/lib/inbound-crate-stock-account";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import { LOCATION_POOL_SHIPPER_CODES } from "@/lib/constants/location-pool-shippers";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 
 /** Crate types that appear on the due-today list (inbound due / export returned / owed). */
@@ -218,6 +219,36 @@ function buildRow(
     totalOwed,
     prefill,
   };
+}
+
+/** Pools first (Songkhla → Pattani), then named agents, then standalone rows — mirrors customer stock agent order. */
+function dueTodayItemSortRank(item: CrateExportDueItem): number {
+  if (item.kind === "pool") {
+    if (item.group.poolCode === LOCATION_POOL_SHIPPER_CODES.SONGKHLA) return 0;
+    if (item.group.poolCode === LOCATION_POOL_SHIPPER_CODES.PATTANI) return 1;
+    return 2;
+  }
+  if (item.kind === "agent") return 10;
+  return 100;
+}
+
+function dueTodayItemLabel(item: CrateExportDueItem): string {
+  if (item.kind === "row") return item.row.label;
+  if (item.kind === "agent") return item.group.agentName;
+  return item.group.poolName;
+}
+
+export function sortCrateExportDueTodayItems(
+  items: CrateExportDueItem[]
+): CrateExportDueItem[] {
+  return [...items].sort((a, b) => {
+    const rankA = dueTodayItemSortRank(a);
+    const rankB = dueTodayItemSortRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return dueTodayItemLabel(a).localeCompare(dueTodayItemLabel(b), undefined, {
+      sensitivity: "base",
+    });
+  });
 }
 
 export function buildCrateExportDueToday(
@@ -512,23 +543,9 @@ export function buildCrateExportDueToday(
     }
   }
 
-  items.sort((a, b) => {
-    const labelA =
-      a.kind === "row"
-        ? a.row.label
-        : a.kind === "agent"
-          ? a.group.agentName
-          : a.group.poolName;
-    const labelB =
-      b.kind === "row"
-        ? b.row.label
-        : b.kind === "agent"
-          ? b.group.agentName
-          : b.group.poolName;
-    return labelA.localeCompare(labelB);
-  });
+  const sortedItems = sortCrateExportDueTodayItems(items);
 
-  return { date, items, inTransitNote: null };
+  return { date, items: sortedItems, inTransitNote: null };
 }
 
 export { formatQtySummary };

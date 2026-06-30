@@ -3,7 +3,10 @@ import { parseDateInput } from "@/lib/date-utils";
 import {
   buildCrateExportDueToday,
   RETURNABLE_CRATE_TYPE_CODES,
+  isReturnableCrateTypeCode,
+  sortCrateExportDueTodayItems,
 } from "@/lib/crate-export-due-today";
+import type { CrateExportDueItem } from "@/lib/crate-export-due-today";
 
 const poolIds = { SONGKHLA: "pool-sk", PATTANI: "pool-ptn" };
 const sessionDate = parseDateInput("2026-06-30");
@@ -241,5 +244,132 @@ describe("buildCrateExportDueToday", () => {
       "SHK",
       "BRO",
     ]);
+  });
+
+  it("excludes non-returnable types from SADAO shortage overview filter", () => {
+    type Row = { tongType: { code: string }; shortage: number };
+    const all: Row[] = [
+      { tongType: { code: "ABB" }, shortage: 616 },
+      { tongType: { code: "GKS" }, shortage: 17 },
+      { tongType: { code: "BS" }, shortage: 16 },
+      { tongType: { code: "WTL" }, shortage: 129 },
+    ];
+    const filtered = all.filter((r) =>
+      isReturnableCrateTypeCode(r.tongType.code)
+    );
+    expect(filtered.map((r) => r.tongType.code)).toEqual(["ABB", "WTL"]);
+    expect(filtered.reduce((s, r) => s + r.shortage, 0)).toBe(745);
+  });
+
+  it("pins pool and agent groups before standalone customer rows", () => {
+    const items: CrateExportDueItem[] = [
+      {
+        kind: "row",
+        row: {
+          key: "standalone:a",
+          label: "Alpha Customer",
+          due: { ABB: 5 },
+          returned: {},
+          owed: { ABB: 5 },
+          totalDue: 5,
+          totalReturned: 0,
+          totalOwed: 5,
+          prefill: {
+            shipperId: "a",
+            shipperCode: "X",
+            shipperName: "Alpha",
+            date: "2026-06-30",
+            location: "",
+            areaNote: "",
+          },
+        },
+      },
+      {
+        kind: "agent",
+        group: {
+          kind: "agent",
+          key: "agent:421",
+          agentId: "421",
+          agentCode: "AGENT-421",
+          agentName: "421",
+          due: { ABB: 10 },
+          returned: {},
+          owed: { ABB: 10 },
+          totalDue: 10,
+          totalReturned: 0,
+          totalOwed: 10,
+          prefill: {
+            shipperId: "421",
+            shipperCode: "AGENT-421",
+            shipperName: "421",
+            date: "2026-06-30",
+            location: "",
+            areaNote: "",
+          },
+          members: [],
+        },
+      },
+      {
+        kind: "pool",
+        group: {
+          kind: "pool",
+          key: "pool:ptn",
+          poolShipperId: "pool-ptn",
+          poolCode: "LOC-PATTANI",
+          poolName: "北大年",
+          pickup: "PATTANI",
+          due: { WTL: 3 },
+          returned: {},
+          owed: { WTL: 3 },
+          totalDue: 3,
+          totalReturned: 0,
+          totalOwed: 3,
+          prefill: {
+            shipperId: "pool-ptn",
+            shipperCode: "LOC-PATTANI",
+            shipperName: "北大年",
+            date: "2026-06-30",
+            location: "PATTANI",
+            areaNote: "",
+          },
+          members: [],
+        },
+      },
+      {
+        kind: "pool",
+        group: {
+          kind: "pool",
+          key: "pool:sk",
+          poolShipperId: "pool-sk",
+          poolCode: "LOC-SONGKHLA",
+          poolName: "宋卡",
+          pickup: "SONGKHLA",
+          due: { ABB: 8 },
+          returned: {},
+          owed: { ABB: 8 },
+          totalDue: 8,
+          totalReturned: 0,
+          totalOwed: 8,
+          prefill: {
+            shipperId: "pool-sk",
+            shipperCode: "LOC-SONGKHLA",
+            shipperName: "宋卡",
+            date: "2026-06-30",
+            location: "SONGKHLA",
+            areaNote: "",
+          },
+          members: [],
+        },
+      },
+    ];
+
+    const sorted = sortCrateExportDueTodayItems(items);
+    expect(sorted.map((i) =>
+      i.kind === "row"
+        ? i.row.label
+        : i.kind === "agent"
+          ? i.group.agentName
+          : i.group.poolName
+    )).toEqual(["宋卡", "北大年", "421", "Alpha Customer"]);
   });
 });
