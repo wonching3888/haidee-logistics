@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   assertOriginInCustomerList,
+  buildMultiOriginCustomerStockLocations,
+  filterMultiOriginDropdownOptions,
   parseOriginLocationNames,
   requiresCustomerOriginSelection,
+  selectableMultiOriginStockLocations,
 } from "@/lib/multi-origin-customer";
 
 describe("multi-origin-customer", () => {
@@ -26,5 +29,73 @@ describe("multi-origin-customer", () => {
     expect(() =>
       assertOriginInCustomerList("", ["KRABI"])
     ).toThrow(/请选择标准产地/);
+  });
+
+  it("filters blank names from multi-origin dropdown options", () => {
+    expect(filterMultiOriginDropdownOptions(["CPN", "", "  ", "BS"])).toEqual([
+      "CPN",
+      "BS",
+    ]);
+  });
+
+  it("merges standard origins with legacy stock locations", () => {
+    const stock = new Map<string, Record<string, number>>([
+      ["BS", { a: 5 }],
+      ["RANONG", { a: 2 }],
+      ["", { a: 3 }],
+    ]);
+    const empty = () => ({ a: 0, b: 0 });
+
+    const merged = buildMultiOriginCustomerStockLocations(
+      ["CPN"],
+      stock,
+      empty
+    );
+
+    expect(merged.map((row) => row.location)).toEqual(["CPN", "BS", "RANONG", ""]);
+    expect(merged[0].quantities).toEqual({ a: 0, b: 0 });
+    expect(merged[0].outsideStandardOrigin).toBe(false);
+    expect(merged[1].outsideStandardOrigin).toBe(true);
+    expect(selectableMultiOriginStockLocations(merged).map((r) => r.location)).toEqual([
+      "CPN",
+      "BS",
+      "RANONG",
+    ]);
+  });
+
+  it("omits zero-qty legacy locations outside standard list", () => {
+    const stock = new Map<string, Record<string, number>>([
+      ["KB", { a: 0, b: 0 }],
+      ["RANONG", { a: 2 }],
+      ["", { a: 0 }],
+    ]);
+    const empty = () => ({ a: 0, b: 0 });
+
+    const merged = buildMultiOriginCustomerStockLocations(
+      ["CPN", "RANONG"],
+      stock,
+      empty
+    );
+
+    expect(merged.map((row) => row.location)).toEqual(["CPN", "RANONG"]);
+    expect(selectableMultiOriginStockLocations(merged).map((r) => r.location)).toEqual([
+      "CPN",
+      "RANONG",
+    ]);
+  });
+
+  it("keeps zero-qty standard origins for first stock entry", () => {
+    const stock = new Map<string, Record<string, number>>([["BS", { a: 5 }]]);
+    const empty = () => ({ a: 0 });
+
+    const merged = buildMultiOriginCustomerStockLocations(
+      ["CPN", "BS"],
+      stock,
+      empty
+    );
+
+    expect(merged.map((row) => row.location)).toEqual(["CPN", "BS"]);
+    expect(merged[0].quantities).toEqual({ a: 0 });
+    expect(merged[1].quantities).toEqual({ a: 5 });
   });
 });

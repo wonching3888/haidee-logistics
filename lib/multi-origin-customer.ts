@@ -58,7 +58,7 @@ function findStockLocationKey(
 
 /**
  * Merge standard origin list with existing stock locations for multi-origin customers.
- * Standard origins appear even at qty 0; legacy stock-only locations are appended.
+ * Standard origins appear even at qty 0; legacy locations only when qty > 0.
  */
 export function buildMultiOriginCustomerStockLocations(
   standardOrigins: readonly string[],
@@ -89,13 +89,7 @@ export function buildMultiOriginCustomerStockLocations(
   for (const [loc, quantities] of Array.from(stockByLocation.entries())) {
     if (consumedStockKeys.has(loc)) continue;
     const hasQty = Object.values(quantities).some((q) => q !== 0);
-    if (loc === "") {
-      if (hasQty) {
-        legacy.push({ location: "", quantities, outsideStandardOrigin: true });
-      }
-      continue;
-    }
-    if (!standardLower.has(loc.toLowerCase())) {
+    if (!standardLower.has(loc.toLowerCase()) && hasQty) {
       legacy.push({ location: loc, quantities, outsideStandardOrigin: true });
     }
   }
