@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { canEditCustomerCrateStock } from "@/lib/customer-crate-stock-permissions";
+import {
+  canEditCustomerCrateStock,
+  canManageCrateStockAgents,
+} from "@/lib/customer-crate-stock-permissions";
 import {
   canAccessAutocountExport,
   canViewFreightOnEntry,
@@ -24,5 +27,14 @@ describe("canEditCustomerCrateStock", () => {
     expect(canViewInvoiceAmounts("clerk")).toBe(false);
     expect(canAccessAutocountExport("clerk")).toBe(false);
     expect(canEditCustomerCrateStock("clerk")).toBe(true);
+    expect(canManageCrateStockAgents("clerk")).toBe(false);
+  });
+});
+
+describe("canManageCrateStockAgents", () => {
+  it("allows admin only", () => {
+    expect(canManageCrateStockAgents("admin")).toBe(true);
+    expect(canManageCrateStockAgents("clerk")).toBe(false);
+    expect(canManageCrateStockAgents("viewer")).toBe(false);
   });
 });

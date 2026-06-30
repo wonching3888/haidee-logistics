@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireCustomerCrateStockEdit } from "@/lib/customer-crate-stock-permissions";
+import { requireCrateStockAgentAdmin } from "@/lib/customer-crate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 import {
   getCustomerCrateStock,
@@ -90,10 +90,6 @@ async function loadAssignedMemberSearchHints(
     shipperName: member.name,
     agentName: member.crateStockAgentMembership!.agentShipper.name,
   }));
-}
-
-async function requireCrateStockEditor() {
-  return requireCustomerCrateStockEdit();
 }
 
 function initQuantities(crateTypes: CrateTypeColumn[]): Record<string, number> {
@@ -229,7 +225,7 @@ export async function getCustomerCrateStockPageData(search?: string) {
 export async function searchEligibleAgentMembers(
   query: string
 ): Promise<EligibleAgentMemberOption[]> {
-  await requireCrateStockEditor();
+  await requireCrateStockAgentAdmin();
   const shippers = await prisma.shipper.findMany({
     where: eligibleMemberWhere(query),
     orderBy: { name: "asc" },
@@ -257,7 +253,7 @@ export async function createCrateStockAgent(input: {
   code?: string;
   notes?: string;
 }) {
-  await requireCrateStockEditor();
+  await requireCrateStockAgentAdmin();
   const name = input.name.trim();
   if (!name) {
     throw new Error("代理名称必填 Agent name is required");
@@ -286,7 +282,7 @@ export async function addAgentMember(
   agentShipperId: string,
   memberShipperId: string
 ) {
-  const user = await requireCrateStockEditor();
+  const user = await requireCrateStockAgentAdmin();
 
   await prisma.$transaction(async (tx) => {
     const [agent, member] = await Promise.all([
@@ -352,7 +348,7 @@ export async function addAgentMember(
 }
 
 export async function removeAgentMember(memberShipperId: string) {
-  const user = await requireCrateStockEditor();
+  const user = await requireCrateStockAgentAdmin();
 
   await prisma.$transaction(async (tx) => {
     const membership = await tx.crateStockAgentMember.findUnique({

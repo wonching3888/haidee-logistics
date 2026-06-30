@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireCustomerCrateStockEdit } from "@/lib/customer-crate-stock-permissions";
+import {
+  requireCustomerCrateStockEdit,
+  requireCrateStockAgentAdmin,
+} from "@/lib/customer-crate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 import { sortTongColumnCodes } from "@/lib/constants/tong-columns";
-import { CUSTOMER_CRATE_STOCK_LIST_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
+import { CUSTOMER_CRATE_STOCK_LIST_SHIPPER_WHERE, SHIPPER_KIND } from "@/lib/constants/shipper-kind";
 import {
   formatPickupLocationLabel,
   PICKUP_CRATE_STOCK_LOCATIONS,
@@ -220,7 +223,18 @@ export async function updateCustomerCrateStock(
   location: string,
   notes?: string
 ) {
-  await requireCustomerCrateStockEdit();
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { shipperKind: true },
+  });
+  if (!shipper) {
+    throw new Error("寄货人不存在 Shipper not found");
+  }
+  if (shipper.shipperKind === SHIPPER_KIND.CRATE_STOCK_AGENT) {
+    await requireCrateStockAgentAdmin();
+  } else {
+    await requireCustomerCrateStockEdit();
+  }
 
   const loc = normalizeLocation(location);
 

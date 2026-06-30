@@ -57,6 +57,7 @@ interface CustomerCrateStockViewProps {
   assignedMemberHints: AssignedMemberSearchHint[];
   initialSearch: string;
   canEditCustomerCrateStock: boolean;
+  canManageCrateStockAgents: boolean;
   canConfigureMultiOrigin?: boolean;
   multiOriginShipperIds?: string[];
 }
@@ -96,6 +97,7 @@ export function CustomerCrateStockView({
   assignedMemberHints,
   initialSearch,
   canEditCustomerCrateStock,
+  canManageCrateStockAgents,
   canConfigureMultiOrigin = false,
   multiOriginShipperIds = [],
 }: CustomerCrateStockViewProps) {
@@ -351,7 +353,7 @@ export function CustomerCrateStockView({
         >
           {t("inbound.searchButton")}
         </Button>
-        {canEditCustomerCrateStock ? (
+        {canManageCrateStockAgents ? (
           <Button
             type="button"
             variant="outline"
@@ -463,7 +465,7 @@ export function CustomerCrateStockView({
                       );
                     })}
                     <TableCell className="text-right">
-                      {canEditCustomerCrateStock ? (
+                      {canManageCrateStockAgents ? (
                         <button
                           type="button"
                           onClick={() => openEditAgent(agent)}
@@ -497,7 +499,7 @@ export function CustomerCrateStockView({
                               <p className="text-xs font-semibold text-haidee-muted">
                                 {t("customerCrateStock.agent.membersTitle")}
                               </p>
-                              {canEditCustomerCrateStock ? (
+                              {canManageCrateStockAgents ? (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -523,7 +525,7 @@ export function CustomerCrateStockView({
                                       <p className="text-sm font-medium">
                                         {member.memberShipperName}
                                       </p>
-                                      {canEditCustomerCrateStock ? (
+                                      {canManageCrateStockAgents ? (
                                         <Button
                                           type="button"
                                           size="sm"

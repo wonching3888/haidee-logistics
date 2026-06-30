@@ -4,7 +4,10 @@ import { CustomerCrateStockView } from "@/components/crate/CustomerCrateStockVie
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessSettings } from "@/lib/auth-roles";
-import { canEditCustomerCrateStock } from "@/lib/customer-crate-stock-permissions";
+import {
+  canEditCustomerCrateStock,
+  canManageCrateStockAgents,
+} from "@/lib/customer-crate-stock-permissions";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/i18n/translate";
 
@@ -20,6 +23,7 @@ export default async function CustomerCrateStockPage({
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
   const canEdit = user ? canEditCustomerCrateStock(user.role) : false;
+  const canManageAgents = user ? canManageCrateStockAgents(user.role) : false;
   const canConfigureMultiOrigin = user ? canAccessSettings(user.role) : false;
   const multiOriginShipperIds = canConfigureMultiOrigin
     ? (
@@ -58,6 +62,7 @@ export default async function CustomerCrateStockPage({
             assignedMemberHints={assignedMemberHints}
             initialSearch={search}
             canEditCustomerCrateStock={canEdit}
+            canManageCrateStockAgents={canManageAgents}
             canConfigureMultiOrigin={canConfigureMultiOrigin}
             multiOriginShipperIds={multiOriginShipperIds}
           />
