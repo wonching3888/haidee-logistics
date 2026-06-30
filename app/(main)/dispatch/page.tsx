@@ -13,7 +13,7 @@ import { DispatchListFreshnessBar } from "@/components/dispatch/DispatchListFres
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
 import { canWrite } from "@/lib/auth-roles";
-import { resolveDateParam } from "@/lib/date-utils";
+import { resolveDispatchDateParam } from "@/lib/date-utils";
 import { t } from "@/lib/i18n/translate";
 
 interface DispatchPageProps {
@@ -22,7 +22,7 @@ interface DispatchPageProps {
 
 export default async function DispatchPage({ searchParams }: DispatchPageProps) {
   const params = await searchParams;
-  const date = resolveDateParam(params.date);
+  const date = resolveDispatchDateParam(params.date);
   const user = await requirePageUser();
   const locale = user.language;
   const userCanWrite = canWrite(user.role);

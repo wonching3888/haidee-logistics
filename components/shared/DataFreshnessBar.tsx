@@ -7,6 +7,7 @@ import {
   useDataFreshness,
   type UseDataFreshnessOptions,
 } from "@/lib/hooks/use-data-freshness";
+import { formatDisplayTime } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 export type DataFreshnessBarProps = UseDataFreshnessOptions & {
@@ -16,11 +17,7 @@ export type DataFreshnessBarProps = UseDataFreshnessOptions & {
 };
 
 function formatTimeLabel(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatDisplayTime(date);
 }
 
 export function DataFreshnessBar({

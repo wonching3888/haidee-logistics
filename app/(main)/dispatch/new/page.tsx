@@ -1,7 +1,7 @@
 import { getDispatchMarkets, getDrivers, getTrucks } from "@/app/actions/dispatch";
 import { DispatchForm } from "@/components/dispatch/DispatchForm";
 import { getCurrentUser } from "@/lib/auth";
-import { resolveDateParam } from "@/lib/date-utils";
+import { resolveDispatchDateParam } from "@/lib/date-utils";
 import { t } from "@/lib/i18n/translate";
 
 interface NewDispatchPageProps {
@@ -12,7 +12,7 @@ export default async function NewDispatchPage({
   searchParams,
 }: NewDispatchPageProps) {
   const params = await searchParams;
-  const date = resolveDateParam(params.date);
+  const date = resolveDispatchDateParam(params.date);
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
   const [trucks, drivers, marketOptions] = await Promise.all([

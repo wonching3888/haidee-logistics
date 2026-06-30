@@ -16,6 +16,7 @@ export default defineConfig({
       "lib/crate-stock-agent-transfer.test.ts",
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",
+      "lib/date-utils.test.ts",
       "lib/sadao-stock.test.ts",
       "lib/search-filters.test.ts",
       "lib/db-retry.test.ts",

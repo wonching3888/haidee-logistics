@@ -4,6 +4,12 @@ import { format, isValid, parse } from "date-fns";
 export const DISPLAY_DATE_FORMAT = "dd/MM/yyyy";
 const ISO_DATE_FORMAT = "yyyy-MM-dd";
 
+/** Thailand business & display timezone (UTC+7, no DST). */
+export const DISPLAY_TIMEZONE = "Asia/Bangkok";
+
+/** @deprecated Use DISPLAY_TIMEZONE — kept for callers referencing business TZ */
+export const BUSINESS_TIMEZONE = DISPLAY_TIMEZONE;
+
 /** Normalize @db.Date / UTC-midnight values to local calendar date */
 function toCalendarDate(date: Date): Date {
   return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
@@ -20,6 +26,34 @@ export function formatDisplay(dateStr: string): string {
 /** User-facing date display: dd/MM/yyyy */
 export function formatDisplayDate(date: Date): string {
   return format(toCalendarDate(date), DISPLAY_DATE_FORMAT);
+}
+
+/** User-facing date-time in Thailand: dd/MM/yyyy HH:mm @ Asia/Bangkok */
+export function formatDisplayDateTime(date: Date): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DISPLAY_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "00";
+
+  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}`;
+}
+
+/** User-facing time only in Thailand: HH:mm @ Asia/Bangkok */
+export function formatDisplayTime(date: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: DISPLAY_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 /** Native <input type="date"> value & URL storage: yyyy-MM-dd */
@@ -77,6 +111,12 @@ export function resolveDateParam(dateParam?: string): string {
   return toDateInputValue(parseDateInput(dateParam));
 }
 
+/** Dispatch page default: Bangkok calendar day with 18:00 cutoff when URL has no date. */
+export function resolveDispatchDateParam(dateParam?: string): string {
+  if (!dateParam) return toDateInputValue(getDefaultDispatchDate());
+  return resolveDateParam(dateParam);
+}
+
 /** Resolve from/to URL params; supports legacy single `date` param. */
 export function resolveDateRangeParams(
   fromParam?: string,
@@ -99,9 +139,6 @@ export function normalizeDateRange(from: string, to: string): { from: string; to
   return { from: to, to: from };
 }
 
-/** Malaysia / Thailand business timezone (UTC+8) */
-const BUSINESS_TIMEZONE = "Asia/Kuala_Lumpur";
-
 function getZonedDateParts(date: Date, timeZone: string) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -123,14 +160,32 @@ function getZonedDateParts(date: Date, timeZone: string) {
   };
 }
 
-/** Default inbound date: today before 18:00, tomorrow from 18:00 (UTC+8). */
-export function getDefaultInboundDate(): Date {
+/**
+ * Business default calendar day in Thailand: today before cutoff, next day from cutoff onward.
+ * Used for inbound list/form and dispatch scheduling defaults.
+ */
+export function getDefaultBusinessDate(options?: {
+  cutoffHour?: number;
+  timeZone?: string;
+}): Date {
+  const cutoffHour = options?.cutoffHour ?? 18;
+  const timeZone = options?.timeZone ?? DISPLAY_TIMEZONE;
   const now = new Date();
-  const { year, month, day, hour } = getZonedDateParts(now, BUSINESS_TIMEZONE);
+  const { year, month, day, hour } = getZonedDateParts(now, timeZone);
 
   const base = calendarDateUTC(year, month, day);
-  if (hour >= 18) {
+  if (hour >= cutoffHour) {
     base.setUTCDate(base.getUTCDate() + 1);
   }
   return base;
+}
+
+/** Default inbound date: today before 18:00, tomorrow from 18:00 (Bangkok UTC+7). */
+export function getDefaultInboundDate(): Date {
+  return getDefaultBusinessDate({ cutoffHour: 18 });
+}
+
+/** Default dispatch schedule date: same 18:00 Bangkok cutoff as inbound. */
+export function getDefaultDispatchDate(): Date {
+  return getDefaultBusinessDate({ cutoffHour: 18 });
 }

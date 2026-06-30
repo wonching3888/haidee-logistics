@@ -3,16 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateInputField } from "@/components/shared/DateInputField";
 import { useT } from "@/components/shared/locale-context";
-import { resolveDateParam, toDateInputValue } from "@/lib/date-utils";
+import { resolveDispatchDateParam } from "@/lib/date-utils";
 
 export function DispatchDateFilter() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useT();
-  const today = toDateInputValue(new Date());
-  const value = searchParams.get("date")
-    ? resolveDateParam(searchParams.get("date")!)
-    : today;
+  const value = resolveDispatchDateParam(searchParams.get("date") ?? undefined);
 
   return (
     <div className="flex items-center gap-2">

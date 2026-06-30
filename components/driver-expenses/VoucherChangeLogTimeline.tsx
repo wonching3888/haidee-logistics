@@ -9,6 +9,7 @@ import {
   VOUCHER_STATUS_LABELS,
   isVoucherStatus,
 } from "@/lib/driver-voucher-status-types";
+import { formatDisplayDateTime } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 export interface VoucherChangeLogEntry {
@@ -47,13 +48,7 @@ function formatFieldLabel(field: string | null) {
 function formatTimestamp(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDisplayDateTime(date);
 }
 
 export function VoucherChangeLogTimeline({

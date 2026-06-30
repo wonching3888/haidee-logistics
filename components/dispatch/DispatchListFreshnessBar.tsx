@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
-import { resolveDateParam } from "@/lib/date-utils";
+import { resolveDispatchDateParam } from "@/lib/date-utils";
 
 export function DispatchListFreshnessBar() {
   const router = useRouter();
@@ -11,7 +11,7 @@ export function DispatchListFreshnessBar() {
 
   const params = useMemo(
     () => ({
-      date: resolveDateParam(searchParams.get("date") ?? undefined),
+      date: resolveDispatchDateParam(searchParams.get("date") ?? undefined),
     }),
     [searchParams]
   );

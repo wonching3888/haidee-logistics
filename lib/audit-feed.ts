@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { parseDateInput } from "@/lib/inbound-utils";
-import { formatDisplayDate } from "@/lib/date-utils";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/date-utils";
 import {
   formatPickupLocationLabel,
   resolveSessionPickupLocation,
@@ -205,7 +205,7 @@ async function fetchInboundAuditEntries(
       eventType: "field_change",
       eventTypeLabel: "进货修改",
       occurredAt: log.createdAt,
-      occurredAtDisplay: format(log.createdAt, "dd/MM/yyyy HH:mm"),
+      occurredAtDisplay: formatDisplayDateTime(log.createdAt),
       actorName,
       changes: [change],
       deepLink: log.session.sessionNo
@@ -276,7 +276,7 @@ async function fetchInboundAuditEntries(
         eventTypeLabel: "进货修改",
         occurredAt,
         occurredAtDisplay: line.modifiedAt
-          ? format(line.modifiedAt, "dd/MM/yyyy HH:mm")
+          ? formatDisplayDateTime(line.modifiedAt)
           : "—",
         actorName: "—",
         changes,
@@ -406,7 +406,7 @@ async function fetchVoucherAuditEntries(
       eventTypeLabel:
         log.eventType === "field_change" ? "费用单修改" : log.eventType,
       occurredAt: log.changedAt,
-      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      occurredAtDisplay: formatDisplayDateTime(log.changedAt),
       actorName: log.changedBy
         ? (actorNames.get(log.changedBy) ?? "—")
         : "—",
@@ -485,7 +485,7 @@ async function fetchPayrollAuditEntries(
       eventType: log.eventType,
       eventTypeLabel: payrollAuditEventLabel(log.eventType),
       occurredAt: log.changedAt,
-      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      occurredAtDisplay: formatDisplayDateTime(log.changedAt),
       actorName: actorNames.get(log.changedBy) ?? "—",
       changes: [change],
       deepLink: payrollDeepLink({
@@ -608,7 +608,7 @@ async function fetchDispatchAuditEntries(
       eventType: log.eventType,
       eventTypeLabel: dispatchAuditEventLabel(entityType, log.eventType),
       occurredAt: log.changedAt,
-      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      occurredAtDisplay: formatDisplayDateTime(log.changedAt),
       actorName: actorNames.get(log.changedBy) ?? "—",
       changes: [change],
       deepLink: dispatchDeepLink(entityType, log.entityId),
@@ -748,7 +748,7 @@ async function fetchInvoicePaymentAuditEntries(
       eventType: log.eventType,
       eventTypeLabel: invoicePaymentAuditEventLabel(log.eventType),
       occurredAt: log.changedAt,
-      occurredAtDisplay: format(log.changedAt, "dd/MM/yyyy HH:mm"),
+      occurredAtDisplay: formatDisplayDateTime(log.changedAt),
       actorName: actorNames.get(log.changedBy) ?? "—",
       changes: [change],
       deepLink:
