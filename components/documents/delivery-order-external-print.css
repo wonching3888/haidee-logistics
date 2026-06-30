@@ -1,0 +1,169 @@
+/**
+ * External D/O only — dark-market readability (large type, zebra rows, black borders).
+ * Scoped to .delivery-order-document.delivery-order-external — does not affect internal D/O or other prints.
+ */
+
+.delivery-order-document.delivery-order-external {
+  font-size: 12pt;
+  line-height: 1.45;
+}
+
+.delivery-order-document.delivery-order-external .header-row {
+  font-size: 12pt;
+  font-weight: 800;
+}
+
+.delivery-order-document.delivery-order-external .delivery-order-print-section table.do-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.delivery-order-document.delivery-order-external .delivery-order-print-section th,
+.delivery-order-document.delivery-order-external .delivery-order-print-section td {
+  border: 1.5px solid #000000;
+  padding: 9px 5px;
+  vertical-align: middle;
+  color: #000000;
+  font-weight: 700;
+  font-size: 12pt;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.delivery-order-document.delivery-order-external .delivery-order-print-section th {
+  font-weight: 800;
+  font-size: 12pt;
+  background: #d1d5db;
+}
+
+.delivery-order-document.delivery-order-external .do-no-col,
+.delivery-order-document.delivery-order-external .do-area-col {
+  font-size: 11pt;
+  font-weight: 700;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.delivery-order-document.delivery-order-external .do-crate-col {
+  font-size: 11pt;
+  font-weight: 700;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  padding: 9px 2px;
+}
+
+.delivery-order-document.delivery-order-external .do-store-col,
+.delivery-order-document.delivery-order-external .do-qty-col {
+  font-size: 15pt;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.delivery-order-document.delivery-order-external .do-remarks-col {
+  font-size: 12pt;
+  font-weight: 700;
+  text-align: left;
+  min-height: 2.4em;
+  vertical-align: top;
+}
+
+/* Zebra striping — odd rows white, even rows light gray */
+.delivery-order-document.delivery-order-external tr.do-data-row.do-row-odd td {
+  background: #ffffff;
+}
+
+.delivery-order-document.delivery-order-external tr.do-data-row.do-row-even td {
+  background: #f3f4f6;
+}
+
+/* Qty column highlight (works with zebra) */
+.delivery-order-document.delivery-order-external tr.do-data-row.do-row-odd .do-qty-col {
+  background: #fef9c3;
+}
+
+.delivery-order-document.delivery-order-external tr.do-data-row.do-row-even .do-qty-col {
+  background: #f3f0d4;
+}
+
+.delivery-order-document.delivery-order-external tr.market-do-area-header td {
+  font-size: 13pt;
+  font-weight: 900;
+  background: #9ca3af !important;
+  border: 1.5px solid #000000;
+  padding: 8px 6px;
+}
+
+.delivery-order-document.delivery-order-external tr.area-subtotal-row td,
+.delivery-order-document.delivery-order-external tr.totals-row td {
+  font-size: 12pt;
+  font-weight: 800;
+  border: 1.5px solid #000000;
+  background: #d1d5db !important;
+}
+
+.delivery-order-document.delivery-order-external tr.totals-row .do-qty-col {
+  font-size: 15pt;
+  font-weight: 900;
+  background: #e5e7eb !important;
+}
+
+.delivery-order-document.delivery-order-external .signature-row,
+.delivery-order-document.delivery-order-external .document-print-footer {
+  font-size: 12pt;
+  font-weight: 800;
+}
+
+@media print {
+  .delivery-order-document.delivery-order-external {
+    font-size: 12pt;
+    font-weight: 700 !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section table.do-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section th,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section td {
+    border: 1.5px solid #000000 !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .delivery-order-document.delivery-order-external tr.do-data-row.do-row-even td {
+    background: #f3f4f6 !important;
+  }
+
+  .delivery-order-document.delivery-order-external tr.do-data-row.do-row-odd .do-qty-col {
+    background: #fef9c3 !important;
+  }
+
+  .delivery-order-document.delivery-order-external tr.do-data-row.do-row-even .do-qty-col {
+    background: #f3f0d4 !important;
+  }
+
+  .delivery-order-document.delivery-order-external tr.market-do-area-header td {
+    background: #9ca3af !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-no-col,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-store-col,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-area-col,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-crate-col,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-qty-col,
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-remarks-col {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section tr.do-data-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

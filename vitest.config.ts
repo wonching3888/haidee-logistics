@@ -17,6 +17,7 @@ export default defineConfig({
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",
       "lib/date-utils.test.ts",
+      "lib/documents/external-do-column-widths.test.ts",
       "lib/sadao-stock.test.ts",
       "lib/search-filters.test.ts",
       "lib/db-retry.test.ts",

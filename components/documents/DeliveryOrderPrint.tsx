@@ -4,6 +4,7 @@ import { MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD } from "@/lib/market-do-route-grou
 import { DeliveryOrderSectionPrint } from "@/components/documents/DeliveryOrderSectionPrint";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import "./document-print.css";
+import "./delivery-order-external-print.css";
 
 interface DeliveryOrderPrintProps {
   data: DeliveryOrderData;
@@ -21,10 +22,15 @@ export function DeliveryOrderPrint({
     0
   );
   const useLandscape = maxActiveColumns >= MARKET_DO_LANDSCAPE_COLUMN_THRESHOLD;
+  const isExternal = !showConsignor;
 
   if (sections.length === 0) {
     return (
-      <div className="document-print delivery-order-document">
+      <div
+        className={`document-print delivery-order-document${
+          isExternal ? " delivery-order-external" : ""
+        }`}
+      >
         <PrintLetterhead />
         <div className="header-row">
           <span>LORRY NO: {data.lorryNo}</span>
@@ -49,7 +55,7 @@ export function DeliveryOrderPrint({
     <div
       className={`document-print delivery-order-document${
         useLandscape ? " delivery-order-landscape" : ""
-      }`}
+      }${isExternal ? " delivery-order-external" : ""}`}
       data-delivery-order-section-count={sections.length}
       data-delivery-order-max-columns={maxActiveColumns}
     >
