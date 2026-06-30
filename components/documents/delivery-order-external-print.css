@@ -54,16 +54,67 @@
   max-width: none;
 }
 
+.delivery-order-document.delivery-order-external .do-store-col,
 .delivery-order-document.delivery-order-external .do-area-col,
+.delivery-order-document.delivery-order-external .do-qty-col,
 .delivery-order-document.delivery-order-external .do-crate-col {
-  font-size: 11pt;
-  font-weight: 700;
+  width: auto;
   min-width: 0;
   max-width: none;
 }
 
 .delivery-order-document.delivery-order-external .do-crate-col {
+  font-size: 10pt;
+  font-weight: 700;
+  padding: 9px 3px;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.delivery-order-document.delivery-order-external thead .do-crate-col {
+  font-size: 10pt;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 8px 3px;
+}
+
+.delivery-order-document.delivery-order-external .delivery-order-print-section-external.delivery-order-external-dense-crates .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="7"]
+  .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="8"]
+  .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="9"]
+  .do-crate-col {
+  font-size: 9pt;
   padding: 9px 2px;
+}
+
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external.delivery-order-external-dense-crates
+  thead
+  .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="7"]
+  thead
+  .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="8"]
+  thead
+  .do-crate-col,
+.delivery-order-document.delivery-order-external
+  .delivery-order-print-section-external[data-crate-col-count="9"]
+  thead
+  .do-crate-col {
+  font-size: 9pt;
+  padding: 8px 2px;
+}
+
+.delivery-order-document.delivery-order-external .do-area-col {
+  font-size: 11pt;
+  font-weight: 700;
 }
 
 .delivery-order-document.delivery-order-external .do-store-col,
@@ -167,6 +218,11 @@
   .delivery-order-document.delivery-order-external .delivery-order-print-section table.do-table {
     table-layout: fixed !important;
     width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section table.do-table col {
+    width: auto;
   }
 
   .delivery-order-document.delivery-order-external .delivery-order-print-section th,
@@ -193,19 +249,30 @@
     background: #9ca3af !important;
   }
 
-  /* Respect colgroup fixed widths; only lift base max-width caps so table fills page. */
+  /* Lift base document-print px caps (32px crate cols) so colgroup % fills the page. */
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-no-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-store-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-area-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-crate-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-qty-col,
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-remarks-col {
+    width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
+    overflow: visible !important;
   }
 
   .delivery-order-document.delivery-order-external .delivery-order-print-section .do-no-col {
     text-align: center !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section thead .do-crate-col {
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .delivery-order-document.delivery-order-external .delivery-order-print-section .do-crate-col {
+    white-space: nowrap !important;
   }
 
   .delivery-order-document.delivery-order-external .delivery-order-print-section tr.do-data-row {

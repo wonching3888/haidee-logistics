@@ -1,29 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
-  externalDoColumnWidths,
-  externalDoFixedColumnsWidthMm,
-  EXTERNAL_DO_FIXED_COL_MM,
+  externalDoColumnPercents,
+  externalDoColumnTotalPercent,
+  externalDoUsesDenseCrateColumns,
+  EXTERNAL_DO_COL,
 } from "@/lib/documents/external-do-column-widths";
 
-describe("externalDoColumnWidths", () => {
-  it("uses fixed mm widths for non-remarks columns (remarks fills remainder)", () => {
-    const widths = externalDoColumnWidths(4);
-    expect(widths.no).toBe("8mm");
-    expect(widths.store).toBe("28mm");
-    expect(widths.area).toBe("10mm");
-    expect(widths.qty).toBe("14mm");
-    expect(widths.crateEach).toBe("7mm");
-    expect(externalDoFixedColumnsWidthMm(4)).toBe(
-      EXTERNAL_DO_FIXED_COL_MM.no +
-        EXTERNAL_DO_FIXED_COL_MM.store +
-        EXTERNAL_DO_FIXED_COL_MM.area +
-        EXTERNAL_DO_FIXED_COL_MM.crateEach * 4 +
-        EXTERNAL_DO_FIXED_COL_MM.qty
-    );
+describe("externalDoColumnPercents", () => {
+  it("sums to 100% with four crate columns (KL-style)", () => {
+    const w = externalDoColumnPercents(4);
+    expect(w.remarks).toBe(EXTERNAL_DO_COL.remarksTarget);
+    expect(w.crateEach).toBeCloseTo(7.25, 2);
+    expect(externalDoColumnTotalPercent(4)).toBeCloseTo(100, 5);
   });
 
-  it("scales fixed width sum with active crate column count", () => {
-    expect(externalDoFixedColumnsWidthMm(2)).toBe(74);
-    expect(externalDoFixedColumnsWidthMm(4)).toBe(88);
+  it("shrinks remarks and enforces min crate width with eight columns (BM/PENANG-style)", () => {
+    const w = externalDoColumnPercents(8);
+    expect(w.crateEach).toBeGreaterThanOrEqual(EXTERNAL_DO_COL.crateMinPercent);
+    expect(w.remarks).toBeGreaterThanOrEqual(EXTERNAL_DO_COL.remarksMin);
+    expect(w.remarks).toBeLessThanOrEqual(EXTERNAL_DO_COL.remarksTarget);
+    expect(externalDoColumnTotalPercent(8)).toBeCloseTo(100, 5);
+  });
+
+  it("flags dense crate styling at 7+ columns", () => {
+    expect(externalDoUsesDenseCrateColumns(6)).toBe(false);
+    expect(externalDoUsesDenseCrateColumns(7)).toBe(true);
+    expect(externalDoUsesDenseCrateColumns(8)).toBe(true);
   });
 });
