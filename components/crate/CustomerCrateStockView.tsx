@@ -48,6 +48,7 @@ import {
   stickyFirstTwoColTableClass,
 } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
+import { selectableMultiOriginStockLocations } from "@/lib/multi-origin-customer";
 
 interface CustomerCrateStockViewProps {
   crateTypes: CrateTypeColumn[];
@@ -77,6 +78,12 @@ function formatLocationLabel(location: string, unspecified: string) {
     return formatPickupLocationLabel(location);
   }
   return location || unspecified;
+}
+
+function editLocationOptions(row: CustomerCrateStockRow) {
+  return row.isMultiOriginCustomer
+    ? selectableMultiOriginStockLocations(row.locations)
+    : row.locations;
 }
 
 function memberStockSummary(
@@ -161,6 +168,7 @@ export function CustomerCrateStockView({
       shipperId: agent.shipperId,
       shipperCode: agent.shipperCode,
       shipperName: agent.shipperName,
+      isMultiOriginCustomer: false,
       quantities: agent.quantities,
       locations: agent.locations,
     });
@@ -257,14 +265,11 @@ export function CustomerCrateStockView({
   function openEdit(row: CustomerCrateStockRow) {
     setError(null);
     setEditRow(row);
-    const defaultLoc =
-      row.locations.find((l) => l.location === "")?.location ??
-      row.locations[0]?.location ??
-      "";
+    const options = editLocationOptions(row);
+    const defaultLoc = options[0]?.location ?? "";
     setEditLocation(defaultLoc);
     const locRow =
-      row.locations.find((l) => l.location === defaultLoc) ??
-      row.locations[0];
+      row.locations.find((l) => l.location === defaultLoc) ?? options[0];
     const qty: Record<string, string> = {};
     for (const crateType of visibleCrateTypes) {
       qty[crateType.id] = String(locRow?.quantities[crateType.id] ?? 0);
@@ -279,6 +284,7 @@ export function CustomerCrateStockView({
       shipperId: summary.shipperId,
       shipperCode: "",
       shipperName: summary.shipperName,
+      isMultiOriginCustomer: false,
       quantities: summary.quantities,
       locations: [
         { location: summary.location, quantities: summary.quantities },
@@ -703,7 +709,7 @@ export function CustomerCrateStockView({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {editRow && editRow.locations.length > 0 && (
+            {editRow && editLocationOptions(editRow).length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-haidee-muted">
                   {t("crateExport.location")}
@@ -713,7 +719,7 @@ export function CustomerCrateStockView({
                   onChange={(e) => handleEditLocationChange(e.target.value)}
                   className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
                 >
-                  {editRow.locations.map((loc) => (
+                  {editLocationOptions(editRow).map((loc) => (
                     <option key={loc.location || "__empty__"} value={loc.location}>
                       {formatLocationLabel(
                         loc.location,

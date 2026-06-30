@@ -17,6 +17,7 @@ import {
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import { ensureLocationPoolShippersForStock } from "@/lib/location-pool-shippers-service";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
+import { buildMultiOriginCustomerStockLocations } from "@/lib/multi-origin-customer";
 
 export interface CrateTypeColumn {
   id: string;
@@ -27,12 +28,15 @@ export interface CrateTypeColumn {
 export interface CustomerCrateLocationStock {
   location: string;
   quantities: Record<string, number>;
+  /** Legacy stock bucket not in customer_origin_locations (multi-origin only). */
+  outsideStandardOrigin?: boolean;
 }
 
 export interface CustomerCrateStockRow {
   shipperId: string;
   shipperCode: string;
   shipperName: string;
+  isMultiOriginCustomer: boolean;
   quantities: Record<string, number>;
   locations: CustomerCrateLocationStock[];
 }
@@ -175,6 +179,10 @@ export async function getCustomerCrateStock(search?: string) {
       customerCrateStock: {
         select: { crateTypeId: true, location: true, quantity: true },
       },
+      customerOriginLocations: {
+        orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
+        select: { locationName: true },
+      },
     },
   });
 
@@ -193,21 +201,28 @@ export async function getCustomerCrateStock(search?: string) {
         (quantities[stock.crateTypeId] ?? 0) + stock.quantity;
     }
 
-    const locations = Array.from(locationMap.entries())
-      .map(([location, locQuantities]) => ({
-        location,
-        quantities: locQuantities,
-      }))
-      .sort((a, b) => {
-        if (a.location === "") return 1;
-        if (b.location === "") return -1;
-        return a.location.localeCompare(b.location);
-      });
+    const locations = shipper.isMultiOriginCustomer
+      ? buildMultiOriginCustomerStockLocations(
+          shipper.customerOriginLocations.map((row) => row.locationName),
+          locationMap,
+          () => initQuantities(crateTypes)
+        )
+      : Array.from(locationMap.entries())
+          .map(([location, locQuantities]) => ({
+            location,
+            quantities: locQuantities,
+          }))
+          .sort((a, b) => {
+            if (a.location === "") return 1;
+            if (b.location === "") return -1;
+            return a.location.localeCompare(b.location);
+          });
 
     return {
       shipperId: shipper.id,
       shipperCode: shipper.code,
       shipperName: shipper.name,
+      isMultiOriginCustomer: shipper.isMultiOriginCustomer,
       quantities,
       locations,
     };
@@ -225,7 +240,7 @@ export async function updateCustomerCrateStock(
 ) {
   const shipper = await prisma.shipper.findUnique({
     where: { id: shipperId },
-    select: { shipperKind: true },
+    select: { shipperKind: true, isMultiOriginCustomer: true },
   });
   if (!shipper) {
     throw new Error("寄货人不存在 Shipper not found");
@@ -237,6 +252,11 @@ export async function updateCustomerCrateStock(
   }
 
   const loc = normalizeLocation(location);
+  if (shipper.isMultiOriginCustomer && !loc) {
+    throw new Error(
+      "多产地客户须选择具体产地 Multi-origin customers require a specific origin"
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     const existing = await tx.customerCrateStock.findUnique({

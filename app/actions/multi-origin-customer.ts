@@ -6,6 +6,7 @@ import { canAccessSettings } from "@/lib/auth-roles";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWrite } from "@/lib/require-auth";
 import {
+  filterMultiOriginDropdownOptions,
   parseOriginLocationNames,
   type MultiOriginCustomerConfig,
 } from "@/lib/multi-origin-customer";
@@ -33,7 +34,9 @@ async function loadLocationsForShipper(shipperId: string): Promise<string[]> {
     orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
     select: { locationName: true },
   });
-  return rows.map((row) => row.locationName);
+  return filterMultiOriginDropdownOptions(
+    rows.map((row) => row.locationName)
+  );
 }
 
 export async function getMultiOriginConfig(
