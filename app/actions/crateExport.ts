@@ -17,6 +17,7 @@ import {
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
 import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
+import { assertOriginInCustomerList } from "@/lib/multi-origin-customer";
 import { buildCustomerCrateStockLedgerNotes } from "@/lib/customer-crate-stock-ledger-notes";
 import { t } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -172,7 +173,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     exportNoPromise,
     prisma.shipper.findUnique({
       where: { id: input.shipperId },
-      select: { name: true, code: true },
+      select: { name: true, code: true, isMultiOriginCustomer: true },
     }),
     prisma.tongType.findMany({
       where: { id: { in: tongTypeIds } },
@@ -183,8 +184,22 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   if (!shipper) throw new Error(t("error.shipperNotFound", locale));
 
   const poolStockLocation = stockLocationForPoolShipperCode(shipper.code);
-  const customerStockLocation =
-    poolStockLocation ?? input.location?.trim() ?? "";
+  let customerStockLocation: string;
+  if (poolStockLocation) {
+    customerStockLocation = poolStockLocation;
+  } else if (shipper.isMultiOriginCustomer) {
+    const originRows = await prisma.customerOriginLocation.findMany({
+      where: { shipperId: input.shipperId },
+      orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
+      select: { locationName: true },
+    });
+    customerStockLocation = assertOriginInCustomerList(
+      input.location,
+      originRows.map((row) => row.locationName)
+    );
+  } else {
+    customerStockLocation = input.location?.trim() ?? "";
+  }
 
   const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
   const exportRows: Prisma.TongExportCreateManyInput[] = [];

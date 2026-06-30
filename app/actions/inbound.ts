@@ -42,6 +42,11 @@ import {
   type InboundSessionSnapshot,
 } from "@/lib/inbound-edit-sync";
 import {
+  assertOriginInCustomerList,
+  requiresCustomerOriginSelection,
+} from "@/lib/multi-origin-customer";
+import type { PickupLocation } from "@/lib/constants/pickup-locations";
+import {
   computeInboundLineFreight,
   MC_MARKET_CODE,
   normalizeMcDeliveryMode,
@@ -49,6 +54,31 @@ import {
   type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
 import { loadInboundFreightContext } from "@/lib/freight-context";
+
+async function resolveValidatedCustomerOriginLocation(input: {
+  shipperId: string;
+  isMultiOriginCustomer: boolean;
+  effectivePickup: PickupLocation;
+  customerOriginLocation?: string;
+}): Promise<string | null> {
+  if (
+    !requiresCustomerOriginSelection(
+      input.isMultiOriginCustomer,
+      input.effectivePickup
+    )
+  ) {
+    return null;
+  }
+  const rows = await prisma.customerOriginLocation.findMany({
+    where: { shipperId: input.shipperId },
+    orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
+    select: { locationName: true },
+  });
+  return assertOriginInCustomerList(
+    input.customerOriginLocation,
+    rows.map((row) => row.locationName)
+  );
+}
 import { serializeInboundFreightLines } from "@/lib/inbound-form-serialize";
 
 const INBOUND_TX_TIMEOUT_MS = 30_000;
@@ -925,6 +955,7 @@ export async function getInboundSession(id: string) {
     shipperName: session.shipper.name,
     thVehiclePlate: session.thVehiclePlate,
     areaNote: session.areaNote,
+    customerOriginLocation: session.customerOriginLocation,
     pickupLocation: session.pickupLocation,
     shipperPickupLocation: session.shipper.pickupLocation,
     lines: session.lines.map((l) => ({
@@ -984,6 +1015,7 @@ interface SaveInboundInput {
   shipperId: string;
   thVehiclePlate?: string;
   areaNote?: string;
+  customerOriginLocation?: string;
   pickupLocation?: string | null;
   lines: InboundLineInput[];
   removedStallIds?: string[];
@@ -1007,12 +1039,23 @@ export async function saveInboundSession(input: SaveInboundInput) {
   );
   const shipper = await prisma.shipper.findUnique({
     where: { id: input.shipperId },
-    select: { pickupLocation: true, currency: true, name: true },
+    select: {
+      pickupLocation: true,
+      currency: true,
+      name: true,
+      isMultiOriginCustomer: true,
+    },
   });
   const effectivePickup = resolveSessionPickupLocation(
     sessionPickupLocation,
     shipper?.pickupLocation
   );
+  const validatedCustomerOrigin = await resolveValidatedCustomerOriginLocation({
+    shipperId: input.shipperId,
+    isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
+    effectivePickup,
+    customerOriginLocation: input.customerOriginLocation,
+  });
   const [poolIds, agentMembershipByMemberId] = await Promise.all([
     loadLocationPoolShipperIds(),
     loadCrateStockAgentMembershipByMemberId(),
@@ -1108,6 +1151,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
       shipperPickupLocation: existing.shipper.pickupLocation,
       pickupLocation: existing.pickupLocation,
       areaNote: existing.areaNote,
+      customerOriginLocation: existing.customerOriginLocation,
       thVehiclePlate: existing.thVehiclePlate,
       lines: existing.lines.map((line) => ({
         id: line.id,
@@ -1129,7 +1173,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       existing.pickupLocation,
       existing.areaNote,
       poolIds,
-      agentMembershipByMemberId
+      agentMembershipByMemberId,
+      existing.customerOriginLocation
     );
     const afterBucket = resolveCrateStockBucket(
       date,
@@ -1138,7 +1183,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       sessionPickupLocation,
       input.areaNote,
       poolIds,
-      agentMembershipByMemberId
+      agentMembershipByMemberId,
+      validatedCustomerOrigin
     );
 
     const beforeLinesForCrate =
@@ -1180,6 +1226,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
                 shipperId: input.shipperId,
                 thVehiclePlate: input.thVehiclePlate || null,
                 areaNote: input.areaNote || null,
+                customerOriginLocation: validatedCustomerOrigin,
                 pickupLocation: sessionPickupLocation,
                 status,
                 sessionNo,
@@ -1217,6 +1264,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             shipperId: input.shipperId,
             thVehiclePlate: input.thVehiclePlate || null,
             areaNote: input.areaNote || null,
+            customerOriginLocation: validatedCustomerOrigin,
             pickupLocation: sessionPickupLocation,
             status,
             sessionNo,
@@ -1337,6 +1385,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
               shipperId: input.shipperId,
               thVehiclePlate: input.thVehiclePlate || null,
               areaNote: input.areaNote || null,
+              customerOriginLocation: validatedCustomerOrigin,
               pickupLocation: sessionPickupLocation,
               status,
               sessionNo,
@@ -1378,6 +1427,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
         shipperId: input.shipperId,
         thVehiclePlate: input.thVehiclePlate || null,
         areaNote: input.areaNote || null,
+        customerOriginLocation: validatedCustomerOrigin,
         pickupLocation: sessionPickupLocation,
         status,
         sessionNo: null,
@@ -1404,6 +1454,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
       sessionPickupLocation,
       shipperPickupLocation: shipper?.pickupLocation,
       areaNote: input.areaNote,
+      customerOriginLocation: validatedCustomerOrigin,
       poolIds,
       agentMembershipByMemberId,
     });
@@ -1470,6 +1521,7 @@ export async function deleteInboundSession(sessionId: string) {
       sessionPickupLocation: session.pickupLocation,
       shipperPickupLocation: session.shipper.pickupLocation,
       areaNote: session.areaNote,
+      customerOriginLocation: session.customerOriginLocation,
       poolIds,
       agentMembershipByMemberId,
     });

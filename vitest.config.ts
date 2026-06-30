@@ -15,6 +15,7 @@ export default defineConfig({
       "lib/constants/customer-crate-stock-display.test.ts",
       "lib/inbound-crate-stock-p1.test.ts",
       "lib/crate-stock-agent-transfer.test.ts",
+      "lib/multi-origin-customer.test.ts",
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",
       "lib/date-utils.test.ts",

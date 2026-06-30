@@ -3,7 +3,9 @@ import { getCustomerCrateStockPageData } from "@/app/actions/customer-crate-stoc
 import { CustomerCrateStockView } from "@/components/crate/CustomerCrateStockView";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser } from "@/lib/auth";
+import { canAccessSettings } from "@/lib/auth-roles";
 import { canEditCustomerCrateStock } from "@/lib/customer-crate-stock-permissions";
+import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/i18n/translate";
 
 interface CustomerCrateStockPageProps {
@@ -18,6 +20,15 @@ export default async function CustomerCrateStockPage({
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
   const canEdit = user ? canEditCustomerCrateStock(user.role) : false;
+  const canConfigureMultiOrigin = user ? canAccessSettings(user.role) : false;
+  const multiOriginShipperIds = canConfigureMultiOrigin
+    ? (
+        await prisma.shipper.findMany({
+          where: { isMultiOriginCustomer: true },
+          select: { id: true },
+        })
+      ).map((row) => row.id)
+    : [];
 
   try {
     const { crateTypes, rows, pickupLocationSummaries, agents, assignedMemberHints } =
@@ -47,6 +58,8 @@ export default async function CustomerCrateStockPage({
             assignedMemberHints={assignedMemberHints}
             initialSearch={search}
             canEditCustomerCrateStock={canEdit}
+            canConfigureMultiOrigin={canConfigureMultiOrigin}
+            multiOriginShipperIds={multiOriginShipperIds}
           />
         </Suspense>
       </div>

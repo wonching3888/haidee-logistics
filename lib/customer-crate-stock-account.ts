@@ -17,6 +17,8 @@ export interface ResolveCustomerCrateStockAccountInput {
   operationalShipperId: string;
   /** Used when inbound pickup context is absent (e.g. crate export). */
   location?: string;
+  /** Standard Thai origin for multi-origin customers (overrides areaNote for stock bucket). */
+  customerOriginLocation?: string | null;
   sessionDate?: Date;
   sessionPickupLocation?: string | null;
   shipperPickupLocation?: string | null;
@@ -46,6 +48,10 @@ function lookupAgentShipperId(
 }
 
 function resolveStockLocation(input: ResolveCustomerCrateStockAccountInput): string {
+  if (input.customerOriginLocation?.trim()) {
+    return normalizeLocation(input.customerOriginLocation);
+  }
+
   if (input.location !== undefined) {
     return normalizeLocation(input.location);
   }

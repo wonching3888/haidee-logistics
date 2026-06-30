@@ -30,6 +30,7 @@ export interface InboundSessionSnapshot {
   shipperPickupLocation: string;
   pickupLocation: string | null;
   areaNote: string | null;
+  customerOriginLocation?: string | null;
   thVehiclePlate: string | null;
   lines: InboundLineSnapshot[];
 }
@@ -205,7 +206,8 @@ export function resolveCrateStockBucket(
   poolIds: LocationPoolShipperIds,
   agentMembershipByMemberId?:
     | ReadonlyMap<string, string>
-    | Record<string, string>
+    | Record<string, string>,
+  customerOriginLocation?: string | null
 ): CustomerCrateStockAccount {
   return resolveCustomerCrateStockAccount({
     sessionDate,
@@ -213,6 +215,7 @@ export function resolveCrateStockBucket(
     sessionPickupLocation,
     shipperPickupLocation,
     areaNote,
+    customerOriginLocation,
     poolIds,
     agentMembershipByMemberId,
   });

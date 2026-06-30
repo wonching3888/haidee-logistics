@@ -23,6 +23,7 @@ import {
   previewInboundFreightLines,
   saveInboundSession,
 } from "@/app/actions/inbound";
+import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
 import {
   computeMarketTotals,
   getDefaultInboundDate,
@@ -36,6 +37,7 @@ import {
   tripPickupSaveValue,
   tripPickupSelectValue,
 } from "@/lib/constants/pickup-locations";
+import { requiresCustomerOriginSelection } from "@/lib/multi-origin-customer";
 import type { InboundFormInitialSession } from "@/lib/inbound-form-serialize";
 
 interface ShipperOption {
@@ -115,6 +117,11 @@ export function InboundForm({
     initialSession?.thVehiclePlate ?? ""
   );
   const [areaNote, setAreaNote] = useState(initialSession?.areaNote ?? "");
+  const [customerOriginLocation, setCustomerOriginLocation] = useState(
+    initialSession?.customerOriginLocation ?? ""
+  );
+  const [isMultiOriginCustomer, setIsMultiOriginCustomer] = useState(false);
+  const [multiOriginLocations, setMultiOriginLocations] = useState<string[]>([]);
   const [sessionPickupLocation, setSessionPickupLocation] = useState(() =>
     initialSession?.shipperId
       ? tripPickupSelectValue(
@@ -151,6 +158,39 @@ export function InboundForm({
   const rowsReady =
     !loadingStalls &&
     (rows.length > 0 || !initialSession?.lines.length);
+
+  const selectedShipper = shippers.find((s) => s.id === shipperId);
+  const effectivePickup = resolveSessionPickupLocation(
+    sessionPickupLocation || shipperDefaultPickup(selectedShipper),
+    selectedShipper?.pickupLocation
+  );
+  const showOriginDropdown = requiresCustomerOriginSelection(
+    isMultiOriginCustomer,
+    effectivePickup
+  );
+
+  useEffect(() => {
+    if (!shipperId) {
+      setIsMultiOriginCustomer(false);
+      setMultiOriginLocations([]);
+      setCustomerOriginLocation("");
+      return;
+    }
+
+    let cancelled = false;
+    void getMultiOriginConfig(shipperId).then((config) => {
+      if (cancelled) return;
+      setIsMultiOriginCustomer(config.isMultiOrigin);
+      setMultiOriginLocations(config.locations);
+      if (!config.isMultiOrigin) {
+        setCustomerOriginLocation("");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shipperId]);
 
   const loadStalls = useCallback(
     async (sid: string) => {
@@ -362,6 +402,10 @@ export function InboundForm({
       setError(t("error.selectConsignor"));
       return;
     }
+    if (showOriginDropdown && !customerOriginLocation) {
+      setError(t("multiOrigin.error.required"));
+      return;
+    }
 
     const lines = rows
       .filter((r) => r.quantity && parseInt(r.quantity, 10) > 0)
@@ -383,6 +427,9 @@ export function InboundForm({
           shipperId,
           thVehiclePlate: thVehiclePlate || undefined,
           areaNote: areaNote || undefined,
+          customerOriginLocation: showOriginDropdown
+            ? customerOriginLocation
+            : undefined,
           pickupLocation: tripPickupSaveValue(
             selectedPickup,
             shipper?.pickupLocation,
@@ -436,6 +483,7 @@ export function InboundForm({
               setShipperId(nextShipperId);
               const shipper = shippers.find((s) => s.id === nextShipperId);
               setSessionPickupLocation(shipperDefaultPickup(shipper));
+              setCustomerOriginLocation("");
             }}
             className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
           >
@@ -468,6 +516,27 @@ export function InboundForm({
             ))}
           </select>
         </div>
+
+        {showOriginDropdown ? (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-haidee-text">
+              {t("multiOrigin.standardOrigin")}{" "}
+              <span className="text-red-600">*</span>
+            </label>
+            <select
+              value={customerOriginLocation}
+              onChange={(e) => setCustomerOriginLocation(e.target.value)}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
+            >
+              <option value="">{t("multiOrigin.selectOrigin")}</option>
+              {multiOriginLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">

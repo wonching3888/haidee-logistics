@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { editCrateExport } from "@/app/actions/crateExport";
+import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
 import {
   getTodayInboundByShipper,
   getTodayInboundByPickupLocation,
@@ -69,6 +70,8 @@ export function TongExportForm({
   const [shipperId, setShipperId] = useState(initialData?.shipperId ?? "");
   const [areaNote, setAreaNote] = useState(initialData?.areaNote ?? "");
   const [location, setLocation] = useState(initialData?.location ?? "");
+  const [isMultiOriginCustomer, setIsMultiOriginCustomer] = useState(false);
+  const [multiOriginLocations, setMultiOriginLocations] = useState<string[]>([]);
   const [thPlate, setThPlate] = useState(initialData?.thVehiclePlate ?? "");
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<ExportLineState[]>([]);
@@ -81,10 +84,35 @@ export function TongExportForm({
   const isLocationPoolShipper = selectedShipper
     ? isLocationPoolShipperCode(selectedShipper.code)
     : false;
+  const showOriginDropdown =
+    isMultiOriginCustomer && !isLocationPoolShipper;
   const lockedShipperName =
     initialData?.shipperName ??
     selectedShipper?.name ??
     "";
+
+  useEffect(() => {
+    if (!shipperId) {
+      setIsMultiOriginCustomer(false);
+      setMultiOriginLocations([]);
+      if (!isEdit) setLocation("");
+      return;
+    }
+
+    let cancelled = false;
+    void getMultiOriginConfig(shipperId).then((config) => {
+      if (cancelled) return;
+      setIsMultiOriginCustomer(config.isMultiOrigin);
+      setMultiOriginLocations(config.locations);
+      if (!config.isMultiOrigin && !isLocationPoolShipper && !isEdit) {
+        setLocation("");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shipperId, isLocationPoolShipper, isEdit]);
 
   useEffect(() => {
     if (!shipperId || !selectedShipper) {
@@ -207,6 +235,10 @@ export function TongExportForm({
       setError(t("crateExport.error.thPlateRequired"));
       return;
     }
+    if (showOriginDropdown && !location) {
+      setError(t("multiOrigin.error.required"));
+      return;
+    }
 
     const payload = {
       date,
@@ -297,11 +329,27 @@ export function TongExportForm({
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
             {t("crateExport.location")}
+            {showOriginDropdown ? (
+              <span className="ml-1 text-red-600">*</span>
+            ) : null}
           </label>
           {isLocationPoolShipper && poolStockLocation ? (
             <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
               {poolStockLocation}
             </div>
+          ) : showOriginDropdown ? (
+            <select
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+            >
+              <option value="">{t("multiOrigin.selectOrigin")}</option>
+              {multiOriginLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
           ) : (
             <Input
               value={location}

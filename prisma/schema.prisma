@@ -125,6 +125,8 @@ model Shipper {
   currency         String   @default("THB")
   /// operational | logistics_partner | crate_stock_agent — agents hold pooled crate stock.
   shipperKind      String   @default("operational") @map("shipper_kind")
+  /// When true, inbound/export must pick a standard Thai origin (customer_origin_locations).
+  isMultiOriginCustomer Boolean @default(false) @map("is_multi_origin_customer")
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
 
@@ -146,6 +148,7 @@ model Shipper {
   crateStockAgentMembers      CrateStockAgentMember[] @relation("CrateStockAgentAgent")
   crateStockAgentMembershipLogsAsAgent  CrateStockAgentMembershipLog[] @relation("MembershipLogAgent")
   crateStockAgentMembershipLogsAsMember CrateStockAgentMembershipLog[] @relation("MembershipLogMember")
+  customerOriginLocations               CustomerOriginLocation[]
 
   @@map("shippers")
 }
@@ -532,6 +535,8 @@ model InboundSession {
   shipperId       String   @map("shipper_id") @db.Uuid
   thVehiclePlate  String?  @map("th_vehicle_plate")
   areaNote        String?  @map("area_note")
+  /// Standard Thai origin selected for multi-origin customers (stock bucket key).
+  customerOriginLocation String? @map("customer_origin_location")
   pickupLocation  String?  @map("pickup_location")
   status          String   @default("confirmed") // draft | confirmed
   notes           String?
@@ -930,6 +935,21 @@ model CustomerCrateLedger {
   crateType TongType @relation(fields: [crateTypeId], references: [id])
 
   @@map("customer_crate_ledger")
+}
+
+/// Standard Thai origin names per multi-origin customer (admin-maintained).
+model CustomerOriginLocation {
+  id           String   @id @default(uuid()) @db.Uuid
+  shipperId    String   @map("shipper_id") @db.Uuid
+  locationName String   @map("location_name")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  shipper Shipper @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+
+  @@unique([shipperId, locationName])
+  @@index([shipperId])
+  @@map("customer_origin_locations")
 }
 
 model CrateStockAgentMember {

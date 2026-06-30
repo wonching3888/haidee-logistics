@@ -2011,6 +2011,56 @@ export const MESSAGES = {
     en: "Under {agent}",
     th: "อยู่ภายใต้ {agent}",
   },
+  "multiOrigin.badge": {
+    zh: "多产地",
+    en: "Multi-origin",
+    th: "หลายแหล่ง",
+  },
+  "multiOrigin.configTitle": {
+    zh: "多产地客户配置",
+    en: "Multi-origin customer config",
+    th: "ตั้งค่าลูกค้าหลายแหล่ง",
+  },
+  "multiOrigin.isMultiOrigin": {
+    zh: "标记为多产地客户",
+    en: "Mark as multi-origin customer",
+    th: "ทำเครื่องหมายลูกค้าหลายแหล่ง",
+  },
+  "multiOrigin.standardLocations": {
+    zh: "标准产地清单",
+    en: "Standard origin list",
+    th: "รายการแหล่งมาตรฐาน",
+  },
+  "multiOrigin.noLocations": {
+    zh: "尚未添加产地，请至少添加一个",
+    en: "No origins yet — add at least one",
+    th: "ยังไม่มีแหล่ง — เพิ่มอย่างน้อยหนึ่งรายการ",
+  },
+  "multiOrigin.locationPlaceholder": {
+    zh: "如 KRABI、N&K",
+    en: "e.g. KRABI, N&K",
+    th: "เช่น KRABI, N&K",
+  },
+  "multiOrigin.standardOrigin": {
+    zh: "标准产地",
+    en: "Standard origin",
+    th: "แหล่งมาตรฐาน",
+  },
+  "multiOrigin.selectOrigin": {
+    zh: "请选择产地",
+    en: "Select origin",
+    th: "เลือกแหล่ง",
+  },
+  "multiOrigin.error.required": {
+    zh: "请选择标准产地",
+    en: "Please select a standard origin",
+    th: "กรุณาเลือกแหล่งมาตรฐาน",
+  },
+  "multiOrigin.error.duplicate": {
+    zh: "该产地已在清单中",
+    en: "Origin already in list",
+    th: "แหล่งนี้มีในรายการแล้ว",
+  },
   "driverExpenses.page.title": {
     zh: "司机费用",
     en: "Driver Expenses",

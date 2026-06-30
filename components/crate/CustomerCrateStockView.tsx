@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useMemo, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, MapPin, Pencil } from "lucide-react";
 import {
   updateCustomerCrateStock,
   type CrateTypeColumn,
@@ -19,6 +19,7 @@ import {
   CrateStockAgentConfirmDialog,
   CrateStockAgentCreateDialog,
 } from "@/components/crate/CrateStockAgentDialogs";
+import { MultiOriginCustomerDialog } from "@/components/crate/MultiOriginCustomerDialog";
 import { MobileTruncatedName } from "@/components/shared/MobileTruncatedName";
 import { DataFreshnessBar } from "@/components/shared/DataFreshnessBar";
 import { useT } from "@/components/shared/locale-context";
@@ -56,6 +57,14 @@ interface CustomerCrateStockViewProps {
   assignedMemberHints: AssignedMemberSearchHint[];
   initialSearch: string;
   canEditCustomerCrateStock: boolean;
+  canConfigureMultiOrigin?: boolean;
+  multiOriginShipperIds?: string[];
+}
+
+interface MultiOriginConfigTarget {
+  shipperId: string;
+  shipperName: string;
+  shipperCode: string;
 }
 
 function qtyClass(qty: number) {
@@ -87,10 +96,16 @@ export function CustomerCrateStockView({
   assignedMemberHints,
   initialSearch,
   canEditCustomerCrateStock,
+  canConfigureMultiOrigin = false,
+  multiOriginShipperIds = [],
 }: CustomerCrateStockViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, parts } = useT();
+  const multiOriginSet = useMemo(
+    () => new Set(multiOriginShipperIds),
+    [multiOriginShipperIds]
+  );
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(initialSearch);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -111,6 +126,8 @@ export function CustomerCrateStockView({
   const [editQty, setEditQty] = useState<Record<string, string>>({});
   const [editNotes, setEditNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [multiOriginTarget, setMultiOriginTarget] =
+    useState<MultiOriginConfigTarget | null>(null);
 
   const visibleCrateTypes = useMemo(
     () => filterCrateTypesForCustomerStockDisplay(crateTypes),
@@ -596,7 +613,14 @@ export function CustomerCrateStockView({
                         </button>
                       </TableCell>
                       <TableCell className="font-medium">
-                        <MobileTruncatedName text={row.shipperName} />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <MobileTruncatedName text={row.shipperName} />
+                          {multiOriginSet.has(row.shipperId) ? (
+                            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">
+                              {t("multiOrigin.badge")}
+                            </span>
+                          ) : null}
+                        </div>
                       </TableCell>
                       {visibleCrateTypes.map((ct) => {
                         const qty = row.quantities[ct.id] ?? 0;
@@ -610,17 +634,36 @@ export function CustomerCrateStockView({
                         );
                       })}
                       <TableCell className="text-right">
-                        {canEditCustomerCrateStock ? (
-                          <button
-                            type="button"
-                            onClick={() => openEdit(row)}
-                            className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
-                            aria-label={t("common.edit")}
-                            disabled={isPending}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                        ) : null}
+                        <div className="inline-flex items-center gap-1">
+                          {canConfigureMultiOrigin ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMultiOriginTarget({
+                                  shipperId: row.shipperId,
+                                  shipperName: row.shipperName,
+                                  shipperCode: row.shipperCode,
+                                })
+                              }
+                              className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-muted hover:text-haidee-text"
+                              aria-label={t("multiOrigin.configTitle")}
+                              disabled={isPending}
+                            >
+                              <MapPin className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {canEditCustomerCrateStock ? (
+                            <button
+                              type="button"
+                              onClick={() => openEdit(row)}
+                              className="inline-flex min-h-[32px] min-w-[32px] items-center justify-center text-haidee-blue hover:text-haidee-blue/80"
+                              aria-label={t("common.edit")}
+                              disabled={isPending}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
@@ -749,6 +792,17 @@ export function CustomerCrateStockView({
             if (!open) setAddMemberAgent(null);
           }}
           onRequestJoin={(member) => requestJoin(addMemberAgent, member)}
+        />
+      ) : null}
+      {multiOriginTarget ? (
+        <MultiOriginCustomerDialog
+          open={multiOriginTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setMultiOriginTarget(null);
+          }}
+          shipperId={multiOriginTarget.shipperId}
+          shipperName={multiOriginTarget.shipperName}
+          shipperCode={multiOriginTarget.shipperCode}
         />
       ) : null}
     </div>
