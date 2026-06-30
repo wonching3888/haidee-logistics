@@ -98,7 +98,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
           next[group.id] = true;
         }
       }
-      if (showSettings && pathname.startsWith("/settings")) {
+      if (showSettings && pathname?.startsWith("/settings")) {
         next.settings = true;
       }
       return next;
@@ -217,14 +217,14 @@ function ExpandableNavGroup({
   group: MainNavGroup;
   open: boolean;
   onToggle: () => void;
-  pathname: string;
+  pathname: string | null;
   onNavigate?: () => void;
   submenu?: React.ReactNode;
 }) {
   const Icon = group.icon;
   const groupActive =
     group.id === "settings"
-      ? pathname.startsWith("/settings")
+      ? (pathname?.startsWith("/settings") ?? false)
       : isGroupActive(pathname, group);
 
   return (
@@ -300,7 +300,7 @@ function NavLink({
   onNavigate,
 }: {
   item: MainNavLink & { icon: React.ComponentType<{ className?: string }> };
-  pathname: string;
+  pathname: string | null;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;

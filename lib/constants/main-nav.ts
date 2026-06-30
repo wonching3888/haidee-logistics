@@ -178,7 +178,8 @@ export const MAIN_NAV_SETTINGS: MainNavGroup = {
   children: [{ href: "/settings", messageKey: "nav.settings" }],
 };
 
-export function isPathActive(pathname: string, href: string) {
+export function isPathActive(pathname: string | null, href: string) {
+  if (!pathname) return false;
   if (href === "/documents") {
     return (
       pathname === "/documents" ||
@@ -192,6 +193,7 @@ export function isPathActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function isGroupActive(pathname: string, group: MainNavGroup) {
+export function isGroupActive(pathname: string | null, group: MainNavGroup) {
+  if (!pathname) return false;
   return group.children.some((child) => isPathActive(pathname, child.href));
 }

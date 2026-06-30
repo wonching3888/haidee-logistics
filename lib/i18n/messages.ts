@@ -2041,6 +2041,11 @@ export const MESSAGES = {
     en: "e.g. KRABI, N&K",
     th: "เช่น KRABI, N&K",
   },
+  "multiOrigin.addLocalHint": {
+    zh: "「+」仅加入清单，需点「保存」才写入数据库",
+    en: "+ adds to the list locally; click Save to persist",
+    th: "กด + เพิ่มในรายการเท่านั้น ต้องกดบันทึกจึงจะเขียนลงฐานข้อมูล",
+  },
   "multiOrigin.standardOrigin": {
     zh: "标准产地",
     en: "Standard origin",

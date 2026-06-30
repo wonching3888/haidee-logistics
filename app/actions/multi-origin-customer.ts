@@ -124,7 +124,5 @@ export async function saveMultiOriginCustomerConfig(input: {
   });
 
   revalidatePath("/crate/customer-stock");
-  revalidatePath("/inbound");
-  revalidatePath("/crate/export");
   return { ok: true as const };
 }

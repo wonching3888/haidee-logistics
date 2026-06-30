@@ -162,11 +162,19 @@ export function MultiOriginCustomerDialog({
                   ))}
                 </ul>
               )}
+              <p className="text-xs text-haidee-muted">
+                {t("multiOrigin.addLocalHint")}
+              </p>
               <div className="flex gap-2">
                 <Input
                   value={newLocation}
                   onChange={(e) => setNewLocation(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddLocation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddLocation();
+                    }
+                  }}
                   placeholder={t("multiOrigin.locationPlaceholder")}
                   disabled={loading || isPending}
                   className="min-h-[44px] font-mono"
