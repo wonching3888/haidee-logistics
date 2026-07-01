@@ -75,3 +75,49 @@
   justify-content: space-between;
   margin-top: 40px;
 }
+
+.tong-receipt .receipt-agent-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: normal;
+  border: 1px solid #000;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+
+.tong-receipt .receipt-section-title {
+  font-size: 12px;
+  font-weight: bold;
+  margin: 0 0 6px;
+}
+
+.tong-receipt .receipt-agent-summary {
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px solid #000;
+}
+
+.tong-receipt .receipt-agent-totals {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.tong-receipt .receipt-agent-members {
+  margin-bottom: 12px;
+}
+
+.tong-receipt .receipt-agent-member-table th:first-child {
+  width: 45%;
+}
+
+.tong-receipt .receipt-agent-subtotal {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: 1px solid #000;
+  border-top: none;
+}

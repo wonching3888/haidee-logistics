@@ -13,11 +13,16 @@ import { formatDisplayDate, getBangkokDayUtcRange, getBangkokTodayDateInput } fr
 import {
   buildCrateExportDueToday,
   type CrateExportDueTodayData,
+  isReturnableCrateTypeCode,
+  type CrateExportPrefillMember,
+  type CrateExportPrefillTarget,
+  qtyMapToRecord,
 } from "@/lib/crate-export-due-today";
 import {
+  isLocationPoolShipperCode,
   stockLocationForPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
-import { SHIPPER_KIND } from "@/lib/constants/shipper-kind";
+import { SHIPPER_KIND, isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
 import { loadLocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 import {
   CRATE_EXPORT_LIST_LIMIT,
@@ -60,57 +65,103 @@ export interface CrateExportEditData {
 
 export type { CrateExportListRow, CrateExportDueTodayData };
 
-function getActiveCrateExportLines(
-  lines: CrateExportLineInput[]
-): CrateExportLineInput[] {
-  return lines.filter(
-    (l) => l.quantityActual > 0 || l.quantitySuggested > 0
-  );
-}
-
-const CRATE_EXPORT_MIN_LINES_ERROR: MessageKey = "crateExport.error.minLines";
-
-/** At least one non-box line with quantityActual>0 or quantitySuggested>0. */
-async function assertCrateExportHasActiveLines(
-  lines: CrateExportLineInput[],
-  locale: UserLanguage
-): Promise<CrateExportLineInput[]> {
-  const activeLines = getActiveCrateExportLines(lines);
-  if (activeLines.length === 0) {
-    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
-  }
-
-  const tongTypeIds = Array.from(
-    new Set(activeLines.map((line) => line.tongTypeId))
-  );
-  const tongTypes = await prisma.tongType.findMany({
-    where: { id: { in: tongTypeIds } },
-    select: { id: true, isBox: true },
-  });
-  const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
-
-  const hasSavableLine = activeLines.some((line) => {
-    const tongType = tongTypeMap.get(line.tongTypeId);
-    return tongType && !tongType.isBox;
+/** Live member inbound breakdown for agent receipt print (same day, same source as due-today). */
+export async function loadAgentMemberInboundBreakdown(
+  agentShipperId: string,
+  dateInput: string
+): Promise<CrateExportPrefillMember[]> {
+  const sessionDate = parseDateInput(dateInput);
+  const memberships = await prisma.crateStockAgentMember.findMany({
+    where: { agentShipperId },
+    include: {
+      memberShipper: { select: { id: true, code: true, name: true } },
+    },
+    orderBy: { memberShipper: { name: "asc" } },
   });
 
-  if (!hasSavableLine) {
-    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
+  if (memberships.length === 0) return [];
+
+  const memberIds = memberships.map((m) => m.memberShipperId);
+  const sessions = await prisma.inboundSession.findMany({
+    where: {
+      date: sessionDate,
+      status: "confirmed",
+      shipperId: { in: memberIds },
+    },
+    include: {
+      shipper: { select: { id: true, code: true, name: true } },
+      lines: {
+        include: {
+          tongType: {
+            select: { code: true, trackInventory: true, isBox: true },
+          },
+        },
+      },
+    },
+  });
+
+  const dueByMemberId = new Map<string, Map<string, number>>();
+  for (const session of sessions) {
+    const map = dueByMemberId.get(session.shipperId) ?? new Map<string, number>();
+    for (const line of session.lines) {
+      if (!line.tongType.trackInventory || line.tongType.isBox) continue;
+      if (!isReturnableCrateTypeCode(line.tongType.code)) continue;
+      map.set(
+        line.tongType.code,
+        (map.get(line.tongType.code) ?? 0) + line.quantity
+      );
+    }
+    dueByMemberId.set(session.shipperId, map);
   }
 
-  return activeLines;
+  const members: CrateExportPrefillMember[] = [];
+  for (const membership of memberships) {
+    const qtyMap = dueByMemberId.get(membership.memberShipperId);
+    if (!qtyMap || qtyMap.size === 0) continue;
+    const due = qtyMapToRecord(qtyMap);
+    const total = Object.values(due).reduce((s, n) => s + n, 0);
+    if (total <= 0) continue;
+    members.push({
+      memberId: membership.memberShipper.id,
+      memberCode: membership.memberShipper.code,
+      memberName: membership.memberShipper.name,
+      label: membership.memberShipper.name,
+      due,
+    });
+  }
+
+  return members.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** Today (Bangkok) pending crate returns: inbound due − export returned, no cross-day carry. */
-export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData> {
+/** Agent/pool owed prefill when user changes date on the export form. */
+export async function getAgentCrateReturnPrefill(
+  agentShipperId: string,
+  dateInput: string
+): Promise<CrateExportPrefillTarget | null> {
   const user = await getCurrentUser();
-  if (!user) {
-    return { date: getBangkokTodayDateInput(), items: [], inTransitNote: null };
-  }
+  if (!user) return null;
 
-  const date = getBangkokTodayDateInput();
-  const sessionDate = parseDateInput(date);
-  const { start: ledgerStart, end: ledgerEnd } = getBangkokDayUtcRange(date);
+  const dueToday = await getCrateExportDueTodayForDate(dateInput);
+  for (const item of dueToday.items) {
+    if (item.kind === "agent" && item.group.agentId === agentShipperId) {
+      return item.group.prefill;
+    }
+    if (
+      item.kind === "pool" &&
+      (item.group.prefill.agentId === agentShipperId ||
+        item.group.poolShipperId === agentShipperId)
+    ) {
+      return item.group.prefill;
+    }
+  }
+  return null;
+}
+
+async function getCrateExportDueTodayForDate(
+  dateInput: string
+): Promise<CrateExportDueTodayData> {
+  const sessionDate = parseDateInput(dateInput);
+  const { start: ledgerStart, end: ledgerEnd } = getBangkokDayUtcRange(dateInput);
 
   const [
     poolIds,
@@ -136,7 +187,9 @@ export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData>
     prisma.inboundSession.findMany({
       where: { date: sessionDate, status: "confirmed" },
       include: {
-        shipper: { select: { id: true, code: true, name: true, pickupLocation: true } },
+        shipper: {
+          select: { id: true, code: true, name: true, pickupLocation: true },
+        },
         lines: {
           include: {
             tongType: {
@@ -210,7 +263,7 @@ export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData>
   }
 
   return buildCrateExportDueToday({
-    date,
+    date: dateInput,
     poolIds,
     agents,
     membershipByMemberId,
@@ -233,6 +286,57 @@ export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData>
     exportsByShipperId,
     exportsByShipperLocation,
   });
+}
+
+function getActiveCrateExportLines(
+  lines: CrateExportLineInput[]
+): CrateExportLineInput[] {
+  return lines.filter(
+    (l) => l.quantityActual > 0 || l.quantitySuggested > 0
+  );
+}
+
+const CRATE_EXPORT_MIN_LINES_ERROR: MessageKey = "crateExport.error.minLines";
+
+/** At least one non-box line with quantityActual>0 or quantitySuggested>0. */
+async function assertCrateExportHasActiveLines(
+  lines: CrateExportLineInput[],
+  locale: UserLanguage
+): Promise<CrateExportLineInput[]> {
+  const activeLines = getActiveCrateExportLines(lines);
+  if (activeLines.length === 0) {
+    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
+  }
+
+  const tongTypeIds = Array.from(
+    new Set(activeLines.map((line) => line.tongTypeId))
+  );
+  const tongTypes = await prisma.tongType.findMany({
+    where: { id: { in: tongTypeIds } },
+    select: { id: true, isBox: true },
+  });
+  const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
+
+  const hasSavableLine = activeLines.some((line) => {
+    const tongType = tongTypeMap.get(line.tongTypeId);
+    return tongType && !tongType.isBox;
+  });
+
+  if (!hasSavableLine) {
+    throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
+  }
+
+  return activeLines;
+}
+
+/** Today (Bangkok) pending crate returns: inbound due − export returned, no cross-day carry. */
+export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { date: getBangkokTodayDateInput(), items: [], inTransitNote: null };
+  }
+
+  return getCrateExportDueTodayForDate(getBangkokTodayDateInput());
 }
 
 /** List crate export batches for a calendar day (grouped by exportNo). */
@@ -632,8 +736,8 @@ export async function getCrateExportReceiptData(
   const rows = await prisma.tongExport.findMany({
     where: { exportNo: trimmed },
     include: {
-      shipper: { select: { name: true } },
-      tongType: { select: { name: true, displayOrder: true } },
+      shipper: { select: { name: true, code: true, shipperKind: true } },
+      tongType: { select: { name: true, code: true, displayOrder: true } },
     },
     orderBy: { tongType: { displayOrder: "asc" } },
   });
@@ -641,16 +745,57 @@ export async function getCrateExportReceiptData(
   if (rows.length === 0) return null;
 
   const first = rows[0];
+  const isAgentReceipt =
+    isCrateStockAgentShipper(first.shipper) ||
+    isLocationPoolShipperCode(first.shipper.code);
+
+  if (isAgentReceipt) {
+    const actualTotalsByCode: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.quantityActual <= 0) continue;
+      actualTotalsByCode[row.tongType.code] =
+        (actualTotalsByCode[row.tongType.code] ?? 0) + row.quantityActual;
+    }
+
+    const memberBreakdown = await loadAgentMemberInboundBreakdown(
+      first.shipperId,
+      toDateInputValue(first.date)
+    );
+
+    const lines = rows
+      .filter((row) => row.quantityActual > 0)
+      .map((row) => ({
+        tongName: row.tongType.name,
+        tongCode: row.tongType.code,
+        quantity: row.quantityActual,
+        quantityActual: row.quantityActual,
+        shortage: 0,
+      }));
+
+    return {
+      kind: "agent",
+      exportNo: trimmed,
+      date: formatDisplayDate(first.date),
+      shipperName: first.shipper.name,
+      thVehiclePlate: first.thVehiclePlate,
+      lines,
+      actualTotalsByCode,
+      memberBreakdown,
+    };
+  }
+
   const lines = rows
     .filter((row) => row.quantityActual > 0 || row.shortage > 0)
     .map((row) => ({
       tongName: row.tongType.name,
+      tongCode: row.tongType.code,
       quantity: row.quantitySuggested ?? 0,
       quantityActual: row.quantityActual,
       shortage: row.shortage,
     }));
 
   return {
+    kind: "standard",
     exportNo: trimmed,
     date: formatDisplayDate(first.date),
     shipperName: first.shipper.name,

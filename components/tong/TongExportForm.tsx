@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { editCrateExport } from "@/app/actions/crateExport";
+import { editCrateExport, getAgentCrateReturnPrefill } from "@/app/actions/crateExport";
 import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
 import {
   getTodayInboundByShipper,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { formatDisplay } from "@/lib/date-utils";
 import { toDateInputValue } from "@/lib/inbound-utils";
 import type { CrateExportPrefillTarget } from "@/lib/crate-export-due-today";
+import { isAgentCrateExportPrefill } from "@/lib/crate-export-due-today";
 
 interface ShipperOption {
   id: string;
@@ -34,6 +35,14 @@ interface TongTypeOption {
   id: string;
   code: string;
   name: string;
+}
+
+function formatMemberQtySummary(due: Record<string, number>): string {
+  return Object.entries(due)
+    .filter(([, qty]) => qty > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([code, qty]) => `${code} ${qty}`)
+    .join(" / ");
 }
 
 interface ExportLineState {
@@ -83,6 +92,10 @@ export function TongExportForm({
   const [vehicleSuggestions, setVehicleSuggestions] = useState<string[]>([]);
   const [lines, setLines] = useState<ExportLineState[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [agentPrefill, setAgentPrefill] = useState<CrateExportPrefillTarget | null>(
+    null
+  );
+  const isAgentMode = isAgentCrateExportPrefill(agentPrefill);
 
   const shipperOptions =
     extraShipper && !shippers.some((s) => s.id === extraShipper.id)
@@ -109,7 +122,26 @@ export function TongExportForm({
     setShipperId(prefill.shipperId);
     setLocation(prefill.location);
     setAreaNote(prefill.areaNote);
+    if (isAgentCrateExportPrefill(prefill)) {
+      setAgentPrefill(prefill);
+    } else {
+      setAgentPrefill(null);
+    }
   }, [prefill, prefillToken, isEdit]);
+
+  useEffect(() => {
+    if (!agentPrefill?.agentId || isEdit) return;
+    let cancelled = false;
+    void getAgentCrateReturnPrefill(agentPrefill.agentId, date).then((next) => {
+      if (cancelled || !next || !isAgentCrateExportPrefill(next)) return;
+      setAgentPrefill(next);
+      setShipperId(next.shipperId);
+      setLocation(next.location);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, agentPrefill?.agentId, isEdit]);
 
   useEffect(() => {
     if (!shipperId) {
@@ -185,6 +217,34 @@ export function TongExportForm({
       return;
     }
 
+    if (isAgentCrateExportPrefill(agentPrefill)) {
+      Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
+        setVehicleSuggestions(vehicles.map((v) => v.plate));
+        const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
+        const owedMap = agentPrefill.owedByCode;
+
+        setLines(
+          tongTypes.map((t) => {
+            const suggested = owedMap[t.code] ?? 0;
+            const stockQty = stockMap[t.code] ?? 0;
+            const actual =
+              suggested > 0 ? String(Math.min(suggested, stockQty)) : "0";
+            const actualNum = parseInt(actual, 10) || 0;
+            return {
+              tongTypeId: t.id,
+              code: t.code,
+              name: t.name,
+              suggested,
+              stock: stockQty,
+              actual,
+              shortage: Math.max(0, suggested - actualNum),
+            };
+          })
+        );
+      });
+      return;
+    }
+
     const inboundPromise = poolStockLocation
       ? getTodayInboundByPickupLocation(date, poolStockLocation)
       : getTodayInboundByShipper(date, shipperId);
@@ -227,6 +287,7 @@ export function TongExportForm({
     isLocationPoolShipper,
     isEdit,
     initialData,
+    agentPrefill,
   ]);
 
   function updateActual(tongTypeId: string, value: string) {
@@ -323,6 +384,7 @@ export function TongExportForm({
               onChange={(e) => {
                 setShipperId(e.target.value);
                 setLocation("");
+                setAgentPrefill(null);
               }}
               className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
             >
@@ -398,13 +460,51 @@ export function TongExportForm({
         </div>
       </div>
 
+      {isAgentMode && agentPrefill.members && agentPrefill.members.length > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+          <h4 className="text-sm font-semibold text-haidee-text">
+            {t("crateExport.agentMemberBreakdown")}
+          </h4>
+          <p className="mb-3 text-xs text-haidee-muted">
+            {t("crateExport.agentMemberBreakdownHint")}
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-amber-200/80 text-haidee-muted">
+                <th className="px-2 py-2 text-left">{t("common.consignor")}</th>
+                <th className="px-2 py-2 text-right">
+                  {t("crateExport.dueTodayDue")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {agentPrefill.members.map((member) => (
+                <tr
+                  key={member.memberId}
+                  className="border-b border-amber-100/80 last:border-0"
+                >
+                  <td className="px-2 py-2 font-medium">{member.label}</td>
+                  <td className="px-2 py-2 text-right font-mono">
+                    {formatMemberQtySummary(member.due)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       {shipperId && (
         <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
                 <th className="px-4 py-3 text-left">{t("common.crateType")}</th>
-                <th className="px-4 py-3 text-right">{t("crateExport.suggested")}</th>
+                <th className="px-4 py-3 text-right">
+                  {isAgentMode
+                    ? t("crateExport.agentOwedSuggested")
+                    : t("crateExport.suggested")}
+                </th>
                 <th className="px-4 py-3 text-right">{t("crateExport.sadaoStock")}</th>
                 <th className="px-4 py-3 text-right">{t("crateExport.actual")}</th>
                 <th className="px-4 py-3 text-right">{t("crateExport.shortage")}</th>

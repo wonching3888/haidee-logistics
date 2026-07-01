@@ -1576,6 +1576,21 @@ export const MESSAGES = {
     en: "Suggested",
     th: "ระบบแนะนำ",
   },
+  "crateExport.agentOwedSuggested": {
+    zh: "该还总数",
+    en: "Owed total",
+    th: "ยอดค้างรวม",
+  },
+  "crateExport.agentMemberBreakdown": {
+    zh: "子顾客明细",
+    en: "Member breakdown",
+    th: "รายละเอียดลูกค้าย่อย",
+  },
+  "crateExport.agentMemberBreakdownHint": {
+    zh: "以下为当日来货，仅供参考；实收数量请按代理汇总填写。",
+    en: "Today's inbound per member (reference only). Enter actual totals for the agent.",
+    th: "รายการรับเข้าวันนี้ต่อลูกค้าย่อย (อ้างอิง) กรอกจำนวนจริงรวมของตัวแทน",
+  },
   "crateExport.sadaoStock": {
     zh: "SADAO现货",
     en: "Stock",

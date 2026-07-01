@@ -3,6 +3,7 @@ import { parseDateInput } from "@/lib/date-utils";
 import {
   buildCrateExportDueToday,
   RETURNABLE_CRATE_TYPE_CODES,
+  isAgentCrateExportPrefill,
   isReturnableCrateTypeCode,
   sortCrateExportDueTodayItems,
 } from "@/lib/crate-export-due-today";
@@ -133,6 +134,17 @@ describe("buildCrateExportDueToday", () => {
       expect(result.items[0].group.members).toHaveLength(1);
       expect(result.items[0].group.members[0].label).toBe("KWAN");
       expect(result.items[0].group.members[0].totalDue).toBe(20);
+      const prefill = result.items[0].group.prefill;
+      expect(isAgentCrateExportPrefill(prefill)).toBe(true);
+      if (isAgentCrateExportPrefill(prefill)) {
+        expect(prefill.mode).toBe("agent");
+        expect(prefill.agentId).toBe("agent-421");
+        expect(prefill.shipperId).toBe("agent-421");
+        expect(prefill.owedByCode).toEqual({ ABB: 20 });
+        expect(prefill.members).toHaveLength(1);
+        expect(prefill.members[0].label).toBe("KWAN");
+        expect(prefill.members[0].due).toEqual({ ABB: 20 });
+      }
     }
   });
 
@@ -156,6 +168,13 @@ describe("buildCrateExportDueToday", () => {
     if (poolItem?.kind === "pool") {
       expect(poolItem.group.members).toHaveLength(1);
       expect(poolItem.group.members[0].label).toBe("SK Member");
+      const prefill = poolItem.group.prefill;
+      expect(isAgentCrateExportPrefill(prefill)).toBe(true);
+      if (isAgentCrateExportPrefill(prefill)) {
+        expect(prefill.mode).toBe("pool");
+        expect(prefill.shipperId).toBe("pool-sk");
+        expect(prefill.owedByCode).toEqual({ ABB: 15 });
+      }
     }
   });
 
@@ -275,6 +294,7 @@ describe("buildCrateExportDueToday", () => {
           totalReturned: 0,
           totalOwed: 5,
           prefill: {
+            mode: "standalone",
             shipperId: "a",
             shipperCode: "X",
             shipperName: "Alpha",
@@ -299,12 +319,16 @@ describe("buildCrateExportDueToday", () => {
           totalReturned: 0,
           totalOwed: 10,
           prefill: {
+            mode: "agent",
             shipperId: "421",
             shipperCode: "AGENT-421",
             shipperName: "421",
             date: "2026-06-30",
             location: "",
             areaNote: "",
+            agentId: "421",
+            owedByCode: { ABB: 10 },
+            members: [],
           },
           members: [],
         },
@@ -325,12 +349,16 @@ describe("buildCrateExportDueToday", () => {
           totalReturned: 0,
           totalOwed: 3,
           prefill: {
+            mode: "pool",
             shipperId: "pool-ptn",
             shipperCode: "LOC-PATTANI",
             shipperName: "北大年",
             date: "2026-06-30",
             location: "PATTANI",
             areaNote: "",
+            agentId: "pool-ptn",
+            owedByCode: { WTL: 3 },
+            members: [],
           },
           members: [],
         },
@@ -351,12 +379,16 @@ describe("buildCrateExportDueToday", () => {
           totalReturned: 0,
           totalOwed: 8,
           prefill: {
+            mode: "pool",
             shipperId: "pool-sk",
             shipperCode: "LOC-SONGKHLA",
             shipperName: "宋卡",
             date: "2026-06-30",
             location: "SONGKHLA",
             areaNote: "",
+            agentId: "pool-sk",
+            owedByCode: { ABB: 8 },
+            members: [],
           },
           members: [],
         },

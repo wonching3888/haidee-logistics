@@ -24,13 +24,47 @@ export function isReturnableCrateTypeCode(code: string): boolean {
 
 export type CrateQtyByCode = Record<string, number>;
 
+export type CrateExportPrefillMode = "standalone" | "agent" | "pool";
+
+export interface CrateExportPrefillMember {
+  memberId: string;
+  memberCode: string;
+  memberName: string;
+  label: string;
+  /** Member inbound today by crate type (for display / live print breakdown). */
+  due: CrateQtyByCode;
+}
+
 export interface CrateExportPrefillTarget {
+  mode: CrateExportPrefillMode;
   shipperId: string;
   shipperCode: string;
   shipperName: string;
   date: string;
   location: string;
   areaNote: string;
+  /** Agent/pool: remaining owed today by crate type (form suggested qty). */
+  owedByCode?: CrateQtyByCode;
+  /** Agent shipper id (membership key); same as shipperId for named agents. */
+  agentId?: string;
+  members?: CrateExportPrefillMember[];
+}
+
+export function isAgentCrateExportPrefill(
+  prefill: CrateExportPrefillTarget | null | undefined
+): prefill is CrateExportPrefillTarget & {
+  mode: "agent" | "pool";
+  owedByCode: CrateQtyByCode;
+  agentId: string;
+  members: CrateExportPrefillMember[];
+} {
+  return (
+    prefill != null &&
+    (prefill.mode === "agent" || prefill.mode === "pool") &&
+    prefill.agentId != null &&
+    prefill.owedByCode != null &&
+    prefill.members != null
+  );
 }
 
 export interface CrateExportDueRow {
@@ -182,19 +216,55 @@ function formatQtySummary(map: QtyMap): string {
     .join(" / ");
 }
 
+function membersFromDueRows(rows: CrateExportDueRow[]): CrateExportPrefillMember[] {
+  return rows.map((row) => ({
+    memberId: row.prefill.shipperId,
+    memberCode: row.prefill.shipperCode,
+    memberName: row.prefill.shipperName,
+    label: row.label,
+    due: row.due,
+  }));
+}
+
 function makePrefill(
   date: string,
   shipper: { id: string; code: string; name: string },
   location: string,
-  areaNote = ""
+  areaNote = "",
+  mode: CrateExportPrefillMode = "standalone"
 ): CrateExportPrefillTarget {
   return {
+    mode,
     shipperId: shipper.id,
     shipperCode: shipper.code,
     shipperName: shipper.name,
     date,
     location,
     areaNote,
+  };
+}
+
+function makeAgentPrefill(input: {
+  date: string;
+  mode: "agent" | "pool";
+  shipper: { id: string; code: string; name: string };
+  agentId: string;
+  location: string;
+  areaNote?: string;
+  owed: CrateQtyByCode;
+  members: CrateExportDueRow[];
+}): CrateExportPrefillTarget {
+  return {
+    ...makePrefill(
+      input.date,
+      input.shipper,
+      input.location,
+      input.areaNote ?? "",
+      input.mode
+    ),
+    owedByCode: input.owed,
+    agentId: input.agentId,
+    members: membersFromDueRows(input.members),
   };
 }
 
@@ -457,11 +527,19 @@ export function buildCrateExportDueToday(
             totalDue: totalOf(totalDue),
             totalReturned: totalOf(poolReturned),
             totalOwed,
-            prefill: makePrefill(
+            prefill: makeAgentPrefill({
               date,
-              { id: poolShipperId, code: agent.code, name: agent.name },
-              agent.pickup
-            ),
+              mode: "pool",
+              shipper: {
+                id: poolShipperId,
+                code: agent.code,
+                name: agent.name,
+              },
+              agentId,
+              location: agent.pickup,
+              owed: qtyMapToRecord(owed),
+              members: memberRows,
+            }),
             members: memberRows.sort((a, b) => a.label.localeCompare(b.label)),
           },
         });
@@ -532,11 +610,15 @@ export function buildCrateExportDueToday(
           totalDue: totalOf(totalDue),
           totalReturned: totalOf(allReturned),
           totalOwed,
-          prefill: makePrefill(
+          prefill: makeAgentPrefill({
             date,
-            { id: agentId, code: agent.code, name: agent.name },
-            ""
-          ),
+            mode: "agent",
+            shipper: { id: agentId, code: agent.code, name: agent.name },
+            agentId,
+            location: "",
+            owed: qtyMapToRecord(owed),
+            members: memberRows,
+          }),
           members: memberRows.sort((a, b) => a.label.localeCompare(b.label)),
         },
       });
