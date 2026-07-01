@@ -94,6 +94,7 @@ describe("resolveHistoryEntityTypes trips tab", () => {
       "dispatch",
       "charter",
       "invoice_payment",
+      "crate",
     ]);
   });
 });

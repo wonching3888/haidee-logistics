@@ -1221,3 +1221,23 @@ model InvoicePaymentChangeLog {
   @@index([customerKey, currency])
   @@map("invoice_payment_change_logs")
 }
+
+model CrateChangeLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  action        String
+  shipperId     String?  @map("shipperId") @db.Uuid
+  shipperName   String?  @map("shipperName")
+  crateType     String?  @map("crateType")
+  beforeValue   String?  @map("beforeValue")
+  afterValue    String?  @map("afterValue")
+  metadata      Json?
+  summary       String
+  changedById   String   @map("changedById") @db.Uuid
+  changedByName String   @map("changedByName")
+  createdAt     DateTime @default(now()) @map("createdAt")
+
+  @@index([action])
+  @@index([shipperId])
+  @@index([createdAt])
+  @@map("crate_change_logs")
+}

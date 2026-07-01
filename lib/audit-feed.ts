@@ -22,6 +22,11 @@ import {
   invoicePaymentAuditEventLabel,
   invoicePaymentAuditFieldLabel,
 } from "@/lib/invoice-payment-audit";
+import {
+  buildCrateFeedChanges,
+  crateAuditActionLabel,
+  crateAuditDeepLink,
+} from "@/lib/crate-audit";
 
 export type AuditEntityType =
   | "inbound"
@@ -29,7 +34,8 @@ export type AuditEntityType =
   | "payroll"
   | "dispatch"
   | "charter"
-  | "invoice_payment";
+  | "invoice_payment"
+  | "crate";
 
 export interface AuditFeedChange {
   field: string;
@@ -61,7 +67,8 @@ export type HistoryTab =
   | "payroll"
   | "voucher"
   | "trips"
-  | "invoice_collections";
+  | "invoice_collections"
+  | "crate";
 
 const ALL_ENTITY_TYPES: AuditEntityType[] = [
   "inbound",
@@ -70,6 +77,7 @@ const ALL_ENTITY_TYPES: AuditEntityType[] = [
   "dispatch",
   "charter",
   "invoice_payment",
+  "crate",
 ];
 
 export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
@@ -84,6 +92,8 @@ export function resolveHistoryEntityTypes(tab?: string): AuditEntityType[] {
       return ["dispatch", "charter"];
     case "invoice_collections":
       return ["invoice_payment"];
+    case "crate":
+      return ["crate"];
     default:
       return ALL_ENTITY_TYPES;
   }
@@ -761,6 +771,49 @@ async function fetchInvoicePaymentAuditEntries(
   return Array.from(grouped.values());
 }
 
+function parseCrateMetadata(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+async function fetchCrateAuditEntries(
+  dateStr?: string
+): Promise<AuditFeedEntry[]> {
+  const createdAtWhere = dateStr ? { createdAt: changedAtDayRange(dateStr) } : {};
+
+  const logs = await prisma.crateChangeLog.findMany({
+    where: createdAtWhere,
+    orderBy: { createdAt: "desc" },
+  });
+
+  return logs.map((log) => {
+    const metadata = parseCrateMetadata(log.metadata);
+    const entityLabel = [log.shipperName, log.summary]
+      .filter(Boolean)
+      .join(" · ") || crateAuditActionLabel(log.action);
+
+    return {
+      id: log.id,
+      entityType: "crate" as const,
+      entityId: log.shipperId ?? log.id,
+      entityLabel,
+      eventType: log.action,
+      eventTypeLabel: crateAuditActionLabel(log.action),
+      occurredAt: log.createdAt,
+      occurredAtDisplay: formatDisplayDateTime(log.createdAt),
+      actorName: log.changedByName?.trim() || "—",
+      changes: buildCrateFeedChanges(log),
+      deepLink: crateAuditDeepLink(
+        log.action as Parameters<typeof crateAuditDeepLink>[0],
+        metadata
+      ),
+      shipperName: log.shipperName ?? undefined,
+    };
+  });
+}
+
 export async function getAuditFeed(input: {
   entityTypes?: AuditEntityType[];
   date?: string;
@@ -787,6 +840,9 @@ export async function getAuditFeed(input: {
       : Promise.resolve([]),
     entityTypes.includes("invoice_payment")
       ? fetchInvoicePaymentAuditEntries(input.date)
+      : Promise.resolve([]),
+    entityTypes.includes("crate")
+      ? fetchCrateAuditEntries(input.date)
       : Promise.resolve([]),
   ]);
 

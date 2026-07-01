@@ -6,6 +6,7 @@ import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import { getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { computeTongStockDeltaForTarget } from "@/lib/sadao-stock";
+import { appendCrateChangeLogs } from "@/lib/crate-audit";
 import { INBOUND_VISIBLE_TONG_TYPE_WHERE } from "@/lib/constants/tong-type-scope";
 import {
   confirmCrateImportArrived,
@@ -492,7 +493,7 @@ export async function setSadaoTongStockAbsolute(input: {
 
   const tongType = await prisma.tongType.findUnique({
     where: { id: input.tongTypeId },
-    select: { id: true, trackInventory: true, isBox: true },
+    select: { id: true, code: true, trackInventory: true, isBox: true },
   });
   if (!tongType?.trackInventory || tongType.isBox) {
     throw new Error("Invalid crate type");
@@ -512,19 +513,41 @@ export async function setSadaoTongStockAbsolute(input: {
     return { ok: true as const, unchanged: true as const };
   }
 
-  await prisma.tongStockAdjustment.create({
-    data: {
-      date,
-      tongTypeId: input.tongTypeId,
-      quantity: delta,
-      balanceAfter: input.targetQuantity,
-      notes: input.notes?.trim() || null,
-      createdById: user.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.tongStockAdjustment.create({
+      data: {
+        date,
+        tongTypeId: input.tongTypeId,
+        quantity: delta,
+        balanceAfter: input.targetQuantity,
+        notes: input.notes?.trim() || null,
+        createdById: user.id,
+      },
+    });
+
+    await appendCrateChangeLogs(tx, {
+      actor: user,
+      logs: [
+        {
+          action: "sadao_stock_adjust",
+          crateType: tongType.code,
+          beforeValue: String(current),
+          afterValue: String(input.targetQuantity),
+          metadata: {
+            tongTypeId: input.tongTypeId,
+            delta,
+            notes: input.notes?.trim() || null,
+            date: toDateInputValue(date),
+          },
+          summary: `SADAO · ${tongType.code} · ${current} → ${input.targetQuantity}`,
+        },
+      ],
+    });
   });
 
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
+  revalidatePath("/history");
 
   return { ok: true as const, unchanged: false as const };
 }

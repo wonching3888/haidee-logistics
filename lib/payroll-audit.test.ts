@@ -108,6 +108,7 @@ describe("resolveHistoryEntityTypes", () => {
       "dispatch",
       "charter",
       "invoice_payment",
+      "crate",
     ]);
   });
 

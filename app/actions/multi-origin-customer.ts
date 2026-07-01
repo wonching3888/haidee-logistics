@@ -11,6 +11,7 @@ import {
   type MultiOriginCustomerConfig,
 } from "@/lib/multi-origin-customer";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
+import { appendCrateChangeLogs } from "@/lib/crate-audit";
 
 async function requireMultiOriginAdmin() {
   const user = await getCurrentUser();
@@ -90,11 +91,11 @@ export async function saveMultiOriginCustomerConfig(input: {
   isMultiOrigin: boolean;
   locations: string[];
 }) {
-  await requireMultiOriginAdmin();
+  const user = await requireMultiOriginAdmin();
 
   const shipper = await prisma.shipper.findFirst({
     where: { id: input.shipperId, ...OPERATIONAL_SHIPPER_WHERE },
-    select: { id: true },
+    select: { id: true, name: true, isMultiOriginCustomer: true },
   });
   if (!shipper) {
     throw new Error("寄货人不存在 Shipper not found");
@@ -104,6 +105,10 @@ export async function saveMultiOriginCustomerConfig(input: {
   if (input.isMultiOrigin && locations.length === 0) {
     throw new Error("多产地客户至少需要一个标准产地 At least one origin is required");
   }
+
+  const beforeLocations = shipper.isMultiOriginCustomer
+    ? await loadLocationsForShipper(input.shipperId)
+    : [];
 
   await prisma.$transaction(async (tx) => {
     await tx.shipper.update({
@@ -124,8 +129,39 @@ export async function saveMultiOriginCustomerConfig(input: {
         })),
       });
     }
+
+    const beforeLabel = beforeLocations.length > 0 ? beforeLocations.join(", ") : "—";
+    const afterLabel =
+      input.isMultiOrigin && locations.length > 0 ? locations.join(", ") : "—";
+    if (
+      shipper.isMultiOriginCustomer !== input.isMultiOrigin ||
+      beforeLabel !== afterLabel
+    ) {
+      await appendCrateChangeLogs(tx, {
+        actor: user,
+        logs: [
+          {
+            action: "multi_origin_config",
+            shipperId: input.shipperId,
+            shipperName: shipper.name,
+            beforeValue: shipper.isMultiOriginCustomer
+              ? `多产地: ${beforeLabel}`
+              : "单产地",
+            afterValue: input.isMultiOrigin
+              ? `多产地: ${afterLabel}`
+              : "单产地",
+            metadata: {
+              beforeLocations,
+              afterLocations: input.isMultiOrigin ? locations : [],
+            },
+            summary: `${shipper.name} · 多产地 ${beforeLabel} → ${afterLabel}`,
+          },
+        ],
+      });
+    }
   });
 
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
   return { ok: true as const };
 }

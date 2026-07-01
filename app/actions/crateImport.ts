@@ -23,6 +23,10 @@ import {
 } from "@/lib/crate-import-rows";
 import { ensureCrateReturnMonthlyInvoicesForCrateTypes } from "@/lib/crate-return-billing";
 import { syncPayrollTripsAfterCrateImportChange } from "@/lib/driver-payroll-trip-sync";
+import {
+  appendCrateChangeLogs,
+  buildCrateReturnArrivedAuditLog,
+} from "@/lib/crate-audit";
 import { t } from "@/lib/i18n/translate";
 import type { UserLanguage } from "@/types";
 
@@ -313,20 +317,56 @@ export async function markCrateImportRowArrived(
     );
   }
 
-  await prisma.tongImport.updateMany({
+  const pendingImports = await prisma.tongImport.findMany({
     where: {
       date,
       truckId: truck.id,
       marketId: market.id,
       status: "on_the_way",
     },
-    data: { status: "arrived", arrivedAt: new Date() },
+    include: {
+      tongType: { select: { code: true, isBox: true } },
+    },
+  });
+
+  const lines = pendingImports
+    .filter((row) => !row.tongType.isBox && row.quantity > 0)
+    .map((row) => ({
+      crateTypeCode: row.tongType.code,
+      quantity: row.quantity,
+    }));
+
+  const auditLog = buildCrateReturnArrivedAuditLog({
+    truckPlate,
+    marketCode,
+    dateStr,
+    lines,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tongImport.updateMany({
+      where: {
+        date,
+        truckId: truck.id,
+        marketId: market.id,
+        status: "on_the_way",
+      },
+      data: { status: "arrived", arrivedAt: new Date() },
+    });
+
+    if (auditLog) {
+      await appendCrateChangeLogs(tx, {
+        actor: user,
+        logs: [auditLog],
+      });
+    }
   });
 
   revalidatePath("/tong/import");
   revalidatePath("/crate/import");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
+  revalidatePath("/history");
 }
 
 function collectDynamicColumnKeys(rows: CrateImportRowInput[]) {
@@ -669,16 +709,65 @@ export async function saveCrateImport(
 
 /** Mark in-transit imports as arrived — SADAO stock +quantity per crate type. */
 export async function confirmCrateImportArrived(dateStr: string) {
-  await requireWrite();
+  const user = await requireWrite();
 
   const date = parseDateInput(dateStr);
-  await prisma.tongImport.updateMany({
+  const pendingImports = await prisma.tongImport.findMany({
     where: { date, status: "on_the_way" },
-    data: { status: "arrived", arrivedAt: new Date() },
+    include: {
+      truck: { select: { plate: true } },
+      market: { select: { code: true } },
+      tongType: { select: { code: true, isBox: true } },
+    },
+  });
+
+  const grouped = new Map<
+    string,
+    { truckPlate: string; marketCode: string; lines: Array<{ crateTypeCode: string; quantity: number }> }
+  >();
+  for (const row of pendingImports) {
+    if (row.tongType.isBox || row.quantity <= 0) continue;
+    const key = `${row.truck.plate}:${row.market.code}`;
+    const bucket = grouped.get(key) ?? {
+      truckPlate: row.truck.plate,
+      marketCode: row.market.code,
+      lines: [],
+    };
+    bucket.lines.push({
+      crateTypeCode: row.tongType.code,
+      quantity: row.quantity,
+    });
+    grouped.set(key, bucket);
+  }
+
+  const auditLogs = Array.from(grouped.values())
+    .map((group) =>
+      buildCrateReturnArrivedAuditLog({
+        truckPlate: group.truckPlate,
+        marketCode: group.marketCode,
+        dateStr,
+        lines: group.lines,
+      })
+    )
+    .filter((log): log is NonNullable<typeof log> => log != null);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tongImport.updateMany({
+      where: { date, status: "on_the_way" },
+      data: { status: "arrived", arrivedAt: new Date() },
+    });
+
+    if (auditLogs.length > 0) {
+      await appendCrateChangeLogs(tx, {
+        actor: user,
+        logs: auditLogs,
+      });
+    }
   });
 
   revalidatePath("/tong/import");
   revalidatePath("/crate/import");
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
+  revalidatePath("/history");
 }

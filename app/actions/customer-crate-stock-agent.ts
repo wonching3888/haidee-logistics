@@ -22,6 +22,7 @@ import {
   zeroMemberStockOnRemoveInTx,
 } from "@/lib/crate-stock-agent-membership-write";
 import { OPERATIONAL_SHIPPER_WHERE, SHIPPER_KIND } from "@/lib/constants/shipper-kind";
+import { appendCrateChangeLogs } from "@/lib/crate-audit";
 import {
   filterPickupSummariesDedupedByAgents,
   sortAgentsForCustomerStockList,
@@ -253,7 +254,7 @@ export async function createCrateStockAgent(input: {
   code?: string;
   notes?: string;
 }) {
-  await requireCrateStockAgentAdmin();
+  const user = await requireCrateStockAgentAdmin();
   const name = input.name.trim();
   if (!name) {
     throw new Error("代理名称必填 Agent name is required");
@@ -264,17 +265,35 @@ export async function createCrateStockAgent(input: {
     : slugifyAgentShipperCode(name);
   const code = await uniqueAgentCode(slug);
 
-  const agent = await prisma.shipper.create({
-    data: {
-      code,
-      name,
-      shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
-      active: true,
-    },
-    select: { id: true, code: true, name: true },
+  const agent = await prisma.$transaction(async (tx) => {
+    const created = await tx.shipper.create({
+      data: {
+        code,
+        name,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
+        active: true,
+      },
+      select: { id: true, code: true, name: true },
+    });
+
+    await appendCrateChangeLogs(tx, {
+      actor: user,
+      logs: [
+        {
+          action: "agent_create",
+          shipperId: created.id,
+          shipperName: created.name,
+          metadata: { agentCode: created.code, notes: input.notes?.trim() || null },
+          summary: `新建代理 ${created.name} (${created.code})`,
+        },
+      ],
+    });
+
+    return created;
   });
 
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
   return agent;
 }
 
@@ -341,9 +360,28 @@ export async function addAgentMember(
         notes: skipTransfer ? LEGACY_POOL_AGENT_JOIN_NOTES : null,
       },
     });
+
+    await appendCrateChangeLogs(tx, {
+      actor: user,
+      logs: [
+        {
+          action: "agent_add_member",
+          shipperId: agent.id,
+          shipperName: agent.name,
+          metadata: {
+            agentShipperId: agent.id,
+            memberShipperId: member.id,
+            memberShipperName: member.name,
+            memberShipperCode: member.code,
+          },
+          summary: `${agent.name} 归入 ${member.name}`,
+        },
+      ],
+    });
   });
 
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
   return { ok: true as const };
 }
 
@@ -384,8 +422,26 @@ export async function removeAgentMember(memberShipperId: string) {
         stockSnapshot: stockSnapshot as unknown as Prisma.InputJsonValue,
       },
     });
+
+    await appendCrateChangeLogs(tx, {
+      actor: user,
+      logs: [
+        {
+          action: "agent_remove_member",
+          shipperId: membership.agentShipperId,
+          shipperName: membership.agentShipper.name,
+          metadata: {
+            agentShipperId: membership.agentShipperId,
+            memberShipperId: membership.memberShipperId,
+            memberShipperName: membership.memberShipper.name,
+          },
+          summary: `${membership.agentShipper.name} 移出 ${membership.memberShipper.name}`,
+        },
+      ],
+    });
   });
 
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
   return { ok: true as const };
 }

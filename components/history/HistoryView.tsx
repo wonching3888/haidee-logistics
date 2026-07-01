@@ -25,6 +25,7 @@ const TABS: { id: HistoryTab; label: string }[] = [
   { id: "voucher", label: "费用单 Voucher" },
   { id: "trips", label: "派车/包车 Trips" },
   { id: "invoice_collections", label: "收账 Collections" },
+  { id: "crate", label: "桶管理 Crate" },
 ];
 
 const ENTITY_TYPE_LABELS: Record<AuditFeedEntry["entityType"], string> = {
@@ -34,6 +35,7 @@ const ENTITY_TYPE_LABELS: Record<AuditFeedEntry["entityType"], string> = {
   dispatch: "派车",
   charter: "包车",
   invoice_payment: "收账",
+  crate: "桶管理",
 };
 
 interface HistoryViewProps {
@@ -206,7 +208,7 @@ export function HistoryView({ records, filterDate, activeTab }: HistoryViewProps
       </ScrollMatrixTable>
 
       <p className="text-xs text-haidee-muted">
-        汇总进货、工资、费用单、派车/包车与收账的人工修改记录，按时间倒序混排。
+        汇总进货、工资、费用单、派车/包车、收账与桶管理的人工修改记录，按时间倒序混排。
       </p>
     </div>
   );

@@ -42,6 +42,10 @@ import {
   type InboundSessionSnapshot,
 } from "@/lib/inbound-edit-sync";
 import {
+  appendCrateChangeLogs,
+  buildInboundCrateEditAuditLogs,
+} from "@/lib/crate-audit";
+import {
   assertOriginInCustomerList,
   requiresCustomerOriginSelection,
 } from "@/lib/multi-origin-customer";
@@ -1366,16 +1370,34 @@ export async function saveInboundSession(input: SaveInboundInput) {
 
     if (changeLogs.length > 0) {
       const validLineIds = new Set(lineIdByIndex.values());
-      await prisma.inboundChangeLog.createMany({
-        data: changeLogs.map((log) => ({
-          sessionId: log.sessionId,
-          lineId:
-            log.lineId && validLineIds.has(log.lineId) ? log.lineId : null,
-          userId: log.userId,
+      const crateAuditLogs = buildInboundCrateEditAuditLogs({
+        shipperId: input.shipperId,
+        shipperName: afterShipper.name,
+        sessionNo,
+        sessionId: input.sessionId!,
+        changeLogs: changeLogs.map((log) => ({
           field: log.field,
           fromValue: log.fromValue,
           toValue: log.toValue,
         })),
+      });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.inboundChangeLog.createMany({
+          data: changeLogs.map((log) => ({
+            sessionId: log.sessionId,
+            lineId:
+              log.lineId && validLineIds.has(log.lineId) ? log.lineId : null,
+            userId: log.userId,
+            field: log.field,
+            fromValue: log.fromValue,
+            toValue: log.toValue,
+          })),
+        });
+        await appendCrateChangeLogs(tx, {
+          actor: user,
+          logs: crateAuditLogs,
+        });
       });
     }
 

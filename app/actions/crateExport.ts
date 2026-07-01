@@ -19,6 +19,7 @@ import {
   qtyMapToRecord,
 } from "@/lib/crate-export-due-today";
 import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
+import { appendCrateChangeLogs } from "@/lib/crate-audit";
 import {
   liveShortageForLine,
   lookupLiveOwed,
@@ -473,7 +474,45 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     throw new Error(t(CRATE_EXPORT_MIN_LINES_ERROR, locale));
   }
 
-  await prisma.tongExport.createMany({ data: exportRows });
+  const exportAuditLines = activeLines
+    .map((line) => {
+      const tongType = tongTypeMap.get(line.tongTypeId);
+      if (!tongType || tongType.isBox) return null;
+      const available = stock[tongType.code]?.stock ?? 0;
+      const actual = Math.min(line.quantityActual, available);
+      if (actual <= 0) return null;
+      return { code: tongType.code, actual };
+    })
+    .filter((line): line is { code: string; actual: number } => line != null);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tongExport.createMany({ data: exportRows });
+
+    if (exportAuditLines.length > 0) {
+      const qtySummary = exportAuditLines
+        .map((line) => `${line.code}×${line.actual}`)
+        .join(", ");
+      await appendCrateChangeLogs(tx, {
+        actor: user,
+        logs: [
+          {
+            action: "crate_export",
+            shipperId: input.shipperId,
+            shipperName: shipper.name,
+            beforeValue: "—",
+            afterValue: qtySummary,
+            metadata: {
+              exportNo,
+              thVehiclePlate: input.thVehiclePlate,
+              location: customerStockLocation || null,
+              lines: exportAuditLines,
+            },
+            summary: `${shipper.name} · ${exportNo} · ${qtySummary}`,
+          },
+        ],
+      });
+    }
+  });
 
   if (crateAdditions.length > 0) {
     const agentMembershipByMemberId =
@@ -506,6 +545,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   revalidatePath("/tong/stock");
   revalidatePath("/crate/stock");
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
 
   return {
     exportNo,

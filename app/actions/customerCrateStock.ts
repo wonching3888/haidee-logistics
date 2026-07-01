@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  appendCrateChangeLogs,
+} from "@/lib/crate-audit";
+import {
   requireCustomerCrateStockEdit,
   requireCrateStockAgentAdmin,
 } from "@/lib/customer-crate-stock-permissions";
@@ -240,22 +243,29 @@ export async function updateCustomerCrateStock(
 ) {
   const shipper = await prisma.shipper.findUnique({
     where: { id: shipperId },
-    select: { shipperKind: true, isMultiOriginCustomer: true },
+    select: { shipperKind: true, isMultiOriginCustomer: true, name: true },
   });
   if (!shipper) {
     throw new Error("寄货人不存在 Shipper not found");
   }
-  if (shipper.shipperKind === SHIPPER_KIND.CRATE_STOCK_AGENT) {
-    await requireCrateStockAgentAdmin();
-  } else {
-    await requireCustomerCrateStockEdit();
-  }
+  const user =
+    shipper.shipperKind === SHIPPER_KIND.CRATE_STOCK_AGENT
+      ? await requireCrateStockAgentAdmin()
+      : await requireCustomerCrateStockEdit();
 
   const loc = normalizeLocation(location);
   if (shipper.isMultiOriginCustomer && !loc) {
     throw new Error(
       "多产地客户须选择具体产地 Multi-origin customers require a specific origin"
     );
+  }
+
+  const crateType = await prisma.tongType.findUnique({
+    where: { id: crateTypeId },
+    select: { code: true },
+  });
+  if (!crateType) {
+    throw new Error("桶型不存在 Crate type not found");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -284,9 +294,31 @@ export async function updateCustomerCrateStock(
         notes: notes?.trim() || null,
       },
     });
+
+    const locationLabel = loc || "默认";
+    await appendCrateChangeLogs(tx, {
+      actor: user,
+      logs: [
+        {
+          action: "crate_stock_manual_edit",
+          shipperId,
+          shipperName: shipper.name,
+          crateType: crateType.code,
+          beforeValue: String(previousQty),
+          afterValue: String(quantity),
+          metadata: {
+            crateTypeId,
+            location: loc,
+            notes: notes?.trim() || null,
+          },
+          summary: `${shipper.name} · ${crateType.code} · ${locationLabel} · ${previousQty} → ${quantity}`,
+        },
+      ],
+    });
   });
 
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
 }
 
 export async function getCustomerCrateLedger(

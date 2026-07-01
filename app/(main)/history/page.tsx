@@ -14,7 +14,8 @@ function parseTab(tab?: string): HistoryTab {
     tab === "payroll" ||
     tab === "voucher" ||
     tab === "trips" ||
-    tab === "invoice_collections"
+    tab === "invoice_collections" ||
+    tab === "crate"
   ) {
     return tab;
   }
@@ -37,7 +38,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           修改记录 Modification History
         </h2>
         <p className="text-sm text-haidee-muted">
-          进货 · 工资 · 费用单 · 派车/包车 · 收账修改汇总
+          进货 · 工资 · 费用单 · 派车/包车 · 收账 · 桶管理修改汇总
         </p>
       </div>
 
