@@ -15,6 +15,7 @@ export default defineConfig({
       "lib/sadao-gate-stock-permissions.test.ts",
       "lib/constants/customer-crate-stock-display.test.ts",
       "lib/inbound-crate-stock-p1.test.ts",
+      "lib/inbound-edit-sync.test.ts",
       "lib/crate-stock-agent-transfer.test.ts",
       "lib/multi-origin-customer.test.ts",
       "lib/freight-rate-save.test.ts",

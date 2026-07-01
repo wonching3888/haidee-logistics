@@ -276,13 +276,16 @@ export function computeCrateStockAdjustments(input: {
   const adjustments: CrateStockAdjustment[] = [];
 
   for (const crateTypeId of Array.from(typeIds)) {
-    const delta = (after.get(crateTypeId) ?? 0) - (before.get(crateTypeId) ?? 0);
-    if (delta === 0) continue;
+    const borrowDelta =
+      (after.get(crateTypeId) ?? 0) - (before.get(crateTypeId) ?? 0);
+    if (borrowDelta === 0) continue;
+    // Agent stock: less borrowed → return (+); more borrowed → deduct (−).
+    // borrowDelta is the change in borrowed qty; agent delta is the inverse.
     adjustments.push({
       shipperId: afterBucket.shipperId,
       location: afterBucket.location,
       crateTypeId,
-      delta,
+      delta: -borrowDelta,
     });
   }
 
