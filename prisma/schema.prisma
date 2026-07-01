@@ -916,6 +916,9 @@ model MonthlyInvoiceExtraCharge {
   mode        String
   customerId  String   @map("customer_id") @db.Uuid
   description String
+  quantity    Decimal? @db.Decimal(10, 2)
+  unit        String?
+  unitPrice   Decimal? @map("unit_price") @db.Decimal(10, 2)
   amount      Decimal  @db.Decimal(10, 2)
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")

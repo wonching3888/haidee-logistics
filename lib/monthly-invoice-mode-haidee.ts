@@ -28,10 +28,19 @@ export interface HaideeMonthlyInvoiceData {
   extraCharges?: Array<{
     id: string;
     description: string;
+    quantity: number | null;
+    unit: string | null;
+    unitPrice: number | null;
     amount: number;
     sortOrder: number;
   }>;
-  /** Mode 1a accounting print fields (invoice no, date, terms). */
+  /** Mode 1a/1b accounting print fields (invoice no, date, terms). */
+  accountingPrint?: {
+    invoiceNo: string;
+    invoiceDateLabel: string;
+    termsLabel: string;
+  };
+  /** @deprecated Use accountingPrint */
   mode1aPrint?: {
     invoiceNo: string;
     invoiceDateLabel: string;

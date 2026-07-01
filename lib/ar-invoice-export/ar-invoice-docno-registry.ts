@@ -24,8 +24,8 @@ const FREIGHT_MODES_BY_PREFIX: Record<
   "HD-" | "HDR-" | "EXP-",
   MonthlyInvoiceMode[]
 > = {
-  "HD-": ["1a", "1b"],
-  "HDR-": ["2"],
+  "HD-": ["1a"],
+  "HDR-": ["1b", "2"],
   "EXP-": ["3", "4"],
 };
 
@@ -69,8 +69,8 @@ export function buildArDocNoRegistryFromSlots(
 
 /**
  * Build month-wide DocNo registry with deterministic global ordering per prefix:
- * HD-: mode 1a → 1b
- * HDR-: mode 2 → charter (trip date) → crate return 3002-
+ * HD-: mode 1a
+ * HDR-: mode 1b → mode 2 → charter (trip date) → crate return 3002-
  * EXP-: mode 3 → mode 4 → crate return 3000-
  */
 export async function buildArDocNoRegistry(

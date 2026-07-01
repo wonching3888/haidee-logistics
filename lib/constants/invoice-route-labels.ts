@@ -64,6 +64,22 @@ export function getMode1aInvoiceRouteLabel(marketCode: string): string {
   return `${MODE1A_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
 }
 
+/** Mode 1b accounting invoice: THAILAND hub → actual destination place name. */
+export const MODE1B_INVOICE_ROUTE_PREFIX = "THAILAND TO ";
+
+export function getMode1bInvoiceRouteLabel(marketCode: string): string {
+  return `${MODE1B_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
+}
+
+export function getHaideeAccountingInvoiceRouteLabel(
+  mode: "1a" | "1b",
+  marketCode: string
+): string {
+  return mode === "1b"
+    ? getMode1bInvoiceRouteLabel(marketCode)
+    : getMode1aInvoiceRouteLabel(marketCode);
+}
+
 export function buildAllInvoiceRouteLabels(): Record<
   InvoiceRouteMarketCode,
   string

@@ -1,21 +1,25 @@
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
-import { HAIDEE_MODE1A_INVOICE_DETAILS } from "@/lib/constants/haidee-company-details";
+import { getHaideeAccountingInvoiceDetails } from "@/lib/constants/haidee-company-details";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
-import { getMode1aInvoiceRouteLabel } from "@/lib/constants/invoice-route-labels";
+import { getHaideeAccountingInvoiceRouteLabel } from "@/lib/constants/invoice-route-labels";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatMoneyAmount, formatQty } from "@/lib/number-format";
 import {
   formatHaideeInvoiceMoney,
-  HaideeInvoiceDescriptionAmountTable,
+  HaideeInvoiceExtraChargesTable,
   HaideeInvoiceGrandTotal,
   HaideeInvoiceMetaBlocks,
   HaideeInvoicePrintDocument,
   HaideeInvoicePrintHeader,
 } from "@/components/documents/HaideeInvoicePrintLayout";
 
-function mode1aSectionTitle(kind: "tong" | "box", fallback: string) {
+function accountingSectionTitle(kind: "tong" | "box", fallback: string) {
   if (kind === "tong") return "桶 / Crate";
   return fallback;
+}
+
+function resolveAccountingPrint(data: HaideeMonthlyInvoiceData) {
+  return data.accountingPrint ?? data.mode1aPrint;
 }
 
 interface Mode1aTaxInvoicePrintProps {
@@ -29,21 +33,26 @@ export function Mode1aTaxInvoicePrint({
   pageNumber = 1,
   pageCount = 2,
 }: Mode1aTaxInvoicePrintProps) {
+  const mode = data.mode.value === "1b" ? "1b" : "1a";
   const company = INVOICE_COMPANY_HEADERS.haidee;
-  const details = HAIDEE_MODE1A_INVOICE_DETAILS;
-  const printMeta = data.mode1aPrint;
+  const details = getHaideeAccountingInvoiceDetails(mode);
+  const printMeta = resolveAccountingPrint(data);
   const { summary } = data;
+  const extraCharges = data.extraCharges ?? [];
   const amountInWords = formatInvoiceAmountInWords(
     summary.grandTotalAmount,
     data.currency
   );
 
   return (
-    <HaideeInvoicePrintDocument framed className="mode1a-invoice-print">
+    <HaideeInvoicePrintDocument
+      framed
+      className="haidee-accounting-invoice-print mode1a-invoice-print"
+    >
       <HaideeInvoicePrintHeader
         nameZh={company.nameZh}
         nameEn={company.nameEn}
-        nameTh="บริษัท ไฮดี โลจิสติกส์ จำกัด"
+        nameTh={mode === "1a" ? "บริษัท ไฮดี โลจิสติกส์ จำกัด" : undefined}
         addressLines={[...details.addressLines]}
         phone={details.phone}
         taxId={`Registration No.: ${details.registrationNo}`}
@@ -51,7 +60,7 @@ export function Mode1aTaxInvoicePrint({
       />
 
       <HaideeInvoiceMetaBlocks
-        billToLabel="寄货人 Shipper"
+        billToLabel={data.billToRole === "consignee" ? "收货人 Consignee" : "寄货人 Shipper"}
         billToName={data.customerName}
         billToCode={data.customerCode}
         info={
@@ -76,53 +85,45 @@ export function Mode1aTaxInvoicePrint({
       />
 
       {summary.sections.map((section) => {
-        const sectionTitle = mode1aSectionTitle(section.kind, section.title);
+        const sectionTitle = accountingSectionTitle(section.kind, section.title);
         return (
-        <div key={section.kind} className="monthly-invoice-section">
-          <div className="monthly-invoice-section-title">{sectionTitle}</div>
-          <table className="monthly-invoice-table mode4-tax-invoice-table">
-            <thead>
-              <tr>
-                <th className="mode4-route-col">Description</th>
-                <th className="mode4-qty-col">数量 Qty</th>
-                <th className="mode4-rate-col">单价 Rate</th>
-                <th className="mode4-amount-col">金额 Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {section.rows.map((row) => (
-                <tr key={`${section.kind}-${row.marketCode}`}>
-                  <td className="text-left">
-                    {getMode1aInvoiceRouteLabel(row.marketCode)}
-                  </td>
-                  <td className="text-right">{formatQty(row.quantity)}</td>
-                  <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
-                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
+          <div key={section.kind} className="monthly-invoice-section">
+            <div className="monthly-invoice-section-title">{sectionTitle}</div>
+            <table className="monthly-invoice-table mode4-tax-invoice-table">
+              <thead>
+                <tr>
+                  <th className="mode4-route-col">Description</th>
+                  <th className="mode4-qty-col">数量 Qty</th>
+                  <th className="mode4-rate-col">单价 Rate</th>
+                  <th className="mode4-amount-col">金额 Amount</th>
                 </tr>
-              ))}
-              <tr className="monthly-invoice-section-total">
-                <td className="text-right">{sectionTitle} 小计 Subtotal</td>
-                <td className="text-right">{formatQty(section.totalQty)}</td>
-                <td />
-                <td className="text-right">
-                  {formatHaideeInvoiceMoney(section.totalAmount, data.currency)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {section.rows.map((row) => (
+                  <tr key={`${section.kind}-${row.marketCode}`}>
+                    <td className="text-left">
+                      {getHaideeAccountingInvoiceRouteLabel(mode, row.marketCode)}
+                    </td>
+                    <td className="text-right">{formatQty(row.quantity)}</td>
+                    <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
+                    <td className="text-right">{formatMoneyAmount(row.amount)}</td>
+                  </tr>
+                ))}
+                <tr className="monthly-invoice-section-total">
+                  <td className="text-right">{sectionTitle} 小计 Subtotal</td>
+                  <td className="text-right">{formatQty(section.totalQty)}</td>
+                  <td />
+                  <td className="text-right">
+                    {formatHaideeInvoiceMoney(section.totalAmount, data.currency)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         );
       })}
 
-      {(data.extraCharges?.length ?? 0) > 0 && (
-        <HaideeInvoiceDescriptionAmountTable
-          lines={(data.extraCharges ?? []).map((row) => ({
-            description: row.description,
-            amountMyr: row.amount,
-          }))}
-          amountHeader={`Amount (${data.currency})`}
-        />
-      )}
+      <HaideeInvoiceExtraChargesTable charges={extraCharges} />
 
       <HaideeInvoiceGrandTotal
         amountMyr={summary.grandTotalAmount}

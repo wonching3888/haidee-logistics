@@ -76,9 +76,9 @@ describe("resolveArTaxType", () => {
 });
 
 describe("arDocNoPrefixForMode", () => {
-  it("uses HD- for mode 1a and 1b", () => {
+  it("uses HD- for mode 1a and HDR- for mode 1b", () => {
     expect(arDocNoPrefixForMode("1a")).toBe("HD-");
-    expect(arDocNoPrefixForMode("1b")).toBe("HD-");
+    expect(arDocNoPrefixForMode("1b")).toBe("HDR-");
   });
 
   it("uses HDR- for mode 2 and charter", () => {

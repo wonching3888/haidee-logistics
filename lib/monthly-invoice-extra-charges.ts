@@ -11,12 +11,18 @@ import type { MonthlyInvoicePrintData } from "@/lib/monthly-invoice-print-data";
 export interface MonthlyInvoiceExtraChargeRow {
   id: string;
   description: string;
+  quantity: number | null;
+  unit: string | null;
+  unitPrice: number | null;
   amount: number;
   sortOrder: number;
 }
 
 export interface MonthlyInvoiceExtraChargeInput {
   description: string;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
   amount: number;
 }
 
@@ -49,6 +55,9 @@ export async function loadMonthlyInvoiceExtraCharges(input: {
   return rows.map((row) => ({
     id: row.id,
     description: row.description,
+    quantity: decimalToNumber(row.quantity),
+    unit: row.unit?.trim() || null,
+    unitPrice: decimalToNumber(row.unitPrice),
     amount: decimalToNumber(row.amount) ?? 0,
     sortOrder: row.sortOrder,
   }));
@@ -175,6 +184,11 @@ export async function aggregateMonthlyInvoiceExtraChargesMyr(
   return roundMoney(total);
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export function validateMonthlyInvoiceExtraChargeInputs(
   items: MonthlyInvoiceExtraChargeInput[]
 ): MonthlyInvoiceExtraChargeInput[] {
@@ -188,9 +202,40 @@ export function validateMonthlyInvoiceExtraChargeInputs(
     if (!Number.isFinite(item.amount) || item.amount <= 0) {
       throw new Error("额外收费金额必须大于 0 Extra charge amount must be greater than 0");
     }
+
+    const quantity =
+      item.quantity == null || item.quantity === undefined
+        ? null
+        : item.quantity;
+    const unitPrice =
+      item.unitPrice == null || item.unitPrice === undefined
+        ? null
+        : item.unitPrice;
+
+    if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) {
+      throw new Error("额外收费数量必须大于 0 Extra charge quantity must be greater than 0");
+    }
+    if (unitPrice != null && (!Number.isFinite(unitPrice) || unitPrice <= 0)) {
+      throw new Error("额外收费单价必须大于 0 Extra charge unit price must be greater than 0");
+    }
+
+    const amount = roundMoney(item.amount);
+    if (
+      quantity != null &&
+      unitPrice != null &&
+      roundMoney(quantity * unitPrice) !== amount
+    ) {
+      throw new Error(
+        "额外收费金额须等于数量×单价 Extra charge amount must equal quantity × unit price"
+      );
+    }
+
     normalized.push({
       description,
-      amount: roundMoney(item.amount),
+      quantity,
+      unit: normalizeOptionalText(item.unit ?? null),
+      unitPrice: unitPrice != null ? roundMoney(unitPrice) : null,
+      amount,
     });
   }
 

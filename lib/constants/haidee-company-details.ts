@@ -10,3 +10,21 @@ export const HAIDEE_MODE1A_INVOICE_DETAILS = {
   computerGeneratedNote:
     "This is computer generated invoice no signature required",
 } as const;
+
+/** HAIDEE mode 1b MYR invoices — same company block, WTL collection bank. */
+export const HAIDEE_MODE1B_INVOICE_DETAILS = {
+  registrationNo: HAIDEE_MODE1A_INVOICE_DETAILS.registrationNo,
+  addressLines: [...HAIDEE_MODE1A_INVOICE_DETAILS.addressLines],
+  phone: HAIDEE_MODE1A_INVOICE_DETAILS.phone,
+  terms: HAIDEE_MODE1A_INVOICE_DETAILS.terms,
+  bankAccount: "WTL EXPRESS, Public Bank 323-024-1725",
+  computerGeneratedNote: HAIDEE_MODE1A_INVOICE_DETAILS.computerGeneratedNote,
+} as const;
+
+export type HaideeAccountingInvoiceMode = "1a" | "1b";
+
+export function getHaideeAccountingInvoiceDetails(mode: HaideeAccountingInvoiceMode) {
+  return mode === "1b"
+    ? HAIDEE_MODE1B_INVOICE_DETAILS
+    : HAIDEE_MODE1A_INVOICE_DETAILS;
+}

@@ -12,8 +12,9 @@ export function arDocNoMonthToken(year: number, month: number): string {
 export function arDocNoPrefixForMode(mode: ArInvoiceDocNoMode): string {
   switch (mode) {
     case "1a":
-    case "1b":
       return "HD-";
+    case "1b":
+      return "HDR-";
     case "2":
     case "charter":
       return "HDR-";

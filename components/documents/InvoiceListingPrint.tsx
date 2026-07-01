@@ -12,6 +12,8 @@ export interface InvoiceListingPrintProps {
   customerName: string;
   periodLabel: string;
   listing: InvoiceListingData;
+  /** Override tong/crate section title (e.g. accounting invoices). */
+  tongSectionTitle?: string;
 }
 
 export function InvoiceListingPrint({
@@ -19,6 +21,7 @@ export function InvoiceListingPrint({
   customerName,
   periodLabel,
   listing,
+  tongSectionTitle,
 }: InvoiceListingPrintProps) {
   const company = INVOICE_COMPANY_HEADERS[issuerKey];
 
@@ -35,9 +38,14 @@ export function InvoiceListingPrint({
         {customerName} · {periodLabel}
       </div>
 
-      {listing.sections.map((section) => (
+      {listing.sections.map((section) => {
+        const sectionTitle =
+          section.kind === "tong" && tongSectionTitle
+            ? tongSectionTitle
+            : section.title;
+        return (
         <div key={section.kind} className="monthly-invoice-section">
-          <div className="monthly-invoice-section-title">{section.title}</div>
+          <div className="monthly-invoice-section-title">{sectionTitle}</div>
           <table className="monthly-invoice-table mode4-listing-table">
             <thead>
               <tr>
@@ -79,7 +87,8 @@ export function InvoiceListingPrint({
             </tbody>
           </table>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

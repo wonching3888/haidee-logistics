@@ -927,20 +927,45 @@
   font-weight: 700;
 }
 
-/* Mode 1a accounting invoice: company name prominent, address/details smaller */
+/* Mode 1a/1b accounting invoice: company name prominent, address/details smaller */
+.haidee-accounting-invoice-print .haidee-invoice-letterhead-name-th,
+.haidee-accounting-invoice-print .haidee-invoice-letterhead-name,
 .mode1a-invoice-print .haidee-invoice-letterhead-name-th,
 .mode1a-invoice-print .haidee-invoice-letterhead-name {
   font-size: 12pt;
 }
 
+.haidee-accounting-invoice-print .haidee-invoice-letterhead-name-en,
 .mode1a-invoice-print .haidee-invoice-letterhead-name-en {
   font-size: 11pt;
   font-weight: 700;
 }
 
+.haidee-accounting-invoice-print .haidee-invoice-letterhead-detail,
 .mode1a-invoice-print .haidee-invoice-letterhead-detail {
   font-size: 9pt;
   font-weight: 700;
+}
+
+.haidee-accounting-invoice-print .monthly-invoice-section-title {
+  font-size: 9.5pt;
+}
+
+.haidee-accounting-invoice-print table.monthly-invoice-table,
+.haidee-accounting-invoice-print table.mode4-tax-invoice-table {
+  font-size: 8pt;
+}
+
+.haidee-accounting-invoice-print table.monthly-invoice-table th,
+.haidee-accounting-invoice-print table.monthly-invoice-table td,
+.haidee-accounting-invoice-print table.mode4-tax-invoice-table th,
+.haidee-accounting-invoice-print table.mode4-tax-invoice-table td {
+  padding: 2px 4px;
+  line-height: 1.25;
+}
+
+.haidee-accounting-invoice-print .mode4-uom-col {
+  width: 56px;
 }
 
 .mode1a-invoice-amount-words {

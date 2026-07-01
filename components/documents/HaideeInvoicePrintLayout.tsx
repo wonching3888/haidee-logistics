@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
-import { formatMoneyAmount, formatMoneyWithCurrency } from "@/lib/number-format";
+import {
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+  formatQty,
+} from "@/lib/number-format";
 import { cn } from "@/lib/utils";
+import type { MonthlyInvoiceExtraChargeRow } from "@/lib/monthly-invoice-extra-charges";
 
 export function formatHaideeInvoiceMoney(value: number, currency: string) {
   return formatMoneyWithCurrency(value, currency);
@@ -131,6 +136,58 @@ export function HaideeInvoiceDescriptionAmountTable({
             <tr key={`${line.description}-${index}`}>
               <td className="text-left">{line.description}</td>
               <td className="text-right">{formatMoneyAmount(line.amountMyr)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface HaideeInvoiceExtraChargesTableProps {
+  charges: MonthlyInvoiceExtraChargeRow[];
+}
+
+function formatExtraChargeCell(value: string) {
+  return value || "\u00a0";
+}
+
+/** Accounting extra-charge rows: Description | Qty | UOM | U-Price | Total */
+export function HaideeInvoiceExtraChargesTable({
+  charges,
+}: HaideeInvoiceExtraChargesTableProps) {
+  if (charges.length === 0) return null;
+
+  return (
+    <div className="monthly-invoice-section">
+      <table className="monthly-invoice-table mode4-tax-invoice-table">
+        <thead>
+          <tr>
+            <th className="mode4-route-col">Description</th>
+            <th className="mode4-qty-col">数量 Qty</th>
+            <th className="mode4-uom-col">单位 UOM</th>
+            <th className="mode4-rate-col">单价 U-Price</th>
+            <th className="mode4-amount-col">金额 Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {charges.map((row) => (
+            <tr key={row.id}>
+              <td className="text-left">{row.description}</td>
+              <td className="text-right">
+                {formatExtraChargeCell(
+                  row.quantity != null ? formatQty(row.quantity) : ""
+                )}
+              </td>
+              <td className="text-center">
+                {formatExtraChargeCell(row.unit ?? "")}
+              </td>
+              <td className="text-right">
+                {formatExtraChargeCell(
+                  row.unitPrice != null ? formatMoneyAmount(row.unitPrice) : ""
+                )}
+              </td>
+              <td className="text-right">{formatMoneyAmount(row.amount)}</td>
             </tr>
           ))}
         </tbody>

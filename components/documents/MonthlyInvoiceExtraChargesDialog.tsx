@@ -21,6 +21,9 @@ import type { MonthlyInvoiceMode } from "@/lib/constants/monthly-invoice";
 interface ExtraChargeDraft {
   key: string;
   description: string;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
   amount: string;
 }
 
@@ -40,17 +43,49 @@ function emptyDraft(): ExtraChargeDraft {
   return {
     key: crypto.randomUUID(),
     description: "",
+    quantity: "",
+    unit: "",
+    unitPrice: "",
     amount: "",
   };
 }
 
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function computeAmountFromDraft(draft: ExtraChargeDraft): string {
+  const qty = Number(draft.quantity);
+  const unitPrice = Number(draft.unitPrice);
+  if (
+    draft.quantity.trim() &&
+    draft.unitPrice.trim() &&
+    Number.isFinite(qty) &&
+    Number.isFinite(unitPrice) &&
+    qty > 0 &&
+    unitPrice > 0
+  ) {
+    return String(roundMoney(qty * unitPrice));
+  }
+  return draft.amount;
+}
+
 function draftsFromSaved(
-  rows: Array<{ description: string; amount: number }>
+  rows: Array<{
+    description: string;
+    quantity: number | null;
+    unit: string | null;
+    unitPrice: number | null;
+    amount: number;
+  }>
 ): ExtraChargeDraft[] {
   if (rows.length === 0) return [emptyDraft()];
   return rows.map((row) => ({
     key: crypto.randomUUID(),
     description: row.description,
+    quantity: row.quantity != null ? String(row.quantity) : "",
+    unit: row.unit ?? "",
+    unitPrice: row.unitPrice != null ? String(row.unitPrice) : "",
     amount: String(row.amount),
   }));
 }
@@ -96,13 +131,40 @@ export function MonthlyInvoiceExtraChargesDialog({
     }
   }, [open, loadItems]);
 
+  function updateItem(key: string, patch: Partial<ExtraChargeDraft>) {
+    setItems((prev) =>
+      prev.map((row) => {
+        if (row.key !== key) return row;
+        const next = { ...row, ...patch };
+        const derivedAmount = computeAmountFromDraft(next);
+        if (
+          next.quantity.trim() &&
+          next.unitPrice.trim() &&
+          derivedAmount !== next.amount
+        ) {
+          next.amount = derivedAmount;
+        }
+        return next;
+      })
+    );
+  }
+
   function handleSave() {
     setError(null);
     const payload = items
-      .map((item) => ({
-        description: item.description.trim(),
-        amount: Number(item.amount),
-      }))
+      .map((item) => {
+        const quantity = item.quantity.trim() ? Number(item.quantity) : null;
+        const unitPrice = item.unitPrice.trim() ? Number(item.unitPrice) : null;
+        const unit = item.unit.trim() || null;
+        const amount = Number(computeAmountFromDraft(item));
+        return {
+          description: item.description.trim(),
+          quantity,
+          unit,
+          unitPrice,
+          amount,
+        };
+      })
       .filter((item) => item.description || item.amount);
 
     startTransition(async () => {
@@ -123,7 +185,7 @@ export function MonthlyInvoiceExtraChargesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>额外收费 Extra Charges</DialogTitle>
           <DialogDescription>
@@ -137,55 +199,73 @@ export function MonthlyInvoiceExtraChargesDialog({
         ) : (
           <div className="space-y-3">
             {items.map((item) => (
-              <div key={item.key} className="flex flex-wrap items-start gap-2">
-                <Input
-                  value={item.description}
-                  onChange={(e) =>
-                    setItems((prev) =>
-                      prev.map((row) =>
-                        row.key === item.key
-                          ? { ...row, description: e.target.value }
-                          : row
+              <div key={item.key} className="space-y-2 rounded-md border p-3">
+                <div className="flex flex-wrap items-start gap-2">
+                  <Input
+                    value={item.description}
+                    onChange={(e) =>
+                      updateItem(item.key, { description: e.target.value })
+                    }
+                    placeholder="说明 Description *"
+                    className="min-h-[44px] min-w-[180px] flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setItems((prev) =>
+                        prev.length <= 1
+                          ? prev
+                          : prev.filter((row) => row.key !== item.key)
                       )
-                    )
-                  }
-                  placeholder="说明 Description *"
-                  className="min-h-[44px] min-w-[160px] flex-1"
-                />
-                <div className="flex items-center gap-1">
+                    }
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-haidee-muted hover:text-haidee-red"
+                    aria-label="Remove item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(e) =>
+                      updateItem(item.key, { quantity: e.target.value })
+                    }
+                    placeholder="数量 Qty"
+                    className="min-h-[44px] w-24 font-mono"
+                  />
+                  <Input
+                    value={item.unit}
+                    onChange={(e) => updateItem(item.key, { unit: e.target.value })}
+                    placeholder="单位 UOM"
+                    className="min-h-[44px] w-24"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={item.unitPrice}
+                    onChange={(e) =>
+                      updateItem(item.key, { unitPrice: e.target.value })
+                    }
+                    placeholder="单价 U-Price"
+                    className="min-h-[44px] w-28 font-mono"
+                  />
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
                     value={item.amount}
                     onChange={(e) =>
-                      setItems((prev) =>
-                        prev.map((row) =>
-                          row.key === item.key
-                            ? { ...row, amount: e.target.value }
-                            : row
-                        )
-                      )
+                      updateItem(item.key, { amount: e.target.value })
                     }
-                    placeholder="金额 *"
+                    placeholder="金额 Total *"
                     className="min-h-[44px] w-28 font-mono"
                   />
                   <span className="text-xs text-haidee-muted">{currency}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setItems((prev) =>
-                      prev.length <= 1
-                        ? prev
-                        : prev.filter((row) => row.key !== item.key)
-                    )
-                  }
-                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-haidee-muted hover:text-haidee-red"
-                  aria-label="Remove item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </div>
             ))}
             <Button

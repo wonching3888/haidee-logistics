@@ -18,7 +18,7 @@ import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
 import { buildHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoice-extra-charges";
-import { HAIDEE_MODE1A_INVOICE_DETAILS } from "@/lib/constants/haidee-company-details";
+import { getHaideeAccountingInvoiceDetails } from "@/lib/constants/haidee-company-details";
 import { formatDisplayDate } from "@/lib/date-utils";
 import { resolveFreightInvoiceDocNo } from "@/lib/monthly-invoice-docno";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
@@ -137,23 +137,24 @@ export async function getMonthlyInvoicePrintData(input: {
     if (!withExtras || !isHaideeMonthlyInvoiceData(withExtras)) {
       return withExtras;
     }
-    if (input.mode !== "1a") return withExtras;
+    if (input.mode !== "1a" && input.mode !== "1b") return withExtras;
 
     const { end } = getMonthDateRange(input.year, input.month);
     const invoiceNo = await resolveFreightInvoiceDocNo({
-      mode: "1a",
+      mode: input.mode,
       billToRole: withExtras.billToRole,
       customerId: input.customerId,
       year: input.year,
       month: input.month,
     });
+    const details = getHaideeAccountingInvoiceDetails(input.mode);
 
     return {
       ...withExtras,
-      mode1aPrint: {
+      accountingPrint: {
         invoiceNo: invoiceNo ?? "—",
         invoiceDateLabel: formatDisplayDate(end),
-        termsLabel: HAIDEE_MODE1A_INVOICE_DETAILS.terms,
+        termsLabel: details.terms,
       },
     };
   }

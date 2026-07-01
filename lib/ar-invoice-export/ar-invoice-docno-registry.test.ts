@@ -61,12 +61,21 @@ describe("buildArDocNoRegistryFromSlots global ordering", () => {
     expect(formatArDocNo("HDR-", 2026, 6, 3)).toBe(crateDocNo);
   });
 
-  it("assigns HD- sequence: mode 1a then 1b", () => {
+  it("assigns HD- sequence: mode 1a only", () => {
     const registry = buildArDocNoRegistryFromSlots(2026, 6, [
       { entityKey: "freight:1a:a:2026-06", prefix: "HD-" },
-      { entityKey: "freight:1b:b:2026-06", prefix: "HD-" },
     ]);
 
-    expect(registry.byEntityKey.get("freight:1b:b:2026-06")).toBe("HD-2606-002");
+    expect(registry.byEntityKey.get("freight:1a:a:2026-06")).toBe("HD-2606-001");
+  });
+
+  it("assigns HDR- sequence: mode 1b then mode 2", () => {
+    const registry = buildArDocNoRegistryFromSlots(2026, 6, [
+      { entityKey: "freight:1b:b:2026-06", prefix: "HDR-" },
+      { entityKey: "freight:2:c:2026-06", prefix: "HDR-" },
+    ]);
+
+    expect(registry.byEntityKey.get("freight:1b:b:2026-06")).toBe("HDR-2606-001");
+    expect(registry.byEntityKey.get("freight:2:c:2026-06")).toBe("HDR-2606-002");
   });
 });
