@@ -179,6 +179,68 @@ describe("buildCrateExportDueToday", () => {
     }
   });
 
+  it("routes pool member SADAO inbound under pool group only (not standalone)", () => {
+    const input = baseInput();
+    input.shippers.set("member-ct", { code: "3001-C005", name: "CT - SONGKHLA" });
+    input.membershipByMemberId.set("member-ct", "pool-sk");
+    input.inboundSessions.push({
+      shipperId: "member-ct",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SONGKHLA",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [{ tongCode: "ABB", quantity: 14, trackInventory: true, isBox: false }],
+    });
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items.filter((i) => i.kind === "row")).toHaveLength(0);
+    const poolItem = result.items.find((i) => i.kind === "pool");
+    expect(poolItem?.kind).toBe("pool");
+    if (poolItem?.kind === "pool") {
+      expect(poolItem.group.members).toHaveLength(1);
+      expect(poolItem.group.members[0].label).toBe("CT - SONGKHLA");
+      expect(poolItem.group.members[0].totalDue).toBe(14);
+    }
+  });
+
+  it("merges pool member rows when SADAO and Songkhla inbound same day", () => {
+    const input = baseInput();
+    input.shippers.set("member-ct", { code: "3001-C005", name: "CT - SONGKHLA" });
+    input.membershipByMemberId.set("member-ct", "pool-sk");
+    input.inboundSessions.push(
+      {
+        shipperId: "member-ct",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SONGKHLA",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 14, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "member-ct",
+        sessionDate,
+        pickupLocation: null,
+        shipperPickupLocation: "SONGKHLA",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 10, trackInventory: true, isBox: false }],
+      }
+    );
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items.filter((i) => i.kind === "row")).toHaveLength(0);
+    const poolItem = result.items.find((i) => i.kind === "pool");
+    expect(poolItem?.kind).toBe("pool");
+    if (poolItem?.kind === "pool") {
+      expect(poolItem.group.members).toHaveLength(1);
+      expect(poolItem.group.members[0].label).toBe("CT - SONGKHLA");
+      expect(poolItem.group.members[0].totalDue).toBe(24);
+      expect(poolItem.group.totalDue).toBe(24);
+    }
+  });
+
   it("returns empty when no inbound sessions for today", () => {
     const input = baseInput();
     const result = buildCrateExportDueToday(input);

@@ -171,6 +171,27 @@ function addQty(map: QtyMap, code: string, qty: number) {
   map.set(code, (map.get(code) ?? 0) + qty);
 }
 
+function mergeMemberInboundsByMemberId<
+  T extends { memberId: string; due: QtyMap },
+>(members: T[]): T[] {
+  const byMemberId = new Map<string, T>();
+  for (const m of members) {
+    const existing = byMemberId.get(m.memberId);
+    if (!existing) {
+      const due = emptyQty();
+      for (const [code, qty] of Array.from(m.due.entries())) {
+        addQty(due, code, qty);
+      }
+      byMemberId.set(m.memberId, { ...m, due });
+      continue;
+    }
+    for (const [code, qty] of Array.from(m.due.entries())) {
+      addQty(existing.due, code, qty);
+    }
+  }
+  return Array.from(byMemberId.values());
+}
+
 function filterQtyMapToReturnable(map: QtyMap): QtyMap {
   const out = emptyQty();
   for (const [code, qty] of Array.from(map.entries())) {
@@ -448,15 +469,17 @@ export function buildCrateExportDueToday(
       usesOfficePoolInboundStock(session.sessionDate) &&
       (effectivePickup === "SONGKHLA" || effectivePickup === "PATTANI");
 
-    if (usesPool && agent?.isPool) {
+    if (agent?.isPool) {
       memberInbounds.push({
         memberId: session.shipperId,
         memberCode: shipper.code,
         memberName: shipper.name,
         agentId: agentId!,
-        poolPickup: effectivePickup as "SONGKHLA" | "PATTANI",
+        ...(usesPool
+          ? { poolPickup: effectivePickup as "SONGKHLA" | "PATTANI" }
+          : {}),
         due: memberDue,
-        location: poolAccount.location,
+        location: usesPool ? poolAccount.location : "",
         areaNote: session.areaNote?.trim() ?? "",
         isMultiOrigin: false,
       });
@@ -505,6 +528,11 @@ export function buildCrateExportDueToday(
   for (const [shipperId, due] of Array.from(standaloneDue.entries())) {
     const shipper = input.shippers.get(shipperId);
     if (!shipper) continue;
+    const memberAgentId = input.membershipByMemberId.get(shipperId);
+    const memberAgent = memberAgentId
+      ? input.agents.get(memberAgentId)
+      : undefined;
+    if (memberAgent?.isPool) continue;
     const returned = filterQtyMapToReturnable(
       input.exportsByShipperId.get(shipperId) ?? emptyQty()
     );
@@ -557,7 +585,7 @@ export function buildCrateExportDueToday(
       const memberRows: CrateExportDueRow[] = [];
       const memberDueMaps: QtyMap[] = [];
 
-      for (const m of members) {
+      for (const m of mergeMemberInboundsByMemberId(members)) {
         const returned = filterQtyMapToReturnable(
           input.exportsByShipperId.get(m.memberId) ?? emptyQty()
         );
