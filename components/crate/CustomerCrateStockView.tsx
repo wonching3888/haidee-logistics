@@ -49,6 +49,7 @@ import {
 } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 import { selectableMultiOriginStockLocations } from "@/lib/multi-origin-customer";
+import { agentMemberRowKey } from "@/lib/sub-customer-channel-affiliates";
 
 interface CustomerCrateStockViewProps {
   crateTypes: CrateTypeColumn[];
@@ -524,14 +525,29 @@ export function CustomerCrateStockView({
                               <div className="space-y-2">
                                 {agent.members.map((member) => (
                                   <div
-                                    key={member.memberShipperId}
-                                    className="rounded-lg border border-haidee-border bg-white p-3"
+                                    key={agentMemberRowKey(member)}
+                                    className={cn(
+                                      "rounded-lg border bg-white p-3",
+                                      member.isSubChannelAffiliate
+                                        ? "border-sky-200 bg-sky-50/40"
+                                        : "border-haidee-border"
+                                    )}
                                   >
                                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                      <p className="text-sm font-medium">
-                                        {member.memberShipperName}
-                                      </p>
-                                      {canManageCrateStockAgents ? (
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-medium">
+                                          {member.memberShipperName}
+                                        </p>
+                                        {member.isSubChannelAffiliate ? (
+                                          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-sky-900">
+                                            {t(
+                                              "customerCrateStock.agent.subChannelBadge"
+                                            )}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      {canManageCrateStockAgents &&
+                                      !member.isSubChannelAffiliate ? (
                                         <Button
                                           type="button"
                                           size="sm"
@@ -548,12 +564,20 @@ export function CustomerCrateStockView({
                                         </Button>
                                       ) : null}
                                     </div>
-                                    <p className="font-mono text-xs text-haidee-muted">
-                                      {memberStockSummary(
-                                        member.quantities,
-                                        visibleCrateTypes
-                                      )}
-                                    </p>
+                                    {member.isSubChannelAffiliate ? (
+                                      <p className="text-xs text-sky-900/80">
+                                        {t(
+                                          "customerCrateStock.agent.subChannelHint"
+                                        )}
+                                      </p>
+                                    ) : (
+                                      <p className="font-mono text-xs text-haidee-muted">
+                                        {memberStockSummary(
+                                          member.quantities,
+                                          visibleCrateTypes
+                                        )}
+                                      </p>
+                                    )}
                                   </div>
                                 ))}
                               </div>

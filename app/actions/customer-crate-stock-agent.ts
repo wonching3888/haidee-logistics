@@ -27,6 +27,11 @@ import {
   filterPickupSummariesDedupedByAgents,
   sortAgentsForCustomerStockList,
 } from "@/lib/customer-crate-stock-list";
+import {
+  groupSubCustomerChannelAffiliatesByOwner,
+  mergeAgentMemberRowsWithSubChannelAffiliates,
+  type SubCustomerChannelAffiliateSource,
+} from "@/lib/sub-customer-channel-affiliates";
 
 export interface CrateStockAgentMemberRow {
   memberShipperId: string;
@@ -34,6 +39,10 @@ export interface CrateStockAgentMemberRow {
   memberShipperName: string;
   quantities: Record<string, number>;
   locations: CustomerCrateLocationStock[];
+  /** Display-only: parent shipper routed via sub_customer_channels (not membership). */
+  isSubChannelAffiliate?: boolean;
+  subChannelKey?: string;
+  subChannelLabel?: string;
 }
 
 export interface CrateStockAgentRow {
@@ -136,39 +145,81 @@ function buildStockRowFromRecords(
 async function loadCrateStockAgentRows(
   crateTypes: CrateTypeColumn[]
 ): Promise<CrateStockAgentRow[]> {
-  const agents = await prisma.shipper.findMany({
-    where: {
-      active: true,
-      shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
-    },
-    orderBy: { name: "asc" },
-    include: {
-      customerCrateStock: {
-        select: { crateTypeId: true, location: true, quantity: true },
+  const [agents, subChannelRows] = await Promise.all([
+    prisma.shipper.findMany({
+      where: {
+        active: true,
+        shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
       },
-      crateStockAgentMembers: {
-        include: {
-          memberShipper: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              customerCrateStock: {
-                select: { crateTypeId: true, location: true, quantity: true },
+      orderBy: { name: "asc" },
+      include: {
+        customerCrateStock: {
+          select: { crateTypeId: true, location: true, quantity: true },
+        },
+        crateStockAgentMembers: {
+          include: {
+            memberShipper: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                customerCrateStock: {
+                  select: { crateTypeId: true, location: true, quantity: true },
+                },
               },
             },
           },
+          orderBy: { joinedAt: "asc" },
         },
-        orderBy: { joinedAt: "asc" },
       },
-    },
-  });
+    }),
+    prisma.subCustomerChannel.findMany({
+      where: {
+        active: true,
+        ownerType: { in: ["agent", "pool"] },
+      },
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
+      select: {
+        channelKey: true,
+        label: true,
+        ownerShipperId: true,
+        parentShipper: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+    }),
+  ]);
+
+  const affiliatesByOwnerId = groupSubCustomerChannelAffiliatesByOwner(
+    subChannelRows.map(
+      (row): SubCustomerChannelAffiliateSource => ({
+        channelKey: row.channelKey,
+        label: row.label,
+        ownerShipperId: row.ownerShipperId,
+        parentShipper: row.parentShipper,
+      })
+    )
+  );
 
   return agents.map((agent) => {
     const { quantities, locations } = buildStockRowFromRecords(
       crateTypes,
       agent.customerCrateStock
     );
+
+    const formalMembers = agent.crateStockAgentMembers.map((membership) => {
+      const memberStock = buildStockRowFromRecords(
+        crateTypes,
+        membership.memberShipper.customerCrateStock
+      );
+      return {
+        memberShipperId: membership.memberShipper.id,
+        memberShipperCode: membership.memberShipper.code,
+        memberShipperName: membership.memberShipper.name,
+        quantities: memberStock.quantities,
+        locations: memberStock.locations,
+      };
+    });
 
     return {
       shipperId: agent.id,
@@ -177,19 +228,11 @@ async function loadCrateStockAgentRows(
       isLegacyPool: isLegacyPoolAgentCode(agent.code),
       quantities,
       locations,
-      members: agent.crateStockAgentMembers.map((membership) => {
-        const memberStock = buildStockRowFromRecords(
-          crateTypes,
-          membership.memberShipper.customerCrateStock
-        );
-        return {
-          memberShipperId: membership.memberShipper.id,
-          memberShipperCode: membership.memberShipper.code,
-          memberShipperName: membership.memberShipper.name,
-          quantities: memberStock.quantities,
-          locations: memberStock.locations,
-        };
-      }),
+      members: mergeAgentMemberRowsWithSubChannelAffiliates(
+        formalMembers,
+        crateTypes,
+        affiliatesByOwnerId.get(agent.id) ?? []
+      ),
     };
   });
 }

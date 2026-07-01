@@ -19,6 +19,7 @@ export default defineConfig({
       "lib/crate-stock-agent-transfer.test.ts",
       "lib/multi-origin-customer.test.ts",
       "lib/sub-customer-channel.test.ts",
+      "lib/sub-customer-channel-affiliates.test.ts",
       "lib/freight-rate-save.test.ts",
       "lib/market-do-route-groups.test.ts",
       "lib/parse-year-month-params.test.ts",

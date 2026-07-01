@@ -2011,6 +2011,16 @@ export const MESSAGES = {
     en: "No members yet",
     th: "ยังไม่มีสมาชิก",
   },
+  "customerCrateStock.agent.subChannelBadge": {
+    zh: "子渠道",
+    en: "Sub-channel",
+    th: "ช่องทางย่อย",
+  },
+  "customerCrateStock.agent.subChannelHint": {
+    zh: "子顾客渠道挂靠：桶账记在代理/池总账，非正式组员",
+    en: "Sub-customer channel affiliate: stock is on agent/pool total ledger, not formal membership",
+    th: "ช่องทางลูกค้าย่อย: สต๊อกอยู่ในบัญชีรวมตัวแทน/พูล ไม่ใช่สมาชิกกลุ่ม",
+  },
   "customerCrateStock.agent.addMember": {
     zh: "添加顾客",
     en: "Add member",
