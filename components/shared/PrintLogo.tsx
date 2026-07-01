@@ -54,17 +54,26 @@ export function PrintLetterhead({
           <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name">
             {nameZh}
           </div>
-          <div className="haidee-invoice-letterhead-line">{nameEn}</div>
+          <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-en">
+            {nameEn}
+          </div>
           {addressLines?.map((line) => (
-            <div key={line} className="haidee-invoice-letterhead-line">
+            <div
+              key={line}
+              className="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail"
+            >
               {line}
             </div>
           ))}
           {phone ? (
-            <div className="haidee-invoice-letterhead-line">{phone}</div>
+            <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">
+              {phone}
+            </div>
           ) : null}
           {taxId ? (
-            <div className="haidee-invoice-letterhead-line">{taxId}</div>
+            <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">
+              {taxId}
+            </div>
           ) : null}
         </div>
       </div>

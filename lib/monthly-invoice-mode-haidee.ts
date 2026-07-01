@@ -31,6 +31,12 @@ export interface HaideeMonthlyInvoiceData {
     amount: number;
     sortOrder: number;
   }>;
+  /** Mode 1a accounting print fields (invoice no, date, terms). */
+  mode1aPrint?: {
+    invoiceNo: string;
+    invoiceDateLabel: string;
+    termsLabel: string;
+  };
 }
 
 export function isHaideeMonthlyInvoiceData(

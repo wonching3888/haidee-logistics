@@ -11,18 +11,21 @@ interface HaideeInvoicePrintDocumentProps {
   children: ReactNode;
   /** Charter HAIDEE only: full-page border (opt-in). */
   framed?: boolean;
+  className?: string;
 }
 
 /** Shared root wrapper for HAIDEE market + charter invoices. */
 export function HaideeInvoicePrintDocument({
   children,
   framed = false,
+  className,
 }: HaideeInvoicePrintDocumentProps) {
   return (
     <div
       className={cn(
         "document-print mode4-tax-invoice-print haidee-market-invoice-print",
-        framed && "haidee-charter-invoice-document"
+        framed && "haidee-charter-invoice-document",
+        className
       )}
     >
       {children}

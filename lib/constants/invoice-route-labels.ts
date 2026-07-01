@@ -1,3 +1,5 @@
+import { getMarketDisplayName } from "@/lib/constants/market-names";
+
 /** Thailand transit hub label for WTL dual-segment TH rows (no SST, no tax code). */
 export const INVOICE_TH_SEGMENT_ROUTE_LABEL = "THAILAND TO BKT KAYU HITAM";
 
@@ -53,6 +55,13 @@ export function getInvoiceMarketShortName(marketCode: string): string {
 
 export function getInvoiceRouteLabel(marketCode: string): string {
   return `${INVOICE_ROUTE_PREFIX}${getInvoiceMarketShortName(marketCode)}`;
+}
+
+/** Mode 1a accounting invoice: SADAO hub → actual destination place name. */
+export const MODE1A_INVOICE_ROUTE_PREFIX = "SADAO TO ";
+
+export function getMode1aInvoiceRouteLabel(marketCode: string): string {
+  return `${MODE1A_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
 }
 
 export function buildAllInvoiceRouteLabels(): Record<

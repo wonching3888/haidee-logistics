@@ -16,7 +16,12 @@ import { fetchRawInvoiceLines } from "@/lib/monthly-invoice-lines";
 import { buildMode4MonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
 import { buildHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
+import { isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoice-extra-charges";
+import { HAIDEE_MODE1A_INVOICE_DETAILS } from "@/lib/constants/haidee-company-details";
+import { formatDisplayDate } from "@/lib/date-utils";
+import { resolveFreightInvoiceDocNo } from "@/lib/monthly-invoice-docno";
+import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 
 async function requireFreightViewer() {
   const user = await getCurrentUser();
@@ -123,12 +128,34 @@ export async function getMonthlyInvoicePrintData(input: {
       rawLines,
     });
     if (!data) return null;
-    return applyMonthlyInvoiceExtraChargesToPrintData(data, {
+    const withExtras = await applyMonthlyInvoiceExtraChargesToPrintData(data, {
       year: input.year,
       month: input.month,
       mode: input.mode,
       customerId: input.customerId,
     });
+    if (!withExtras || !isHaideeMonthlyInvoiceData(withExtras)) {
+      return withExtras;
+    }
+    if (input.mode !== "1a") return withExtras;
+
+    const { end } = getMonthDateRange(input.year, input.month);
+    const invoiceNo = await resolveFreightInvoiceDocNo({
+      mode: "1a",
+      billToRole: withExtras.billToRole,
+      customerId: input.customerId,
+      year: input.year,
+      month: input.month,
+    });
+
+    return {
+      ...withExtras,
+      mode1aPrint: {
+        invoiceNo: invoiceNo ?? "—",
+        invoiceDateLabel: formatDisplayDate(end),
+        termsLabel: HAIDEE_MODE1A_INVOICE_DETAILS.terms,
+      },
+    };
   }
 
   const data = buildMonthlyInvoiceData({
