@@ -50,6 +50,7 @@ export default defineConfig({
       "lib/pnl-cache-invalidation.test.ts",
       "lib/crate-import-rows.test.ts",
       "lib/crate-export-due-today.test.ts",
+      "lib/crate-export-live-owed.test.ts",
       "lib/crate-return-billing.test.ts",
       "lib/driver-payroll-crate-commission.test.ts",
       "lib/driver-payroll-crate-multi-market.test.ts",

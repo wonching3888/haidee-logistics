@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWrite } from "@/lib/require-auth";
 import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import { generateExportNo, getSadaoStockByTongType } from "@/lib/tong";
-import { formatDisplayDate, getBangkokDayUtcRange, getBangkokTodayDateInput } from "@/lib/date-utils";
+import { formatDisplayDate, getBangkokTodayDateInput } from "@/lib/date-utils";
 import {
   buildCrateExportDueToday,
   type CrateExportDueTodayData,
@@ -18,12 +18,18 @@ import {
   type CrateExportPrefillTarget,
   qtyMapToRecord,
 } from "@/lib/crate-export-due-today";
+import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
+import {
+  liveShortageForLine,
+  lookupLiveOwed,
+  shouldUseLiveCrateExportOwed,
+  totalLiveShortageForLines,
+} from "@/lib/crate-export-live-owed";
 import {
   isLocationPoolShipperCode,
   stockLocationForPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
-import { SHIPPER_KIND, isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
-import { loadLocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
+import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
 import {
   CRATE_EXPORT_LIST_LIMIT,
   type CrateExportListRow,
@@ -160,133 +166,65 @@ export async function getAgentCrateReturnPrefill(
 async function getCrateExportDueTodayForDate(
   dateInput: string
 ): Promise<CrateExportDueTodayData> {
-  const sessionDate = parseDateInput(dateInput);
-  const { start: ledgerStart, end: ledgerEnd } = getBangkokDayUtcRange(dateInput);
+  const input = await loadCrateExportDayInput(dateInput);
+  return buildCrateExportDueToday(input);
+}
 
-  const [
-    poolIds,
-    membershipRows,
-    agentShippers,
-    multiOriginShippers,
-    inboundSessions,
-    exports,
-    ledgerExports,
-  ] = await Promise.all([
-    loadLocationPoolShipperIds(),
-    prisma.crateStockAgentMember.findMany({
-      select: { agentShipperId: true, memberShipperId: true },
-    }),
-    prisma.shipper.findMany({
-      where: { shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT },
-      select: { id: true, code: true, name: true },
-    }),
-    prisma.shipper.findMany({
-      where: { isMultiOriginCustomer: true },
-      select: { id: true },
-    }),
-    prisma.inboundSession.findMany({
-      where: { date: sessionDate, status: "confirmed" },
-      include: {
-        shipper: {
-          select: { id: true, code: true, name: true, pickupLocation: true },
-        },
-        lines: {
-          include: {
-            tongType: {
-              select: { code: true, trackInventory: true, isBox: true },
-            },
-          },
-        },
-      },
-    }),
-    prisma.tongExport.findMany({
-      where: { date: sessionDate },
-      include: { tongType: { select: { code: true } } },
-    }),
-    prisma.customerCrateLedger.findMany({
-      where: {
-        changeType: "export",
-        createdAt: { gte: ledgerStart, lt: ledgerEnd },
-      },
-      include: { crateType: { select: { code: true } } },
-    }),
-  ]);
-
-  const shippers = new Map<string, { code: string; name: string }>();
-  for (const s of inboundSessions) {
-    shippers.set(s.shipper.id, { code: s.shipper.code, name: s.shipper.name });
-  }
-  for (const a of agentShippers) {
-    shippers.set(a.id, { code: a.code, name: a.name });
+/** Live owed by crate code (inbound − returned); only meaningful for today's date. */
+export async function getLiveCrateExportOwedByCode(
+  dateInput: string,
+  shipperId: string,
+  location: string
+): Promise<Record<string, number>> {
+  if (!shouldUseLiveCrateExportOwed(dateInput)) {
+    return {};
   }
 
-  const agents = new Map<
-    string,
-    { code: string; name: string; isPool: boolean; pickup?: "SONGKHLA" | "PATTANI" }
-  >();
-  for (const a of agentShippers) {
-    const pickup = stockLocationForPoolShipperCode(a.code) ?? undefined;
-    agents.set(a.id, {
-      code: a.code,
-      name: a.name,
-      isPool: Boolean(pickup),
-      pickup: pickup ?? undefined,
-    });
-  }
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { code: true, shipperKind: true },
+  });
+  if (!shipper) return {};
 
-  const membershipByMemberId = new Map<string, string>();
-  for (const m of membershipRows) {
-    membershipByMemberId.set(m.memberShipperId, m.agentShipperId);
-  }
-
-  const multiOriginByShipperId = new Map<string, boolean>();
-  for (const s of multiOriginShippers) {
-    multiOriginByShipperId.set(s.id, true);
-  }
-
-  const exportsByShipperId = new Map<string, Map<string, number>>();
-  for (const row of exports) {
-    if (row.quantityActual <= 0) continue;
-    const map = exportsByShipperId.get(row.shipperId) ?? new Map();
-    map.set(row.tongType.code, (map.get(row.tongType.code) ?? 0) + row.quantityActual);
-    exportsByShipperId.set(row.shipperId, map);
-  }
-
-  const exportsByShipperLocation = new Map<string, Map<string, number>>();
-  for (const row of ledgerExports) {
-    if (row.quantity <= 0) continue;
-    const loc = row.location?.trim() ?? "";
-    const key = `${row.shipperId}|${loc}`;
-    const map = exportsByShipperLocation.get(key) ?? new Map();
-    map.set(row.crateType.code, (map.get(row.crateType.code) ?? 0) + row.quantity);
-    exportsByShipperLocation.set(key, map);
-  }
-
-  return buildCrateExportDueToday({
-    date: dateInput,
-    poolIds,
-    agents,
-    membershipByMemberId,
-    multiOriginByShipperId,
-    shippers,
-    inboundSessions: inboundSessions.map((s) => ({
-      shipperId: s.shipperId,
-      sessionDate: s.date,
-      pickupLocation: s.pickupLocation,
-      shipperPickupLocation: s.shipper.pickupLocation,
-      customerOriginLocation: s.customerOriginLocation,
-      areaNote: s.areaNote,
-      lines: s.lines.map((l) => ({
-        tongCode: l.tongType.code,
-        quantity: l.quantity,
-        trackInventory: l.tongType.trackInventory,
-        isBox: l.tongType.isBox,
-      })),
-    })),
-    exportsByShipperId,
-    exportsByShipperLocation,
+  const isAgentReceipt =
+    isCrateStockAgentShipper(shipper) || isLocationPoolShipperCode(shipper.code);
+  const index = await loadLiveOwedIndex(dateInput);
+  return lookupLiveOwed(index, {
+    shipperId,
+    location,
+    isAgentReceipt,
   });
 }
+
+async function resolveExportStockLocations(
+  exportNos: string[]
+): Promise<Map<string, string>> {
+  const trimmed = Array.from(
+    new Set(exportNos.map((no) => no.trim()).filter(Boolean))
+  );
+  const locationByExportNo = new Map<string, string>();
+  if (trimmed.length === 0) return locationByExportNo;
+
+  const ledgers = await prisma.customerCrateLedger.findMany({
+    where: {
+      changeType: "export",
+      OR: trimmed.map((exportNo) => ({ notes: { contains: exportNo } })),
+    },
+    orderBy: { createdAt: "asc" },
+    select: { notes: true, location: true },
+  });
+
+  for (const exportNo of trimmed) {
+    const ledger = ledgers.find((row) => row.notes?.includes(exportNo));
+    if (ledger) {
+      locationByExportNo.set(exportNo, ledger.location?.trim() ?? "");
+    }
+  }
+
+  return locationByExportNo;
+}
+
+export { resolveExportStockLocations };
 
 function getActiveCrateExportLines(
   lines: CrateExportLineInput[]
@@ -347,16 +285,33 @@ export async function listCrateExportsForDate(
   if (!user) return [];
 
   const date = parseDateInput(dateInput);
+  const useLive = shouldUseLiveCrateExportOwed(dateInput);
   const rows = await prisma.tongExport.findMany({
     where: { date },
-    include: { shipper: { select: { name: true } } },
+    include: {
+      shipper: { select: { name: true, code: true, shipperKind: true } },
+      tongType: { select: { code: true } },
+    },
     orderBy: [{ createdAt: "desc" }],
     take: CRATE_EXPORT_LIST_LIMIT * 20,
   });
 
+  const owedIndex = useLive ? await loadLiveOwedIndex(dateInput) : null;
+  const locationByExportNo = useLive
+    ? await resolveExportStockLocations(
+        rows.map((row) => row.exportNo?.trim() || row.id)
+      )
+    : new Map<string, string>();
+
   const grouped = new Map<
     string,
-    CrateExportListRow & { sortCreatedAt: number }
+    CrateExportListRow & {
+      sortCreatedAt: number;
+      shipperId: string;
+      shipperCode: string;
+      shipperKind: string | null;
+      lineDetails: { tongCode: string; quantityActual: number }[];
+    }
   >();
 
   for (const row of rows) {
@@ -364,8 +319,11 @@ export async function listCrateExportsForDate(
     const existing = grouped.get(exportNo);
     if (existing) {
       existing.totalActual += row.quantityActual;
-      existing.totalShortage += row.shortage;
       existing.lineCount += 1;
+      existing.lineDetails.push({
+        tongCode: row.tongType.code,
+        quantityActual: row.quantityActual,
+      });
       continue;
     }
 
@@ -378,21 +336,40 @@ export async function listCrateExportsForDate(
       totalShortage: row.shortage,
       lineCount: 1,
       sortCreatedAt: row.createdAt.getTime(),
+      shipperId: row.shipperId,
+      shipperCode: row.shipper.code,
+      shipperKind: row.shipper.shipperKind,
+      lineDetails: [{ tongCode: row.tongType.code, quantityActual: row.quantityActual }],
     });
   }
 
   return Array.from(grouped.values())
     .sort((a, b) => b.sortCreatedAt - a.sortCreatedAt)
     .slice(0, CRATE_EXPORT_LIST_LIMIT)
-    .map((row) => ({
-      exportNo: row.exportNo,
-      date: row.date,
-      shipperName: row.shipperName,
-      thVehiclePlate: row.thVehiclePlate,
-      totalActual: row.totalActual,
-      totalShortage: row.totalShortage,
-      lineCount: row.lineCount,
-    }));
+    .map((row) => {
+      let totalShortage = row.totalShortage;
+      if (useLive && owedIndex) {
+        const isAgentReceipt =
+          isCrateStockAgentShipper({ shipperKind: row.shipperKind }) ||
+          isLocationPoolShipperCode(row.shipperCode);
+        const owed = lookupLiveOwed(owedIndex, {
+          shipperId: row.shipperId,
+          location: locationByExportNo.get(row.exportNo) ?? "",
+          isAgentReceipt,
+        });
+        totalShortage = totalLiveShortageForLines(owed, row.lineDetails);
+      }
+
+      return {
+        exportNo: row.exportNo,
+        date: row.date,
+        shipperName: row.shipperName,
+        thVehiclePlate: row.thVehiclePlate,
+        totalActual: row.totalActual,
+        totalShortage,
+        lineCount: row.lineCount,
+      };
+    });
 }
 
 /**
@@ -784,15 +761,44 @@ export async function getCrateExportReceiptData(
     };
   }
 
+  const exportDateInput = toDateInputValue(first.date);
+  const useLive = shouldUseLiveCrateExportOwed(exportDateInput);
+  let liveOwed: Record<string, number> = {};
+  if (useLive) {
+    const location = await resolveCrateExportStockLocation(trimmed, first.shipperId);
+    liveOwed = await getLiveCrateExportOwedByCode(
+      exportDateInput,
+      first.shipperId,
+      location
+    );
+  }
+
   const lines = rows
-    .filter((row) => row.quantityActual > 0 || row.shortage > 0)
-    .map((row) => ({
-      tongName: row.tongType.name,
-      tongCode: row.tongType.code,
-      quantity: row.quantitySuggested ?? 0,
-      quantityActual: row.quantityActual,
-      shortage: row.shortage,
-    }));
+    .filter((row) => {
+      if (row.quantityActual > 0) return true;
+      if (!useLive) return row.shortage > 0;
+      const shortage = liveShortageForLine(
+        liveOwed,
+        row.tongType.code,
+        row.quantityActual
+      );
+      return shortage > 0;
+    })
+    .map((row) => {
+      const quantitySuggested = useLive
+        ? (liveOwed[row.tongType.code] ?? 0)
+        : (row.quantitySuggested ?? 0);
+      const shortage = useLive
+        ? liveShortageForLine(liveOwed, row.tongType.code, row.quantityActual)
+        : row.shortage;
+      return {
+        tongName: row.tongType.name,
+        tongCode: row.tongType.code,
+        quantity: quantitySuggested,
+        quantityActual: row.quantityActual,
+        shortage,
+      };
+    });
 
   return {
     kind: "standard",

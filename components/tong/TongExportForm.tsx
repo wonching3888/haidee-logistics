@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { editCrateExport, getAgentCrateReturnPrefill } from "@/app/actions/crateExport";
+import { editCrateExport, getAgentCrateReturnPrefill, getLiveCrateExportOwedByCode } from "@/app/actions/crateExport";
 import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
 import {
-  getTodayInboundByShipper,
-  getTodayInboundByPickupLocation,
   getSadaoStock,
   getThVehiclesForShipper,
   saveTongExport,
@@ -24,6 +22,7 @@ import { formatDisplay } from "@/lib/date-utils";
 import { toDateInputValue } from "@/lib/inbound-utils";
 import type { CrateExportPrefillTarget } from "@/lib/crate-export-due-today";
 import { isAgentCrateExportPrefill } from "@/lib/crate-export-due-today";
+import { shouldUseLiveCrateExportOwed } from "@/lib/crate-export-live-owed";
 
 interface ShipperOption {
   id: string;
@@ -185,35 +184,45 @@ export function TongExportForm({
       : getThVehiclesForShipper(shipperId);
 
     if (isEdit && initialData) {
-      Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
-        setVehicleSuggestions(vehicles.map((v) => v.plate));
+      const useLive = shouldUseLiveCrateExportOwed(initialData.date);
+      const owedPromise = useLive
+        ? getLiveCrateExportOwedByCode(date, shipperId, location)
+        : Promise.resolve(null);
 
-        const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
-        const existingByTong = new Map(
-          initialData.lines.map((line) => [line.tongTypeId, line])
-        );
+      Promise.all([getSadaoStock(), vehiclePromise, owedPromise]).then(
+        ([stock, vehicles, liveOwed]) => {
+          setVehicleSuggestions(vehicles.map((v) => v.plate));
 
-        setLines(
-          tongTypes.map((t) => {
-            const existing = existingByTong.get(t.id);
-            const suggested = existing?.quantitySuggested ?? 0;
-            const currentSadao = stockMap[t.code] ?? 0;
-            const oldActual = existing?.quantityActual ?? 0;
-            const stockQty = currentSadao + oldActual;
-            const actualNum = existing ? oldActual : 0;
-            const capped = Math.min(actualNum, stockQty);
-            return {
-              tongTypeId: t.id,
-              code: t.code,
-              name: t.name,
-              suggested,
-              stock: stockQty,
-              actual: existing ? String(actualNum) : "0",
-              shortage: Math.max(0, suggested - capped),
-            };
-          })
-        );
-      });
+          const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
+          const existingByTong = new Map(
+            initialData.lines.map((line) => [line.tongTypeId, line])
+          );
+
+          setLines(
+            tongTypes.map((t) => {
+              const existing = existingByTong.get(t.id);
+              const suggested =
+                useLive && liveOwed
+                  ? (liveOwed[t.code] ?? 0)
+                  : (existing?.quantitySuggested ?? 0);
+              const currentSadao = stockMap[t.code] ?? 0;
+              const oldActual = existing?.quantityActual ?? 0;
+              const stockQty = currentSadao + oldActual;
+              const actualNum = existing ? oldActual : 0;
+              const capped = Math.min(actualNum, stockQty);
+              return {
+                tongTypeId: t.id,
+                code: t.code,
+                name: t.name,
+                suggested,
+                stock: stockQty,
+                actual: existing ? String(actualNum) : "0",
+                shortage: Math.max(0, suggested - capped),
+              };
+            })
+          );
+        }
+      );
       return;
     }
 
@@ -245,22 +254,22 @@ export function TongExportForm({
       return;
     }
 
-    const inboundPromise = poolStockLocation
-      ? getTodayInboundByPickupLocation(date, poolStockLocation)
-      : getTodayInboundByShipper(date, shipperId);
+    const effectiveLocation = poolStockLocation ?? location;
+    const useLive = shouldUseLiveCrateExportOwed(date);
+    const owedPromise =
+      useLive && (!showOriginDropdown || effectiveLocation)
+        ? getLiveCrateExportOwedByCode(date, shipperId, effectiveLocation)
+        : Promise.resolve({} as Record<string, number>);
 
-    Promise.all([inboundPromise, getSadaoStock(), vehiclePromise]).then(
-      ([inbound, stock, vehicles]) => {
+    Promise.all([owedPromise, getSadaoStock(), vehiclePromise]).then(
+      ([owedMap, stock, vehicles]) => {
         setVehicleSuggestions(vehicles.map((v) => v.plate));
 
         const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
-        const inboundMap = Object.fromEntries(
-          inbound.map((i) => [i.code, i.quantity])
-        );
 
         setLines(
           tongTypes.map((t) => {
-            const suggested = inboundMap[t.code] ?? 0;
+            const suggested = owedMap[t.code] ?? 0;
             const stockQty = stockMap[t.code] ?? 0;
             const actual =
               suggested > 0 ? String(Math.min(suggested, stockQty)) : "0";
@@ -281,10 +290,12 @@ export function TongExportForm({
   }, [
     shipperId,
     date,
+    location,
     tongTypes,
     selectedShipper,
     poolStockLocation,
     isLocationPoolShipper,
+    showOriginDropdown,
     isEdit,
     initialData,
     agentPrefill,

@@ -31,9 +31,18 @@ import {
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
 import {
   saveCrateExport,
+  resolveExportStockLocations,
   type CrateExportLineInput,
 } from "@/app/actions/crateExport";
+import { loadLiveOwedIndex } from "@/lib/crate-export-day-context";
 import { isReturnableCrateTypeCode } from "@/lib/crate-export-due-today";
+import {
+  liveShortageForLine,
+  lookupLiveOwed,
+  shouldUseLiveCrateExportOwed,
+} from "@/lib/crate-export-live-owed";
+import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shippers";
+import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
 import { requireSadaoGateStockAdmin } from "@/lib/sadao-gate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
 
@@ -248,7 +257,9 @@ export const saveTongExport = saveCrateExport;
 
 export async function getStockOverview(dateStr?: string) {
   const date = dateStr ? parseDateInput(dateStr) : new Date();
+  const filterDateInput = toDateInputValue(date);
   const todayStr = formatDisplayDate(date);
+  const useLiveShortage = shouldUseLiveCrateExportOwed(filterDateInput);
 
   const stock = await getSadaoStockByTongType();
   const tongTypeIds = Object.values(stock).map((s) => s.tongTypeId);
@@ -272,18 +283,56 @@ export async function getStockOverview(dateStr?: string) {
     todayExports.map((e) => [e.tongTypeId, e._sum.quantityActual ?? 0])
   );
 
-  const shortagesRaw = await prisma.tongExport.findMany({
-    where: { shortage: { gt: 0 } },
+  const shortageCandidates = await prisma.tongExport.findMany({
+    where: useLiveShortage
+      ? { date }
+      : { date, shortage: { gt: 0 } },
     include: {
-      shipper: { select: { name: true } },
-      tongType: { select: { code: true, name: true } },
+      shipper: { select: { name: true, code: true, shipperKind: true } },
+      tongType: { select: { id: true, code: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const shortages = shortagesRaw.filter((s) =>
-    isReturnableCrateTypeCode(s.tongType.code)
-  );
+  const owedIndex = useLiveShortage
+    ? await loadLiveOwedIndex(filterDateInput)
+    : null;
+  const locationByExportNo = useLiveShortage
+    ? await resolveExportStockLocations(
+        shortageCandidates.map((row) => row.exportNo?.trim() || row.id)
+      )
+    : new Map<string, string>();
+
+  const shortages = shortageCandidates
+    .map((row) => {
+      const exportNo = row.exportNo?.trim() || row.id;
+      let shortage = row.shortage;
+      if (useLiveShortage && owedIndex) {
+        const isAgentReceipt =
+          isCrateStockAgentShipper(row.shipper) ||
+          isLocationPoolShipperCode(row.shipper.code);
+        const owed = lookupLiveOwed(owedIndex, {
+          shipperId: row.shipperId,
+          location: locationByExportNo.get(exportNo) ?? "",
+          isAgentReceipt,
+        });
+        shortage = liveShortageForLine(
+          owed,
+          row.tongType.code,
+          row.quantityActual
+        );
+      }
+      return {
+        tongTypeId: row.tongTypeId,
+        shipperName: row.shipper.name,
+        tongCode: row.tongType.code,
+        tongName: row.tongType.name,
+        shortage,
+        date: row.date,
+        exportNo: row.exportNo,
+      };
+    })
+    .filter((s) => isReturnableCrateTypeCode(s.tongCode) && s.shortage > 0);
 
   const shortageByTong = Object.fromEntries(
     tongTypeIds.map((id) => {
@@ -316,9 +365,9 @@ export async function getStockOverview(dateStr?: string) {
   return {
     stockRows,
     shortages: shortages.map((s) => ({
-      shipperName: s.shipper.name,
-      tongCode: s.tongType.code,
-      tongName: s.tongType.name,
+      shipperName: s.shipperName,
+      tongCode: s.tongCode,
+      tongName: s.tongName,
       shortage: s.shortage,
       date: s.date,
       exportNo: s.exportNo,
