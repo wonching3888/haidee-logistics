@@ -119,7 +119,6 @@ export function TongExportForm({
     if (!prefill || prefillToken === 0 || isEdit) return;
     setDate(prefill.date);
     setShipperId(prefill.shipperId);
-    setLocation(prefill.location);
     setAreaNote(prefill.areaNote);
     if (isAgentCrateExportPrefill(prefill)) {
       setAgentPrefill(prefill);
@@ -135,7 +134,6 @@ export function TongExportForm({
       if (cancelled || !next || !isAgentCrateExportPrefill(next)) return;
       setAgentPrefill(next);
       setShipperId(next.shipperId);
-      setLocation(next.location);
     });
     return () => {
       cancelled = true;
@@ -419,6 +417,7 @@ export function TongExportForm({
             className="min-h-[44px]"
           />
         </div>
+        {showOriginDropdown || (isLocationPoolShipper && poolStockLocation) ? (
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
             {t("crateExport.location")}
@@ -430,7 +429,7 @@ export function TongExportForm({
             <div className="flex min-h-[44px] items-center rounded-lg border border-dashed border-haidee-border bg-haidee-surface/50 px-3 text-sm text-haidee-text">
               {poolStockLocation}
             </div>
-          ) : showOriginDropdown ? (
+          ) : (
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -443,15 +442,9 @@ export function TongExportForm({
                 </option>
               ))}
             </select>
-          ) : (
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder={`${t("crateExport.locationPlaceholder")} (${parts("common.optional").local})`}
-              className="min-h-[44px]"
-            />
           )}
         </div>
+        ) : null}
         <div className="space-y-1">
           <label className="text-sm font-medium text-haidee-text">
             {t("inbound.thPlateField")}

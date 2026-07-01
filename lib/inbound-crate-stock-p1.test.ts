@@ -11,7 +11,7 @@ const POOL_IDS: LocationPoolShipperIds = {
 };
 
 describe("resolveCrateStockBucket (P1 write routing)", () => {
-  it("returns operational shipper when membership map is empty", () => {
+  it("non-multi returns total ledger when membership map is empty", () => {
     expect(
       resolveCrateStockBucket(
         parseDateInput("2026-06-24"),
@@ -20,15 +20,17 @@ describe("resolveCrateStockBucket (P1 write routing)", () => {
         "SADAO",
         "ABB",
         POOL_IDS,
-        new Map()
+        new Map(),
+        null,
+        false
       )
     ).toEqual({
       shipperId: OPERATIONAL_ID,
-      location: "ABB",
+      location: "",
     });
   });
 
-  it("returns agent shipper when member has active membership", () => {
+  it("returns agent shipper with total ledger when member has active membership", () => {
     expect(
       resolveCrateStockBucket(
         parseDateInput("2026-06-24"),
@@ -37,11 +39,32 @@ describe("resolveCrateStockBucket (P1 write routing)", () => {
         "SADAO",
         "WTL",
         POOL_IDS,
-        { [OPERATIONAL_ID]: AGENT_ID }
+        { [OPERATIONAL_ID]: AGENT_ID },
+        null,
+        false
       )
     ).toEqual({
       shipperId: AGENT_ID,
-      location: "WTL",
+      location: "",
+    });
+  });
+
+  it("multi-origin SADAO uses standard origin", () => {
+    expect(
+      resolveCrateStockBucket(
+        parseDateInput("2026-06-24"),
+        OPERATIONAL_ID,
+        "SADAO",
+        "SADAO",
+        "remark",
+        POOL_IDS,
+        new Map(),
+        "PHUKET",
+        true
+      )
+    ).toEqual({
+      shipperId: OPERATIONAL_ID,
+      location: "PHUKET",
     });
   });
 

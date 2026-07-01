@@ -13,6 +13,8 @@ const POOL_IDS: LocationPoolShipperIds = {
 function accountFor(input: {
   operationalShipperId?: string;
   location?: string;
+  isMultiOriginCustomer?: boolean;
+  customerOriginLocation?: string | null;
   sessionDate?: string;
   sessionPickup?: string | null;
   shipperPickup?: string | null;
@@ -22,6 +24,8 @@ function accountFor(input: {
   return resolveCustomerCrateStockAccount({
     operationalShipperId: input.operationalShipperId ?? OPERATIONAL_ID,
     location: input.location,
+    isMultiOriginCustomer: input.isMultiOriginCustomer,
+    customerOriginLocation: input.customerOriginLocation,
     sessionDate: input.sessionDate
       ? parseDateInput(input.sessionDate)
       : undefined,
@@ -34,28 +38,42 @@ function accountFor(input: {
 }
 
 describe("resolveCustomerCrateStockAccount", () => {
-  it("returns operational shipper when there is no agent membership", () => {
+  it("non-multi-origin export ignores explicit location (total ledger)", () => {
     expect(
       accountFor({
         location: "ABB",
+        isMultiOriginCustomer: false,
       })
     ).toEqual({
       shipperId: OPERATIONAL_ID,
-      location: "ABB",
+      location: "",
     });
   });
 
-  it("returns agent shipper when member has active membership", () => {
+  it("multi-origin export uses explicit location", () => {
+    expect(
+      accountFor({
+        location: "PHUKET",
+        isMultiOriginCustomer: true,
+      })
+    ).toEqual({
+      shipperId: OPERATIONAL_ID,
+      location: "PHUKET",
+    });
+  });
+
+  it("returns agent shipper when member has active membership (location still total ledger)", () => {
     expect(
       accountFor({
         location: "WTL",
+        isMultiOriginCustomer: false,
         agentMembershipByMemberId: {
           [OPERATIONAL_ID]: AGENT_ID,
         },
       })
     ).toEqual({
       shipperId: AGENT_ID,
-      location: "WTL",
+      location: "",
     });
   });
 
@@ -75,16 +93,32 @@ describe("resolveCustomerCrateStockAccount", () => {
       });
   });
 
-  it("before cutoff: SADAO pickup uses operational shipper and areaNote", () => {
+  it("non-multi SADAO inbound ignores areaNote (total ledger)", () => {
     expect(
       accountFor({
         sessionDate: "2026-06-23",
         sessionPickup: "SADAO",
         areaNote: "Area-A",
+        isMultiOriginCustomer: false,
       })
     ).toEqual({
       shipperId: OPERATIONAL_ID,
-      location: "Area-A",
+      location: "",
+    });
+  });
+
+  it("multi-origin SADAO inbound uses standard origin", () => {
+    expect(
+      accountFor({
+        sessionDate: "2026-06-23",
+        sessionPickup: "SADAO",
+        isMultiOriginCustomer: true,
+        customerOriginLocation: "PHUKET",
+        areaNote: "ignored remark",
+      })
+    ).toEqual({
+      shipperId: OPERATIONAL_ID,
+      location: "PHUKET",
     });
   });
 
@@ -104,16 +138,29 @@ describe("resolveCustomerCrateStockAccount", () => {
       });
   });
 
-  it("after cutoff: SADAO pickup still uses operational shipper and areaNote", () => {
+  it("after cutoff: non-multi SADAO inbound still uses total ledger", () => {
     expect(
       accountFor({
         sessionDate: "2026-06-24",
         sessionPickup: "SADAO",
         areaNote: "Depot-1",
+        isMultiOriginCustomer: false,
       })
     ).toEqual({
       shipperId: OPERATIONAL_ID,
-      location: "Depot-1",
+      location: "",
+    });
+  });
+
+  it("pool export keeps SONGKHLA location for non-multi pool shipper", () => {
+    expect(
+      accountFor({
+        location: "SONGKHLA",
+        isMultiOriginCustomer: false,
+      })
+    ).toEqual({
+      shipperId: OPERATIONAL_ID,
+      location: "SONGKHLA",
     });
   });
 

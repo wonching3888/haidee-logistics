@@ -421,7 +421,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
       originRows.map((row) => row.locationName)
     );
   } else {
-    customerStockLocation = input.location?.trim() ?? "";
+    customerStockLocation = "";
   }
 
   const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
@@ -481,6 +481,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     const stockAccount = resolveCustomerCrateStockAccount({
       operationalShipperId: input.shipperId,
       location: customerStockLocation,
+      isMultiOriginCustomer: shipper.isMultiOriginCustomer,
       agentMembershipByMemberId,
     });
     const ledgerNotes = buildCustomerCrateStockLedgerNotes({
@@ -537,7 +538,7 @@ async function resolveCrateExportStockAccount(
 
   const shipper = await prisma.shipper.findUnique({
     where: { id: operationalShipperId },
-    select: { code: true },
+    select: { code: true, isMultiOriginCustomer: true },
   });
   const poolLoc = shipper ? stockLocationForPoolShipperCode(shipper.code) : null;
   const location = poolLoc ?? fallbackLocation;
@@ -547,6 +548,7 @@ async function resolveCrateExportStockAccount(
   return resolveCustomerCrateStockAccount({
     operationalShipperId,
     location,
+    isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
     agentMembershipByMemberId,
   });
 }

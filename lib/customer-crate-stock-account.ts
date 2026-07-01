@@ -1,5 +1,4 @@
 import {
-  resolveInboundCrateStockLocation,
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
@@ -19,6 +18,8 @@ export interface ResolveCustomerCrateStockAccountInput {
   location?: string;
   /** Standard Thai origin for multi-origin customers (overrides areaNote for stock bucket). */
   customerOriginLocation?: string | null;
+  /** When false, SADAO inbound / export use a single total ledger (location ""). */
+  isMultiOriginCustomer?: boolean;
   sessionDate?: Date;
   sessionPickupLocation?: string | null;
   shipperPickupLocation?: string | null;
@@ -48,19 +49,30 @@ function lookupAgentShipperId(
 }
 
 function resolveStockLocation(input: ResolveCustomerCrateStockAccountInput): string {
-  if (input.customerOriginLocation?.trim()) {
-    return normalizeLocation(input.customerOriginLocation);
-  }
-
-  if (input.location !== undefined) {
-    return normalizeLocation(input.location);
-  }
-
   const effectivePickup = resolveSessionPickupLocation(
     input.sessionPickupLocation,
     input.shipperPickupLocation
   );
-  return resolveInboundCrateStockLocation(effectivePickup, input.areaNote);
+
+  // SK/PTN office-pool buckets — unchanged regardless of multi-origin flag.
+  if (effectivePickup === "SONGKHLA") return "SONGKHLA";
+  if (effectivePickup === "PATTANI") return "PATTANI";
+
+  // Export path (explicit location param; pool shippers pass SONGKHLA/PATTANI).
+  if (input.location !== undefined) {
+    const loc = normalizeLocation(input.location);
+    if (loc === "SONGKHLA" || loc === "PATTANI") return loc;
+    if (input.isMultiOriginCustomer) return loc;
+    return "";
+  }
+
+  // Multi-origin SADAO: standard origin from customer_origin_locations.
+  if (input.isMultiOriginCustomer && input.customerOriginLocation?.trim()) {
+    return normalizeLocation(input.customerOriginLocation);
+  }
+
+  // Non-multi-origin customers and agents: one total ledger; areaNote is remark only.
+  return "";
 }
 
 function resolveOfficePoolShipperId(input: {

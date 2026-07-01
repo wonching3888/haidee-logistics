@@ -1114,7 +1114,12 @@ export async function saveInboundSession(input: SaveInboundInput) {
       where: { id: input.sessionId },
       include: {
         shipper: {
-          select: { id: true, name: true, pickupLocation: true },
+          select: {
+            id: true,
+            name: true,
+            pickupLocation: true,
+            isMultiOriginCustomer: true,
+          },
         },
         lines: {
           include: {
@@ -1140,7 +1145,12 @@ export async function saveInboundSession(input: SaveInboundInput) {
         ? existing.shipper
         : await prisma.shipper.findUnique({
             where: { id: input.shipperId },
-            select: { id: true, name: true, pickupLocation: true },
+            select: {
+              id: true,
+              name: true,
+              pickupLocation: true,
+              isMultiOriginCustomer: true,
+            },
           });
     if (!afterShipper) throw new Error(t("error.shipperNotFound", locale));
 
@@ -1174,7 +1184,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       existing.areaNote,
       poolIds,
       agentMembershipByMemberId,
-      existing.customerOriginLocation
+      existing.customerOriginLocation,
+      existing.shipper.isMultiOriginCustomer
     );
     const afterBucket = resolveCrateStockBucket(
       date,
@@ -1184,7 +1195,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       input.areaNote,
       poolIds,
       agentMembershipByMemberId,
-      validatedCustomerOrigin
+      validatedCustomerOrigin,
+      afterShipper.isMultiOriginCustomer
     );
 
     const beforeLinesForCrate =
@@ -1453,8 +1465,9 @@ export async function saveInboundSession(input: SaveInboundInput) {
       operationalShipperId: input.shipperId,
       sessionPickupLocation,
       shipperPickupLocation: shipper?.pickupLocation,
-      areaNote: input.areaNote,
+      areaNote: shipper?.isMultiOriginCustomer ? input.areaNote : null,
       customerOriginLocation: validatedCustomerOrigin,
+      isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
       poolIds,
       agentMembershipByMemberId,
     });
@@ -1487,7 +1500,13 @@ export async function deleteInboundSession(sessionId: string) {
   const session = await prisma.inboundSession.findUnique({
     where: { id: sessionId },
     include: {
-      shipper: { select: { pickupLocation: true, name: true } },
+      shipper: {
+        select: {
+          pickupLocation: true,
+          name: true,
+          isMultiOriginCustomer: true,
+        },
+      },
       lines: {
         select: {
           id: true,
@@ -1520,8 +1539,9 @@ export async function deleteInboundSession(sessionId: string) {
       operationalShipperId: session.shipperId,
       sessionPickupLocation: session.pickupLocation,
       shipperPickupLocation: session.shipper.pickupLocation,
-      areaNote: session.areaNote,
+      areaNote: session.shipper.isMultiOriginCustomer ? session.areaNote : null,
       customerOriginLocation: session.customerOriginLocation,
+      isMultiOriginCustomer: session.shipper.isMultiOriginCustomer,
       poolIds,
       agentMembershipByMemberId,
     });

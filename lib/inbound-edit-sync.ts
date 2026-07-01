@@ -207,15 +207,17 @@ export function resolveCrateStockBucket(
   agentMembershipByMemberId?:
     | ReadonlyMap<string, string>
     | Record<string, string>,
-  customerOriginLocation?: string | null
+  customerOriginLocation?: string | null,
+  isMultiOriginCustomer?: boolean
 ): CustomerCrateStockAccount {
   return resolveCustomerCrateStockAccount({
     sessionDate,
     operationalShipperId,
     sessionPickupLocation,
     shipperPickupLocation,
-    areaNote,
+    areaNote: isMultiOriginCustomer ? areaNote : null,
     customerOriginLocation,
+    isMultiOriginCustomer,
     poolIds,
     agentMembershipByMemberId,
   });
