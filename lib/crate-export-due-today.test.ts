@@ -38,6 +38,7 @@ function baseInput() {
     inboundSessions: [] as Parameters<typeof buildCrateExportDueToday>[0]["inboundSessions"],
     exportsByShipperId: new Map<string, Map<string, number>>(),
     exportsByShipperLocation: new Map<string, Map<string, number>>(),
+    subChannelsByKey: new Map(),
   };
 }
 
@@ -403,5 +404,47 @@ describe("buildCrateExportDueToday", () => {
           ? i.group.agentName
           : i.group.poolName
     )).toEqual(["宋卡", "北大年", "421", "Alpha Customer"]);
+  });
+
+  it("routes parent inbound via sub-channel agent into agent group", () => {
+    const input = baseInput();
+    input.agents.set("agent-ranong", {
+      code: "AGENT-RANONG_THONG-2",
+      name: "RANONG THONG",
+      isPool: false,
+    });
+    input.shippers.set("parent-ch", { code: "3001-C003", name: "CH FISHERY" });
+    input.subChannelsByKey.set("parent-ch:ranong", {
+      id: "sc-1",
+      parentShipperId: "parent-ch",
+      channelKey: "ranong",
+      label: "CH RANONG",
+      ownerType: "agent",
+      ownerShipperId: "agent-ranong",
+      ownerShipperCode: "AGENT-RANONG_THONG-2",
+      allowMultiOrigin: false,
+      sortOrder: 1,
+    });
+    input.inboundSessions.push({
+      shipperId: "parent-ch",
+      subChannelKey: "ranong",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [{ tongCode: "ABB", quantity: 12, trackInventory: true, isBox: false }],
+    });
+
+    const result = buildCrateExportDueToday(input);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].kind).toBe("agent");
+    if (result.items[0].kind === "agent") {
+      expect(result.items[0].group.agentCode).toBe("AGENT-RANONG_THONG-2");
+      expect(result.items[0].group.members).toHaveLength(1);
+      expect(result.items[0].group.members[0].label).toBe(
+        "CH FISHERY — CH RANONG"
+      );
+    }
   });
 });

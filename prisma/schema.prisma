@@ -149,8 +149,31 @@ model Shipper {
   crateStockAgentMembershipLogsAsAgent  CrateStockAgentMembershipLog[] @relation("MembershipLogAgent")
   crateStockAgentMembershipLogsAsMember CrateStockAgentMembershipLog[] @relation("MembershipLogMember")
   customerOriginLocations               CustomerOriginLocation[]
+  subCustomerChannelsAsParent           SubCustomerChannel[] @relation("SubCustomerChannelParent")
+  subCustomerChannelsAsOwner            SubCustomerChannel[] @relation("SubCustomerChannelOwner")
 
   @@map("shippers")
+}
+
+model SubCustomerChannel {
+  id               String   @id @default(uuid()) @db.Uuid
+  parentShipperId  String   @map("parentShipperId") @db.Uuid
+  channelKey       String   @map("channelKey")
+  label            String
+  ownerType        String   @map("ownerType")
+  ownerShipperId   String   @map("ownerShipperId") @db.Uuid
+  allowMultiOrigin Boolean  @default(false) @map("allowMultiOrigin")
+  sortOrder        Int      @default(0) @map("sortOrder")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("createdAt")
+  updatedAt        DateTime @updatedAt @map("updatedAt")
+
+  parentShipper Shipper @relation("SubCustomerChannelParent", fields: [parentShipperId], references: [id], onDelete: Cascade)
+  ownerShipper  Shipper @relation("SubCustomerChannelOwner", fields: [ownerShipperId], references: [id])
+
+  @@unique([parentShipperId, channelKey])
+  @@index([parentShipperId, active, sortOrder])
+  @@map("sub_customer_channels")
 }
 
 model Stall {
@@ -544,6 +567,8 @@ model InboundSession {
   createdAt       DateTime @default(now()) @map("created_at")
 
   shipperCurrency   String?  @map("shipper_currency")
+  /// Sub-customer crate stock route (parent shipper billing unchanged).
+  subChannelKey     String?  @map("sub_channel_key")
 
   shipper  Shipper       @relation(fields: [shipperId], references: [id])
   createdBy User?        @relation(fields: [createdById], references: [id])

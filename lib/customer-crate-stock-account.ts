@@ -6,6 +6,10 @@ import {
   INBOUND_OFFICE_POOL_CUTOFF_DATE,
   usesOfficePoolInboundStock,
 } from "@/lib/inbound-crate-stock-account";
+import {
+  resolveSubCustomerChannelStockAccount,
+  type SubCustomerChannelRecord,
+} from "@/lib/sub-customer-channel";
 
 export interface CustomerCrateStockAccount {
   shipperId: string;
@@ -29,6 +33,8 @@ export interface ResolveCustomerCrateStockAccountInput {
   agentMembershipByMemberId?:
     | ReadonlyMap<string, string>
     | Record<string, string>;
+  /** Parent-billing sub-customer crate route (overrides membership / office pool). */
+  subChannel?: SubCustomerChannelRecord | null;
 }
 
 function normalizeLocation(location?: string | null): string {
@@ -108,6 +114,14 @@ function resolveOfficePoolShipperId(input: {
 export function resolveCustomerCrateStockAccount(
   input: ResolveCustomerCrateStockAccountInput
 ): CustomerCrateStockAccount {
+  if (input.subChannel) {
+    return resolveSubCustomerChannelStockAccount({
+      parentShipperId: input.operationalShipperId,
+      channel: input.subChannel,
+      customerOriginLocation: input.customerOriginLocation,
+    });
+  }
+
   const location = resolveStockLocation(input);
 
   if (input.sessionDate && input.poolIds) {

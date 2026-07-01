@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -335,7 +336,13 @@ export function SettingsClient({
         <div className="p-4">
         {activeSection === "shippers" && (
           <>
-          <div className="mb-3 flex justify-end">
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href="/settings/sub-customer-channels"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              子顾客渠道 Sub-customers
+            </Link>
             <Button
               onClick={() => {
                 setEditId(undefined);

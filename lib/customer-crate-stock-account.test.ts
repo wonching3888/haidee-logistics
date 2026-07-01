@@ -191,4 +191,31 @@ describe("resolveCustomerCrateStockAccount", () => {
       location: "SONGKHLA",
     });
   });
+
+  it("sub-channel overrides agent membership and office pool routing", () => {
+    expect(
+      resolveCustomerCrateStockAccount({
+        operationalShipperId: OPERATIONAL_ID,
+        sessionDate: parseDateInput("2026-06-24"),
+        sessionPickupLocation: "SONGKHLA",
+        shipperPickupLocation: "SONGKHLA",
+        poolIds: POOL_IDS,
+        agentMembershipByMemberId: { [OPERATIONAL_ID]: AGENT_ID },
+        subChannel: {
+          id: "sc-1",
+          parentShipperId: OPERATIONAL_ID,
+          channelKey: "ranong",
+          label: "CH RANONG",
+          ownerType: "agent",
+          ownerShipperId: AGENT_ID,
+          ownerShipperCode: "AGENT-RANONG_THONG-2",
+          allowMultiOrigin: false,
+          sortOrder: 1,
+        },
+      })
+    ).toEqual({
+      shipperId: AGENT_ID,
+      location: "",
+    });
+  });
 });

@@ -46,43 +46,17 @@ import {
   buildInboundCrateEditAuditLogs,
 } from "@/lib/crate-audit";
 import {
-  assertOriginInCustomerList,
-  requiresCustomerOriginSelection,
-} from "@/lib/multi-origin-customer";
-import type { PickupLocation } from "@/lib/constants/pickup-locations";
-import {
   computeInboundLineFreight,
   MC_MARKET_CODE,
   normalizeMcDeliveryMode,
   type InboundFreightContext,
   type InboundLineFreightSnapshot,
 } from "@/lib/inbound-freight";
+import {
+  validateInboundSubChannel,
+  loadSubCustomerChannelResolved,
+} from "@/app/actions/sub-customer-channels";
 import { loadInboundFreightContext } from "@/lib/freight-context";
-
-async function resolveValidatedCustomerOriginLocation(input: {
-  shipperId: string;
-  isMultiOriginCustomer: boolean;
-  effectivePickup: PickupLocation;
-  customerOriginLocation?: string;
-}): Promise<string | null> {
-  if (
-    !requiresCustomerOriginSelection(
-      input.isMultiOriginCustomer,
-      input.effectivePickup
-    )
-  ) {
-    return null;
-  }
-  const rows = await prisma.customerOriginLocation.findMany({
-    where: { shipperId: input.shipperId },
-    orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
-    select: { locationName: true },
-  });
-  return assertOriginInCustomerList(
-    input.customerOriginLocation,
-    rows.map((row) => row.locationName)
-  );
-}
 import { serializeInboundFreightLines } from "@/lib/inbound-form-serialize";
 
 const INBOUND_TX_TIMEOUT_MS = 30_000;
@@ -960,6 +934,7 @@ export async function getInboundSession(id: string) {
     thVehiclePlate: session.thVehiclePlate,
     areaNote: session.areaNote,
     customerOriginLocation: session.customerOriginLocation,
+    subChannelKey: session.subChannelKey,
     pickupLocation: session.pickupLocation,
     shipperPickupLocation: session.shipper.pickupLocation,
     lines: session.lines.map((l) => ({
@@ -1020,6 +995,7 @@ interface SaveInboundInput {
   thVehiclePlate?: string;
   areaNote?: string;
   customerOriginLocation?: string;
+  subChannelKey?: string;
   pickupLocation?: string | null;
   lines: InboundLineInput[];
   removedStallIds?: string[];
@@ -1054,12 +1030,16 @@ export async function saveInboundSession(input: SaveInboundInput) {
     sessionPickupLocation,
     shipper?.pickupLocation
   );
-  const validatedCustomerOrigin = await resolveValidatedCustomerOriginLocation({
-    shipperId: input.shipperId,
-    isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
-    effectivePickup,
+  const subChannelCtx = await validateInboundSubChannel({
+    parentShipperId: input.shipperId,
+    subChannelKey: input.subChannelKey,
     customerOriginLocation: input.customerOriginLocation,
+    effectivePickup,
+    isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
   });
+  const validatedCustomerOrigin = subChannelCtx.customerOriginLocation;
+  const inboundSubChannel = subChannelCtx.channel;
+  const inboundSubChannelKey = subChannelCtx.subChannelKey;
   const [poolIds, agentMembershipByMemberId] = await Promise.all([
     loadLocationPoolShipperIds(),
     loadCrateStockAgentMembershipByMemberId(),
@@ -1180,6 +1160,13 @@ export async function saveInboundSession(input: SaveInboundInput) {
       })),
     };
 
+    const beforeSubChannel = existing.subChannelKey
+      ? await loadSubCustomerChannelResolved(
+          existing.shipperId,
+          existing.subChannelKey
+        )
+      : null;
+
     const beforeBucket = resolveCrateStockBucket(
       existing.date,
       existing.shipperId,
@@ -1189,7 +1176,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       poolIds,
       agentMembershipByMemberId,
       existing.customerOriginLocation,
-      existing.shipper.isMultiOriginCustomer
+      existing.shipper.isMultiOriginCustomer,
+      beforeSubChannel
     );
     const afterBucket = resolveCrateStockBucket(
       date,
@@ -1200,7 +1188,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
       poolIds,
       agentMembershipByMemberId,
       validatedCustomerOrigin,
-      afterShipper.isMultiOriginCustomer
+      afterShipper.isMultiOriginCustomer,
+      inboundSubChannel
     );
 
     const beforeLinesForCrate =
@@ -1243,6 +1232,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
                 thVehiclePlate: input.thVehiclePlate || null,
                 areaNote: input.areaNote || null,
                 customerOriginLocation: validatedCustomerOrigin,
+                subChannelKey: inboundSubChannelKey,
                 pickupLocation: sessionPickupLocation,
                 status,
                 sessionNo,
@@ -1281,6 +1271,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
             thVehiclePlate: input.thVehiclePlate || null,
             areaNote: input.areaNote || null,
             customerOriginLocation: validatedCustomerOrigin,
+            subChannelKey: inboundSubChannelKey,
             pickupLocation: sessionPickupLocation,
             status,
             sessionNo,
@@ -1420,6 +1411,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
               thVehiclePlate: input.thVehiclePlate || null,
               areaNote: input.areaNote || null,
               customerOriginLocation: validatedCustomerOrigin,
+              subChannelKey: inboundSubChannelKey,
               pickupLocation: sessionPickupLocation,
               status,
               sessionNo,
@@ -1462,6 +1454,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
         thVehiclePlate: input.thVehiclePlate || null,
         areaNote: input.areaNote || null,
         customerOriginLocation: validatedCustomerOrigin,
+        subChannelKey: inboundSubChannelKey,
         pickupLocation: sessionPickupLocation,
         status,
         sessionNo: null,
@@ -1492,6 +1485,7 @@ export async function saveInboundSession(input: SaveInboundInput) {
       isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
       poolIds,
       agentMembershipByMemberId,
+      subChannel: inboundSubChannel,
     });
     await applyInboundCrateDeduction(
       crateStockAccount,
@@ -1552,10 +1546,17 @@ export async function deleteInboundSession(sessionId: string) {
   );
 
   if (session.status === "confirmed") {
-    const [poolIds, agentMembershipByMemberId] = await Promise.all([
-      loadLocationPoolShipperIds(),
-      loadCrateStockAgentMembershipByMemberId(),
-    ]);
+    const [poolIds, agentMembershipByMemberId, deleteSubChannel] =
+      await Promise.all([
+        loadLocationPoolShipperIds(),
+        loadCrateStockAgentMembershipByMemberId(),
+        session.subChannelKey
+          ? loadSubCustomerChannelResolved(
+              session.shipperId,
+              session.subChannelKey
+            )
+          : Promise.resolve(null),
+      ]);
     const crateStockAccount = resolveCustomerCrateStockAccount({
       sessionDate: session.date,
       operationalShipperId: session.shipperId,
@@ -1566,6 +1567,7 @@ export async function deleteInboundSession(sessionId: string) {
       isMultiOriginCustomer: session.shipper.isMultiOriginCustomer,
       poolIds,
       agentMembershipByMemberId,
+      subChannel: deleteSubChannel,
     });
     await reverseInboundCrateDeduction(
       crateStockAccount,

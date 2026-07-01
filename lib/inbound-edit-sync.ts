@@ -7,6 +7,7 @@ import {
   resolveCustomerCrateStockAccount,
   type CustomerCrateStockAccount,
 } from "@/lib/customer-crate-stock-account";
+import type { SubCustomerChannelRecord } from "@/lib/sub-customer-channel";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 
 type TongTypeMeta = { trackInventory: boolean; isBox: boolean };
@@ -208,7 +209,8 @@ export function resolveCrateStockBucket(
     | ReadonlyMap<string, string>
     | Record<string, string>,
   customerOriginLocation?: string | null,
-  isMultiOriginCustomer?: boolean
+  isMultiOriginCustomer?: boolean,
+  subChannel?: SubCustomerChannelRecord | null
 ): CustomerCrateStockAccount {
   return resolveCustomerCrateStockAccount({
     sessionDate,
@@ -220,6 +222,7 @@ export function resolveCrateStockBucket(
     isMultiOriginCustomer,
     poolIds,
     agentMembershipByMemberId,
+    subChannel,
   });
 }
 

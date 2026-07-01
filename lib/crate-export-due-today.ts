@@ -3,8 +3,10 @@ import {
   usesOfficePoolInboundStock,
 } from "@/lib/inbound-crate-stock-account";
 import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
-import { LOCATION_POOL_SHIPPER_CODES } from "@/lib/constants/location-pool-shippers";
+import { LOCATION_POOL_SHIPPER_CODES, stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
+import type { SubCustomerChannelRecord } from "@/lib/sub-customer-channel";
+import { subCustomerChannelMapKey } from "@/lib/sub-customer-channel";
 
 /** Crate types that appear on the due-today list (inbound due / export returned / owed). */
 export const RETURNABLE_CRATE_TYPE_CODES = [
@@ -138,8 +140,11 @@ export interface BuildCrateExportDueTodayInput {
   /** shipperId → isMultiOrigin */
   multiOriginByShipperId: Map<string, boolean>;
   shippers: Map<string, { code: string; name: string }>;
+  /** `${parentShipperId}:${channelKey}` → resolved channel */
+  subChannelsByKey: Map<string, SubCustomerChannelRecord>;
   inboundSessions: {
     shipperId: string;
+    subChannelKey?: string | null;
     sessionDate: Date;
     pickupLocation: string | null;
     shipperPickupLocation: string;
@@ -347,6 +352,80 @@ export function buildCrateExportDueToday(
     const shipper = input.shippers.get(session.shipperId);
     if (!shipper) continue;
 
+    const subChannelKey = session.subChannelKey?.trim() || "";
+    const subChannel = subChannelKey
+      ? input.subChannelsByKey.get(
+          subCustomerChannelMapKey(session.shipperId, subChannelKey)
+        )
+      : undefined;
+
+    const memberDue = emptyQty();
+    for (const line of session.lines) {
+      if (!line.trackInventory || line.isBox) continue;
+      if (!isReturnableCrateTypeCode(line.tongCode)) continue;
+      addQty(memberDue, line.tongCode, line.quantity);
+    }
+    if (totalOf(memberDue) === 0) continue;
+
+    if (subChannel) {
+      const memberLabel = `${shipper.name} — ${subChannel.label}`;
+      if (subChannel.ownerType === "agent") {
+        memberInbounds.push({
+          memberId: session.shipperId,
+          memberCode: shipper.code,
+          memberName: memberLabel,
+          agentId: subChannel.ownerShipperId,
+          due: memberDue,
+          location: "",
+          areaNote: session.areaNote?.trim() ?? "",
+          isMultiOrigin: false,
+        });
+        continue;
+      }
+
+      if (subChannel.ownerType === "pool") {
+        const poolPickup = stockLocationForPoolShipperCode(
+          subChannel.ownerShipperCode
+        );
+        if (!poolPickup) continue;
+        memberInbounds.push({
+          memberId: session.shipperId,
+          memberCode: shipper.code,
+          memberName: memberLabel,
+          agentId: subChannel.ownerShipperId,
+          poolPickup,
+          due: memberDue,
+          location: poolPickup,
+          areaNote: session.areaNote?.trim() ?? "",
+          isMultiOrigin: false,
+        });
+        continue;
+      }
+
+      const origin = session.customerOriginLocation?.trim() || "";
+      if (subChannel.allowMultiOrigin && origin) {
+        const k = `${session.shipperId}|${origin}`;
+        const cur = multiOriginDue.get(k) ?? {
+          due: emptyQty(),
+          origin,
+          areaNote: session.areaNote?.trim() ?? "",
+        };
+        for (const [code, qty] of Array.from(memberDue.entries())) {
+          addQty(cur.due, code, qty);
+        }
+        multiOriginDue.set(k, cur);
+        continue;
+      }
+
+      const k = session.shipperId;
+      const cur = standaloneDue.get(k) ?? emptyQty();
+      for (const [code, qty] of Array.from(memberDue.entries())) {
+        addQty(cur, code, qty);
+      }
+      standaloneDue.set(k, cur);
+      continue;
+    }
+
     const agentId = input.membershipByMemberId.get(session.shipperId);
     const agent = agentId ? input.agents.get(agentId) : undefined;
     const isMulti = input.multiOriginByShipperId.get(session.shipperId) ?? false;
@@ -368,14 +447,6 @@ export function buildCrateExportDueToday(
     const usesPool =
       usesOfficePoolInboundStock(session.sessionDate) &&
       (effectivePickup === "SONGKHLA" || effectivePickup === "PATTANI");
-
-    const memberDue = emptyQty();
-    for (const line of session.lines) {
-      if (!line.trackInventory || line.isBox) continue;
-      if (!isReturnableCrateTypeCode(line.tongCode)) continue;
-      addQty(memberDue, line.tongCode, line.quantity);
-    }
-    if (totalOf(memberDue) === 0) continue;
 
     if (usesPool && agent?.isPool) {
       memberInbounds.push({

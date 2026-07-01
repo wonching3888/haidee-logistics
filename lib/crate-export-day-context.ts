@@ -12,6 +12,10 @@ import {
 import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import { SHIPPER_KIND } from "@/lib/constants/shipper-kind";
 import { loadLocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
+import {
+  subCustomerChannelMapKey,
+  toSubCustomerChannelRecord,
+} from "@/lib/sub-customer-channel";
 
 /** Load due-today input for a calendar day (shared by due-today list and live owed). */
 export async function loadCrateExportDayInput(
@@ -28,6 +32,7 @@ export async function loadCrateExportDayInput(
     inboundSessions,
     exports,
     ledgerExports,
+    subChannelRows,
   ] = await Promise.all([
     loadLocationPoolShipperIds(),
     prisma.crateStockAgentMember.findMany({
@@ -67,6 +72,12 @@ export async function loadCrateExportDayInput(
       },
       include: { crateType: { select: { code: true } } },
     }),
+    prisma.subCustomerChannel.findMany({
+      where: { active: true },
+      include: {
+        ownerShipper: { select: { id: true, code: true, name: true } },
+      },
+    }),
   ]);
 
   const shippers = new Map<string, { code: string; name: string }>();
@@ -75,6 +86,22 @@ export async function loadCrateExportDayInput(
   }
   for (const a of agentShippers) {
     shippers.set(a.id, { code: a.code, name: a.name });
+  }
+
+  const subChannelsByKey = new Map<
+    string,
+    ReturnType<typeof toSubCustomerChannelRecord>
+  >();
+  for (const row of subChannelRows) {
+    const channel = toSubCustomerChannelRecord(row);
+    subChannelsByKey.set(
+      subCustomerChannelMapKey(row.parentShipperId, row.channelKey),
+      channel
+    );
+    shippers.set(channel.ownerShipperId, {
+      code: row.ownerShipper.code,
+      name: row.ownerShipper.name,
+    });
   }
 
   const agents = new Map<
@@ -126,8 +153,10 @@ export async function loadCrateExportDayInput(
     membershipByMemberId,
     multiOriginByShipperId,
     shippers,
+    subChannelsByKey,
     inboundSessions: inboundSessions.map((s) => ({
       shipperId: s.shipperId,
+      subChannelKey: s.subChannelKey,
       sessionDate: s.date,
       pickupLocation: s.pickupLocation,
       shipperPickupLocation: s.shipper.pickupLocation,

@@ -23,7 +23,8 @@ import {
   previewInboundFreightLines,
   saveInboundSession,
 } from "@/app/actions/inbound";
-import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
+import { listSubCustomerChannelsForShipper } from "@/app/actions/sub-customer-channels";
+import type { SubCustomerChannelOption } from "@/app/actions/sub-customer-channels";
 import {
   computeMarketTotals,
   getDefaultInboundDate,
@@ -120,6 +121,12 @@ export function InboundForm({
   const [customerOriginLocation, setCustomerOriginLocation] = useState(
     initialSession?.customerOriginLocation ?? ""
   );
+  const [subChannelKey, setSubChannelKey] = useState(
+    initialSession?.subChannelKey ?? ""
+  );
+  const [subChannels, setSubChannels] = useState<SubCustomerChannelOption[]>(
+    []
+  );
   const [isMultiOriginCustomer, setIsMultiOriginCustomer] = useState(false);
   const [multiOriginLocations, setMultiOriginLocations] = useState<string[]>([]);
   const [sessionPickupLocation, setSessionPickupLocation] = useState(() =>
@@ -164,26 +171,52 @@ export function InboundForm({
     sessionPickupLocation || shipperDefaultPickup(selectedShipper),
     selectedShipper?.pickupLocation
   );
-  const showOriginDropdown = requiresCustomerOriginSelection(
-    isMultiOriginCustomer,
-    effectivePickup
+  const showSubChannelSelect = subChannels.length > 0;
+  const selectedSubChannel = subChannels.find(
+    (channel) => channel.channelKey === subChannelKey
   );
+  const showOriginDropdown =
+    showSubChannelSelect && selectedSubChannel
+      ? selectedSubChannel.ownerType === "self" &&
+        selectedSubChannel.allowMultiOrigin
+      : requiresCustomerOriginSelection(
+          isMultiOriginCustomer,
+          effectivePickup
+        );
 
   useEffect(() => {
     if (!shipperId) {
       setIsMultiOriginCustomer(false);
       setMultiOriginLocations([]);
       setCustomerOriginLocation("");
+      setSubChannels([]);
+      setSubChannelKey("");
       return;
     }
 
     let cancelled = false;
-    void getMultiOriginConfig(shipperId).then((config) => {
+    void Promise.all([
+      import("@/app/actions/multi-origin-customer").then((m) =>
+        m.getMultiOriginConfig(shipperId)
+      ),
+      listSubCustomerChannelsForShipper(shipperId),
+    ]).then(([config, channels]) => {
       if (cancelled) return;
       setIsMultiOriginCustomer(config.isMultiOrigin);
       setMultiOriginLocations(config.locations);
-      if (!config.isMultiOrigin) {
-        setCustomerOriginLocation("");
+      setSubChannels(channels);
+      if (channels.length > 0) {
+        setSubChannelKey((current) => {
+          if (current && channels.some((c) => c.channelKey === current)) {
+            return current;
+          }
+          return channels[0]?.channelKey ?? "";
+        });
+      } else {
+        setSubChannelKey("");
+        if (!config.isMultiOrigin) {
+          setCustomerOriginLocation("");
+        }
       }
     });
 
@@ -402,6 +435,10 @@ export function InboundForm({
       setError(t("error.selectConsignor"));
       return;
     }
+    if (showSubChannelSelect && !subChannelKey) {
+      setError("请选择子顾客渠道 Please select a sub-customer channel");
+      return;
+    }
     if (showOriginDropdown && !customerOriginLocation) {
       setError(t("multiOrigin.error.required"));
       return;
@@ -430,6 +467,7 @@ export function InboundForm({
           customerOriginLocation: showOriginDropdown
             ? customerOriginLocation
             : undefined,
+          subChannelKey: showSubChannelSelect ? subChannelKey : undefined,
           pickupLocation: tripPickupSaveValue(
             selectedPickup,
             shipper?.pickupLocation,
@@ -495,6 +533,40 @@ export function InboundForm({
             ))}
           </select>
         </div>
+
+        {showSubChannelSelect ? (
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-sm font-medium text-haidee-text">
+              子顾客渠道 Sub-customer channel{" "}
+              <span className="text-red-600">*</span>
+            </label>
+            <select
+              value={subChannelKey}
+              onChange={(e) => {
+                const nextKey = e.target.value;
+                setSubChannelKey(nextKey);
+                const nextChannel = subChannels.find(
+                  (c) => c.channelKey === nextKey
+                );
+                if (
+                  !nextChannel ||
+                  nextChannel.ownerType !== "self" ||
+                  !nextChannel.allowMultiOrigin
+                ) {
+                  setCustomerOriginLocation("");
+                }
+              }}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
+            >
+              <option value="">选择子顾客…</option>
+              {subChannels.map((channel) => (
+                <option key={channel.channelKey} value={channel.channelKey}>
+                  {channel.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-haidee-text">

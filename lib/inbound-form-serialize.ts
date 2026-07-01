@@ -14,6 +14,7 @@ export interface InboundFormInitialSession {
   thVehiclePlate: string | null;
   areaNote?: string | null;
   customerOriginLocation?: string | null;
+  subChannelKey?: string | null;
   pickupLocation?: string | null;
   shipperPickupLocation?: string;
   status: string;
@@ -57,6 +58,7 @@ export function serializeInboundFormInitialSession(session: {
   thVehiclePlate: string | null;
   areaNote: string | null;
   customerOriginLocation?: string | null;
+  subChannelKey?: string | null;
   pickupLocation: string | null;
   shipperPickupLocation: string;
   status: string;
@@ -72,6 +74,7 @@ export function serializeInboundFormInitialSession(session: {
     thVehiclePlate: session.thVehiclePlate,
     areaNote: session.areaNote,
     customerOriginLocation: session.customerOriginLocation,
+    subChannelKey: session.subChannelKey,
     pickupLocation: session.pickupLocation,
     shipperPickupLocation: session.shipperPickupLocation,
     status: session.status,
