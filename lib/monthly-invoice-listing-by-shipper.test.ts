@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getMode2InvoiceRouteLabel } from "@/lib/constants/invoice-route-labels";
+import {
+  getMode2InvoiceRouteLabel,
+  getWtlAccountingInvoiceRouteLabel,
+  INVOICE_TH_SEGMENT_ROUTE_LABEL,
+} from "@/lib/constants/invoice-route-labels";
+import { getWtlAccountingInvoiceDetails } from "@/lib/constants/wtl-company-details";
 import {
   buildInvoiceListing,
   buildInvoiceListingByShipper,
@@ -36,6 +41,30 @@ describe("getMode2InvoiceRouteLabel", () => {
     expect(getMode2InvoiceRouteLabel("BM")).toBe(
       "BUKIT KAYU HITAM TO BUKIT MERTAJAM"
     );
+  });
+});
+
+describe("getWtlAccountingInvoiceRouteLabel", () => {
+  it("uses BUKIT KAYU HITAM TO with full market display name for modes 3/4", () => {
+    expect(getWtlAccountingInvoiceRouteLabel("KL")).toBe(
+      "BUKIT KAYU HITAM TO SELAYANG"
+    );
+    expect(getWtlAccountingInvoiceRouteLabel("A")).toBe("BUKIT KAYU HITAM TO IPOH");
+    expect(getWtlAccountingInvoiceRouteLabel("KD")).toBe("BUKIT KAYU HITAM TO KEDAH");
+  });
+
+  it("keeps TH segment label unchanged", () => {
+    expect(INVOICE_TH_SEGMENT_ROUTE_LABEL).toBe("THAILAND TO BKT KAYU HITAM");
+  });
+});
+
+describe("getWtlAccountingInvoiceDetails", () => {
+  it("exposes Net 7 days terms and Public Bank account with payable notes", () => {
+    const details = getWtlAccountingInvoiceDetails();
+    expect(details.terms).toBe("Net 7 days");
+    expect(details.bankAccount).toContain("Public Bank 323-024-1725");
+    expect(details.bankNotes).toContain("WTL EXPRESS SDN BHD");
+    expect(details.computerGeneratedNote).toContain("no signature required");
   });
 });
 

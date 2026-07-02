@@ -1,4 +1,7 @@
 import type { WtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
+import { getWtlAccountingInvoiceDetails } from "@/lib/constants/wtl-company-details";
+import { INVOICE_LISTING_CRATE_SECTION_TITLE } from "@/lib/monthly-invoice-aggregate";
+import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { WtlExpressInvoiceLetterhead } from "@/components/shared/PrintLogo";
 import { WtlTaxInvoiceTotals } from "@/components/documents/WtlTaxInvoiceTotals";
 import {
@@ -9,18 +12,35 @@ import {
 
 interface Mode4TaxInvoicePrintProps {
   data: WtlMonthlyInvoiceData;
+  pageNumber?: number;
+  pageCount?: number;
 }
 
 function billToLabel(role: WtlMonthlyInvoiceData["billToRole"]) {
   return role === "consignee" ? "收货人 Consignee" : "寄货人 Shipper";
 }
 
-export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
+function sectionDisplayTitle(kind: "tong" | "box", title: string) {
+  if (kind === "tong") return INVOICE_LISTING_CRATE_SECTION_TITLE;
+  return title;
+}
+
+export function Mode4TaxInvoicePrint({
+  data,
+  pageNumber = 1,
+  pageCount = 2,
+}: Mode4TaxInvoicePrintProps) {
   const { taxInvoice } = data;
   const extraCharges = data.extraCharges ?? [];
+  const details = getWtlAccountingInvoiceDetails();
+  const printMeta = data.accountingPrint;
+  const amountInWords = formatInvoiceAmountInWords(
+    taxInvoice.totals.totalInclusive,
+    data.currency
+  );
 
   return (
-    <div className="document-print mode4-tax-invoice-print wtl-tax-invoice-document">
+    <div className="document-print mode4-tax-invoice-print wtl-tax-invoice-document wtl-accounting-invoice-print">
       <WtlExpressInvoiceLetterhead />
 
       <div className="mode4-tax-invoice-title">TAX INVOICE</div>
@@ -30,6 +50,15 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
 
       <div className="monthly-invoice-meta">
         <div className="monthly-invoice-meta-info">
+          <div>
+            <strong>Invoice No:</strong> {printMeta?.invoiceNo ?? "—"}
+          </div>
+          <div>
+            <strong>Terms:</strong> {printMeta?.termsLabel ?? details.terms}
+          </div>
+          <div>
+            <strong>Date:</strong> {printMeta?.invoiceDateLabel ?? "—"}
+          </div>
           <div>
             <strong>账单月份 Period:</strong> {data.periodLabel}
           </div>
@@ -46,56 +75,59 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
         </div>
       </div>
 
-      {taxInvoice.sections.map((section) => (
-        <div key={section.kind} className="monthly-invoice-section">
-          <div className="monthly-invoice-section-title">{section.title}</div>
-          <table className="monthly-invoice-table mode4-tax-invoice-table">
-            <thead>
-              <tr>
-                <th className="mode4-route-col">路线 Route</th>
-                <th className="mode4-tax-code-col">Tax Code</th>
-                <th className="mode4-qty-col">数量 Qty</th>
-                <th className="mode4-rate-col">单价 Rate</th>
-                <th className="mode4-amount-col">金额 Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {section.thRow && (
+      {taxInvoice.sections.map((section) => {
+        const sectionTitle = sectionDisplayTitle(section.kind, section.title);
+        return (
+          <div key={section.kind} className="monthly-invoice-section">
+            <div className="monthly-invoice-section-title">{sectionTitle}</div>
+            <table className="monthly-invoice-table mode4-tax-invoice-table">
+              <thead>
                 <tr>
-                  <td className="text-left">{section.thRow.routeLabel}</td>
+                  <th className="mode4-route-col">路线 Route</th>
+                  <th className="mode4-tax-code-col">Tax Code</th>
+                  <th className="mode4-qty-col">数量 Qty</th>
+                  <th className="mode4-rate-col">单价 Rate</th>
+                  <th className="mode4-amount-col">金额 Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {section.thRow && (
+                  <tr>
+                    <td className="text-left">{section.thRow.routeLabel}</td>
+                    <td />
+                    <td className="text-right">{formatQty(section.thRow.quantity)}</td>
+                    <td className="text-right">
+                      {formatMoneyAmount(section.thRow.unitRate)}
+                    </td>
+                    <td className="text-right">
+                      {formatMoneyAmount(section.thRow.amount)}
+                    </td>
+                  </tr>
+                )}
+                {section.myRows.map((row) => (
+                  <tr key={`${section.kind}-${row.marketCode}`}>
+                    <td className="text-left">{row.routeLabel}</td>
+                    <td className="text-center">{row.taxCode}</td>
+                    <td className="text-right">{formatQty(row.quantity)}</td>
+                    <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
+                    <td className="text-right">{formatMoneyAmount(row.amount)}</td>
+                  </tr>
+                ))}
+                <tr className="monthly-invoice-section-total">
+                  <td colSpan={2} className="text-right">
+                    {sectionTitle} 小计 Subtotal
+                  </td>
+                  <td className="text-right">{formatQty(section.totalQty)}</td>
                   <td />
-                  <td className="text-right">{formatQty(section.thRow.quantity)}</td>
                   <td className="text-right">
-                    {formatMoneyAmount(section.thRow.unitRate)}
-                  </td>
-                  <td className="text-right">
-                    {formatMoneyAmount(section.thRow.amount)}
+                    {formatMoneyWithCurrency(section.totalAmount, data.currency)}
                   </td>
                 </tr>
-              )}
-              {section.myRows.map((row) => (
-                <tr key={`${section.kind}-${row.marketCode}`}>
-                  <td className="text-left">{row.routeLabel}</td>
-                  <td className="text-center">{row.taxCode}</td>
-                  <td className="text-right">{formatQty(row.quantity)}</td>
-                  <td className="text-right">{formatMoneyAmount(row.unitRate)}</td>
-                  <td className="text-right">{formatMoneyAmount(row.amount)}</td>
-                </tr>
-              ))}
-              <tr className="monthly-invoice-section-total">
-                <td colSpan={2} className="text-right">
-                  {section.title} 小计 Subtotal
-                </td>
-                <td className="text-right">{formatQty(section.totalQty)}</td>
-                <td />
-                <td className="text-right">
-                  {formatMoneyWithCurrency(section.totalAmount, data.currency)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
 
       {extraCharges.length > 0 && (
         <div className="monthly-invoice-section">
@@ -178,9 +210,19 @@ export function Mode4TaxInvoicePrint({ data }: Mode4TaxInvoicePrintProps) {
         </table>
       </div>
 
-      <div className="signature-row">
-        <span>Prepared by: _______________</span>
-        <span>Approved by: _______________</span>
+      <div className="mode1a-invoice-amount-words">{amountInWords}</div>
+
+      <div className="mode1a-invoice-bank">
+        <strong>Bank Account:</strong> {details.bankAccount}
+      </div>
+      <div className="mode1a-invoice-bank-notes">{details.bankNotes}</div>
+
+      <div className="mode1a-invoice-computer-note">
+        {details.computerGeneratedNote}
+      </div>
+
+      <div className="invoice-page-footer">
+        Page {pageNumber} of {pageCount}
       </div>
     </div>
   );

@@ -34,6 +34,12 @@ export interface WtlMonthlyInvoiceData {
     amount: number;
     sortOrder: number;
   }>;
+  /** Modes 3/4 accounting print fields (EXP- invoice no, date, terms). */
+  accountingPrint?: {
+    invoiceNo: string;
+    invoiceDateLabel: string;
+    termsLabel: string;
+  };
 }
 
 export type Mode4MonthlyInvoiceData = WtlMonthlyInvoiceData;

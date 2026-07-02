@@ -89,6 +89,13 @@ export function getHaideeAccountingInvoiceRouteLabel(
   return getMode1aInvoiceRouteLabel(marketCode);
 }
 
+/** WTL modes 3/4 accounting invoice: BUKIT KAYU HITAM hub → full place name. */
+export const WTL_ACCOUNTING_INVOICE_ROUTE_PREFIX = "BUKIT KAYU HITAM TO ";
+
+export function getWtlAccountingInvoiceRouteLabel(marketCode: string): string {
+  return `${WTL_ACCOUNTING_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
+}
+
 export function buildAllInvoiceRouteLabels(): Record<
   InvoiceRouteMarketCode,
   string

@@ -997,6 +997,13 @@
   font-weight: 700;
 }
 
+.mode1a-invoice-bank-notes {
+  margin-top: 4px;
+  font-size: 8pt;
+  font-weight: 700;
+  font-style: italic;
+}
+
 .mode1a-invoice-computer-note {
   margin-top: 6px;
   font-size: 8pt;
@@ -1075,6 +1082,22 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.wtl-accounting-invoice-print table.monthly-invoice-table,
+.wtl-accounting-invoice-print table.mode4-tax-invoice-table,
+.wtl-accounting-invoice-print table.mode4-tax-summary-table {
+  font-size: 8pt;
+}
+
+.wtl-accounting-invoice-print table.monthly-invoice-table th,
+.wtl-accounting-invoice-print table.monthly-invoice-table td,
+.wtl-accounting-invoice-print table.mode4-tax-invoice-table th,
+.wtl-accounting-invoice-print table.mode4-tax-invoice-table td,
+.wtl-accounting-invoice-print table.mode4-tax-summary-table th,
+.wtl-accounting-invoice-print table.mode4-tax-summary-table td {
+  padding: 3px 4px;
+  line-height: 1.25;
 }
 
 @media print {

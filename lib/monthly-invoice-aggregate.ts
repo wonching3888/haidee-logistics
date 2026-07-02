@@ -1,6 +1,6 @@
 import { formatDisplayDate } from "@/lib/date-utils";
 import {
-  getInvoiceRouteLabel,
+  getWtlAccountingInvoiceRouteLabel,
   INVOICE_ROUTE_MARKET_CODES,
   INVOICE_TH_SEGMENT_ROUTE_LABEL,
 } from "@/lib/constants/invoice-route-labels";
@@ -208,7 +208,7 @@ function buildAggregatedSection(
     )
     .map(([marketCode, bucket]) => ({
       segment: "MY" as const,
-      routeLabel: getInvoiceRouteLabel(marketCode),
+      routeLabel: getWtlAccountingInvoiceRouteLabel(marketCode),
       marketCode,
       taxCode: "SV-6",
       quantity: bucket.quantity,
@@ -227,7 +227,7 @@ function buildAggregatedSection(
 
   return {
     kind,
-    title: kind === "box" ? "箱子 BOX" : "桶 Tong / Crates",
+    title: kind === "box" ? "箱子 BOX" : INVOICE_LISTING_CRATE_SECTION_TITLE,
     thRow,
     myRows,
     thTotalAmount,

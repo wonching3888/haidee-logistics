@@ -22,11 +22,11 @@ import {
 } from "@/lib/monthly-invoice";
 import { fetchRawInvoiceLines } from "@/lib/monthly-invoice-lines";
 import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoice-extra-charges";
-import { buildHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
-import { isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
+import { attachAccountingPrint } from "@/lib/monthly-invoice-accounting-print";
+import { buildHaideeMonthlyInvoiceData, isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
-import { buildMode4MonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import {
+  buildMode4MonthlyInvoiceData,
   isWtlMonthlyInvoiceData,
 } from "@/lib/monthly-invoice-mode4";
 import type { MonthlyInvoicePrintData } from "@/lib/monthly-invoice-print-data";
@@ -282,12 +282,25 @@ export async function buildFreightMonthlyInvoicePrintData(input: {
   if (!data) return null;
 
   if (input.mode === "1a" || input.mode === "1b" || input.mode === "2" || input.mode === "3" || input.mode === "4") {
-    return applyMonthlyInvoiceExtraChargesToPrintData(data, {
+    const withExtras = await applyMonthlyInvoiceExtraChargesToPrintData(data, {
       year: input.year,
       month: input.month,
       mode: input.mode,
       customerId: input.customerId,
     });
+    if (!withExtras) return null;
+    if (
+      isWtlMonthlyInvoiceData(withExtras) ||
+      isHaideeMonthlyInvoiceData(withExtras)
+    ) {
+      return attachAccountingPrint(withExtras, {
+        mode: input.mode,
+        customerId: input.customerId,
+        year: input.year,
+        month: input.month,
+      });
+    }
+    return withExtras;
   }
 
   return data;

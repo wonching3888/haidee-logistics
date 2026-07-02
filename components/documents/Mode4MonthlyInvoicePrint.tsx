@@ -8,13 +8,14 @@ interface Mode4MonthlyInvoicePrintProps {
 }
 
 export function Mode4MonthlyInvoicePrint({ data }: Mode4MonthlyInvoicePrintProps) {
+  const pageCount = 2;
   return (
     <>
       <div className="invoice-print-page">
-        <Mode4TaxInvoicePrint data={data} />
+        <Mode4TaxInvoicePrint data={data} pageNumber={1} pageCount={pageCount} />
       </div>
       <div className="invoice-print-page">
-        <Mode4ListingPrint data={data} />
+        <Mode4ListingPrint data={data} pageNumber={2} pageCount={pageCount} />
       </div>
     </>
   );
