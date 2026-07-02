@@ -17,7 +17,7 @@ export const HAIDEE_MODE1B_INVOICE_DETAILS = {
   addressLines: [...HAIDEE_MODE1A_INVOICE_DETAILS.addressLines],
   phone: HAIDEE_MODE1A_INVOICE_DETAILS.phone,
   terms: HAIDEE_MODE1A_INVOICE_DETAILS.terms,
-  bankAccount: "WTL EXPRESS, Public Bank 323-024-1725",
+  bankAccount: "WTL EXPRESS SDN BHD, Public Bank 323-024-1725",
   computerGeneratedNote: HAIDEE_MODE1A_INVOICE_DETAILS.computerGeneratedNote,
 } as const;
 

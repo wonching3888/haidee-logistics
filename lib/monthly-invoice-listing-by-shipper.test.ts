@@ -5,6 +5,7 @@ import {
   INVOICE_TH_SEGMENT_ROUTE_LABEL,
 } from "@/lib/constants/invoice-route-labels";
 import { getWtlAccountingInvoiceDetails } from "@/lib/constants/wtl-company-details";
+import { getHaideeAccountingInvoiceDetails } from "@/lib/constants/haidee-company-details";
 import {
   buildInvoiceListing,
   buildInvoiceListingByShipper,
@@ -62,9 +63,24 @@ describe("getWtlAccountingInvoiceDetails", () => {
   it("exposes Net 7 days terms and Public Bank account with payable notes", () => {
     const details = getWtlAccountingInvoiceDetails();
     expect(details.terms).toBe("Net 7 days");
+    expect(details.bankAccount).toContain("WTL EXPRESS SDN BHD");
     expect(details.bankAccount).toContain("Public Bank 323-024-1725");
     expect(details.bankNotes).toContain("WTL EXPRESS SDN BHD");
     expect(details.computerGeneratedNote).toContain("no signature required");
+  });
+});
+
+describe("getHaideeAccountingInvoiceDetails WTL bank payee", () => {
+  it("uses WTL EXPRESS SDN BHD for mode 1b/2 collection bank", () => {
+    expect(getHaideeAccountingInvoiceDetails("1b").bankAccount).toBe(
+      "WTL EXPRESS SDN BHD, Public Bank 323-024-1725"
+    );
+    expect(getHaideeAccountingInvoiceDetails("2").bankAccount).toBe(
+      "WTL EXPRESS SDN BHD, Public Bank 323-024-1725"
+    );
+    expect(getHaideeAccountingInvoiceDetails("1a").bankAccount).toBe(
+      "Bangkok Bank 259-3-12533-5"
+    );
   });
 });
 
