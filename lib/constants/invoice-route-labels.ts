@@ -71,13 +71,22 @@ export function getMode1bInvoiceRouteLabel(marketCode: string): string {
   return `${MODE1B_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
 }
 
+/** Mode 2 accounting invoice: BUKIT KAYU HITAM hub → actual destination place name. */
+export const MODE2_INVOICE_ROUTE_PREFIX = "BUKIT KAYU HITAM TO ";
+
+export function getMode2InvoiceRouteLabel(marketCode: string): string {
+  return `${MODE2_INVOICE_ROUTE_PREFIX}${getMarketDisplayName(marketCode)}`;
+}
+
+export type HaideeAccountingInvoiceRouteMode = "1a" | "1b" | "2";
+
 export function getHaideeAccountingInvoiceRouteLabel(
-  mode: "1a" | "1b",
+  mode: HaideeAccountingInvoiceRouteMode,
   marketCode: string
 ): string {
-  return mode === "1b"
-    ? getMode1bInvoiceRouteLabel(marketCode)
-    : getMode1aInvoiceRouteLabel(marketCode);
+  if (mode === "1b") return getMode1bInvoiceRouteLabel(marketCode);
+  if (mode === "2") return getMode2InvoiceRouteLabel(marketCode);
+  return getMode1aInvoiceRouteLabel(marketCode);
 }
 
 export function buildAllInvoiceRouteLabels(): Record<

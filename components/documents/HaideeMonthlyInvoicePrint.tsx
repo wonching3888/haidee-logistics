@@ -9,7 +9,11 @@ interface HaideeMonthlyInvoicePrintProps {
 }
 
 function usesAccountingPrint(data: HaideeMonthlyInvoiceData) {
-  return data.mode.value === "1a" || data.mode.value === "1b";
+  return (
+    data.mode.value === "1a" ||
+    data.mode.value === "1b" ||
+    data.mode.value === "2"
+  );
 }
 
 export function HaideeMonthlyInvoicePrint({ data }: HaideeMonthlyInvoicePrintProps) {
@@ -35,7 +39,7 @@ export function HaideeMonthlyInvoicePrint({ data }: HaideeMonthlyInvoicePrintPro
           customerName={data.customerName}
           periodLabel={data.periodLabel}
           listing={data.listing}
-          tongSectionTitle={accounting ? "桶 / Crate" : undefined}
+          listingByShipper={data.listingByShipper}
         />
         {accounting ? (
           <div className="invoice-page-footer invoice-page-footer-standalone">

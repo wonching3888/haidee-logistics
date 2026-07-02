@@ -21,10 +21,9 @@ export const HAIDEE_MODE1B_INVOICE_DETAILS = {
   computerGeneratedNote: HAIDEE_MODE1A_INVOICE_DETAILS.computerGeneratedNote,
 } as const;
 
-export type HaideeAccountingInvoiceMode = "1a" | "1b";
+export type HaideeAccountingInvoiceMode = "1a" | "1b" | "2";
 
 export function getHaideeAccountingInvoiceDetails(mode: HaideeAccountingInvoiceMode) {
-  return mode === "1b"
-    ? HAIDEE_MODE1B_INVOICE_DETAILS
-    : HAIDEE_MODE1A_INVOICE_DETAILS;
+  if (mode === "1a") return HAIDEE_MODE1A_INVOICE_DETAILS;
+  return HAIDEE_MODE1B_INVOICE_DETAILS;
 }

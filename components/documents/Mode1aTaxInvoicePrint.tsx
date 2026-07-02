@@ -1,5 +1,6 @@
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { getHaideeAccountingInvoiceDetails } from "@/lib/constants/haidee-company-details";
+import type { HaideeAccountingInvoiceMode } from "@/lib/constants/haidee-company-details";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import { getHaideeAccountingInvoiceRouteLabel } from "@/lib/constants/invoice-route-labels";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
@@ -22,6 +23,12 @@ function resolveAccountingPrint(data: HaideeMonthlyInvoiceData) {
   return data.accountingPrint ?? data.mode1aPrint;
 }
 
+function resolveAccountingMode(data: HaideeMonthlyInvoiceData): HaideeAccountingInvoiceMode {
+  if (data.mode.value === "1b") return "1b";
+  if (data.mode.value === "2") return "2";
+  return "1a";
+}
+
 interface Mode1aTaxInvoicePrintProps {
   data: HaideeMonthlyInvoiceData;
   pageNumber?: number;
@@ -33,7 +40,7 @@ export function Mode1aTaxInvoicePrint({
   pageNumber = 1,
   pageCount = 2,
 }: Mode1aTaxInvoicePrintProps) {
-  const mode = data.mode.value === "1b" ? "1b" : "1a";
+  const mode = resolveAccountingMode(data);
   const company = INVOICE_COMPANY_HEADERS.haidee;
   const details = getHaideeAccountingInvoiceDetails(mode);
   const printMeta = resolveAccountingPrint(data);

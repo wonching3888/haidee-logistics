@@ -968,6 +968,21 @@
   width: 56px;
 }
 
+.mode4-listing-shipper-group {
+  margin-top: 12px;
+}
+
+.mode4-listing-shipper-title {
+  font-size: 9.5pt;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+
+.mode4-listing-shipper-total,
+.mode4-listing-overall-total {
+  margin-top: 4px;
+}
+
 .mode1a-invoice-amount-words {
   margin-top: 10px;
   font-size: 9pt;

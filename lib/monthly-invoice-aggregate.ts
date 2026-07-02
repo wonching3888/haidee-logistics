@@ -78,6 +78,21 @@ export interface InvoiceListingData {
   sections: InvoiceListingSection[];
 }
 
+export const INVOICE_LISTING_CRATE_SECTION_TITLE = "桶 / Crate";
+
+export interface InvoiceListingShipperGroup {
+  shipperId: string;
+  shipperCode: string;
+  shipperName: string;
+  listing: InvoiceListingData;
+  groupTotalQty: number;
+}
+
+export interface InvoiceListingByShipperData {
+  shipperGroups: InvoiceListingShipperGroup[];
+  overallTotalQty: number;
+}
+
 interface BillableRawLine {
   sessionDate: Date;
   marketCode: string;
@@ -334,7 +349,7 @@ function buildListingSection(
 
   return {
     kind,
-    title: kind === "box" ? "箱子 BOX" : "桶 Tong / Crates",
+    title: kind === "box" ? "箱子 BOX" : INVOICE_LISTING_CRATE_SECTION_TITLE,
     columns,
     rows,
     columnTotals,
@@ -360,4 +375,50 @@ export function buildInvoiceListing(
   ].filter((section): section is InvoiceListingSection => section != null);
 
   return { sections };
+}
+
+/**
+ * Mode 2 listing: group date × market matrices by inbound shipper within one consignee.
+ */
+export function buildInvoiceListingByShipper(
+  rawLines: RawInvoiceLine[],
+  options?: AggregateInvoiceLinesOptions
+): InvoiceListingByShipperData {
+  const byShipper = new Map<string, RawInvoiceLine[]>();
+
+  for (const line of rawLines) {
+    if (line.freightAmount == null || line.freightAmount <= 0) continue;
+    const existing = byShipper.get(line.shipperId) ?? [];
+    existing.push(line);
+    byShipper.set(line.shipperId, existing);
+  }
+
+  const shipperGroups = Array.from(byShipper.entries())
+    .map(([, lines]) => {
+      const sample = lines[0]!;
+      const listing = buildInvoiceListing(lines, options);
+      const groupTotalQty = listing.sections.reduce(
+        (sum, section) => sum + section.grandTotal,
+        0
+      );
+      return {
+        shipperId: sample.shipperId,
+        shipperCode: sample.shipperCode,
+        shipperName: sample.shipperName,
+        listing,
+        groupTotalQty,
+      };
+    })
+    .sort((a, b) =>
+      a.shipperCode.localeCompare(b.shipperCode, undefined, {
+        sensitivity: "base",
+      })
+    );
+
+  const overallTotalQty = shipperGroups.reduce(
+    (sum, group) => sum + group.groupTotalQty,
+    0
+  );
+
+  return { shipperGroups, overallTotalQty };
 }

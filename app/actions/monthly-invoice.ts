@@ -137,7 +137,9 @@ export async function getMonthlyInvoicePrintData(input: {
     if (!withExtras || !isHaideeMonthlyInvoiceData(withExtras)) {
       return withExtras;
     }
-    if (input.mode !== "1a" && input.mode !== "1b") return withExtras;
+    if (input.mode !== "1a" && input.mode !== "1b" && input.mode !== "2") {
+      return withExtras;
+    }
 
     const { end } = getMonthDateRange(input.year, input.month);
     const invoiceNo = await resolveFreightInvoiceDocNo({
@@ -147,7 +149,9 @@ export async function getMonthlyInvoicePrintData(input: {
       year: input.year,
       month: input.month,
     });
-    const details = getHaideeAccountingInvoiceDetails(input.mode);
+    const accountingMode =
+      input.mode === "1a" ? "1a" : input.mode === "1b" ? "1b" : "2";
+    const details = getHaideeAccountingInvoiceDetails(accountingMode);
 
     return {
       ...withExtras,

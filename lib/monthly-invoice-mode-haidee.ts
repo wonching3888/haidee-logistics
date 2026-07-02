@@ -1,8 +1,11 @@
 import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
 import { aggregateHaideeInvoiceLines } from "@/lib/monthly-invoice-haidee-aggregate";
 import type { HaideeAggregatedInvoiceData } from "@/lib/monthly-invoice-haidee-aggregate";
-import { buildInvoiceListing } from "@/lib/monthly-invoice-aggregate";
-import type { InvoiceListingData } from "@/lib/monthly-invoice-aggregate";
+import { buildInvoiceListing, buildInvoiceListingByShipper } from "@/lib/monthly-invoice-aggregate";
+import type {
+  InvoiceListingByShipperData,
+  InvoiceListingData,
+} from "@/lib/monthly-invoice-aggregate";
 import {
   buildMonthlyInvoiceData,
   resolveCustomerKeyForInvoice,
@@ -25,6 +28,8 @@ export interface HaideeMonthlyInvoiceData {
   billToRole: HaideeMonthlyInvoiceBillToRole;
   summary: HaideeAggregatedInvoiceData;
   listing: InvoiceListingData;
+  /** Mode 2 only: listing grouped by inbound shipper. */
+  listingByShipper?: InvoiceListingByShipperData;
   extraCharges?: Array<{
     id: string;
     description: string;
@@ -34,7 +39,7 @@ export interface HaideeMonthlyInvoiceData {
     amount: number;
     sortOrder: number;
   }>;
-  /** Mode 1a/1b accounting print fields (invoice no, date, terms). */
+  /** Mode 1a/1b/2 accounting print fields (invoice no, date, terms). */
   accountingPrint?: {
     invoiceNo: string;
     invoiceDateLabel: string;
@@ -85,6 +90,16 @@ export function buildHaideeMonthlyInvoiceData(input: {
 
   const summary = aggregateHaideeInvoiceLines(customerRawLines);
   const listing = buildInvoiceListing(customerRawLines);
+  const listingByShipper =
+    input.mode.value === "2"
+      ? buildInvoiceListingByShipper(customerRawLines)
+      : undefined;
+
+  if (listingByShipper && listingByShipper.overallTotalQty !== summary.grandTotalQty) {
+    throw new Error(
+      `Mode 2 shipper listing qty ${listingByShipper.overallTotalQty} != invoice qty ${summary.grandTotalQty}`
+    );
+  }
 
   if (summary.grandTotalAmount !== legacy.grandTotalAmount) {
     throw new Error(
@@ -122,5 +137,6 @@ export function buildHaideeMonthlyInvoiceData(input: {
     billToRole: billToRoleForMode(input.mode),
     summary,
     listing,
+    listingByShipper,
   };
 }
