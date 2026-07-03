@@ -1,0 +1,150 @@
+@import "../documents/document-print.css";
+
+.driver-payslip-print {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.35;
+  color: #111;
+}
+
+.driver-payslip-print .payslip-letterhead {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.driver-payslip-print .payslip-letterhead h1 {
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+}
+
+.driver-payslip-print .payslip-letterhead p {
+  margin: 0;
+  font-size: 9pt;
+}
+
+.driver-payslip-print .payslip-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11pt;
+  margin: 8px 0 12px;
+  text-decoration: underline;
+}
+
+.driver-payslip-print .payslip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1.5px solid #111;
+}
+
+.driver-payslip-print .payslip-cell {
+  border: 1px solid #111;
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.driver-payslip-print .payslip-cell h2 {
+  font-size: 10pt;
+  font-weight: 700;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.driver-payslip-print .payslip-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 3px;
+  font-size: 9.5pt;
+}
+
+.driver-payslip-print .payslip-kv dt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.driver-payslip-print .payslip-kv dd {
+  margin: 0;
+}
+
+.driver-payslip-print .payslip-nickname {
+  margin-top: 6px;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+.driver-payslip-print .payslip-amount-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+}
+
+.driver-payslip-print .payslip-amount-table td {
+  padding: 2px 0;
+  vertical-align: top;
+}
+
+.driver-payslip-print .payslip-amount-table td:last-child {
+  text-align: right;
+  font-family: ui-monospace, "Courier New", monospace;
+  white-space: nowrap;
+}
+
+.driver-payslip-print .payslip-amount-table tr.payslip-total td {
+  font-weight: 700;
+  border-top: 1px solid #111;
+  padding-top: 4px;
+}
+
+.driver-payslip-print .payslip-amount-table tr.payslip-net td {
+  font-weight: 700;
+  font-size: 10.5pt;
+}
+
+.driver-payslip-print .payslip-advance-list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin-bottom: 8px;
+}
+
+.driver-payslip-print .payslip-advance-list th,
+.driver-payslip-print .payslip-advance-list td {
+  border-bottom: 1px solid #ccc;
+  padding: 3px 4px;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-advance-list td.amount {
+  text-align: right;
+  font-family: ui-monospace, "Courier New", monospace;
+}
+
+.driver-payslip-print .payslip-signature-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 16px;
+  font-size: 9pt;
+  font-weight: 700;
+}
+
+.driver-payslip-print .payslip-signature-line {
+  margin-top: 28px;
+  border-top: 1px solid #111;
+  width: 55%;
+  padding-top: 4px;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  .driver-payslip-print {
+    font-size: 10pt;
+  }
+}

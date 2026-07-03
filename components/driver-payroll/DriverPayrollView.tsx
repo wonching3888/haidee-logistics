@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Download, Plus, Trash2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Download, Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +23,11 @@ import {
   saveDriverPayrollTrip,
 } from "@/app/actions/driver-payroll";
 import { PAYROLL_EXTRA_TYPES } from "@/lib/constants/payroll";
+import {
+  PAYROLL_LABEL_ALLOWANCE,
+  PAYROLL_LABEL_BASIC_PAY,
+  PAYROLL_LABEL_TRIP_WAGES,
+} from "@/lib/constants/payroll-display-labels";
 import {
   crateReturnEarningsDisplayTotal,
   type buildPayrollSummary,
@@ -292,6 +298,15 @@ export function DriverPayrollView({
               <Download className="h-4 w-4" />
               AutoCount 导出
             </Button>
+            {driverId ? (
+              <Link
+                href={`/driver-payroll/print?driverId=${encodeURIComponent(driverId)}&year=${year}&month=${month}&returnTo=${encodeURIComponent(`/driver-payroll?driverId=${encodeURIComponent(driverId)}&year=${year}&month=${month}`)}`}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-haidee-border bg-white px-4 text-sm font-medium hover:bg-haidee-surface"
+              >
+                <Printer className="h-4 w-4" />
+                工资单 Payslip
+              </Link>
+            ) : null}
           </div>
 
           {isPending && !data ? (
@@ -368,13 +383,13 @@ function DriverPayrollDetailSections({
                       市场数
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
-                      趟次津贴(RM)
+                      趟次津贴 Trip Wages(RM)
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
                       包车固定工钱(RM)
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
-                      额外津贴(RM)
+                      额外津贴 Allowance(RM)
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-2 text-right">
                       回桶提成(RM)
@@ -500,7 +515,7 @@ function DriverPayrollDetailSections({
                 ) : (
                   data.extras.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{item.type === "advance" ? "借支" : "额外津贴"}</TableCell>
+                      <TableCell>{item.type === "advance" ? "借支" : "Allowance"}</TableCell>
                       <TableCell>{item.date}</TableCell>
                       <TableCell>{item.note ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">
@@ -593,8 +608,8 @@ function DriverPayrollDetailSections({
               <h3 className="mb-3 font-semibold">月薪汇总 Summary</h3>
               {summary && (
                 <dl className="space-y-2 text-sm">
-                  <SummaryRow label="底薪 Base Salary" value={summary.baseSalary} />
-                  <SummaryRow label="趟次津贴 Trips" value={summary.tripAllowanceTotal} />
+                  <SummaryRow label={PAYROLL_LABEL_BASIC_PAY} value={summary.baseSalary} />
+                  <SummaryRow label={PAYROLL_LABEL_TRIP_WAGES} value={summary.tripAllowanceTotal} />
                   <SummaryRow
                     label="包车固定工钱 Charter Salary"
                     value={summary.charterSalaryTotal}
@@ -603,7 +618,7 @@ function DriverPayrollDetailSections({
                     label="回桶提成 Crate Return"
                     value={crateReturnEarningsDisplayTotal(summary)}
                   />
-                  <SummaryRow label="额外津贴 Extras" value={summary.extraAllowanceTotal} />
+                  <SummaryRow label={PAYROLL_LABEL_ALLOWANCE} value={summary.extraAllowanceTotal} />
                   <SummaryRow label="应发 Gross" value={summary.grossSalary} bold />
                   <SummaryRow label="EPF 员工" value={-summary.statutory.epfEmployee} />
                   <SummaryRow label="SOCSO 员工" value={-summary.statutory.socsoEmployee} />

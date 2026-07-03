@@ -336,6 +336,50 @@ export async function getDriverPayrollMonth(input: {
   };
 }
 
+export async function getDriverPayslipPrintData(input: {
+  driverId: string;
+  year: number;
+  month: number;
+}) {
+  const driver = await prisma.driver.findUnique({
+    where: { id: input.driverId },
+    select: {
+      id: true,
+      name: true,
+      active: true,
+      bankName: true,
+      bankAccount: true,
+    },
+  });
+  if (!driver?.active) {
+    return null;
+  }
+
+  const monthData = await getDriverPayrollMonth(input);
+
+  return {
+    year: monthData.year,
+    month: monthData.month,
+    yearMonth: monthData.yearMonth,
+    driver: {
+      payrollName: monthData.driver.payrollName,
+      name: monthData.driver.name,
+      icNumber: monthData.driver.icNumber,
+      baseSalary: monthData.driver.baseSalary,
+      bankName: driver.bankName,
+      bankAccount: driver.bankAccount,
+    },
+    summary: monthData.summary,
+    advances: monthData.extras
+      .filter((item) => item.type === "advance")
+      .map((item) => ({
+        date: item.date,
+        amount: item.amount,
+        note: item.note,
+      })),
+  };
+}
+
 export async function saveDriverPayrollTrip(input: {
   id: string;
   tripAllowance: number;

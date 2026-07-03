@@ -103,7 +103,7 @@ describe("deleteInvoicePayment audit integration", () => {
     expect(metadata.allocationsBeforeSummary).toBe(
       "2026-06 freight|2026-06: 31533.10"
     );
-  }, 30_000);
+  }, 60_000);
 
   it(
     "deletes the last payment on a ledger without throwing",

@@ -544,7 +544,7 @@ export async function syncDriverPayrollTripForCharter(
   };
 }
 
-/** Re-sync payroll trips after crate import save/delete for affected date+plates. */
+/** Re-sync payroll trips after crate import save/delete for affected plates in the import month. */
 export async function syncPayrollTripsAfterCrateImportChange(
   date: Date,
   plates: string[]
@@ -554,10 +554,15 @@ export async function syncPayrollTripsAfterCrateImportChange(
   );
   if (normalizedPlates.length === 0) return;
 
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const monthStart = new Date(Date.UTC(year, month, 1));
+  const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+
   const [dispatches, charters] = await Promise.all([
     prisma.dispatchOrder.findMany({
       where: {
-        date,
+        date: { gte: monthStart, lte: monthEnd },
         status: { notIn: ["cancelled", "draft"] },
         truck: { plate: { in: normalizedPlates } },
       },
@@ -565,7 +570,7 @@ export async function syncPayrollTripsAfterCrateImportChange(
     }),
     prisma.charterTrip.findMany({
       where: {
-        date,
+        date: { gte: monthStart, lte: monthEnd },
         truck: { plate: { in: normalizedPlates } },
       },
       select: { id: true },

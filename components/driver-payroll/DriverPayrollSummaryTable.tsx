@@ -8,6 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  PAYROLL_LABEL_ALLOWANCE,
+  PAYROLL_LABEL_BASIC_PAY,
+  PAYROLL_LABEL_TRIP_WAGES,
+} from "@/lib/constants/payroll-display-labels";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { STICKY_BODY_FIRST, STICKY_HEAD_FIRST, STICKY_HEAD_TOP } from "@/lib/table-scroll";
 import type { getDriverPayrollMonthlySummary } from "@/app/actions/driver-payroll";
@@ -21,11 +26,11 @@ function money(value: number) {
 
 const COLUMNS = [
   { key: "name", label: "小名", align: "left" as const },
-  { key: "baseSalary", label: "底薪", align: "right" as const },
-  { key: "tripAllowanceTotal", label: "趟次津贴", align: "right" as const },
+  { key: "baseSalary", label: PAYROLL_LABEL_BASIC_PAY, align: "right" as const },
+  { key: "tripAllowanceTotal", label: PAYROLL_LABEL_TRIP_WAGES, align: "right" as const },
   { key: "charterSalaryTotal", label: "包车固定工钱", align: "right" as const },
   { key: "crateReturnDisplayTotal", label: "回桶提成", align: "right" as const },
-  { key: "extraAllowanceTotal", label: "额外津贴", align: "right" as const },
+  { key: "extraAllowanceTotal", label: PAYROLL_LABEL_ALLOWANCE, align: "right" as const },
   { key: "grossSalary", label: "应发", align: "right" as const },
   { key: "epfEmployee", label: "EPF员工", align: "right" as const },
   { key: "socsoEmployee", label: "SOCSO员工", align: "right" as const },
