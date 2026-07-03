@@ -7,6 +7,7 @@ import {
   payslipMonthTitle,
   payslipWagesTotal,
   WTL_PAYSLIP_LETTERHEAD,
+  WTL_PAYSLIP_LOGO_SRC,
 } from "@/lib/driver-payslip";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 
@@ -64,13 +65,23 @@ export function DriverPayslipPrint({
   return (
     <article className="driver-payslip-print document-print">
       <header className="payslip-letterhead">
-        <h1>{WTL_PAYSLIP_LETTERHEAD.companyName}</h1>
-        <p>{WTL_PAYSLIP_LETTERHEAD.registration}</p>
-        <p>{WTL_PAYSLIP_LETTERHEAD.address}</p>
-        <p>
-          Tel: {WTL_PAYSLIP_LETTERHEAD.tel}&nbsp;&nbsp;&nbsp;Email:{" "}
-          {WTL_PAYSLIP_LETTERHEAD.email}
-        </p>
+        <div className="payslip-letterhead-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={WTL_PAYSLIP_LOGO_SRC}
+            alt="WTL Express"
+            className="payslip-letterhead-logo"
+          />
+          <div className="payslip-letterhead-text">
+            <h1>{WTL_PAYSLIP_LETTERHEAD.companyName}</h1>
+            <p>{WTL_PAYSLIP_LETTERHEAD.registration}</p>
+            <p>{WTL_PAYSLIP_LETTERHEAD.address}</p>
+            <p>
+              Tel: {WTL_PAYSLIP_LETTERHEAD.tel}&nbsp;&nbsp;&nbsp;Email:{" "}
+              {WTL_PAYSLIP_LETTERHEAD.email}
+            </p>
+          </div>
+        </div>
       </header>
 
       <p className="payslip-title">{payslipMonthTitle(month, year)}</p>

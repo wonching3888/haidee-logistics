@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { payslipWagesTotal } from "@/lib/driver-payslip";
+import { payslipWagesTotal, WTL_PAYSLIP_LETTERHEAD } from "@/lib/driver-payslip";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 
 function akimJuneSummary(): PayrollSummary {
@@ -52,5 +52,12 @@ describe("payslipWagesTotal", () => {
       advanceTotal: 1500,
     };
     expect(payslipWagesTotal(summary)).toBe(2840);
+  });
+});
+
+describe("WTL_PAYSLIP_LETTERHEAD", () => {
+  it("uses Changloon spelling (aligned with INVOICE_COMPANY_HEADERS.wtl)", () => {
+    expect(WTL_PAYSLIP_LETTERHEAD.address).toContain("Changloon");
+    expect(WTL_PAYSLIP_LETTERHEAD.address).not.toContain("Changlong");
   });
 });

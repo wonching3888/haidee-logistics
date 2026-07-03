@@ -1,11 +1,13 @@
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 import { crateReturnEarningsDisplayTotal } from "@/lib/payroll-statutory";
 
-/** Fixed WTL payslip letterhead (not from DB). */
+/** Fixed WTL payslip letterhead (not from DB). Logo: public/logo.png (same as invoice prints). */
+export const WTL_PAYSLIP_LOGO_SRC = "/logo.png";
+
 export const WTL_PAYSLIP_LETTERHEAD = {
   companyName: "WTL EXPRESS SDN.BHD.",
   registration: "202201017123 (1462820-W)",
-  address: "Lot 1918, Kampung Baru, Pekan Baru, 06010 Changlong, Kedah",
+  address: "Lot 1918, Kampung Baru, Pekan Baru, 06010 Changloon, Kedah",
   tel: "011-1150 3888",
   email: "wtlexpress3888@gmail.com",
 } as const;

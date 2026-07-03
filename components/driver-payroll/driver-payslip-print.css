@@ -12,16 +12,34 @@
   margin-bottom: 10px;
 }
 
-.driver-payslip-print .payslip-letterhead h1 {
+.driver-payslip-print .payslip-letterhead-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 100%;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-letterhead-logo {
+  height: 52px;
+  width: auto;
+  flex-shrink: 0;
+  mix-blend-mode: multiply;
+}
+
+.driver-payslip-print .payslip-letterhead-text h1 {
   font-size: 14pt;
   font-weight: 700;
   margin: 0 0 4px;
   letter-spacing: 0.02em;
+  text-align: left;
 }
 
-.driver-payslip-print .payslip-letterhead p {
+.driver-payslip-print .payslip-letterhead-text p {
   margin: 0;
   font-size: 9pt;
+  text-align: left;
 }
 
 .driver-payslip-print .payslip-title {
@@ -148,6 +166,12 @@
     font-size: 10pt;
   }
 
+  .driver-payslip-print .payslip-letterhead-logo {
+    height: 48px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .driver-payslip-batch-print {
     gap: 0;
   }
@@ -205,12 +229,15 @@
   text-align: center;
   font-weight: 700;
   font-size: 10pt;
-  margin: 0 0 12px;
+  margin: 0 0 4px;
 }
 
 .trip-listing-print .trip-listing-driver-sub {
+  text-align: center;
   font-weight: 400;
   font-size: 9pt;
+  margin: 0 0 12px;
+  color: #444;
 }
 
 .trip-listing-print .trip-listing-table {

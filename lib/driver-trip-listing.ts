@@ -114,7 +114,7 @@ export function buildTripListingRows(input: {
         dateLabel: formatDisplayDate(parseDateInput(date)),
         type: "ALLOW",
         plate: null,
-        marketRoute: item.note?.trim() || "额外津贴 Allowance",
+        marketRoute: item.note?.trim() || "Allowance",
         tripAllowance: amount,
         crateCommission: 0,
         subtotal: amount,

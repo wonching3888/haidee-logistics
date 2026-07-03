@@ -40,28 +40,26 @@ export function TripListingPrint({
   return (
     <article className="trip-listing-print document-print">
       <p className="trip-listing-title">{tripListingMonthTitle(month, year)}</p>
-      <p className="trip-listing-driver">
-        {driverName}
-        <span className="trip-listing-driver-sub"> · 趟次明细 Trip Listing</span>
-      </p>
+      <p className="trip-listing-driver">{driverName}</p>
+      <p className="trip-listing-driver-sub">Trip Listing</p>
 
       <table className="trip-listing-table">
         <thead>
           <tr>
-            <th>日期 Date</th>
-            <th>类型 Type</th>
-            <th>车牌 Plate</th>
-            <th>市场/路线 Market / Route</th>
-            <th className="amount">趟次津贴 Trip Wages</th>
-            <th className="amount">回桶提成 Crate</th>
-            <th className="amount">小计 Subtotal</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Plate</th>
+            <th>Market / Route</th>
+            <th className="amount">Trip Wages</th>
+            <th className="amount">Crate</th>
+            <th className="amount">Subtotal</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
               <td colSpan={7} className="trip-listing-empty">
-                当月暂无趟次 No trips this month
+                No trips this month
               </td>
             </tr>
           ) : (
@@ -80,7 +78,7 @@ export function TripListingPrint({
         </tbody>
         <tfoot>
           <tr className="trip-listing-total">
-            <td colSpan={6}>TOTAL WAGES 工钱合计</td>
+            <td colSpan={6}>TOTAL WAGES</td>
             <td className="amount">{formatPayslipMoney(totalWages)}</td>
           </tr>
         </tfoot>
