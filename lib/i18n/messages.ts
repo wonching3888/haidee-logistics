@@ -1496,6 +1496,31 @@ export const MESSAGES = {
     en: "Bangkok {date} · today's inbound due − returned = owed (no carry-over) · click a row to export",
     th: "เวลาไทย {date} · มาวันนี้ − คืนวันนี้ = ค้าง (ไม่ยกยอด) · คลิกแถวเพื่อคืนลัง",
   },
+  "crateExport.dueTodayHistoricalHint": {
+    zh: "查看 {date} 当日快照 · 该还 − 已还 = 欠（只读回顾，不可点击归还）",
+    en: "Snapshot for {date} · due − returned = owed (read-only history; row click disabled)",
+    th: "สรุปวันที่ {date} · ต้องคืน − คืนแล้ว = ค้าง (ดูย้อนหลังเท่านั้น คลิกแถวไม่ได้)",
+  },
+  "crateExport.dueTodayHistoricalEmpty": {
+    zh: "该日暂无待归还记录",
+    en: "No due/return activity for this date",
+    th: "ไม่มีข้อมูลคืนลังในวันนี้",
+  },
+  "crateExport.dueDateFilterLabel": {
+    zh: "查看日期",
+    en: "View date",
+    th: "วันที่ดู",
+  },
+  "crateExport.newReturnTitle": {
+    zh: "新建归还",
+    en: "New Return",
+    th: "บันทึกคืนลังใหม่",
+  },
+  "crateExport.newReturnHint": {
+    zh: "录入泰国车空桶归还；可从上方待还列表点选预填",
+    en: "Record TH vehicle crate return; click a due row above to prefill",
+    th: "บันทึกคืนลังรถไทย · คลิกแถวด้านบนเพื่อเติมข้อมูล",
+  },
   "crateExport.dueTodayEmpty": {
     zh: "今天暂无待归还",
     en: "No pending returns today",

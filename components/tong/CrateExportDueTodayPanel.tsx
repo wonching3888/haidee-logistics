@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { Suspense } from "react";
 import { useT } from "@/components/shared/locale-context";
 import { formatDisplay } from "@/lib/date-utils";
 import type {
@@ -11,10 +12,12 @@ import type {
   CrateQtyByCode,
 } from "@/lib/crate-export-due-today";
 import { cn } from "@/lib/utils";
+import { CrateExportDueDateFilter } from "@/components/tong/CrateExportDueDateFilter";
 
 interface CrateExportDueTodayPanelProps {
   data: CrateExportDueTodayData;
-  onSelect: (prefill: CrateExportPrefillTarget) => void;
+  interactive: boolean;
+  onSelect?: (prefill: CrateExportPrefillTarget) => void;
 }
 
 function formatQtySummary(map: CrateQtyByCode): string {
@@ -47,6 +50,7 @@ function QtyCell({
 
 export function CrateExportDueTodayPanel({
   data,
+  interactive,
   onSelect,
 }: CrateExportDueTodayPanelProps) {
   const { t } = useT();
@@ -62,6 +66,26 @@ export function CrateExportDueTodayPanel({
     });
   }
 
+  function handleRowSelect(prefill: CrateExportPrefillTarget) {
+    if (!interactive || !onSelect) return;
+    onSelect(prefill);
+  }
+
+  function rowInteractionProps(prefill: CrateExportPrefillTarget) {
+    if (!interactive) return {};
+    return {
+      role: "button" as const,
+      tabIndex: 0,
+      onClick: () => handleRowSelect(prefill),
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleRowSelect(prefill);
+        }
+      },
+    };
+  }
+
   function renderRow(
     key: string,
     label: string,
@@ -74,17 +98,10 @@ export function CrateExportDueTodayPanel({
     return (
       <tr
         key={key}
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelect(prefill)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelect(prefill);
-          }
-        }}
+        {...rowInteractionProps(prefill)}
         className={cn(
-          "cursor-pointer border-b border-haidee-border/60 transition-colors hover:bg-haidee-surface/80",
+          "border-b border-haidee-border/60 transition-colors",
+          interactive && "cursor-pointer hover:bg-haidee-surface/80",
           opts?.indent && "bg-haidee-surface/30"
         )}
       >
@@ -139,16 +156,11 @@ export function CrateExportDueTodayPanel({
     return (
       <Fragment key={group.key}>
         <tr
-          role="button"
-          tabIndex={0}
-          onClick={() => onSelect(group.prefill)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onSelect(group.prefill);
-            }
-          }}
-          className="cursor-pointer border-b border-haidee-border/60 bg-amber-50/40 transition-colors hover:bg-amber-50/70"
+          {...rowInteractionProps(group.prefill)}
+          className={cn(
+            "border-b border-haidee-border/60 bg-amber-50/40 transition-colors",
+            interactive && "cursor-pointer hover:bg-amber-50/70"
+          )}
         >
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
@@ -198,29 +210,42 @@ export function CrateExportDueTodayPanel({
     );
   }
 
+  const hintKey = interactive
+    ? "crateExport.dueTodayHint"
+    : "crateExport.dueTodayHistoricalHint";
+
   return (
-    <section className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-haidee-text">
-          {t("crateExport.dueTodayTitle")}
-        </h3>
-        <p className="text-sm text-haidee-muted">
-          {t("crateExport.dueTodayHint", { date: formatDisplay(data.date) })}
-        </p>
+    <section className="space-y-4 rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-haidee-text">
+            {t("crateExport.dueTodayTitle")}
+          </h3>
+          <p className="text-sm text-haidee-muted">
+            {t(hintKey, { date: formatDisplay(data.date) })}
+          </p>
+        </div>
+        <Suspense
+          fallback={
+            <div className="h-11 w-40 animate-pulse rounded-lg bg-haidee-border/30" />
+          }
+        >
+          <CrateExportDueDateFilter />
+        </Suspense>
       </div>
 
       {data.items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-haidee-border bg-white p-8 text-center text-sm text-haidee-muted">
-          {t("crateExport.dueTodayEmpty")}
+        <div className="rounded-lg border border-dashed border-haidee-border bg-haidee-surface/30 p-8 text-center text-sm text-haidee-muted">
+          {interactive
+            ? t("crateExport.dueTodayEmpty")
+            : t("crateExport.dueTodayHistoricalEmpty")}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-haidee-border bg-white">
+        <div className="overflow-hidden rounded-lg border border-haidee-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
-                <th className="px-4 py-3 text-left">
-                  {t("common.consignor")}
-                </th>
+                <th className="px-4 py-3 text-left">{t("common.consignor")}</th>
                 <th className="px-4 py-3 text-right">
                   {t("crateExport.dueTodayDue")}
                 </th>

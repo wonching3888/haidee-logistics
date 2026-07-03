@@ -4,7 +4,7 @@ import {
   getTongTypesForExport,
 } from "@/app/actions/tong";
 import {
-  getCrateExportDueToday,
+  getCrateExportDueTodayForDate,
   listCrateExportsForDate,
 } from "@/app/actions/crateExport";
 import { CrateExportWorkbench } from "@/components/tong/CrateExportWorkbench";
@@ -12,14 +12,18 @@ import { CrateExportDateFilter } from "@/components/tong/CrateExportDateFilter";
 import { CrateExportListTable } from "@/components/tong/CrateExportListTable";
 import { CrateExportUpdatedBanner } from "@/components/tong/CrateExportUpdatedBanner";
 import { PageError } from "@/components/shared/PageError";
-import { resolveCrateExportListDate } from "@/lib/crate-export-list";
+import {
+  isLiveCrateExportDueDate,
+  resolveCrateExportDueDate,
+  resolveCrateExportListDate,
+} from "@/lib/crate-export-list";
 import { getCurrentUser } from "@/lib/auth";
 import { t } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
 interface TongExportPageProps {
-  searchParams: Promise<{ date?: string; updated?: string }>;
+  searchParams: Promise<{ date?: string; due?: string; updated?: string }>;
 }
 
 export default async function TongExportPage({
@@ -27,6 +31,8 @@ export default async function TongExportPage({
 }: TongExportPageProps) {
   const params = await searchParams;
   const listDate = resolveCrateExportListDate(params.date);
+  const dueDate = resolveCrateExportDueDate(params.due);
+  const dueInteractive = isLiveCrateExportDueDate(dueDate);
   const user = await getCurrentUser();
   const locale = user?.language ?? "zh";
 
@@ -35,7 +41,7 @@ export default async function TongExportPage({
       getShippersForExport(),
       getTongTypesForExport(),
       listCrateExportsForDate(listDate),
-      getCrateExportDueToday(),
+      getCrateExportDueTodayForDate(dueDate),
     ]);
 
     return (
@@ -51,11 +57,12 @@ export default async function TongExportPage({
 
         <CrateExportWorkbench
           dueToday={dueToday}
+          dueInteractive={dueInteractive}
           shippers={shippers}
           tongTypes={tongTypes}
         />
 
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
           <div>
             <h3 className="text-lg font-semibold text-haidee-text">
               {t("crateExport.todayReturns", locale)}
@@ -67,7 +74,7 @@ export default async function TongExportPage({
 
           <Suspense
             fallback={
-              <div className="h-16 animate-pulse rounded-xl bg-haidee-border/30" />
+              <div className="h-16 animate-pulse rounded-lg bg-haidee-border/30" />
             }
           >
             <CrateExportDateFilter />

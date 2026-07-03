@@ -22,7 +22,7 @@ export function CrateExportDateFilter() {
     : toDateInputValue(getDefaultInboundDate());
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-haidee-border bg-white p-4">
+    <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1">
         <label className="text-xs font-medium text-haidee-muted">
           {t("common.date")}

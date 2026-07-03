@@ -1,3 +1,4 @@
+import { getBangkokTodayDateInput } from "@/lib/date-utils";
 import {
   getDefaultInboundDate,
   resolveDateParam,
@@ -11,6 +12,19 @@ export const CRATE_EXPORT_LIST_LIMIT = 300;
 export function resolveCrateExportListDate(dateParam?: string): string {
   if (!dateParam) return toDateInputValue(getDefaultInboundDate());
   return resolveDateParam(dateParam);
+}
+
+/** Due-today panel date (Bangkok calendar day; defaults to today). */
+export function resolveCrateExportDueDate(dueParam?: string): string {
+  if (!dueParam) return getBangkokTodayDateInput();
+  return resolveDateParam(dueParam);
+}
+
+export function isLiveCrateExportDueDate(
+  dueDate: string,
+  todayInput: string = getBangkokTodayDateInput()
+): boolean {
+  return dueDate === todayInput;
 }
 
 export interface CrateExportListRow {

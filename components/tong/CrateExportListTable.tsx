@@ -45,7 +45,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-haidee-border bg-white p-10 text-center text-sm text-haidee-muted">
+      <div className="rounded-lg border border-dashed border-haidee-border bg-haidee-surface/30 p-10 text-center text-sm text-haidee-muted">
         {t("crateExport.emptyList")}
       </div>
     );
@@ -78,7 +78,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
         onDismiss={() => setSuccessMessage(null)}
       />
 
-      <div className="overflow-x-auto rounded-xl border border-haidee-border bg-white">
+      <div className="overflow-x-auto rounded-lg border border-haidee-border">
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-haidee-border bg-haidee-surface text-haidee-muted">
