@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { DriverPayslipPrintEntry } from "@/lib/driver-payslip-batch";
-import { DriverPayslipPrint } from "@/components/driver-payroll/DriverPayslipPrint";
+import { DriverPayslipWithListingPrint } from "@/components/driver-payroll/DriverPayslipWithListingPrint";
 
 export interface DriverPayslipBatchPrintProps {
   year: number;
@@ -24,12 +24,13 @@ export function DriverPayslipBatchPrint({
             index === entries.length - 1 && "driver-payslip-batch-page--last"
           )}
         >
-          <DriverPayslipPrint
+          <DriverPayslipWithListingPrint
             year={year}
             month={month}
             driver={entry.driver}
             summary={entry.summary}
             advances={entry.advances}
+            tripListingRows={entry.tripListingRows}
           />
         </div>
       ))}

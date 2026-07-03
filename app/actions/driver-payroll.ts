@@ -35,8 +35,9 @@ import {
 } from "@/lib/payroll-audit";
 import { applyPayrollOverridePatch } from "@/lib/payroll-override-write";
 import {
-  loadBatchDriverPayslipEntries,
-} from "@/lib/driver-payslip-batch";
+  loadTripListingRowsForPayrollMonth,
+} from "@/lib/driver-trip-listing";
+import { loadBatchDriverPayslipEntries } from "@/lib/driver-payslip-batch";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -359,6 +360,9 @@ export async function getDriverPayslipPrintData(input: {
   }
 
   const monthData = await getDriverPayrollMonth(input);
+  const tripListingRows = await loadTripListingRowsForPayrollMonth(
+    monthData.payrollMonthId
+  );
 
   return {
     year: monthData.year,
@@ -380,6 +384,7 @@ export async function getDriverPayslipPrintData(input: {
         amount: item.amount,
         note: item.note,
       })),
+    tripListingRows,
   };
 }
 

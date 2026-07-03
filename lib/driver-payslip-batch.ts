@@ -1,5 +1,10 @@
 import type { MaritalStatus } from "@/lib/constants/payroll";
 import { toDateInputValue } from "@/lib/date-utils";
+import {
+  buildTripListingRows,
+  formatCharterTripListingDestination,
+  type TripListingRow,
+} from "@/lib/driver-trip-listing";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { buildDriverPayrollSummaryFromRecords } from "@/lib/payroll-fleet";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
@@ -22,6 +27,78 @@ export interface DriverPayslipPrintEntry {
   };
   summary: PayrollSummary;
   advances: { date: string; amount: number; note: string | null }[];
+  tripListingRows: TripListingRow[];
+}
+
+const PAYROLL_TRIP_LISTING_INCLUDE = {
+  dispatchOrder: { select: { truck: { select: { plate: true } } } },
+  charterTrip: {
+    select: {
+      stockAreaNote: true,
+      shipper: { select: { location: true } },
+      truck: { select: { plate: true } },
+    },
+  },
+} as const;
+
+function tripListingRowsFromMonthRecord(
+  monthRecord: {
+    trips: Array<{
+      charterTripId: string | null;
+      date: Date;
+      route: string | null;
+      markets: string[];
+      tripAllowance: unknown;
+      charterSalary: unknown;
+      extraAllowance: unknown;
+      crateReturnCommission: unknown;
+      crateReturnMultiMarketAllowance: unknown;
+      notes: string | null;
+      sortOrder: number;
+      dispatchOrder: { truck: { plate: string } } | null;
+      charterTrip: {
+        stockAreaNote: string | null;
+        shipper: { location: string | null } | null;
+        truck: { plate: string };
+      } | null;
+    }>;
+    extras: Array<{
+      type: string;
+      amount: unknown;
+      note: string | null;
+      date: Date;
+    }>;
+  }
+) {
+  return buildTripListingRows({
+    trips: monthRecord.trips.map((trip) => ({
+      charterTripId: trip.charterTripId,
+      date: trip.date,
+      route: trip.route,
+      markets: trip.markets,
+      tripAllowance: decimalToNumber(trip.tripAllowance) ?? 0,
+      charterSalary: decimalToNumber(trip.charterSalary) ?? 0,
+      extraAllowance: decimalToNumber(trip.extraAllowance) ?? 0,
+      crateReturnCommission: decimalToNumber(trip.crateReturnCommission) ?? 0,
+      crateReturnMultiMarketAllowance:
+        decimalToNumber(trip.crateReturnMultiMarketAllowance) ?? 0,
+      plate:
+        trip.dispatchOrder?.truck?.plate ??
+        trip.charterTrip?.truck?.plate ??
+        trip.notes?.trim() ??
+        null,
+      charterDestination: trip.charterTrip
+        ? formatCharterTripListingDestination(trip.charterTrip)
+        : null,
+      sortOrder: trip.sortOrder,
+    })),
+    extras: monthRecord.extras.map((item) => ({
+      type: item.type,
+      amount: decimalToNumber(item.amount) ?? 0,
+      note: item.note,
+      date: item.date,
+    })),
+  });
 }
 
 export const PAYSLIP_BATCH_SORT_NOTE =
@@ -52,7 +129,10 @@ export async function loadBatchDriverPayslipEntries(
       payrollMonths: {
         where: { yearMonth },
         include: {
-          trips: true,
+          trips: {
+            orderBy: [{ date: "asc" }, { sortOrder: "asc" }],
+            include: PAYROLL_TRIP_LISTING_INCLUDE,
+          },
           extras: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
         },
       },
@@ -110,6 +190,7 @@ export async function loadBatchDriverPayslipEntries(
           amount: decimalToNumber(item.amount) ?? 0,
           note: item.note,
         })),
+      tripListingRows: tripListingRowsFromMonthRecord(monthRecord),
     });
   }
 

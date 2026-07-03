@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDriverPayslipPrintData } from "@/app/actions/driver-payroll";
-import { DriverPayslipPrint } from "@/components/driver-payroll/DriverPayslipPrint";
+import { DriverPayslipWithListingPrint } from "@/components/driver-payroll/DriverPayslipWithListingPrint";
 import "@/components/driver-payroll/driver-payslip-print.css";
 import { DOPrintPageWithShare } from "@/components/documents/DOPrintPageWithShare";
 import { PageError } from "@/components/shared/PageError";
@@ -53,12 +53,13 @@ export default async function DriverPayslipPrintPage({
           text: `Payslip ${data.driver.payrollName} · ${data.yearMonth}`,
         }}
       >
-        <DriverPayslipPrint
+        <DriverPayslipWithListingPrint
           year={data.year}
           month={data.month}
           driver={data.driver}
           summary={data.summary}
           advances={data.advances}
+          tripListingRows={data.tripListingRows}
         />
       </DOPrintPageWithShare>
     );
