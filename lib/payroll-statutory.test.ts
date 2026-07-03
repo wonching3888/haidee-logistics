@@ -3,6 +3,7 @@ import {
   buildPayrollSummary,
   calculateLindung24Jam,
   calculateStatutoryDeductions,
+  crateReturnEarningsDisplayTotal,
   isEisExempt,
 } from "@/lib/payroll-statutory";
 import { lookupLindung24Jam } from "@/lib/constants/lindung-24-jam-brackets";
@@ -107,5 +108,16 @@ describe("net salary deduction order", () => {
       overrides: { lindung24Jam: 40 },
     });
     expect(statutory.lindung24Jam).toBe(40);
+  });
+});
+
+describe("crateReturnEarningsDisplayTotal", () => {
+  it("sums commission and multi-market for display only", () => {
+    expect(
+      crateReturnEarningsDisplayTotal({
+        crateCommissionTotal: 500,
+        crateMultiMarketTotal: 30,
+      })
+    ).toBe(530);
   });
 });

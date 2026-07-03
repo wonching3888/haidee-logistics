@@ -22,7 +22,10 @@ import {
   saveDriverPayrollTrip,
 } from "@/app/actions/driver-payroll";
 import { PAYROLL_EXTRA_TYPES } from "@/lib/constants/payroll";
-import type { buildPayrollSummary } from "@/lib/payroll-statutory";
+import {
+  crateReturnEarningsDisplayTotal,
+  type buildPayrollSummary,
+} from "@/lib/payroll-statutory";
 import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getRouteLabel } from "@/lib/payroll-route-label";
 import { DriverPayrollSummaryTable } from "@/components/driver-payroll/DriverPayrollSummaryTable";
@@ -596,7 +599,10 @@ function DriverPayrollDetailSections({
                     label="包车固定工钱 Charter Salary"
                     value={summary.charterSalaryTotal}
                   />
-                  <SummaryRow label="回桶提成 Crate Return" value={summary.crateCommissionTotal} />
+                  <SummaryRow
+                    label="回桶提成 Crate Return"
+                    value={crateReturnEarningsDisplayTotal(summary)}
+                  />
                   <SummaryRow label="额外津贴 Extras" value={summary.extraAllowanceTotal} />
                   <SummaryRow label="应发 Gross" value={summary.grossSalary} bold />
                   <SummaryRow label="EPF 员工" value={-summary.statutory.epfEmployee} />

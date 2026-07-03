@@ -25,6 +25,7 @@ import {
   loadFleetPayrollAggregate,
   type DriverPayrollDriverInput,
 } from "@/lib/payroll-fleet";
+import { crateReturnEarningsDisplayTotal } from "@/lib/payroll-statutory";
 import {
   syncDriverPayrollForMonth,
 } from "@/lib/payroll-month-sync";
@@ -618,7 +619,10 @@ export async function exportDriverPayrollAutoCount(input: {
       trip.markets.join("/"),
       trip.tripAllowance.toFixed(2),
       trip.extraAllowance.toFixed(2),
-      trip.crateReturnCommission.toFixed(2),
+      (
+        trip.crateReturnCommission +
+        (trip.crateReturnMultiMarketAllowance ?? 0)
+      ).toFixed(2),
       "",
       "",
       "",
@@ -671,7 +675,7 @@ export async function exportDriverPayrollAutoCount(input: {
     "",
     summary.tripAllowanceTotal.toFixed(2),
     "",
-    summary.crateCommissionTotal.toFixed(2),
+    crateReturnEarningsDisplayTotal(summary).toFixed(2),
     summary.extraAllowanceTotal.toFixed(2),
     summary.advanceTotal.toFixed(2),
     summary.baseSalary.toFixed(2),

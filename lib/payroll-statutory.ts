@@ -154,6 +154,16 @@ export interface PayrollSummary {
   netSalary: number;
 }
 
+/** UI/CSV display only — commission + multi-market bonus; gross calc unchanged. */
+export function crateReturnEarningsDisplayTotal(input: {
+  crateCommissionTotal: number;
+  crateMultiMarketTotal: number;
+}) {
+  return roundMoney(
+    input.crateCommissionTotal + input.crateMultiMarketTotal
+  );
+}
+
 export function buildPayrollSummary(input: {
   earnings: PayrollSummaryInput;
   maritalStatus: MaritalStatus | null | undefined;

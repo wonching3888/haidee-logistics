@@ -1,5 +1,8 @@
 import { decimalToNumber } from "@/lib/freight-rates";
-import { buildPayrollSummary } from "@/lib/payroll-statutory";
+import {
+  buildPayrollSummary,
+  crateReturnEarningsDisplayTotal,
+} from "@/lib/payroll-statutory";
 import type { MaritalStatus } from "@/lib/constants/payroll";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 import { prisma } from "@/lib/prisma";
@@ -55,6 +58,8 @@ export interface DriverPayrollSummaryRow {
   tripAllowanceTotal: number;
   charterSalaryTotal: number;
   crateCommissionTotal: number;
+  /** Display: crateCommissionTotal + crateMultiMarketTotal */
+  crateReturnDisplayTotal: number;
   extraAllowanceTotal: number;
   grossSalary: number;
   epfEmployee: number;
@@ -220,6 +225,7 @@ export function payrollSummaryToRow(
     tripAllowanceTotal: summary.tripAllowanceTotal,
     charterSalaryTotal: summary.charterSalaryTotal,
     crateCommissionTotal: summary.crateCommissionTotal,
+    crateReturnDisplayTotal: crateReturnEarningsDisplayTotal(summary),
     extraAllowanceTotal: summary.extraAllowanceTotal,
     grossSalary: summary.grossSalary,
     epfEmployee: summary.statutory.epfEmployee,
@@ -247,6 +253,8 @@ export function aggregateFleetPayrollRows(
       tripAllowanceTotal: acc.tripAllowanceTotal + row.tripAllowanceTotal,
       charterSalaryTotal: acc.charterSalaryTotal + row.charterSalaryTotal,
       crateCommissionTotal: acc.crateCommissionTotal + row.crateCommissionTotal,
+      crateReturnDisplayTotal:
+        acc.crateReturnDisplayTotal + row.crateReturnDisplayTotal,
       extraAllowanceTotal: acc.extraAllowanceTotal + row.extraAllowanceTotal,
       grossSalary: acc.grossSalary + row.grossSalary,
       epfEmployee: acc.epfEmployee + row.epfEmployee,
@@ -267,6 +275,7 @@ export function aggregateFleetPayrollRows(
       tripAllowanceTotal: 0,
       charterSalaryTotal: 0,
       crateCommissionTotal: 0,
+      crateReturnDisplayTotal: 0,
       extraAllowanceTotal: 0,
       grossSalary: 0,
       epfEmployee: 0,
@@ -288,6 +297,7 @@ export function aggregateFleetPayrollRows(
     tripAllowanceTotal: roundMoney(totals.tripAllowanceTotal),
     charterSalaryTotal: roundMoney(totals.charterSalaryTotal),
     crateCommissionTotal: roundMoney(totals.crateCommissionTotal),
+    crateReturnDisplayTotal: roundMoney(totals.crateReturnDisplayTotal),
     extraAllowanceTotal: roundMoney(totals.extraAllowanceTotal),
     grossSalary: roundMoney(totals.grossSalary),
     epfEmployee: roundMoney(totals.epfEmployee),

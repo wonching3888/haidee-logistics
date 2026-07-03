@@ -24,7 +24,7 @@ const COLUMNS = [
   { key: "baseSalary", label: "底薪", align: "right" as const },
   { key: "tripAllowanceTotal", label: "趟次津贴", align: "right" as const },
   { key: "charterSalaryTotal", label: "包车固定工钱", align: "right" as const },
-  { key: "crateCommissionTotal", label: "回桶提成", align: "right" as const },
+  { key: "crateReturnDisplayTotal", label: "回桶提成", align: "right" as const },
   { key: "extraAllowanceTotal", label: "额外津贴", align: "right" as const },
   { key: "grossSalary", label: "应发", align: "right" as const },
   { key: "epfEmployee", label: "EPF员工", align: "right" as const },
