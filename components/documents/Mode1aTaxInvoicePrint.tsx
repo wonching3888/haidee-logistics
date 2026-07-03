@@ -1,6 +1,10 @@
 import type { HaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { getHaideeAccountingInvoiceDetails } from "@/lib/constants/haidee-company-details";
 import type { HaideeAccountingInvoiceMode } from "@/lib/constants/haidee-company-details";
+import {
+  formatMode1aBankAccountLine,
+  resolveMode1aIssuerPrint,
+} from "@/lib/constants/mode1a-invoice-issuer-print";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
 import { getHaideeAccountingInvoiceRouteLabel } from "@/lib/constants/invoice-route-labels";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
@@ -41,8 +45,19 @@ export function Mode1aTaxInvoicePrint({
   pageCount = 2,
 }: Mode1aTaxInvoicePrintProps) {
   const mode = resolveAccountingMode(data);
-  const company = INVOICE_COMPANY_HEADERS.haidee;
-  const details = getHaideeAccountingInvoiceDetails(mode);
+  const mode1aIssuer =
+    mode === "1a" ? resolveMode1aIssuerPrint(data.invoiceCompany) : null;
+  const company = mode1aIssuer ?? {
+    nameZh: INVOICE_COMPANY_HEADERS.haidee.nameZh,
+    nameEn: INVOICE_COMPANY_HEADERS.haidee.nameEn,
+    nameTh: undefined as string | undefined,
+  };
+  const details =
+    mode1aIssuer ?? getHaideeAccountingInvoiceDetails(mode);
+  const bankAccountLine =
+    mode === "1a" && mode1aIssuer
+      ? formatMode1aBankAccountLine(mode1aIssuer)
+      : details.bankAccount;
   const printMeta = resolveAccountingPrint(data);
   const { summary } = data;
   const extraCharges = data.extraCharges ?? [];
@@ -59,7 +74,11 @@ export function Mode1aTaxInvoicePrint({
       <HaideeInvoicePrintHeader
         nameZh={company.nameZh}
         nameEn={company.nameEn}
-        nameTh={mode === "1a" ? "บริษัท ไฮดี โลจิสติกส์ จำกัด" : undefined}
+        nameTh={
+          mode === "1a"
+            ? mode1aIssuer?.nameTh
+            : undefined
+        }
         addressLines={[...details.addressLines]}
         phone={details.phone}
         taxId={`Registration No.: ${details.registrationNo}`}
@@ -141,7 +160,7 @@ export function Mode1aTaxInvoicePrint({
       <div className="mode1a-invoice-amount-words">{amountInWords}</div>
 
       <div className="mode1a-invoice-bank">
-        <strong>Bank Account:</strong> {details.bankAccount}
+        <strong>Bank Account:</strong> {bankAccountLine}
       </div>
 
       <div className="mode1a-invoice-computer-note">

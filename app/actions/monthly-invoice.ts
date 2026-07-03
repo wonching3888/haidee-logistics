@@ -18,6 +18,7 @@ import { buildMode4MonthlyInvoiceData, isWtlMonthlyInvoiceData } from "@/lib/mon
 import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
 import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoice-extra-charges";
 import { attachAccountingPrint } from "@/lib/monthly-invoice-accounting-print";
+import { resolveShipperInvoiceCompanyForPrint } from "@/lib/monthly-invoice-shipper-invoice-company";
 import type { MonthlyInvoicePrintData } from "@/lib/monthly-invoice-print-data";
 
 async function requireFreightViewer() {
@@ -151,7 +152,21 @@ export async function getMonthlyInvoicePrintData(input: {
       return withExtras;
     }
 
-    return attachAccountingPrint(withExtras, {
+    const invoiceCompany =
+      input.mode === "1a"
+        ? await resolveShipperInvoiceCompanyForPrint({
+            mode: input.mode,
+            billToRole: withExtras.billToRole,
+            customerId: input.customerId,
+          })
+        : undefined;
+
+    const withIssuer =
+      input.mode === "1a"
+        ? { ...withExtras, invoiceCompany }
+        : withExtras;
+
+    return attachAccountingPrint(withIssuer, {
       mode: input.mode,
       customerId: input.customerId,
       year: input.year,

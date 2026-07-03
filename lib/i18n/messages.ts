@@ -647,9 +647,9 @@ export const MESSAGES = {
     th: "ยอดรวม",
   },
   "invoiceCollections.bankAccount.haideeBbl5030": {
-    zh: "HAIDEE BBL 5030",
-    en: "HAIDEE BBL 5030",
-    th: "HAIDEE BBL 5030",
+    zh: "HAIDEE BBL 5335",
+    en: "HAIDEE BBL 5335",
+    th: "HAIDEE BBL 5335",
   },
   "invoiceCollections.bankAccount.hupdeeKbank5020": {
     zh: "HUPDEE KBANK 5020",

@@ -1,4 +1,5 @@
 import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
+import type { ShipperInvoiceCompany } from "@/lib/constants/shipper-invoice-company";
 import { aggregateHaideeInvoiceLines } from "@/lib/monthly-invoice-haidee-aggregate";
 import type { HaideeAggregatedInvoiceData } from "@/lib/monthly-invoice-haidee-aggregate";
 import { buildInvoiceListing, buildInvoiceListingByShipper } from "@/lib/monthly-invoice-aggregate";
@@ -26,6 +27,8 @@ export interface HaideeMonthlyInvoiceData {
   grandTotalQty: number;
   grandTotalAmount: number;
   billToRole: HaideeMonthlyInvoiceBillToRole;
+  /** Mode 1a only: tax invoice issuer (Haidee vs HUP DEE bank). */
+  invoiceCompany?: ShipperInvoiceCompany;
   summary: HaideeAggregatedInvoiceData;
   listing: InvoiceListingData;
   /** Mode 2 only: listing grouped by inbound shipper. */

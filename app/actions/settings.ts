@@ -10,6 +10,7 @@ import {
   DEFAULT_PICKUP_LOCATION,
   isPickupLocation,
 } from "@/lib/constants/pickup-locations";
+import { isShipperInvoiceCompany } from "@/lib/constants/shipper-invoice-company";
 import { MARKET_ORDER, sortMarkets } from "@/lib/markets";
 import { createAdminClient } from "@/lib/supabase";
 import {
@@ -89,6 +90,7 @@ export async function getSettingsData() {
       defaultTongTypeCode: s.defaultTongType?.code ?? "",
       paymentParty: s.paymentParty,
       company: s.company,
+      invoiceCompany: s.invoiceCompany,
       currency: s.currency,
       pickupLocation: s.pickupLocation,
       active: s.active,
@@ -180,6 +182,7 @@ export async function saveShipper(input: {
   defaultTongTypeId?: string;
   paymentParty: string;
   company: string;
+  invoiceCompany?: string;
   currency?: string;
   pickupLocation?: string;
   active: boolean;
@@ -191,6 +194,11 @@ export async function saveShipper(input: {
     throw new Error("无效的收货地点 Invalid pickup location");
   }
 
+  const invoiceCompany = input.invoiceCompany?.trim() || "haidee";
+  if (!isShipperInvoiceCompany(invoiceCompany)) {
+    throw new Error("无效开单公司 Invalid invoice company");
+  }
+
   const data = {
     code: input.code.trim(),
     name: input.name.trim(),
@@ -199,6 +207,7 @@ export async function saveShipper(input: {
     defaultTongTypeId: input.defaultTongTypeId || null,
     paymentParty: input.paymentParty,
     company: input.company,
+    invoiceCompany,
     currency: input.currency?.trim() || "THB",
     pickupLocation,
     active: input.active,

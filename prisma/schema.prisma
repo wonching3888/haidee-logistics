@@ -122,6 +122,8 @@ model Shipper {
   defaultTongTypeId String? @map("default_tong_type_id") @db.Uuid
   paymentParty     String   @default("shipper") @map("payment_party")
   company          String   @default("haidee")
+  /// Mode 1a tax invoice issuer: haidee | hupdee_bbl | hupdee_kbank (operational company unchanged).
+  invoiceCompany   String   @default("haidee") @map("invoice_company")
   currency         String   @default("THB")
   /// operational | logistics_partner | crate_stock_agent — agents hold pooled crate stock.
   shipperKind      String   @default("operational") @map("shipper_kind")

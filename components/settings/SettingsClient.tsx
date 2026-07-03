@@ -66,6 +66,7 @@ import {
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
 } from "@/lib/constants/settings-nav";
+import { SHIPPER_INVOICE_COMPANIES } from "@/lib/constants/shipper-invoice-company";
 
 interface MarketOption {
   id: string;
@@ -90,6 +91,7 @@ interface SettingsData {
     defaultTongTypeCode: string;
     paymentParty: string;
     company: string;
+    invoiceCompany: string;
     currency: string;
     pickupLocation: string;
     active: boolean;
@@ -270,6 +272,7 @@ export function SettingsClient({
     defaultTongTypeId: "",
     paymentParty: "shipper",
     company: "haidee",
+    invoiceCompany: "haidee",
     currency: "THB",
     pickupLocation: "SADAO",
     active: true,
@@ -354,6 +357,7 @@ export function SettingsClient({
                   defaultTongTypeId: data.tongTypes[0]?.id ?? "",
                   paymentParty: "shipper",
                   company: "haidee",
+                  invoiceCompany: "haidee",
                   currency: "THB",
                   pickupLocation: "SADAO",
                   active: true,
@@ -406,6 +410,7 @@ export function SettingsClient({
                           defaultTongTypeId: s.defaultTongTypeId ?? "",
                           paymentParty: s.paymentParty,
                           company: s.company,
+                          invoiceCompany: s.invoiceCompany ?? "haidee",
                           currency: s.currency,
                           pickupLocation: s.pickupLocation,
                           active: s.active,
@@ -820,6 +825,21 @@ export function SettingsClient({
           >
             <option value="haidee">HAI DEE</option>
             <option value="wtl">WTL</option>
+          </select>
+        </FormField>
+        <FormField label="开单公司 Invoice Company (1a)">
+          <select
+            value={shipperForm.invoiceCompany}
+            onChange={(e) =>
+              setShipperForm({ ...shipperForm, invoiceCompany: e.target.value })
+            }
+            className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+          >
+            {SHIPPER_INVOICE_COMPANIES.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
           </select>
         </FormField>
         <FormField label="收货地点 Pickup Location">

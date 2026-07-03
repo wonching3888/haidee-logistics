@@ -36,6 +36,11 @@ export function HaideeMonthlyInvoicePrint({ data }: HaideeMonthlyInvoicePrintPro
       <div className="invoice-print-page">
         <InvoiceListingPrint
           issuerKey={data.mode.issuerKey}
+          invoiceCompany={
+            data.mode.value === "1a"
+              ? (data.invoiceCompany ?? "haidee")
+              : undefined
+          }
           customerName={data.customerName}
           periodLabel={data.periodLabel}
           listing={data.listing}

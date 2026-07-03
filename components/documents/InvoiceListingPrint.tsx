@@ -1,5 +1,7 @@
 import type { MonthlyInvoiceModeConfig } from "@/lib/constants/monthly-invoice";
 import { INVOICE_COMPANY_HEADERS } from "@/lib/constants/monthly-invoice";
+import { resolveMode1aIssuerPrint } from "@/lib/constants/mode1a-invoice-issuer-print";
+import type { ShipperInvoiceCompany } from "@/lib/constants/shipper-invoice-company";
 import type {
   InvoiceListingByShipperData,
   InvoiceListingData,
@@ -16,6 +18,8 @@ export interface InvoiceListingPrintProps {
   customerName: string;
   periodLabel: string;
   listing: InvoiceListingData;
+  /** Mode 1a: tax invoice issuer for listing letterhead (Haidee vs HUP DEE). */
+  invoiceCompany?: ShipperInvoiceCompany;
   /** Mode 2: group listing matrices by inbound shipper. */
   listingByShipper?: InvoiceListingByShipperData;
 }
@@ -73,14 +77,28 @@ export function InvoiceListingPrint({
   customerName,
   periodLabel,
   listing,
+  invoiceCompany,
   listingByShipper,
 }: InvoiceListingPrintProps) {
+  const mode1aIssuer =
+    issuerKey === "haidee" && invoiceCompany
+      ? resolveMode1aIssuerPrint(invoiceCompany)
+      : null;
   const company = INVOICE_COMPANY_HEADERS[issuerKey];
 
   return (
     <div className="document-print mode4-listing-print">
       {issuerKey === "wtl" ? (
         <WtlExpressInvoiceLetterhead />
+      ) : mode1aIssuer ? (
+        <PrintLetterhead
+          nameZh={mode1aIssuer.nameZh}
+          nameEn={mode1aIssuer.nameEn}
+          nameTh={mode1aIssuer.nameTh}
+          addressLines={mode1aIssuer.addressLines}
+          phone={mode1aIssuer.phone}
+          taxId={`Registration No.: ${mode1aIssuer.registrationNo}`}
+        />
       ) : (
         <PrintLetterhead nameZh={company.nameZh} nameEn={company.nameEn} />
       )}
