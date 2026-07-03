@@ -147,4 +147,34 @@
   .driver-payslip-print {
     font-size: 10pt;
   }
+
+  .driver-payslip-batch-print {
+    gap: 0;
+  }
+
+  .driver-payslip-batch-page {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .driver-payslip-batch-page--last {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+.driver-payslip-batch-print {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.driver-payslip-batch-page {
+  page-break-after: always;
+  break-after: page;
+}
+
+.driver-payslip-batch-page--last {
+  page-break-after: auto;
+  break-after: auto;
 }

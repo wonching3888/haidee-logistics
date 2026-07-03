@@ -262,6 +262,16 @@ export function DriverPayrollView({
         ) : summaryData ? (
           <div className="space-y-6">
             <DriverPayrollSummaryTable data={summaryData} />
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/driver-payroll/print/batch?year=${year}&month=${month}&returnTo=${encodeURIComponent(`/driver-payroll?year=${year}&month=${month}`)}`}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-haidee-border bg-white px-4 text-sm font-medium hover:bg-haidee-surface"
+              >
+                <Printer className="h-4 w-4" />
+                批量工资单 Batch Payslip (
+                {summaryData.rows.filter((r) => r.name !== "Din").length} 人)
+              </Link>
+            </div>
             {canExportJv ? (
               <PayrollJvExportPanel
                 year={year}

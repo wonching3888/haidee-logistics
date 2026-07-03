@@ -34,6 +34,9 @@ import {
   diffPayrollTripFieldChanges,
 } from "@/lib/payroll-audit";
 import { applyPayrollOverridePatch } from "@/lib/payroll-override-write";
+import {
+  loadBatchDriverPayslipEntries,
+} from "@/lib/driver-payslip-batch";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -378,6 +381,14 @@ export async function getDriverPayslipPrintData(input: {
         note: item.note,
       })),
   };
+}
+
+export async function getBatchDriverPayslipPrintData(input: {
+  year: number;
+  month: number;
+}) {
+  await requirePayrollAccess();
+  return loadBatchDriverPayslipEntries(input.year, input.month);
 }
 
 export async function saveDriverPayrollTrip(input: {
