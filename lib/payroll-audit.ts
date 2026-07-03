@@ -21,6 +21,7 @@ export const PAYROLL_OVERRIDE_FIELDS = [
   "epfEmployerOverride",
   "socsoEmployeeOverride",
   "socsoEmployerOverride",
+  "lindung24JamOverride",
   "eisEmployeeOverride",
   "eisEmployerOverride",
   "pcbOverride",
@@ -41,6 +42,7 @@ export const PAYROLL_OVERRIDE_FIELD_LABELS: Record<PayrollOverrideField, string>
     epfEmployerOverride: "EPF 雇主",
     socsoEmployeeOverride: "SOCSO 员工",
     socsoEmployerOverride: "SOCSO 雇主",
+    lindung24JamOverride: "Lindung 24 jam",
     eisEmployeeOverride: "EIS 员工",
     eisEmployerOverride: "EIS 雇主",
     pcbOverride: "PCB",
@@ -128,6 +130,7 @@ export function diffPayrollOverrideChanges(
     epfEmployer?: number | null;
     socsoEmployee?: number | null;
     socsoEmployer?: number | null;
+    lindung24Jam?: number | null;
     eisEmployee?: number | null;
     eisEmployer?: number | null;
     pcb?: number | null;
@@ -141,6 +144,7 @@ export function diffPayrollOverrideChanges(
     epfEmployerOverride: input.epfEmployer,
     socsoEmployeeOverride: input.socsoEmployee,
     socsoEmployerOverride: input.socsoEmployer,
+    lindung24JamOverride: input.lindung24Jam,
     eisEmployeeOverride: input.eisEmployee,
     eisEmployerOverride: input.eisEmployer,
     pcbOverride: input.pcb,

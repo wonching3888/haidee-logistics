@@ -92,7 +92,7 @@ export function DriverPayrollSettingsSection({
             <dd className="font-mono">{SHARED_PAYROLL_JV_ACCOUNTS.epfPayable}</dd>
           </div>
           <div>
-            <dt className="text-haidee-muted">SOCSO/EIS 应付</dt>
+            <dt className="text-haidee-muted">SOCSO/EIS/Lindung 应付</dt>
             <dd className="font-mono">
               {SHARED_PAYROLL_JV_ACCOUNTS.socsoEisPayable}
             </dd>

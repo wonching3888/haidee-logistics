@@ -5,7 +5,9 @@ import {
   EPF_EMPLOYEE_RATE,
   EPF_EMPLOYER_RATE,
 } from "@/lib/constants/payroll";
+import { lookupLindung24Jam } from "@/lib/constants/lindung-24-jam-brackets";
 import { lookupSocsoContributions } from "@/lib/constants/socso-brackets";
+import { lookupSocsoSecondCategoryEmployer } from "@/lib/constants/socso-second-category-brackets";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -16,6 +18,7 @@ export interface StatutoryOverrides {
   epfEmployer?: number | null;
   socsoEmployee?: number | null;
   socsoEmployer?: number | null;
+  lindung24Jam?: number | null;
   eisEmployee?: number | null;
   eisEmployer?: number | null;
   pcb?: number | null;
@@ -26,9 +29,20 @@ export interface StatutoryDeductions {
   epfEmployer: number;
   socsoEmployee: number;
   socsoEmployer: number;
+  lindung24Jam: number;
   eisEmployee: number;
   eisEmployer: number;
   pcb: number;
+}
+
+/** SKBBK (Lindung 24 jam) — official PERKESO bracket lookup, employee-borne. */
+export function calculateLindung24Jam(grossSalary: number) {
+  return lookupLindung24Jam(grossSalary);
+}
+
+/** EIS covers employees aged 18–60 only; 60+ (Second Category) exempt. */
+export function isEisExempt(isSocsoSecondCategory?: boolean) {
+  return Boolean(isSocsoSecondCategory);
 }
 
 /** Simplified monthly PCB based on chargeable income, marital status and children. */
@@ -57,9 +71,11 @@ export function calculateStatutoryDeductions(input: {
   grossSalary: number;
   maritalStatus: MaritalStatus | null | undefined;
   childCount: number;
+  isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
 }): StatutoryDeductions {
   const gross = Math.max(0, input.grossSalary);
+  const eisExempt = isEisExempt(input.isSocsoSecondCategory);
 
   const epfEmployee =
     input.overrides?.epfEmployee ??
@@ -69,15 +85,29 @@ export function calculateStatutoryDeductions(input: {
     roundMoney(gross * EPF_EMPLOYER_RATE);
 
   const socsoBase = gross;
-  const socso = lookupSocsoContributions(socsoBase);
-  const socsoEmployee = input.overrides?.socsoEmployee ?? socso.employee;
-  const socsoEmployer = input.overrides?.socsoEmployer ?? socso.employer;
+  let socsoEmployee: number;
+  let socsoEmployer: number;
+  if (input.isSocsoSecondCategory) {
+    socsoEmployee = input.overrides?.socsoEmployee ?? 0;
+    socsoEmployer =
+      input.overrides?.socsoEmployer ??
+      lookupSocsoSecondCategoryEmployer(socsoBase);
+  } else {
+    const socso = lookupSocsoContributions(socsoBase);
+    socsoEmployee = input.overrides?.socsoEmployee ?? socso.employee;
+    socsoEmployer = input.overrides?.socsoEmployer ?? socso.employer;
+  }
+
+  const lindung24Jam =
+    input.overrides?.lindung24Jam ?? calculateLindung24Jam(gross);
 
   const eisBase = Math.min(gross, EIS_WAGE_CEILING);
   const eisEmployee =
-    input.overrides?.eisEmployee ?? roundMoney(eisBase * EIS_RATE);
+    input.overrides?.eisEmployee ??
+    (eisExempt ? 0 : roundMoney(eisBase * EIS_RATE));
   const eisEmployer =
-    input.overrides?.eisEmployer ?? roundMoney(eisBase * EIS_RATE);
+    input.overrides?.eisEmployer ??
+    (eisExempt ? 0 : roundMoney(eisBase * EIS_RATE));
 
   const pcb =
     input.overrides?.pcb ??
@@ -93,6 +123,7 @@ export function calculateStatutoryDeductions(input: {
     epfEmployer,
     socsoEmployee,
     socsoEmployer,
+    lindung24Jam,
     eisEmployee,
     eisEmployer,
     pcb,
@@ -115,6 +146,7 @@ export interface PayrollSummary {
   tripAllowanceTotal: number;
   charterSalaryTotal: number;
   crateCommissionTotal: number;
+  crateMultiMarketTotal: number;
   extraAllowanceTotal: number;
   advanceTotal: number;
   grossSalary: number;
@@ -126,6 +158,7 @@ export function buildPayrollSummary(input: {
   earnings: PayrollSummaryInput;
   maritalStatus: MaritalStatus | null | undefined;
   childCount: number;
+  isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
 }): PayrollSummary {
   const extraAllowanceTotal = roundMoney(
@@ -144,6 +177,7 @@ export function buildPayrollSummary(input: {
     grossSalary,
     maritalStatus: input.maritalStatus,
     childCount: input.childCount,
+    isSocsoSecondCategory: input.isSocsoSecondCategory,
     overrides: input.overrides,
   });
 
@@ -153,6 +187,7 @@ export function buildPayrollSummary(input: {
       grossSalary -
         statutory.epfEmployee -
         statutory.socsoEmployee -
+        statutory.lindung24Jam -
         statutory.eisEmployee -
         statutory.pcb -
         input.earnings.advanceTotal
@@ -164,6 +199,7 @@ export function buildPayrollSummary(input: {
     tripAllowanceTotal: input.earnings.tripAllowanceTotal,
     charterSalaryTotal: input.earnings.charterSalaryTotal,
     crateCommissionTotal: input.earnings.crateCommissionTotal,
+    crateMultiMarketTotal: input.earnings.crateMultiMarketTotal,
     extraAllowanceTotal,
     advanceTotal: input.earnings.advanceTotal,
     grossSalary,

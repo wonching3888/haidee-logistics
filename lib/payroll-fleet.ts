@@ -15,6 +15,7 @@ export interface DriverPayrollDriverInput {
   baseSalary: number | null;
   maritalStatus: MaritalStatus | null;
   childCount: number;
+  isSocsoSecondCategory?: boolean;
 }
 
 export interface DriverPayrollOverridesInput {
@@ -22,6 +23,7 @@ export interface DriverPayrollOverridesInput {
   epfEmployerOverride?: unknown;
   socsoEmployeeOverride?: unknown;
   socsoEmployerOverride?: unknown;
+  lindung24JamOverride?: unknown;
   eisEmployeeOverride?: unknown;
   eisEmployerOverride?: unknown;
   pcbOverride?: unknown;
@@ -40,6 +42,7 @@ export interface DriverPayrollMonthInput {
   epfEmployerOverride?: unknown;
   socsoEmployeeOverride?: unknown;
   socsoEmployerOverride?: unknown;
+  lindung24JamOverride?: unknown;
   eisEmployeeOverride?: unknown;
   eisEmployerOverride?: unknown;
   pcbOverride?: unknown;
@@ -56,6 +59,7 @@ export interface DriverPayrollSummaryRow {
   grossSalary: number;
   epfEmployee: number;
   socsoEmployee: number;
+  lindung24Jam: number;
   eisEmployee: number;
   pcb: number;
   netSalary: number;
@@ -87,6 +91,7 @@ const EMPTY_OVERRIDES = {
   eisEmployeeOverride: null,
   eisEmployerOverride: null,
   pcbOverride: null,
+  lindung24JamOverride: null,
 };
 
 function sumTripField(
@@ -115,6 +120,7 @@ function statutoryOverridesFromInput(
     epfEmployer: decimalToNumber(source.epfEmployerOverride),
     socsoEmployee: decimalToNumber(source.socsoEmployeeOverride),
     socsoEmployer: decimalToNumber(source.socsoEmployerOverride),
+    lindung24Jam: decimalToNumber(source.lindung24JamOverride),
     eisEmployee: decimalToNumber(source.eisEmployeeOverride),
     eisEmployer: decimalToNumber(source.eisEmployerOverride),
     pcb: decimalToNumber(source.pcbOverride),
@@ -165,6 +171,7 @@ export function buildDriverPayrollSummaryFromRecords(input: {
     earnings: earningsFromTrips(input.driver, input.trips, input.extras),
     maritalStatus: input.driver.maritalStatus,
     childCount: input.driver.childCount,
+    isSocsoSecondCategory: input.driver.isSocsoSecondCategory,
     overrides: statutoryOverridesFromInput(input.overrides),
   });
 }
@@ -180,6 +187,7 @@ export function buildCompanyPayrollSummaryFromRecords(input: {
     earnings: earningsFromTrips(input.driver, input.trips, input.extras),
     maritalStatus: input.driver.maritalStatus,
     childCount: input.driver.childCount,
+    isSocsoSecondCategory: input.driver.isSocsoSecondCategory,
     overrides: statutoryOverridesFromInput(input.overrides),
   });
 }
@@ -216,6 +224,7 @@ export function payrollSummaryToRow(
     grossSalary: summary.grossSalary,
     epfEmployee: summary.statutory.epfEmployee,
     socsoEmployee: summary.statutory.socsoEmployee,
+    lindung24Jam: summary.statutory.lindung24Jam,
     eisEmployee: summary.statutory.eisEmployee,
     pcb: summary.statutory.pcb,
     netSalary: summary.netSalary,
@@ -242,6 +251,7 @@ export function aggregateFleetPayrollRows(
       grossSalary: acc.grossSalary + row.grossSalary,
       epfEmployee: acc.epfEmployee + row.epfEmployee,
       socsoEmployee: acc.socsoEmployee + row.socsoEmployee,
+      lindung24Jam: acc.lindung24Jam + row.lindung24Jam,
       eisEmployee: acc.eisEmployee + row.eisEmployee,
       pcb: acc.pcb + row.pcb,
       netSalary: acc.netSalary + row.netSalary,
@@ -261,6 +271,7 @@ export function aggregateFleetPayrollRows(
       grossSalary: 0,
       epfEmployee: 0,
       socsoEmployee: 0,
+      lindung24Jam: 0,
       eisEmployee: 0,
       pcb: 0,
       netSalary: 0,
@@ -281,6 +292,7 @@ export function aggregateFleetPayrollRows(
     grossSalary: roundMoney(totals.grossSalary),
     epfEmployee: roundMoney(totals.epfEmployee),
     socsoEmployee: roundMoney(totals.socsoEmployee),
+    lindung24Jam: roundMoney(totals.lindung24Jam),
     eisEmployee: roundMoney(totals.eisEmployee),
     pcb: roundMoney(totals.pcb),
     netSalary: roundMoney(totals.netSalary),
@@ -345,6 +357,7 @@ export async function loadFleetPayrollAggregate(
       baseSalary: decimalToNumber(driver.baseSalary),
       maritalStatus: driver.maritalStatus as MaritalStatus | null,
       childCount: driver.childCount,
+      isSocsoSecondCategory: driver.isSocsoSecondCategory,
     };
     const monthRecord = driver.payrollMonths[0];
     const trips = monthRecord?.trips ?? [];

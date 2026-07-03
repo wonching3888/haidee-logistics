@@ -14,7 +14,7 @@ function tripFixture(
 }
 
 function monthFixture(
-  values: Pick<DriverPayrollMonth, "epfEmployeeOverride" | "epfEmployerOverride" | "socsoEmployeeOverride" | "socsoEmployerOverride" | "eisEmployeeOverride" | "eisEmployerOverride" | "pcbOverride">
+  values: Pick<DriverPayrollMonth, "epfEmployeeOverride" | "epfEmployerOverride" | "socsoEmployeeOverride" | "socsoEmployerOverride" | "lindung24JamOverride" | "eisEmployeeOverride" | "eisEmployerOverride" | "pcbOverride">
 ) {
   return values;
 }
@@ -77,6 +77,7 @@ describe("diffPayrollOverrideChanges", () => {
         epfEmployerOverride: null,
         socsoEmployeeOverride: null,
         socsoEmployerOverride: null,
+        lindung24JamOverride: null,
         eisEmployeeOverride: null,
         eisEmployerOverride: null,
         pcbOverride: 10 as never,

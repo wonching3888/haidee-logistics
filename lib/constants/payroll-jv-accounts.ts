@@ -1,6 +1,7 @@
 /** Shared AutoCount JV accounts (same for every driver). */
 export const SHARED_PAYROLL_JV_ACCOUNTS = {
   epfPayable: "4101-0000",
+  /** SOCSO + EIS + Lindung 24 jam (SKBBK) employee remittance to PERKESO. */
   socsoEisPayable: "4102-0000",
   pcbPayable: "4103-0000",
 } as const;

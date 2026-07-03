@@ -88,6 +88,7 @@ function serializeDriver(driver: {
   maritalStatus: string | null;
   childCount: number;
   accountCodeSuffix: string | null;
+  isSocsoSecondCategory: boolean;
 }) {
   return {
     id: driver.id,
@@ -102,6 +103,7 @@ function serializeDriver(driver: {
     maritalStatus: driver.maritalStatus as MaritalStatus | null,
     childCount: driver.childCount,
     accountCodeSuffix: driver.accountCodeSuffix,
+    isSocsoSecondCategory: driver.isSocsoSecondCategory,
     payrollName: getDriverPayrollName({
       fullName: driver.fullName,
       name: driver.name,
@@ -118,6 +120,7 @@ function toPayrollDriverInput(
     baseSalary: driver.baseSalary,
     maritalStatus: driver.maritalStatus,
     childCount: driver.childCount,
+    isSocsoSecondCategory: driver.isSocsoSecondCategory,
   };
 }
 
@@ -139,6 +142,7 @@ function buildSummaryFromRecords(input: {
     eisEmployeeOverride: unknown;
     eisEmployerOverride: unknown;
     pcbOverride: unknown;
+    lindung24JamOverride: unknown;
   };
 }) {
   return buildDriverPayrollSummaryFromRecords({
@@ -224,6 +228,7 @@ export async function getDriverPayrollMonth(input: {
       eisEmployeeOverride: null,
       eisEmployerOverride: null,
       pcbOverride: null,
+      lindung24JamOverride: null,
     },
   }).statutory;
 
@@ -241,6 +246,7 @@ export async function getDriverPayrollMonth(input: {
       eisEmployee: decimalToNumber(record.eisEmployeeOverride),
       eisEmployer: decimalToNumber(record.eisEmployerOverride),
       pcb: decimalToNumber(record.pcbOverride),
+      lindung24Jam: decimalToNumber(record.lindung24JamOverride),
     },
     trips: record.trips.map((trip) => {
       const crateReturnCommission = decimalToNumber(trip.crateReturnCommission) ?? 0;
@@ -510,6 +516,7 @@ export async function saveDriverPayrollOverrides(input: {
   eisEmployee?: number | null;
   eisEmployer?: number | null;
   pcb?: number | null;
+  lindung24Jam?: number | null;
 }) {
   const user = await requirePayrollWriteAccess();
   const existing = await prisma.driverPayrollMonth.findUnique({
@@ -534,6 +541,7 @@ export async function saveDriverPayrollOverrides(input: {
         eisEmployeeOverride: input.eisEmployee ?? null,
         eisEmployerOverride: input.eisEmployer ?? null,
         pcbOverride: input.pcb ?? null,
+        lindung24JamOverride: input.lindung24Jam ?? null,
       },
     });
     await appendPayrollChangeLogs(tx, {

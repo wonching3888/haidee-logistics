@@ -59,6 +59,8 @@ export default defineConfig({
       "lib/driver-payroll-crate-multi-market.test.ts",
       "lib/driver-payroll-trip-sync.test.ts",
       "lib/payroll-charter-salary.test.ts",
+      "lib/payroll-statutory.test.ts",
+      "lib/constants/socso-brackets.test.ts",
       "lib/charter-payroll-salary.test.ts",
       "lib/operations-payroll-warnings.test.ts",
       "lib/payroll-audit.test.ts",

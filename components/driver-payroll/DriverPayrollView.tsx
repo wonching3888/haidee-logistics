@@ -90,6 +90,7 @@ export function DriverPayrollView({
       epfEmployer: result.overrides.epfEmployer?.toString() ?? "",
       socsoEmployee: result.overrides.socsoEmployee?.toString() ?? "",
       socsoEmployer: result.overrides.socsoEmployer?.toString() ?? "",
+      lindung24Jam: result.overrides.lindung24Jam?.toString() ?? "",
       eisEmployee: result.overrides.eisEmployee?.toString() ?? "",
       eisEmployer: result.overrides.eisEmployer?.toString() ?? "",
       pcb: result.overrides.pcb?.toString() ?? "",
@@ -536,6 +537,7 @@ function DriverPayrollDetailSections({
                     ["epfEmployer", "EPF 雇主 13%"],
                     ["socsoEmployee", "SOCSO 员工"],
                     ["socsoEmployer", "SOCSO 雇主"],
+                    ["lindung24Jam", "Lindung 24 jam (SKBBK)"],
                     ["eisEmployee", "EIS 员工 0.2%"],
                     ["eisEmployer", "EIS 雇主 0.2%"],
                     ["pcb", "PCB 所得税"],
@@ -571,6 +573,7 @@ function DriverPayrollDetailSections({
                         epfEmployer: parseOptionalOverride(overrideForm.epfEmployer),
                         socsoEmployee: parseOptionalOverride(overrideForm.socsoEmployee),
                         socsoEmployer: parseOptionalOverride(overrideForm.socsoEmployer),
+                        lindung24Jam: parseOptionalOverride(overrideForm.lindung24Jam),
                         eisEmployee: parseOptionalOverride(overrideForm.eisEmployee),
                         eisEmployer: parseOptionalOverride(overrideForm.eisEmployer),
                         pcb: parseOptionalOverride(overrideForm.pcb),
@@ -598,6 +601,7 @@ function DriverPayrollDetailSections({
                   <SummaryRow label="应发 Gross" value={summary.grossSalary} bold />
                   <SummaryRow label="EPF 员工" value={-summary.statutory.epfEmployee} />
                   <SummaryRow label="SOCSO 员工" value={-summary.statutory.socsoEmployee} />
+                  <SummaryRow label="Lindung 24 jam" value={-summary.statutory.lindung24Jam} />
                   <SummaryRow label="EIS 员工" value={-summary.statutory.eisEmployee} />
                   <SummaryRow label="PCB" value={-summary.statutory.pcb} />
                   <SummaryRow label="借支扣除 Advance" value={-summary.advanceTotal} />

@@ -13,6 +13,7 @@ function akimJuneSummary(): PayrollSummary {
     tripAllowanceTotal: 3000,
     charterSalaryTotal: 0,
     crateCommissionTotal: 170,
+    crateMultiMarketTotal: 0,
     extraAllowanceTotal: 100,
     advanceTotal: 2000,
     grossSalary: 4970,
@@ -21,11 +22,12 @@ function akimJuneSummary(): PayrollSummary {
       epfEmployer: 646.1,
       socsoEmployee: 17.5,
       socsoEmployer: 34.3,
+      lindung24Jam: 37.15,
       eisEmployee: 10.04,
       eisEmployer: 38.44,
       pcb: 0,
     },
-    netSalary: 2395.76,
+    netSalary: 2358.61,
   };
 }
 
@@ -39,7 +41,7 @@ describe("payroll JV export permissions", () => {
 });
 
 describe("buildDriverJvFromSummary", () => {
-  it("builds balanced AKIM June JV with correct account codes and totals", () => {
+  it("builds balanced AKIM June JV with Lindung in 4102 payable", () => {
     const jv = buildDriverJvFromSummary({
       driver: {
         id: "akim-id",
@@ -61,10 +63,11 @@ describe("buildDriverJvFromSummary", () => {
       epfEmployer: 646.1,
       socsoEisEmployer: 72.74,
       epfPayable: 1192.8,
-      socsoEisPayable: 100.28,
+      socsoEisLindungPayable: 137.43,
+      lindung24Jam: 37.15,
       pcb: 0,
       advance: 2000,
-      netSalary: 2395.76,
+      netSalary: 2358.61,
     });
 
     const byAccount = Object.fromEntries(
@@ -79,10 +82,10 @@ describe("buildDriverJvFromSummary", () => {
     expect(byAccount["9005-AKIM"]).toEqual({ debit: 646.1, credit: 0 });
     expect(byAccount["9006-AKIM"]).toEqual({ debit: 72.74, credit: 0 });
     expect(byAccount["4101-0000"]).toEqual({ debit: 0, credit: 1192.8 });
-    expect(byAccount["4102-0000"]).toEqual({ debit: 0, credit: 100.28 });
+    expect(byAccount["4102-0000"]).toEqual({ debit: 0, credit: 137.43 });
     expect(byAccount["4103-0000"]).toBeUndefined();
     expect(byAccount["3301-AKIM"]).toEqual({ debit: 0, credit: 2000 });
-    expect(byAccount["4104-AKIM"]).toEqual({ debit: 0, credit: 2395.76 });
+    expect(byAccount["4104-AKIM"]).toEqual({ debit: 0, credit: 2358.61 });
   });
 
   it("omits zero-amount lines including PCB", () => {
@@ -181,7 +184,7 @@ describe("generatePayrollJvCsv", () => {
     expect(csv.startsWith("\uFEFF")).toBe(true);
     expect(csv).toContain("日期 Date,JV号 JVNo,科目码 AccountCode,借 Debit,贷 Credit,备注 Description");
     expect(csv).toContain("JV-2606-001,6308-AKIM,1700.00,,");
-    expect(csv).toContain(",4104-AKIM,,2395.76,");
+    expect(csv).toContain(",4104-AKIM,,2358.61,");
   });
 });
 
@@ -207,6 +210,7 @@ describe("buildMonthlyDriverJvRows integration", () => {
       for (const jv of result.drivers) {
         expect(jv.balanced).toBe(true);
         expect(jv.debitTotal).toBe(jv.creditTotal);
+        expect(Math.abs(jv.imbalance)).toBeLessThanOrEqual(0.01);
       }
     },
     60000
@@ -253,6 +257,7 @@ describe("buildMonthlyDriverJvRows integration", () => {
           baseSalary: decimalToNumber(driver!.baseSalary),
           maritalStatus: driver!.maritalStatus as "single" | "married" | null,
           childCount: driver!.childCount,
+          isSocsoSecondCategory: driver!.isSocsoSecondCategory,
         },
         trips: monthRecord?.trips ?? [],
         extras: monthRecord?.extras ?? [],
@@ -264,6 +269,7 @@ describe("buildMonthlyDriverJvRows integration", () => {
         summary.tripAllowanceTotal +
           summary.charterSalaryTotal +
           summary.crateCommissionTotal +
+          summary.crateMultiMarketTotal +
           summary.extraAllowanceTotal
       );
       expect(akimJv!.amounts.netSalary).toBe(summary.netSalary);
@@ -271,6 +277,14 @@ describe("buildMonthlyDriverJvRows integration", () => {
       expect(akimJv!.amounts.epfEmployer).toBe(summary.statutory.epfEmployer);
       expect(akimJv!.amounts.epfPayable).toBe(
         summary.statutory.epfEmployee + summary.statutory.epfEmployer
+      );
+      expect(akimJv!.amounts.lindung24Jam).toBe(summary.statutory.lindung24Jam);
+      expect(akimJv!.amounts.socsoEisLindungPayable).toBe(
+        summary.statutory.socsoEmployee +
+          summary.statutory.eisEmployee +
+          summary.statutory.socsoEmployer +
+          summary.statutory.eisEmployer +
+          summary.statutory.lindung24Jam
       );
 
       const codes = akimJv!.lines.map((line) => line.accountCode);

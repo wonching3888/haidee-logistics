@@ -380,6 +380,7 @@ model Driver {
   maritalStatus         String?  @map("marital_status")
   childCount            Int      @default(0) @map("child_count")
   accountCodeSuffix     String?  @map("account_code_suffix")
+  isSocsoSecondCategory Boolean  @default(false) @map("is_socso_second_category")
   createdAt DateTime @default(now()) @map("created_at")
 
   trucks            Truck[]
@@ -401,6 +402,7 @@ model DriverPayrollMonth {
   eisEmployeeOverride   Decimal? @map("eis_employee_override") @db.Decimal(10, 2)
   eisEmployerOverride   Decimal? @map("eis_employer_override") @db.Decimal(10, 2)
   pcbOverride           Decimal? @map("pcb_override") @db.Decimal(10, 2)
+  lindung24JamOverride  Decimal? @map("lindung_24_jam_override") @db.Decimal(10, 2)
   updatedAt DateTime @updatedAt @map("updated_at")
 
   driver Driver              @relation(fields: [driverId], references: [id])

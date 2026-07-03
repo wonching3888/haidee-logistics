@@ -29,6 +29,7 @@ const COLUMNS = [
   { key: "grossSalary", label: "应发", align: "right" as const },
   { key: "epfEmployee", label: "EPF员工", align: "right" as const },
   { key: "socsoEmployee", label: "SOCSO员工", align: "right" as const },
+  { key: "lindung24Jam", label: "Lindung", align: "right" as const },
   { key: "eisEmployee", label: "EIS员工", align: "right" as const },
   { key: "pcb", label: "PCB", align: "right" as const },
   { key: "netSalary", label: "实发", align: "right" as const },

@@ -1,0 +1,78 @@
+/** PERKESO Second Category (60+) — employer-only Employment Injury Scheme. */
+export const SOCSO_SECOND_CATEGORY_BRACKETS: {
+  wageTo: number;
+  employer: number;
+}[] = [
+  { wageTo: 30, employer: 0.3 },
+  { wageTo: 50, employer: 0.5 },
+  { wageTo: 70, employer: 0.8 },
+  { wageTo: 100, employer: 1.1 },
+  { wageTo: 140, employer: 1.5 },
+  { wageTo: 200, employer: 2.1 },
+  { wageTo: 300, employer: 3.1 },
+  { wageTo: 400, employer: 4.4 },
+  { wageTo: 500, employer: 5.6 },
+  { wageTo: 600, employer: 6.9 },
+  { wageTo: 700, employer: 8.1 },
+  { wageTo: 800, employer: 9.4 },
+  { wageTo: 900, employer: 10.6 },
+  { wageTo: 1000, employer: 11.9 },
+  { wageTo: 1100, employer: 13.1 },
+  { wageTo: 1200, employer: 14.4 },
+  { wageTo: 1300, employer: 15.6 },
+  { wageTo: 1400, employer: 16.9 },
+  { wageTo: 1500, employer: 18.1 },
+  { wageTo: 1600, employer: 19.4 },
+  { wageTo: 1700, employer: 20.6 },
+  { wageTo: 1800, employer: 21.9 },
+  { wageTo: 1900, employer: 23.1 },
+  { wageTo: 2000, employer: 24.4 },
+  { wageTo: 2100, employer: 25.6 },
+  { wageTo: 2200, employer: 26.9 },
+  { wageTo: 2300, employer: 28.1 },
+  { wageTo: 2400, employer: 29.4 },
+  { wageTo: 2500, employer: 30.6 },
+  { wageTo: 2600, employer: 31.9 },
+  { wageTo: 2700, employer: 33.1 },
+  { wageTo: 2800, employer: 34.4 },
+  { wageTo: 2900, employer: 35.6 },
+  { wageTo: 3000, employer: 36.9 },
+  { wageTo: 3100, employer: 38.1 },
+  { wageTo: 3200, employer: 39.4 },
+  { wageTo: 3300, employer: 40.6 },
+  { wageTo: 3400, employer: 41.9 },
+  { wageTo: 3500, employer: 43.1 },
+  { wageTo: 3600, employer: 44.4 },
+  { wageTo: 3700, employer: 45.6 },
+  { wageTo: 3800, employer: 46.9 },
+  { wageTo: 3900, employer: 48.1 },
+  { wageTo: 4000, employer: 49.4 },
+  { wageTo: 4100, employer: 50.6 },
+  { wageTo: 4200, employer: 51.9 },
+  { wageTo: 4300, employer: 53.1 },
+  { wageTo: 4400, employer: 54.4 },
+  { wageTo: 4500, employer: 55.6 },
+  { wageTo: 4600, employer: 56.9 },
+  { wageTo: 4700, employer: 58.1 },
+  { wageTo: 4800, employer: 59.4 },
+  { wageTo: 4900, employer: 60.6 },
+  { wageTo: 5000, employer: 61.9 },
+  { wageTo: 5100, employer: 63.1 },
+  { wageTo: 5200, employer: 64.4 },
+  { wageTo: 5300, employer: 65.6 },
+  { wageTo: 5400, employer: 66.9 },
+  { wageTo: 5500, employer: 68.1 },
+  { wageTo: 5600, employer: 69.4 },
+  { wageTo: 5700, employer: 70.6 },
+  { wageTo: 5800, employer: 71.9 },
+  { wageTo: 5900, employer: 73.1 },
+  { wageTo: 6000, employer: 74.4 },
+];
+
+export function lookupSocsoSecondCategoryEmployer(monthlyWage: number) {
+  const wage = Math.min(Math.max(monthlyWage, 0), 6000);
+  const bracket =
+    SOCSO_SECOND_CATEGORY_BRACKETS.find((row) => wage <= row.wageTo) ??
+    SOCSO_SECOND_CATEGORY_BRACKETS[SOCSO_SECOND_CATEGORY_BRACKETS.length - 1];
+  return bracket.employer;
+}

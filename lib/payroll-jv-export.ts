@@ -65,7 +65,8 @@ export interface DriverPayrollJv {
     epfEmployer: number;
     socsoEisEmployer: number;
     epfPayable: number;
-    socsoEisPayable: number;
+    socsoEisLindungPayable: number;
+    lindung24Jam: number;
     pcb: number;
     advance: number;
     netSalary: number;
@@ -163,6 +164,7 @@ export function buildDriverJvFromSummary(input: {
     input.summary.tripAllowanceTotal +
       input.summary.charterSalaryTotal +
       input.summary.crateCommissionTotal +
+      input.summary.crateMultiMarketTotal +
       input.summary.extraAllowanceTotal
   );
   const epfEmployer = statutory.epfEmployer;
@@ -170,11 +172,13 @@ export function buildDriverJvFromSummary(input: {
     statutory.socsoEmployer + statutory.eisEmployer
   );
   const epfPayable = roundMoney(statutory.epfEmployee + statutory.epfEmployer);
-  const socsoEisPayable = roundMoney(
+  const lindung24Jam = statutory.lindung24Jam;
+  const socsoEisLindungPayable = roundMoney(
     statutory.socsoEmployee +
       statutory.eisEmployee +
       statutory.socsoEmployer +
-      statutory.eisEmployer
+      statutory.eisEmployer +
+      lindung24Jam
   );
 
   const amounts = {
@@ -183,7 +187,8 @@ export function buildDriverJvFromSummary(input: {
     epfEmployer,
     socsoEisEmployer,
     epfPayable,
-    socsoEisPayable,
+    socsoEisLindungPayable,
+    lindung24Jam,
     pcb: statutory.pcb,
     advance: input.summary.advanceTotal,
     netSalary: input.summary.netSalary,
@@ -232,8 +237,8 @@ export function buildDriverJvFromSummary(input: {
     date: input.jvDate,
     jvNo: input.jvNo,
     accountCode: accounts.socsoEisPayable,
-    amount: amounts.socsoEisPayable,
-    description: `SOCSO/EIS应付 SOCSO/EIS Payable - ${label}`,
+    amount: amounts.socsoEisLindungPayable,
+    description: `SOCSO/EIS/Lindung 应付 PERKESO Payable - ${label}`,
   });
   pushCreditLine(lines, {
     date: input.jvDate,
@@ -302,6 +307,15 @@ export async function buildMonthlyDriverJvRows(
   let sequence = 0;
 
   for (const driver of drivers) {
+    if (driver.name === "Din") {
+      skippedDrivers.push({
+        driverId: driver.id,
+        driverName: driver.name,
+        reason: "inactive 不生成JV Skipped (inactive driver)",
+      });
+      continue;
+    }
+
     const suffix = driver.accountCodeSuffix?.trim().toUpperCase();
     if (!suffix) {
       skippedDrivers.push({
@@ -321,6 +335,7 @@ export async function buildMonthlyDriverJvRows(
       baseSalary: decimalToNumber(driver.baseSalary),
       maritalStatus: driver.maritalStatus as MaritalStatus | null,
       childCount: driver.childCount,
+      isSocsoSecondCategory: driver.isSocsoSecondCategory,
     };
     const monthRecord = driver.payrollMonths[0];
     const monthInput: DriverPayrollMonthInput = {
@@ -330,6 +345,7 @@ export async function buildMonthlyDriverJvRows(
       epfEmployerOverride: monthRecord?.epfEmployerOverride,
       socsoEmployeeOverride: monthRecord?.socsoEmployeeOverride,
       socsoEmployerOverride: monthRecord?.socsoEmployerOverride,
+      lindung24JamOverride: monthRecord?.lindung24JamOverride,
       eisEmployeeOverride: monthRecord?.eisEmployeeOverride,
       eisEmployerOverride: monthRecord?.eisEmployerOverride,
       pcbOverride: monthRecord?.pcbOverride,
