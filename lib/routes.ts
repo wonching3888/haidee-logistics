@@ -1,5 +1,8 @@
 import type { StoredUserRole } from "@/types";
 
+/** Fallback when role landing path cannot be resolved (or client action was aborted). */
+export const AUTHED_LANDING_FALLBACK = "/dashboard";
+
 /** Role-specific landing page after authentication. */
 export function getDefaultRoute(role: StoredUserRole): string {
   switch (role) {

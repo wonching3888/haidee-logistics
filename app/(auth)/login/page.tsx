@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getAuthedLandingPath } from "@/app/actions/auth-routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -32,8 +31,8 @@ export default function LoginPage() {
       return;
     }
 
+    // Middleware redirects authenticated /login → / (then app/page role landing).
     await router.refresh();
-    router.replace(await getAuthedLandingPath());
   }
 
   return (
