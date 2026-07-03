@@ -7,27 +7,28 @@ import {
 } from "@/lib/payroll-jv-export";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 
+/** Akim 2026-06 — aligned with DB + payroll-jv-2026-06-rev2-socso-lindung.csv */
 function akimJuneSummary(): PayrollSummary {
   return {
     baseSalary: 1700,
-    tripAllowanceTotal: 3000,
+    tripAllowanceTotal: 2400,
     charterSalaryTotal: 0,
-    crateCommissionTotal: 170,
-    crateMultiMarketTotal: 0,
-    extraAllowanceTotal: 100,
-    advanceTotal: 2000,
-    grossSalary: 4970,
+    crateCommissionTotal: 500,
+    crateMultiMarketTotal: 30,
+    extraAllowanceTotal: 0,
+    advanceTotal: 1800,
+    grossSalary: 4630,
     statutory: {
-      epfEmployee: 546.7,
-      epfEmployer: 646.1,
-      socsoEmployee: 17.5,
-      socsoEmployer: 34.3,
-      lindung24Jam: 37.15,
-      eisEmployee: 10.04,
-      eisEmployer: 38.44,
+      epfEmployee: 509.3,
+      epfEmployer: 601.9,
+      socsoEmployee: 23.25,
+      socsoEmployer: 81.35,
+      lindung24Jam: 34.85,
+      eisEmployee: 9.26,
+      eisEmployer: 9.26,
       pcb: 0,
     },
-    netSalary: 2358.61,
+    netSalary: 2253.34,
   };
 }
 
@@ -55,19 +56,19 @@ describe("buildDriverJvFromSummary", () => {
     });
 
     expect(jv.balanced).toBe(true);
-    expect(jv.debitTotal).toBe(5688.84);
-    expect(jv.creditTotal).toBe(5688.84);
+    expect(jv.debitTotal).toBe(5322.51);
+    expect(jv.creditTotal).toBe(5322.51);
     expect(jv.amounts).toMatchObject({
       baseSalary: 1700,
-      wages: 3270,
-      epfEmployer: 646.1,
-      socsoEisEmployer: 72.74,
-      epfPayable: 1192.8,
-      socsoEisLindungPayable: 137.43,
-      lindung24Jam: 37.15,
+      wages: 2930,
+      epfEmployer: 601.9,
+      socsoEisEmployer: 90.61,
+      epfPayable: 1111.2,
+      socsoEisLindungPayable: 157.97,
+      lindung24Jam: 34.85,
       pcb: 0,
-      advance: 2000,
-      netSalary: 2358.61,
+      advance: 1800,
+      netSalary: 2253.34,
     });
 
     const byAccount = Object.fromEntries(
@@ -78,14 +79,14 @@ describe("buildDriverJvFromSummary", () => {
     );
 
     expect(byAccount["6308-AKIM"]).toEqual({ debit: 1700, credit: 0 });
-    expect(byAccount["6307-AKIM"]).toEqual({ debit: 3270, credit: 0 });
-    expect(byAccount["9005-AKIM"]).toEqual({ debit: 646.1, credit: 0 });
-    expect(byAccount["9006-AKIM"]).toEqual({ debit: 72.74, credit: 0 });
-    expect(byAccount["4101-0000"]).toEqual({ debit: 0, credit: 1192.8 });
-    expect(byAccount["4102-0000"]).toEqual({ debit: 0, credit: 137.43 });
+    expect(byAccount["6307-AKIM"]).toEqual({ debit: 2930, credit: 0 });
+    expect(byAccount["9005-AKIM"]).toEqual({ debit: 601.9, credit: 0 });
+    expect(byAccount["9006-AKIM"]).toEqual({ debit: 90.61, credit: 0 });
+    expect(byAccount["4101-0000"]).toEqual({ debit: 0, credit: 1111.2 });
+    expect(byAccount["4102-0000"]).toEqual({ debit: 0, credit: 157.97 });
     expect(byAccount["4103-0000"]).toBeUndefined();
-    expect(byAccount["3301-AKIM"]).toEqual({ debit: 0, credit: 2000 });
-    expect(byAccount["4104-AKIM"]).toEqual({ debit: 0, credit: 2358.61 });
+    expect(byAccount["3301-AKIM"]).toEqual({ debit: 0, credit: 1800 });
+    expect(byAccount["4104-AKIM"]).toEqual({ debit: 0, credit: 2253.34 });
   });
 
   it("omits zero-amount lines including PCB", () => {
@@ -184,7 +185,7 @@ describe("generatePayrollJvCsv", () => {
     expect(csv.startsWith("\uFEFF")).toBe(true);
     expect(csv).toContain("日期 Date,JV号 JVNo,科目码 AccountCode,借 Debit,贷 Credit,备注 Description");
     expect(csv).toContain("JV-2606-001,6308-AKIM,1700.00,,");
-    expect(csv).toContain(",4104-AKIM,,2358.61,");
+    expect(csv).toContain(",4104-AKIM,,2253.34,");
   });
 });
 

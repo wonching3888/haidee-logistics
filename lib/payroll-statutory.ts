@@ -45,32 +45,19 @@ export function isEisExempt(isSocsoSecondCategory?: boolean) {
   return Boolean(isSocsoSecondCategory);
 }
 
-/** Simplified monthly PCB based on chargeable income, marital status and children. */
-export function calculatePcb(
-  grossSalary: number,
-  epfEmployee: number,
-  maritalStatus: MaritalStatus | null | undefined,
-  childCount: number
-) {
-  const personalRelief = 750;
-  const spouseRelief = maritalStatus === "married" ? 333.33 : 0;
-  const childRelief = Math.max(0, childCount) * 166.67;
-  const chargeable = Math.max(
-    0,
-    grossSalary - epfEmployee - personalRelief - spouseRelief - childRelief
-  );
-
-  if (chargeable <= 3500) return 0;
-  if (chargeable <= 5000) return roundMoney((chargeable - 3500) * 0.01);
-  if (chargeable <= 7500) return roundMoney(15 + (chargeable - 5000) * 0.03);
-  if (chargeable <= 10000) return roundMoney(90 + (chargeable - 7500) * 0.08);
-  return roundMoney(290 + (chargeable - 10000) * 0.11);
-}
+export { calculatePcb, calculateMonthlyPcb } from "@/lib/pcb-calculation";
+export type { MonthlyPcbInput, MonthlyPcbResult, PcbProfile } from "@/lib/pcb-calculation";
 
 export function calculateStatutoryDeductions(input: {
   grossSalary: number;
   maritalStatus: MaritalStatus | null | undefined;
+  spouseWorking?: boolean | null;
   childCount: number;
+  payrollMonth?: number;
+  accumulatedGrossY?: number;
+  accumulatedEpfK?: number;
+  accumulatedMtdX?: number;
+  pcbMaritalDataVerified?: boolean;
   isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
 }): StatutoryDeductions {
@@ -109,14 +96,8 @@ export function calculateStatutoryDeductions(input: {
     input.overrides?.eisEmployer ??
     (eisExempt ? 0 : roundMoney(eisBase * EIS_RATE));
 
-  const pcb =
-    input.overrides?.pcb ??
-    calculatePcb(
-      gross,
-      epfEmployee,
-      input.maritalStatus,
-      input.childCount
-    );
+  /** Manual override only until auto PCB is production-ready (pcbOverride on payroll month). */
+  const pcb = input.overrides?.pcb ?? 0;
 
   return {
     epfEmployee,
@@ -167,7 +148,13 @@ export function crateReturnEarningsDisplayTotal(input: {
 export function buildPayrollSummary(input: {
   earnings: PayrollSummaryInput;
   maritalStatus: MaritalStatus | null | undefined;
+  spouseWorking?: boolean | null;
   childCount: number;
+  payrollMonth?: number;
+  accumulatedGrossY?: number;
+  accumulatedEpfK?: number;
+  accumulatedMtdX?: number;
+  pcbMaritalDataVerified?: boolean;
   isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
 }): PayrollSummary {
@@ -186,7 +173,13 @@ export function buildPayrollSummary(input: {
   const statutory = calculateStatutoryDeductions({
     grossSalary,
     maritalStatus: input.maritalStatus,
+    spouseWorking: input.spouseWorking,
     childCount: input.childCount,
+    payrollMonth: input.payrollMonth,
+    accumulatedGrossY: input.accumulatedGrossY,
+    accumulatedEpfK: input.accumulatedEpfK,
+    accumulatedMtdX: input.accumulatedMtdX,
+    pcbMaritalDataVerified: input.pcbMaritalDataVerified,
     isSocsoSecondCategory: input.isSocsoSecondCategory,
     overrides: input.overrides,
   });
