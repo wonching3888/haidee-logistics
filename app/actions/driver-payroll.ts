@@ -31,9 +31,9 @@ import {
 } from "@/lib/payroll-month-sync";
 import {
   appendPayrollChangeLogs,
-  diffPayrollOverrideChanges,
   diffPayrollTripFieldChanges,
 } from "@/lib/payroll-audit";
+import { applyPayrollOverridePatch } from "@/lib/payroll-override-write";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -564,44 +564,17 @@ export async function saveDriverPayrollOverrides(input: {
   lindung24Jam?: number | null;
 }) {
   const user = await requirePayrollWriteAccess();
-  const existing = await prisma.driverPayrollMonth.findUnique({
-    where: { id: input.payrollMonthId },
-    include: { driver: { select: { name: true } } },
-  });
-  if (!existing) {
-    throw new Error("薪资月份不存在 Payroll month not found");
-  }
-
-  const changes = diffPayrollOverrideChanges(existing, input);
-  const metadata = { driverName: existing.driver.name };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.driverPayrollMonth.update({
-      where: { id: input.payrollMonthId },
-      data: {
-        epfEmployeeOverride: input.epfEmployee ?? null,
-        epfEmployerOverride: input.epfEmployer ?? null,
-        socsoEmployeeOverride: input.socsoEmployee ?? null,
-        socsoEmployerOverride: input.socsoEmployer ?? null,
-        eisEmployeeOverride: input.eisEmployee ?? null,
-        eisEmployerOverride: input.eisEmployer ?? null,
-        pcbOverride: input.pcb ?? null,
-        lindung24JamOverride: input.lindung24Jam ?? null,
-      },
-    });
-    await appendPayrollChangeLogs(tx, {
-      actorUserId: user.id,
-      logs: changes.map((change) => ({
-        payrollMonthId: existing.id,
-        driverId: existing.driverId,
-        yearMonth: existing.yearMonth,
-        eventType: "override_update",
-        field: change.field,
-        fromValue: change.fromValue,
-        toValue: change.toValue,
-        metadata,
-      })),
-    });
+  await applyPayrollOverridePatch({
+    payrollMonthId: input.payrollMonthId,
+    actorUserId: user.id,
+    epfEmployee: input.epfEmployee,
+    epfEmployer: input.epfEmployer,
+    socsoEmployee: input.socsoEmployee,
+    socsoEmployer: input.socsoEmployer,
+    eisEmployee: input.eisEmployee,
+    eisEmployer: input.eisEmployer,
+    pcb: input.pcb,
+    lindung24Jam: input.lindung24Jam,
   });
   revalidatePath("/driver-payroll");
   revalidatePath("/history");

@@ -76,6 +76,7 @@ export default defineConfig({
       "lib/invoice-payments-delete.integration.test.ts",
       "lib/payroll-jv-accounts.test.ts",
       "lib/payroll-jv-export.test.ts",
+      "lib/payroll-override-write.test.ts",
       "lib/ar-invoice-export/ar-invoice-export.test.ts",
       "lib/ar-invoice-export/ar-invoice-freight-export.test.ts",
       "lib/ar-invoice-export/ar-invoice-docno-registry.test.ts",

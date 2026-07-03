@@ -3,7 +3,6 @@
  * Run: node --env-file=.env.local --import tsx scripts/_regenerate-june-2026-payroll-jv-rev3.ts
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { Prisma } from "@prisma/client";
 import {
   buildMonthlyDriverJvRows,
   generatePayrollJvCsv,
@@ -33,24 +32,7 @@ function parseCsvRows(raw: string) {
   return lines.slice(1).map((line) => line.trim()).filter(Boolean);
 }
 
-/** Preserve rev2 Naim PCB line (manual override) so only Fook rows change. */
-async function preserveRev2NaimPcbOverride() {
-  const naim = await prisma.driver.findFirst({
-    where: { name: "Naim" },
-    include: { payrollMonths: { where: { yearMonth: YEAR_MONTH } } },
-  });
-  const month = naim?.payrollMonths[0];
-  if (!month) return;
-  if (month.pcbOverride != null) return;
-  await prisma.driverPayrollMonth.update({
-    where: { id: month.id },
-    data: { pcbOverride: new Prisma.Decimal("0.49") },
-  });
-  console.log("Set Naim 2026-06 pcbOverride=0.49 (matches rev2 JV snapshot)");
-}
-
 async function main() {
-  await preserveRev2NaimPcbOverride();
   const result = await buildMonthlyDriverJvRows(YEAR, MONTH);
 
   console.log(`\n=== June 2026 Payroll JV rev3 ===\n`);

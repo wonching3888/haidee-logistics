@@ -27,11 +27,23 @@
     {
       "yearMonth": "2026-06",
       "filename": "payroll-jv-2026-06-rev3-fook-crate-sync.csv",
-      "status": "active",
+      "status": "void",
       "revision": 3,
       "driverCount": 13,
-      "notes": "Fook跨市场RM30纠正(整月重算) + rev2 SOCSO/Lindung/Second Category",
-      "exportedAt": "2026-07-03T11:06:23.305Z"
+      "notes": "Fook工钱纠正 + 清除误写pcbOverride后Naim PCB=0",
+      "exportedAt": "2026-07-03T11:06:23.305Z",
+      "voidReason": "生成脚本误将JV快照值(0.49)直接写入生产库pcbOverride字段，绕过审计日志，构成数据污染，已清除并重新生成rev4",
+      "voidedAt": "2026-07-03T11:34:27.907Z",
+      "supersededBy": "payroll-jv-2026-06-rev4-fook-pcb-fix.csv"
+    },
+    {
+      "yearMonth": "2026-06",
+      "filename": "payroll-jv-2026-06-rev4-fook-pcb-fix.csv",
+      "status": "active",
+      "revision": 4,
+      "driverCount": 13,
+      "notes": "Fook整月crate重算(4510/2479.75) + Naim PCB手动策略下为0(净额2228.44)",
+      "exportedAt": "2026-07-03T11:34:27.914Z"
     }
   ]
 }
