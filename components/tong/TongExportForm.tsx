@@ -182,45 +182,35 @@ export function TongExportForm({
       : getThVehiclesForShipper(shipperId);
 
     if (isEdit && initialData) {
-      const useLive = shouldUseLiveCrateExportOwed(initialData.date);
-      const owedPromise = useLive
-        ? getLiveCrateExportOwedByCode(date, shipperId, location)
-        : Promise.resolve(null);
+      Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
+        setVehicleSuggestions(vehicles.map((v) => v.plate));
 
-      Promise.all([getSadaoStock(), vehiclePromise, owedPromise]).then(
-        ([stock, vehicles, liveOwed]) => {
-          setVehicleSuggestions(vehicles.map((v) => v.plate));
+        const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
+        const existingByTong = new Map(
+          initialData.lines.map((line) => [line.tongTypeId, line])
+        );
 
-          const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
-          const existingByTong = new Map(
-            initialData.lines.map((line) => [line.tongTypeId, line])
-          );
-
-          setLines(
-            tongTypes.map((t) => {
-              const existing = existingByTong.get(t.id);
-              const suggested =
-                useLive && liveOwed
-                  ? (liveOwed[t.code] ?? 0)
-                  : (existing?.quantitySuggested ?? 0);
-              const currentSadao = stockMap[t.code] ?? 0;
-              const oldActual = existing?.quantityActual ?? 0;
-              const stockQty = currentSadao + oldActual;
-              const actualNum = existing ? oldActual : 0;
-              const capped = Math.min(actualNum, stockQty);
-              return {
-                tongTypeId: t.id,
-                code: t.code,
-                name: t.name,
-                suggested,
-                stock: stockQty,
-                actual: existing ? String(actualNum) : "0",
-                shortage: Math.max(0, suggested - capped),
-              };
-            })
-          );
-        }
-      );
+        setLines(
+          tongTypes.map((t) => {
+            const existing = existingByTong.get(t.id);
+            const suggested = existing?.quantitySuggested ?? 0;
+            const currentSadao = stockMap[t.code] ?? 0;
+            const oldActual = existing?.quantityActual ?? 0;
+            const stockQty = currentSadao + oldActual;
+            const actualNum = existing ? oldActual : 0;
+            const capped = Math.min(actualNum, stockQty);
+            return {
+              tongTypeId: t.id,
+              code: t.code,
+              name: t.name,
+              suggested,
+              stock: stockQty,
+              actual: existing ? String(actualNum) : "0",
+              shortage: Math.max(0, suggested - capped),
+            };
+          })
+        );
+      });
       return;
     }
 

@@ -21,7 +21,6 @@ import {
 import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
 import { appendCrateChangeLogs } from "@/lib/crate-audit";
 import {
-  liveShortageForLine,
   lookupLiveOwed,
   shouldUseLiveCrateExportOwed,
   totalLiveShortageForLines,
@@ -42,6 +41,10 @@ import { buildCustomerCrateStockLedgerNotes } from "@/lib/customer-crate-stock-l
 import { t } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { UserLanguage } from "@/types";
+import {
+  crateExportLineShortage,
+  resolveCrateExportQuantitySuggested,
+} from "@/lib/crate-export-line-math";
 
 export interface CrateExportLineInput {
   tongTypeId: string;
@@ -57,6 +60,8 @@ export interface CrateExportSaveInput {
   location?: string;
   lines: CrateExportLineInput[];
   forceExportNo?: string;
+  /** Captured before edit reverse; keeps original quantitySuggested per tong type. */
+  preservedSuggestedByTongTypeId?: Record<string, number>;
 }
 
 export interface CrateExportEditData {
@@ -164,14 +169,22 @@ export async function getAgentCrateReturnPrefill(
   return null;
 }
 
-async function getCrateExportDueTodayForDate(
+export async function getCrateExportDueTodayForDate(
   dateInput: string
 ): Promise<CrateExportDueTodayData> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { date: dateInput, items: [], inTransitNote: null };
+  }
+
   const input = await loadCrateExportDayInput(dateInput);
   return buildCrateExportDueToday(input);
 }
 
-/** Live owed by crate code (inbound − returned); only meaningful for today's date. */
+/** Today (Bangkok) pending crate returns: inbound due − export returned, no cross-day carry. */
+export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData> {
+  return getCrateExportDueTodayForDate(getBangkokTodayDateInput());
+}
 export async function getLiveCrateExportOwedByCode(
   dateInput: string,
   shipperId: string,
@@ -268,17 +281,7 @@ async function assertCrateExportHasActiveLines(
   return activeLines;
 }
 
-/** Today (Bangkok) pending crate returns: inbound due − export returned, no cross-day carry. */
-export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { date: getBangkokTodayDateInput(), items: [], inTransitNote: null };
-  }
-
-  return getCrateExportDueTodayForDate(getBangkokTodayDateInput());
-}
-
-/** List crate export batches for a calendar day (grouped by exportNo). */
+/** Live owed by crate code (inbound − returned); only meaningful for today's date. */
 export async function listCrateExportsForDate(
   dateInput: string
 ): Promise<CrateExportListRow[]> {
@@ -434,6 +437,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     quantityActual: number;
     shortage: number;
   }[] = [];
+  const isEdit = Boolean(input.forceExportNo?.trim());
 
   for (const line of activeLines) {
     const tongType = tongTypeMap.get(line.tongTypeId);
@@ -441,7 +445,13 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
 
     const available = stock[tongType.code]?.stock ?? 0;
     const actual = Math.min(line.quantityActual, available);
-    const shortage = Math.max(0, line.quantitySuggested - actual);
+    const quantitySuggested = resolveCrateExportQuantitySuggested({
+      isEdit,
+      tongTypeId: line.tongTypeId,
+      formQuantitySuggested: line.quantitySuggested,
+      preservedByTongTypeId: input.preservedSuggestedByTongTypeId,
+    });
+    const shortage = crateExportLineShortage(quantitySuggested, actual);
 
     exportRows.push({
       exportNo,
@@ -450,7 +460,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
       areaNote: input.areaNote?.trim() || null,
       shipperId: input.shipperId,
       tongTypeId: line.tongTypeId,
-      quantitySuggested: line.quantitySuggested,
+      quantitySuggested,
       quantityActual: actual,
       shortage,
       createdById: user.id,
@@ -463,7 +473,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     if (actual > 0 || shortage > 0) {
       receiptLines.push({
         tongName: tongType.name,
-        quantity: line.quantitySuggested,
+        quantity: quantitySuggested,
         quantityActual: actual,
         shortage,
       });
@@ -734,11 +744,20 @@ export async function editCrateExport(
 
   await assertCrateExportHasActiveLines(input.lines, locale);
 
+  const existingRows = await prisma.tongExport.findMany({
+    where: { exportNo: trimmed },
+    select: { tongTypeId: true, quantitySuggested: true },
+  });
+  const preservedSuggestedByTongTypeId = Object.fromEntries(
+    existingRows.map((row) => [row.tongTypeId, row.quantitySuggested ?? 0])
+  );
+
   await reverseCrateExportInternal(trimmed, locale);
 
   return saveCrateExport({
     ...input,
     forceExportNo: trimmed,
+    preservedSuggestedByTongTypeId,
   });
 }
 
@@ -803,44 +822,15 @@ export async function getCrateExportReceiptData(
     };
   }
 
-  const exportDateInput = toDateInputValue(first.date);
-  const useLive = shouldUseLiveCrateExportOwed(exportDateInput);
-  let liveOwed: Record<string, number> = {};
-  if (useLive) {
-    const location = await resolveCrateExportStockLocation(trimmed, first.shipperId);
-    liveOwed = await getLiveCrateExportOwedByCode(
-      exportDateInput,
-      first.shipperId,
-      location
-    );
-  }
-
   const lines = rows
-    .filter((row) => {
-      if (row.quantityActual > 0) return true;
-      if (!useLive) return row.shortage > 0;
-      const shortage = liveShortageForLine(
-        liveOwed,
-        row.tongType.code,
-        row.quantityActual
-      );
-      return shortage > 0;
-    })
-    .map((row) => {
-      const quantitySuggested = useLive
-        ? (liveOwed[row.tongType.code] ?? 0)
-        : (row.quantitySuggested ?? 0);
-      const shortage = useLive
-        ? liveShortageForLine(liveOwed, row.tongType.code, row.quantityActual)
-        : row.shortage;
-      return {
-        tongName: row.tongType.name,
-        tongCode: row.tongType.code,
-        quantity: quantitySuggested,
-        quantityActual: row.quantityActual,
-        shortage,
-      };
-    });
+    .filter((row) => row.quantityActual > 0 || row.shortage > 0)
+    .map((row) => ({
+      tongName: row.tongType.name,
+      tongCode: row.tongType.code,
+      quantity: row.quantitySuggested ?? 0,
+      quantityActual: row.quantityActual,
+      shortage: row.shortage,
+    }));
 
   return {
     kind: "standard",
