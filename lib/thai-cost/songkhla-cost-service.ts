@@ -187,10 +187,6 @@ export async function getSongkhlaMonthlyRealCost(
     const baseWage = decimalToNumber(d.baseWage) ?? 0;
     const share = totalTrips > 0 ? trips.songkhla / totalTrips : 0;
     const baseWageAllocatedThb = Math.round(baseWage * share * 100) / 100;
-    const tripCommissionThb =
-      trips.songkhla * rates.driverTripSongkhla +
-      // Pattani commission is not Songkhla cost
-      0;
     // Only Songkhla trip commission counts toward Songkhla P&L
     const songkhlaTripCommission = trips.songkhla * rates.driverTripSongkhla;
 

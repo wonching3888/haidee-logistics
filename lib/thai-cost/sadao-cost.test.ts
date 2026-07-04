@@ -16,11 +16,6 @@ import {
   sumSadaoMonthlyCost,
 } from "@/lib/thai-cost/sadao-cost";
 
-const emptyBox = {
-  boxTotalQty: 0,
-  boxNoCheckQty: 0,
-};
-
 const sampleQty = {
   smallCrateTotalQty: 100,
   largeCrateTotalQty: 50,
