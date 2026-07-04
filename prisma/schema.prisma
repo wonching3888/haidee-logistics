@@ -1329,17 +1329,82 @@ model ThaiDailyLaborAttendance {
   @@map("thai_daily_labor_attendance")
 }
 
-/// Thai driver master (base wage only; trip commission rules in later stages).
+/// Thai driver master (base wage + daily trip counts).
 model ThaiDriver {
   id        String   @id @default(uuid()) @db.Uuid
-  name      String
+  name      String   @unique
   baseWage  Decimal  @map("base_wage") @db.Decimal(12, 2)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  trips ThaiDriverTripDaily[]
+
   @@index([active])
   @@map("thai_drivers")
+}
+
+/// Daily trip counts per Thai driver (Songkhla / Pattani commission).
+model ThaiDriverTripDaily {
+  id                String   @id @default(uuid()) @db.Uuid
+  date              DateTime @db.Date
+  driverId          String   @map("driver_id") @db.Uuid
+  songkhlaTripCount Int      @default(0) @map("songkhla_trip_count")
+  pattaniTripCount  Int      @default(0) @map("pattani_trip_count")
+  notes             String?
+  createdBy         String   @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  driver ThaiDriver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([date, driverId])
+  @@index([date])
+  @@map("thai_driver_trip_daily")
+}
+
+/// Current Thai cost rate defaults (future records / unlocked months).
+model ThaiCostRateSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Decimal  @db.Decimal(12, 4)
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("thai_cost_rate_settings")
+}
+
+/// Locked monthly rates for handling + driver trip commission (prevents historical drift).
+model ThaiCostMonthlyRateSnapshot {
+  id                      String   @id @default(uuid()) @db.Uuid
+  yearMonth               String   @unique @map("year_month")
+  handlingSmallWeekday    Decimal  @map("handling_small_weekday") @db.Decimal(12, 4)
+  handlingSmallHoliday    Decimal  @map("handling_small_holiday") @db.Decimal(12, 4)
+  handlingLargeWeekday    Decimal  @map("handling_large_weekday") @db.Decimal(12, 4)
+  handlingLargeHoliday    Decimal  @map("handling_large_holiday") @db.Decimal(12, 4)
+  driverTripSongkhla      Decimal  @map("driver_trip_songkhla") @db.Decimal(12, 4)
+  driverTripPattani       Decimal  @map("driver_trip_pattani") @db.Decimal(12, 4)
+  pattaniContractorCrate  Decimal  @default(20) @map("pattani_contractor_crate") @db.Decimal(12, 4)
+  pattaniContractorBox    Decimal  @default(5) @map("pattani_contractor_box") @db.Decimal(12, 4)
+  pattaniSakriCrate       Decimal  @default(2.2) @map("pattani_sakri_crate") @db.Decimal(12, 4)
+  snapshotAt              DateTime @map("snapshot_at")
+  createdBy               String   @map("created_by") @db.Uuid
+
+  @@map("thai_cost_monthly_rate_snapshots")
+}
+
+/// Locked monthly Thai-segment internal cost (MYR) by pickup location.
+model ThaiSegmentInternalCostSnapshot {
+  id                 String   @id @default(uuid()) @db.Uuid
+  yearMonth          String   @map("year_month")
+  pickupLocation     String   @map("pickup_location") // SONGKHLA | PATTANI
+  totalAmountMyr     Decimal  @map("total_amount_myr") @db.Decimal(14, 2)
+  ratesUsedSnapshot  Json     @map("rates_used_snapshot")
+  snapshotAt         DateTime @map("snapshot_at")
+  createdBy          String   @map("created_by") @db.Uuid
+
+  @@unique([yearMonth, pickupLocation])
+  @@map("thai_segment_internal_cost_snapshots")
 }
 
 /// Thai public holidays (manual calendar; Sundays are auto holiday-rate without rows here).
@@ -1353,7 +1418,7 @@ model ThaiPublicHoliday {
   @@map("thai_public_holidays")
 }
 
-/// Sadao daily crate handling (commission = billable qty × fixed rates in lib/constants).
+/// Sadao daily crate handling (commission rates from settings / monthly snapshot).
 model SadaoCrateHandlingDaily {
   id                   String   @id @default(uuid()) @db.Uuid
   date                 DateTime @unique @db.Date
@@ -1369,4 +1434,33 @@ model SadaoCrateHandlingDaily {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("sadao_crate_handling_daily")
+}
+
+/// Songkhla daily crate handling (no no-check exclusion; billable = total).
+model SongkhlaCrateHandlingDaily {
+  id                 String   @id @default(uuid()) @db.Uuid
+  date               DateTime @unique @db.Date
+  smallCrateTotalQty Int      @map("small_crate_total_qty")
+  largeCrateTotalQty Int      @map("large_crate_total_qty")
+  boxTotalQty        Int      @default(0) @map("box_total_qty")
+  notes              String?
+  createdBy          String   @map("created_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("songkhla_crate_handling_daily")
+}
+
+/// Pattani daily handling: one entry drives contractor fee + SAKRI commission.
+model PattaniCrateHandlingDaily {
+  id        String   @id @default(uuid()) @db.Uuid
+  date      DateTime @unique @db.Date
+  crateQty  Int      @map("crate_qty")
+  boxQty    Int      @default(0) @map("box_qty")
+  notes     String?
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("pattani_crate_handling_daily")
 }

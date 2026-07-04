@@ -17,6 +17,10 @@ import {
   sumSadaoMonthlyCost,
   type SadaoMonthlyCostSummary,
 } from "@/lib/thai-cost/sadao-cost";
+import {
+  resolveThaiCostRatesForMonth,
+  type ResolvedThaiCostRates,
+} from "@/lib/thai-cost/rate-settings";
 
 export interface SadaoMonthlyWorkerDetail {
   id: string;
@@ -35,6 +39,7 @@ export interface SadaoMonthlyCostDetail extends SadaoMonthlyCostSummary {
   dailyLaborRosterCount: number;
   attendanceDays: number;
   handlingDays: number;
+  rates: ResolvedThaiCostRates;
 }
 
 /** Aggregate Sadao monthly cost including allowances, box handling, holiday rates. */
@@ -45,7 +50,7 @@ export async function getSadaoMonthlyCost(
   const { start, end } = getMonthDateRange(year, month);
   const ym = yearMonthKey(year, month);
 
-  const [workers, attendanceRows, handlingRows, roster, holidays] =
+  const [workers, attendanceRows, handlingRows, roster, holidays, rates] =
     await Promise.all([
       prisma.thaiMonthlyWorker.findMany({
         where: { station: "SADAO", active: true },
@@ -77,6 +82,7 @@ export async function getSadaoMonthlyCost(
         where: { date: { gte: start, lte: end } },
         select: { date: true },
       }),
+      resolveThaiCostRatesForMonth(year, month),
     ]);
 
   const holidayKeys = buildPublicHolidayKeySet(holidays);
@@ -144,7 +150,10 @@ export async function getSadaoMonthlyCost(
         largeCrateNoCheckQty: row.largeCrateNoCheckQty,
         boxNoCheckQty: row.boxNoCheckQty,
       },
-      { holidayRate: isHolidayRate(row.date, holidayKeys) }
+      {
+        holidayRate: isHolidayRate(row.date, holidayKeys),
+        rateConfig: rates,
+      }
     );
     handlingSmallCommissionThb += commission.smallCommissionThb;
     handlingLargeCommissionThb += commission.largeCommissionThb;
@@ -171,5 +180,6 @@ export async function getSadaoMonthlyCost(
     dailyLaborRosterCount,
     attendanceDays: attendanceRows.length,
     handlingDays: handlingRows.length,
+    rates,
   };
 }

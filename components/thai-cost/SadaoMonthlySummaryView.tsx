@@ -54,7 +54,11 @@ export function SadaoMonthlySummaryView({
     <div className="space-y-6">
       <p className="text-sm text-haidee-muted">
         Sadao 当月真实总成本 = 月薪工人(工资+LUNCH+FUEL+RENT ROOM) + 日薪出勤工资
-        + 日薪 LUNCH(在册人数×1000) + 搬运提成（小桶/大桶/盒子分列）。
+        + 日薪 LUNCH(在册人数×1000) + 搬运提成（小桶/大桶/盒子分列）。搬运费率来源：
+        {summary.rates.locked
+          ? "当月已锁定快照"
+          : "当前默认设置（未锁定，改设置会重算）"}
+        。
       </p>
 
       <div className="flex flex-wrap items-end gap-3">

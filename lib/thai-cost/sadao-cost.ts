@@ -3,6 +3,7 @@ import {
   getSadaoHandlingRates,
   type SadaoHandlingRates,
 } from "@/lib/constants/thai-cost";
+import { ratesToHandlingPair, type ThaiCostRates } from "@/lib/thai-cost/rate-settings";
 
 export class SadaoHandlingValidationError extends Error {
   constructor(message: string) {
@@ -99,14 +100,17 @@ export function computeSadaoBillableCrates(
 
 /**
  * Daily handling commission using weekday or holiday rates.
- * BOX always uses the small-crate rate (via getSadaoHandlingRates).
+ * BOX always uses the small-crate rate.
+ * Pass `rateConfig` from monthly snapshot or current settings for historical stability.
  */
 export function computeSadaoHandlingCommission(
   input: SadaoHandlingQtyInput,
-  options: { holidayRate: boolean }
+  options: { holidayRate: boolean; rateConfig?: ThaiCostRates }
 ): SadaoHandlingCommission {
   const billable = computeSadaoBillableCrates(input);
-  const rates = getSadaoHandlingRates(options.holidayRate);
+  const rates = options.rateConfig
+    ? ratesToHandlingPair(options.rateConfig, options.holidayRate)
+    : getSadaoHandlingRates(options.holidayRate);
   const smallCommissionThb = billable.smallBillableQty * rates.small;
   const largeCommissionThb = billable.largeBillableQty * rates.large;
   const boxCommissionThb = billable.boxBillableQty * rates.box;

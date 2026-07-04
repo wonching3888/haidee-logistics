@@ -28,15 +28,25 @@ import {
   getSadaoMonthlyCost,
   type SadaoMonthlyCostDetail,
 } from "@/lib/thai-cost/sadao-cost-service";
+import {
+  resolveThaiCostRatesForMonth,
+  type ThaiCostRates,
+} from "@/lib/thai-cost/rate-settings";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { randomUUID } from "crypto";
 
-function revalidateThaiCost() {
+export function revalidateThaiCost() {
   revalidatePath("/thai-cost/workers");
   revalidatePath("/thai-cost/attendance");
   revalidatePath("/thai-cost/sadao-handling");
   revalidatePath("/thai-cost/sadao-summary");
   revalidatePath("/thai-cost/holidays");
+  revalidatePath("/thai-cost/settings");
+  revalidatePath("/thai-cost/songkhla-handling");
+  revalidatePath("/thai-cost/songkhla-summary");
+  revalidatePath("/thai-cost/driver-trips");
+  revalidatePath("/thai-cost/pattani-handling");
+  revalidatePath("/thai-cost/pattani-summary");
 }
 
 async function requireThaiCostRead() {
@@ -396,10 +406,14 @@ function toHandlingRow(
     boxNoCheckQty: number;
     notes: string | null;
   },
-  holidayKeys: ReadonlySet<string>
+  holidayKeys: ReadonlySet<string>,
+  rateConfig: ThaiCostRates
 ): SadaoHandlingRow {
   const holidayRate = isHolidayRate(row.date, holidayKeys);
-  const commission = computeSadaoHandlingCommission(row, { holidayRate });
+  const commission = computeSadaoHandlingCommission(row, {
+    holidayRate,
+    rateConfig,
+  });
   return {
     id: row.id,
     date: toDateInputValue(row.date),
@@ -435,14 +449,15 @@ export async function listSadaoHandling(input: {
 }): Promise<SadaoHandlingRow[]> {
   await requireThaiCostRead();
   const { start, end } = getMonthDateRange(input.year, input.month);
-  const [rows, holidayKeys] = await Promise.all([
+  const [rows, holidayKeys, rates] = await Promise.all([
     prisma.sadaoCrateHandlingDaily.findMany({
       where: { date: { gte: start, lte: end } },
       orderBy: { date: "asc" },
     }),
     loadHolidayKeysForRange(start, end),
+    resolveThaiCostRatesForMonth(input.year, input.month),
   ]);
-  return rows.map((row) => toHandlingRow(row, holidayKeys));
+  return rows.map((row) => toHandlingRow(row, holidayKeys, rates));
 }
 
 export async function saveSadaoHandling(input: {
@@ -464,9 +479,13 @@ export async function saveSadaoHandling(input: {
   });
   const holidayKeys = buildPublicHolidayKeySet(holiday ? [holiday] : []);
   const holidayRate = isHolidayRate(date, holidayKeys);
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
 
   try {
-    computeSadaoHandlingCommission(input, { holidayRate });
+    computeSadaoHandlingCommission(input, { holidayRate, rateConfig: rates });
   } catch (e) {
     if (e instanceof SadaoHandlingValidationError) throw e;
     throw e;
@@ -517,7 +536,7 @@ export async function saveSadaoHandling(input: {
   }
 
   revalidateThaiCost();
-  return toHandlingRow(row, holidayKeys);
+  return toHandlingRow(row, holidayKeys, rates);
 }
 
 export async function deleteSadaoHandling(id: string): Promise<void> {

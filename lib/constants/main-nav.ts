@@ -137,6 +137,36 @@ export const MAIN_NAV_THAI_COST_HOLIDAYS: MainNavLink = {
   messageKey: "nav.thaiCostHolidays",
 };
 
+export const MAIN_NAV_THAI_COST_SETTINGS: MainNavLink = {
+  href: "/thai-cost/settings",
+  messageKey: "nav.thaiCostSettings",
+};
+
+export const MAIN_NAV_THAI_COST_SONGKHLA_HANDLING: MainNavLink = {
+  href: "/thai-cost/songkhla-handling",
+  messageKey: "nav.thaiCostSongkhlaHandling",
+};
+
+export const MAIN_NAV_THAI_COST_SONGKHLA_SUMMARY: MainNavLink = {
+  href: "/thai-cost/songkhla-summary",
+  messageKey: "nav.thaiCostSongkhlaSummary",
+};
+
+export const MAIN_NAV_THAI_COST_DRIVER_TRIPS: MainNavLink = {
+  href: "/thai-cost/driver-trips",
+  messageKey: "nav.thaiCostDriverTrips",
+};
+
+export const MAIN_NAV_THAI_COST_PATTANI_HANDLING: MainNavLink = {
+  href: "/thai-cost/pattani-handling",
+  messageKey: "nav.thaiCostPattaniHandling",
+};
+
+export const MAIN_NAV_THAI_COST_PATTANI_SUMMARY: MainNavLink = {
+  href: "/thai-cost/pattani-summary",
+  messageKey: "nav.thaiCostPattaniSummary",
+};
+
 export const MAIN_NAV_THAI_COST: MainNavGroup = {
   id: "thai-cost",
   messageKey: "nav.thaiCost",
@@ -146,7 +176,13 @@ export const MAIN_NAV_THAI_COST: MainNavGroup = {
     MAIN_NAV_THAI_COST_ATTENDANCE,
     MAIN_NAV_THAI_COST_SADAO_HANDLING,
     MAIN_NAV_THAI_COST_SADAO_SUMMARY,
+    MAIN_NAV_THAI_COST_SONGKHLA_HANDLING,
+    MAIN_NAV_THAI_COST_SONGKHLA_SUMMARY,
+    MAIN_NAV_THAI_COST_PATTANI_HANDLING,
+    MAIN_NAV_THAI_COST_PATTANI_SUMMARY,
+    MAIN_NAV_THAI_COST_DRIVER_TRIPS,
     MAIN_NAV_THAI_COST_HOLIDAYS,
+    MAIN_NAV_THAI_COST_SETTINGS,
   ],
 };
 

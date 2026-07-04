@@ -241,6 +241,38 @@ export const MESSAGES = {
     en: "Holiday Settings",
     th: "ตั้งค่าวันหยุด",
   },
+  "nav.thaiCostSettings": {
+    zh: "泰国成本设置",
+    en: "Thai Cost Settings",
+    th: "ตั้งค่าต้นทุนไทย",
+  },
+  "nav.thaiCostSongkhlaHandling": {
+    zh: "宋卡搬运",
+    en: "Songkhla Handling",
+    th: "ขนย้ายสงขลา",
+  },
+  "nav.thaiCostSongkhlaSummary": {
+    zh: "宋卡月度汇总",
+    en: "Songkhla Summary",
+    th: "สรุปสงขลา",
+  },
+  "nav.thaiCostDriverTrips": {
+    zh: "泰国司机趟次",
+    en: "Thai Driver Trips",
+    th: "เที่ยวคนขับไทย",
+  },
+  "nav.thaiCostPattaniHandling": {
+    zh: "北大年搬运",
+    en: "Pattani Handling",
+    th: "ขนย้ายปัตตานี",
+  },
+  "nav.thaiCostPattaniSummary": {
+    zh: "北大年月度汇总",
+    en: "Pattani Summary",
+    th: "สรุปปัตตานี",
+  },
+
+
 
 
   "bankReconciliation.pageSubtitle": {
