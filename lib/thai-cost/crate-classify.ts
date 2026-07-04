@@ -35,9 +35,9 @@ export function parseLargeTongTypeCodes(raw: string | null | undefined): string[
 }
 
 export function serializeLargeTongTypeCodes(codes: string[]): string {
-  const normalized = [
-    ...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean)),
-  ];
+  const normalized = Array.from(
+    new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))
+  );
   return JSON.stringify(
     normalized.length > 0
       ? normalized
