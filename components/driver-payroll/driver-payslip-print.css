@@ -123,6 +123,17 @@
   padding-top: 4px;
 }
 
+/* WAGES / PCB / ADVANCE — thick bottom rule on full row */
+.driver-payslip-print .payslip-amount-table tr.payslip-section-line td {
+  border-bottom: 2px solid #000;
+  padding-bottom: 3px;
+}
+
+/* NET PAY — amount only in red; label stays black */
+.driver-payslip-print .payslip-amount-table tr.payslip-net td:last-child {
+  color: #c00;
+}
+
 .driver-payslip-print .payslip-advance-list {
   width: 100%;
   border-collapse: collapse;
@@ -170,6 +181,11 @@
 
   .driver-payslip-print .payslip-letterhead-logo {
     height: 48px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .driver-payslip-print .payslip-amount-table tr.payslip-net td:last-child {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

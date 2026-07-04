@@ -127,6 +127,17 @@ body{margin:0;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif}
   padding-top: 4px;
 }
 
+/* WAGES / PCB / ADVANCE — thick bottom rule on full row */
+.driver-payslip-print .payslip-amount-table tr.payslip-section-line td {
+  border-bottom: 2px solid #000;
+  padding-bottom: 3px;
+}
+
+/* NET PAY — amount only in red; label stays black */
+.driver-payslip-print .payslip-amount-table tr.payslip-net td:last-child {
+  color: #c00;
+}
+
 .driver-payslip-print .payslip-advance-list {
   width: 100%;
   border-collapse: collapse;
@@ -174,6 +185,11 @@ body{margin:0;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif}
 
   .driver-payslip-print .payslip-letterhead-logo {
     height: 48px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .driver-payslip-print .payslip-amount-table tr.payslip-net td:last-child {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -290,4 +306,4 @@ body{margin:0;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif}
   }
 }
 
-</style></head><body><div class="sheet"><article class="driver-payslip-print document-print"><header class="payslip-letterhead"><div class="payslip-letterhead-brand"><img src="/logo.png" alt="WTL Express" class="payslip-letterhead-logo"/><div class="payslip-letterhead-text"><h1>WTL EXPRESS SDN.BHD.</h1><p>202201017123 (1462820-W)</p><p>Lot 1918, Kampung Baru, Pekan Baru, 06010 Changloon, Kedah</p><p>Tel: 011-1150 3888   Email: wtlexpress3888@gmail.com</p></div></div></header><p class="payslip-title">PAYSLIP FOR THE MONTH OF JUNE 2026</p><div class="payslip-grid"><section class="payslip-cell"><h2>Employee</h2><dl class="payslip-kv"><dt>NAME</dt><dd>Yong Ah Fook</dd><dt>I/C NO.</dt><dd>640421-02-5309</dd><dt>A/C NO.</dt><dd>Maybank 1522-1905-8650</dd><dt>BASIC RATE</dt><dd>1700.00</dd></dl><p class="payslip-nickname">(Fook)</p></section><section class="payslip-cell"><h2>Others</h2><table class="payslip-amount-table"><tbody><tr><td>EPF&#x27;YER</td><td>588.00</td></tr><tr><td>SOCSO&#x27;YER</td><td>56.90</td></tr><tr><td>EIS&#x27;YER</td><td>0.00</td></tr></tbody></table></section><section class="payslip-cell"><h2>Payment</h2><table class="payslip-amount-table"><tbody><tr><td>BASIC PAY</td><td>1700.00</td></tr><tr><td>WAGES</td><td>2810.00</td></tr><tr class="payslip-total"><td>GROSS PAY</td><td>4510.00</td></tr><tr><td>EPF</td><td>-498.00</td></tr><tr><td>SOCSO</td><td>0.00</td></tr><tr><td>EIS</td><td>0.00</td></tr><tr><td>LINDUNG 24 JAM</td><td>-34.15</td></tr><tr><td>PCB</td><td>-52.55</td></tr><tr class="payslip-total"><td>BALANCE</td><td>3925.30</td></tr><tr><td>ADVANCE</td><td>-1500.00</td></tr><tr class="payslip-net"><td>NET PAY</td><td>2425.30</td></tr></tbody></table></section><section class="payslip-cell"><h2>Advance</h2><table class="payslip-advance-list"><thead><tr><th>Date</th><th class="amount">Amount (RM)</th></tr></thead><tbody><tr><td>15/06/2026</td><td class="amount">1500.00</td></tr></tbody></table><div class="payslip-signature-row"><div class="payslip-signature-line">EMPLOYEE&#x27;S SIGNATURE</div><div>TOTAL  <span style="font-family:ui-monospace, monospace">1500.00</span></div></div></section></div></article></div></body></html>
+</style></head><body><div class="sheet"><article class="driver-payslip-print document-print"><header class="payslip-letterhead"><div class="payslip-letterhead-brand"><img src="/logo.png" alt="WTL Express" class="payslip-letterhead-logo"/><div class="payslip-letterhead-text"><h1>WTL EXPRESS SDN.BHD.</h1><p>202201017123 (1462820-W)</p><p>Lot 1918, Kampung Baru, Pekan Baru, 06010 Changloon, Kedah</p><p>Tel: 011-1150 3888   Email: wtlexpress3888@gmail.com</p></div></div></header><p class="payslip-title">PAYSLIP FOR THE MONTH OF JUNE 2026</p><div class="payslip-grid"><section class="payslip-cell"><h2>Employee</h2><dl class="payslip-kv"><dt>NAME</dt><dd>Yong Ah Fook</dd><dt>I/C NO.</dt><dd>640421-02-5309</dd><dt>A/C NO.</dt><dd>Maybank 1522-1905-8650</dd><dt>BASIC RATE</dt><dd>1700.00</dd></dl><p class="payslip-nickname">(Fook)</p></section><section class="payslip-cell"><h2>Others</h2><table class="payslip-amount-table"><tbody><tr><td>EPF&#x27;YER</td><td>588.00</td></tr><tr><td>SOCSO&#x27;YER</td><td>56.90</td></tr><tr><td>EIS&#x27;YER</td><td>0.00</td></tr></tbody></table></section><section class="payslip-cell"><h2>Payment</h2><table class="payslip-amount-table"><tbody><tr><td>BASIC PAY</td><td>1700.00</td></tr><tr class="payslip-section-line"><td>WAGES</td><td>2810.00</td></tr><tr class="payslip-total"><td>GROSS PAY</td><td>4510.00</td></tr><tr><td>EPF</td><td>-498.00</td></tr><tr><td>SOCSO</td><td>0.00</td></tr><tr><td>EIS</td><td>0.00</td></tr><tr><td>LINDUNG 24 JAM</td><td>-34.15</td></tr><tr class="payslip-section-line"><td>PCB</td><td>-52.55</td></tr><tr class="payslip-total"><td>BALANCE</td><td>3925.30</td></tr><tr class="payslip-section-line"><td>ADVANCE</td><td>-1500.00</td></tr><tr class="payslip-net"><td>NET PAY</td><td>2425.30</td></tr></tbody></table></section><section class="payslip-cell"><h2>Advance</h2><table class="payslip-advance-list"><thead><tr><th>Date</th><th class="amount">Amount (RM)</th></tr></thead><tbody><tr><td>15/06/2026</td><td class="amount">1500.00</td></tr></tbody></table><div class="payslip-signature-row"><div class="payslip-signature-line">EMPLOYEE&#x27;S SIGNATURE</div><div>TOTAL  <span style="font-family:ui-monospace, monospace">1500.00</span></div></div></section></div></article></div></body></html>
