@@ -1202,6 +1202,9 @@ model InvoicePayment {
   notes              String?  @map("notes") @db.Text
   allocationStrategy String   @default("auto") @map("allocationStrategy")
   unallocatedAmount  Decimal  @default(0) @map("unallocatedAmount") @db.Decimal(12, 2)
+  isReconciled       Boolean  @default(false) @map("isReconciled")
+  reconciledAt       DateTime? @map("reconciledAt")
+  reconciledBy       String?  @map("reconciledBy") @db.Uuid
   createdBy          String   @map("createdBy") @db.Uuid
   updatedBy          String?  @map("updatedBy") @db.Uuid
   createdAt          DateTime @default(now()) @map("createdAt")
@@ -1212,6 +1215,7 @@ model InvoicePayment {
   @@index([customerKey, currency])
   @@index([paymentDate])
   @@index([bankAccount])
+  @@index([isReconciled])
   @@map("invoice_payments")
 }
 

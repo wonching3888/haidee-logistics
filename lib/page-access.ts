@@ -57,7 +57,9 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
   }
   if (
     path === "/financial/invoice-collections" ||
-    path.startsWith("/financial/invoice-collections/")
+    path.startsWith("/financial/invoice-collections/") ||
+    path === "/financial/bank-reconciliation" ||
+    path.startsWith("/financial/bank-reconciliation/")
   ) {
     return "invoice-collections";
   }

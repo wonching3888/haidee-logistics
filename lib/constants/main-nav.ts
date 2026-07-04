@@ -101,6 +101,11 @@ export const MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS: MainNavLink = {
   messageKey: "nav.invoiceCollections",
 };
 
+export const MAIN_NAV_FINANCIAL_BANK_RECONCILIATION: MainNavLink = {
+  href: "/financial/bank-reconciliation",
+  messageKey: "nav.bankReconciliation",
+};
+
 export const MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT: MainNavLink = {
   href: "/financial/autocount-export",
   messageKey: "nav.autocountExport",
@@ -114,6 +119,7 @@ export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
     MAIN_NAV_FINANCIAL_DRIVER_EXPENSES,
     MAIN_NAV_FINANCIAL_DRIVER_PAYROLL,
     MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS,
+    MAIN_NAV_FINANCIAL_BANK_RECONCILIATION,
     MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT,
   ],
 };

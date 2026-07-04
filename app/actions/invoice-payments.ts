@@ -199,63 +199,67 @@ export async function createInvoicePayment(input: {
   const notes = input.notes?.trim() || null;
   const customerName = await resolveCustomerName(input.customerKey, currency);
 
-  const created = await prisma.$transaction(async (tx) => {
-    const payment = await tx.invoicePayment.create({
-      data: {
-        customerKey: input.customerKey,
-        customerKind,
-        customerId: input.customerId ?? null,
-        currency,
-        amount,
-        paymentDate,
-        bankAccount: input.bankAccount,
-        notes,
-        allocationStrategy: "auto",
-        unallocatedAmount: amount,
-        createdBy: user.id,
-      },
-    });
-
-    await runAutoAllocation(input.customerKey, currency, tx);
-
-    const refreshed = await tx.invoicePayment.findUniqueOrThrow({
-      where: { id: payment.id },
-      include: {
-        allocations: {
-          orderBy: [{ yearMonth: "asc" }, { invoiceKey: "asc" }],
-        },
-      },
-    });
-
-    await appendInvoicePaymentChangeLogs(tx, {
-      actorUserId: user.id,
-      logs: [
-        {
-          paymentId: payment.id,
+  const created = await prisma.$transaction(
+    async (tx) => {
+      const payment = await tx.invoicePayment.create({
+        data: {
           customerKey: input.customerKey,
+          customerKind,
+          customerId: input.customerId ?? null,
           currency,
-          eventType: "create",
-          metadata: buildInvoicePaymentCreateMetadata({
-            customerKey: input.customerKey,
-            customerKind,
-            customerName,
-            currency,
-            amount,
-            paymentDate: paymentDateStr,
-            bankAccount: input.bankAccount,
-            notes,
-            allocationsAfter: allocationRowsFromDb(refreshed.allocations),
-            unallocatedAfter: Number(refreshed.unallocatedAmount),
-          }),
+          amount,
+          paymentDate,
+          bankAccount: input.bankAccount,
+          notes,
+          allocationStrategy: "auto",
+          unallocatedAmount: amount,
+          createdBy: user.id,
         },
-      ],
-    });
+      });
 
-    return refreshed;
-  });
+      await runAutoAllocation(input.customerKey, currency, tx);
+
+      const refreshed = await tx.invoicePayment.findUniqueOrThrow({
+        where: { id: payment.id },
+        include: {
+          allocations: {
+            orderBy: [{ yearMonth: "asc" }, { invoiceKey: "asc" }],
+          },
+        },
+      });
+
+      await appendInvoicePaymentChangeLogs(tx, {
+        actorUserId: user.id,
+        logs: [
+          {
+            paymentId: payment.id,
+            customerKey: input.customerKey,
+            currency,
+            eventType: "create",
+            metadata: buildInvoicePaymentCreateMetadata({
+              customerKey: input.customerKey,
+              customerKind,
+              customerName,
+              currency,
+              amount,
+              paymentDate: paymentDateStr,
+              bankAccount: input.bankAccount,
+              notes,
+              allocationsAfter: allocationRowsFromDb(refreshed.allocations),
+              unallocatedAfter: Number(refreshed.unallocatedAmount),
+            }),
+          },
+        ],
+      });
+
+      return refreshed;
+    },
+    { timeout: 60_000 }
+  );
 
   revalidatePath("/history");
   revalidatePath("/financial/invoice-collections");
+  revalidatePath("/financial/bank-reconciliation");
 
   return {
     paymentId: created.id,
@@ -339,6 +343,7 @@ export async function deleteInvoicePayment(paymentId: string) {
 
   revalidatePath("/history");
   revalidatePath("/financial/invoice-collections");
+  revalidatePath("/financial/bank-reconciliation");
 
   return { ok: true as const };
 }
@@ -371,7 +376,8 @@ export async function updateInvoicePayment(input: {
   const notes = input.notes?.trim() || null;
   const customerName = await resolveCustomerName(input.customerKey, currency);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(
+    async (tx) => {
     const existing = await tx.invoicePayment.findUniqueOrThrow({
       where: { id: input.paymentId },
       include: {
@@ -485,10 +491,13 @@ export async function updateInvoicePayment(input: {
       actorUserId: user.id,
       logs,
     });
-  });
+  },
+    { timeout: 60_000 }
+  );
 
   revalidatePath("/history");
   revalidatePath("/financial/invoice-collections");
+  revalidatePath("/financial/bank-reconciliation");
 
   return { ok: true as const };
 }

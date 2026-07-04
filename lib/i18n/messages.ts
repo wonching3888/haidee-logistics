@@ -201,11 +201,87 @@ export const MESSAGES = {
     en: "Invoice Collections",
     th: "เก็บเงินใบแจ้งหนี้",
   },
+  "nav.bankReconciliation": {
+    zh: "银行对账",
+    en: "Bank Reconciliation",
+    th: "กระทบยอดธนาคาร",
+  },
   "nav.autocountExport": {
     zh: "AutoCount 导出",
     en: "AutoCount Export",
     th: "ส่งออก AutoCount",
   },
+  "bankReconciliation.pageSubtitle": {
+    zh: "按银行账户核对系统收款与银行对账单",
+    en: "Match system receipts to bank statements by account",
+    th: "กระทบยอดรับเงินกับใบแจ้งยอดธนาคารตามบัญชี",
+  },
+  "bankReconciliation.dateFrom": {
+    zh: "起始日期",
+    en: "From",
+    th: "ตั้งแต่",
+  },
+  "bankReconciliation.dateTo": {
+    zh: "结束日期",
+    en: "To",
+    th: "ถึง",
+  },
+  "bankReconciliation.thisMonth": {
+    zh: "本月",
+    en: "This month",
+    th: "เดือนนี้",
+  },
+  "bankReconciliation.exportCsv": {
+    zh: "导出 CSV",
+    en: "Export CSV",
+    th: "ส่งออก CSV",
+  },
+  "bankReconciliation.groupCount": {
+    zh: "{n} 笔",
+    en: "{n} payments",
+    th: "{n} รายการ",
+  },
+  "bankReconciliation.reconciledSubtotal": {
+    zh: "已对账",
+    en: "Reconciled",
+    th: "กระทบยอดแล้ว",
+  },
+  "bankReconciliation.emptyGroup": {
+    zh: "该账户在此期间无收款",
+    en: "No receipts for this account in the selected range",
+    th: "ไม่มีรายการรับเงินในช่วงนี้",
+  },
+  "bankReconciliation.groupTotal": {
+    zh: "小计",
+    en: "Subtotal",
+    th: "รวม",
+  },
+  "bankReconciliation.col.reconciled": {
+    zh: "已对账",
+    en: "Done",
+    th: "กระทบยอด",
+  },
+  "bankReconciliation.col.date": {
+    zh: "日期",
+    en: "Date",
+    th: "วันที่",
+  },
+  "bankReconciliation.col.customer": {
+    zh: "客户",
+    en: "Customer",
+    th: "ลูกค้า",
+  },
+  "bankReconciliation.col.amount": {
+    zh: "金额",
+    en: "Amount",
+    th: "จำนวนเงิน",
+  },
+  "bankReconciliation.col.invoiceNos": {
+    zh: "发票号",
+    en: "Invoice nos",
+    th: "เลขใบแจ้งหนี้",
+  },
+
   "invoiceCollections.title": {
     zh: "Invoice 收账",
     en: "Invoice Collections",
