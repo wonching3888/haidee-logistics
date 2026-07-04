@@ -32,9 +32,13 @@ export const DRIVER_JV_ACCOUNT_SUFFIX_SEEDS: DriverJvAccountSuffixSeed[] = [
     nicknameMatches: ["Azrin"],
   },
   {
-    canonicalFullName: "Wan SyafirulHafiq Bin Wan Mustafa",
+    canonicalFullName: "Wan Syafirul Hafiq Bin Wan Mustafa",
     accountCodeSuffix: "WAN1",
-    fullNameMatches: ["Wan SyafirulHafiq Bin Wan Mustafa", "Mustafa"],
+    fullNameMatches: [
+      "Wan Syafirul Hafiq Bin Wan Mustafa",
+      "Wan SyafirulHafiq Bin Wan Mustafa",
+      "Mustafa",
+    ],
     nicknameMatches: ["Wan"],
   },
   {
