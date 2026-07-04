@@ -125,15 +125,15 @@ export function DriverPayslipPrint({
           <table className="payslip-amount-table">
             <tbody>
               <AmountRow label="BASIC PAY" value={summary.baseSalary} />
-              <AmountRow label="WAGES (+)" value={wages} />
+              <AmountRow label="WAGES" value={wages} />
               <AmountRow label="GROSS PAY" value={summary.grossSalary} emphasis />
-              <AmountRow label="EPF (-)" value={-statutory.epfEmployee} />
-              <AmountRow label="SOCSO (-)" value={-statutory.socsoEmployee} />
-              <AmountRow label="EIS (-)" value={-statutory.eisEmployee} />
-              <AmountRow label="LINDUNG 24 JAM (-)" value={-statutory.lindung24Jam} />
-              <AmountRow label="PCB (-)" value={-statutory.pcb} />
+              <AmountRow label="EPF" value={-statutory.epfEmployee} />
+              <AmountRow label="SOCSO" value={-statutory.socsoEmployee} />
+              <AmountRow label="EIS" value={-statutory.eisEmployee} />
+              <AmountRow label="LINDUNG 24 JAM" value={-statutory.lindung24Jam} />
+              <AmountRow label="PCB" value={-statutory.pcb} />
               <AmountRow label="BALANCE" value={balance} emphasis />
-              <AmountRow label="ADVANCE (-)" value={-advanceTotal} />
+              <AmountRow label="ADVANCE" value={-advanceTotal} />
               <AmountRow label="NET PAY" value={summary.netSalary} net />
             </tbody>
           </table>

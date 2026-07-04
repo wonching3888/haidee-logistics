@@ -110,15 +110,17 @@
   white-space: nowrap;
 }
 
-.driver-payslip-print .payslip-amount-table tr.payslip-total td {
-  font-weight: 700;
-  border-top: 1px solid #111;
-  padding-top: 4px;
-}
-
+/* GROSS PAY / BALANCE / NET PAY — label + amount both emphasized */
+.driver-payslip-print .payslip-amount-table tr.payslip-total td,
 .driver-payslip-print .payslip-amount-table tr.payslip-net td {
   font-weight: 700;
-  font-size: 10.5pt;
+  font-size: 10.5pt; /* +1pt vs body 9.5pt */
+  color: #000;
+}
+
+.driver-payslip-print .payslip-amount-table tr.payslip-total td {
+  border-top: 1px solid #111;
+  padding-top: 4px;
 }
 
 .driver-payslip-print .payslip-advance-list {
