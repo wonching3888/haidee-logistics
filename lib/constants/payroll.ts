@@ -12,7 +12,9 @@ export const PAYROLL_EXTRA_TYPES = [
 
 export type PayrollExtraType = (typeof PAYROLL_EXTRA_TYPES)[number]["value"];
 
+/** Nominal Part A rates (reference only). Actual amounts: lookupEpfContributions. */
 export const EPF_EMPLOYEE_RATE = 0.11;
+/** Nominal Part A employer rate for wages ≤ RM5000 (reference only). */
 export const EPF_EMPLOYER_RATE = 0.13;
 export const EIS_RATE = 0.002;
 export const SOCSO_WAGE_CEILING = 6000;

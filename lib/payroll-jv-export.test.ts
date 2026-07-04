@@ -295,7 +295,12 @@ describe("buildMonthlyDriverJvRows integration", () => {
       expect(codes).toContain("9006-AKIM");
       expect(codes).toContain("4101-0000");
       expect(codes).toContain("4102-0000");
-      expect(codes).not.toContain("4103-0000");
+      if (summary.statutory.pcb > 0) {
+        expect(codes).toContain("4103-0000");
+        expect(akimJv!.amounts.pcb).toBe(summary.statutory.pcb);
+      } else {
+        expect(codes).not.toContain("4103-0000");
+      }
       expect(codes).toContain("3301-AKIM");
       expect(codes).toContain("4104-AKIM");
     },

@@ -561,8 +561,8 @@ function DriverPayrollDetailSections({
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
                   [
-                    ["epfEmployee", "EPF 员工 11%"],
-                    ["epfEmployer", "EPF 雇主 13%"],
+                    ["epfEmployee", "EPF 员工"],
+                    ["epfEmployer", "EPF 雇主"],
                     ["socsoEmployee", "SOCSO 员工"],
                     ["socsoEmployer", "SOCSO 雇主"],
                     ["lindung24Jam", "Lindung 24 jam (SKBBK)"],

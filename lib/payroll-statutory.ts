@@ -1,10 +1,6 @@
 import type { MaritalStatus } from "@/lib/constants/payroll";
-import {
-  EIS_RATE,
-  EIS_WAGE_CEILING,
-  EPF_EMPLOYEE_RATE,
-  EPF_EMPLOYER_RATE,
-} from "@/lib/constants/payroll";
+import { EIS_RATE, EIS_WAGE_CEILING } from "@/lib/constants/payroll";
+import { lookupEpfContributions } from "@/lib/constants/epf-brackets";
 import { lookupLindung24Jam } from "@/lib/constants/lindung-24-jam-brackets";
 import { lookupSocsoContributions } from "@/lib/constants/socso-brackets";
 import { lookupSocsoSecondCategoryEmployer } from "@/lib/constants/socso-second-category-brackets";
@@ -64,12 +60,9 @@ export function calculateStatutoryDeductions(input: {
   const gross = Math.max(0, input.grossSalary);
   const eisExempt = isEisExempt(input.isSocsoSecondCategory);
 
-  const epfEmployee =
-    input.overrides?.epfEmployee ??
-    roundMoney(gross * EPF_EMPLOYEE_RATE);
-  const epfEmployer =
-    input.overrides?.epfEmployer ??
-    roundMoney(gross * EPF_EMPLOYER_RATE);
+  const epfTable = lookupEpfContributions(gross);
+  const epfEmployee = input.overrides?.epfEmployee ?? epfTable.employee;
+  const epfEmployer = input.overrides?.epfEmployer ?? epfTable.employer;
 
   const socsoBase = gross;
   let socsoEmployee: number;

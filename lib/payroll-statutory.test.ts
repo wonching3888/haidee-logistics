@@ -6,6 +6,7 @@ import {
   crateReturnEarningsDisplayTotal,
   isEisExempt,
 } from "@/lib/payroll-statutory";
+import { lookupEpfContributions } from "@/lib/constants/epf-brackets";
 import { lookupLindung24Jam } from "@/lib/constants/lindung-24-jam-brackets";
 import { lookupSocsoContributions } from "@/lib/constants/socso-brackets";
 import { lookupSocsoSecondCategoryEmployer } from "@/lib/constants/socso-second-category-brackets";
@@ -24,6 +25,30 @@ describe("lookupLindung24Jam (official bracket table)", () => {
 
   it("mid bracket: gross 4000 → 29.65 per official table", () => {
     expect(lookupLindung24Jam(4000)).toBe(29.65);
+  });
+});
+
+describe("EPF Third Schedule Part A", () => {
+  it("uses official brackets not simple percentage", () => {
+    const statutory = calculateStatutoryDeductions({
+      grossSalary: 4630,
+      maritalStatus: "married",
+      childCount: 2,
+    });
+    expect(statutory.epfEmployer).toBe(604);
+    expect(statutory.epfEmployee).toBe(511);
+    expect(statutory.epfEmployer).toEqual(lookupEpfContributions(4630).employer);
+  });
+
+  it("respects epf override", () => {
+    const statutory = calculateStatutoryDeductions({
+      grossSalary: 4630,
+      maritalStatus: "married",
+      childCount: 2,
+      overrides: { epfEmployee: 500, epfEmployer: 600 },
+    });
+    expect(statutory.epfEmployee).toBe(500);
+    expect(statutory.epfEmployer).toBe(600);
   });
 });
 

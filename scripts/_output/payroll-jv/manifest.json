@@ -39,11 +39,35 @@
     {
       "yearMonth": "2026-06",
       "filename": "payroll-jv-2026-06-rev4-fook-pcb-fix.csv",
-      "status": "active",
+      "status": "void",
       "revision": 4,
       "driverCount": 13,
-      "notes": "Fook整月crate重算(4510/2479.75) + Naim PCB手动策略下为0(净额2228.44)",
-      "exportedAt": "2026-07-03T11:34:27.914Z"
+      "notes": "7人PCB手动补录 + Awang借支2000→2500（CORNIE正常录入）",
+      "exportedAt": "2026-07-03T11:34:27.914Z",
+      "voidReason": "作废-补录7人真实PCB数据+Awang借支追加，替换为rev5",
+      "voidedAt": "2026-07-04T14:30:26.620Z",
+      "supersededBy": "payroll-jv-2026-06-rev5-pcb-override.csv"
+    },
+    {
+      "yearMonth": "2026-06",
+      "filename": "payroll-jv-2026-06-rev5-pcb-override.csv",
+      "status": "void",
+      "revision": 5,
+      "driverCount": 13,
+      "notes": "EPF Third Schedule + Wan PCB 11.65 restore + Naim advance 2500",
+      "exportedAt": "2026-07-04T14:30:26.626Z",
+      "voidReason": "EPF官方分档表修正+Wan PCB恢复+Naim借支更新，替换为rev6",
+      "voidedAt": "2026-07-04T15:16:42.261Z",
+      "supersededBy": "payroll-jv-2026-06-rev6-epf-brackets.csv"
+    },
+    {
+      "yearMonth": "2026-06",
+      "filename": "payroll-jv-2026-06-rev6-epf-brackets.csv",
+      "status": "active",
+      "revision": 6,
+      "driverCount": 13,
+      "notes": "EPF官方分档表；Pinat 612/561；Wan PCB 11.65 NET 1481.37；Naim借支2500",
+      "exportedAt": "2026-07-04T15:16:42.264Z"
     }
   ]
 }

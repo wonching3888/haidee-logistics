@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><style>
+body{margin:0;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif}
+.sheet{max-width:210mm;margin:0 auto;background:#fff;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+@import "../documents/document-print.css";
+
+.driver-payslip-print {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.35;
+  color: #111;
+}
+
+.driver-payslip-print .payslip-letterhead {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.driver-payslip-print .payslip-letterhead-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 100%;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-letterhead-logo {
+  height: 52px;
+  width: auto;
+  flex-shrink: 0;
+  mix-blend-mode: multiply;
+}
+
+.driver-payslip-print .payslip-letterhead-text h1 {
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-letterhead-text p {
+  margin: 0;
+  font-size: 9pt;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11pt;
+  margin: 8px 0 12px;
+  text-decoration: underline;
+}
+
+.driver-payslip-print .payslip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1.5px solid #111;
+}
+
+.driver-payslip-print .payslip-cell {
+  border: 1px solid #111;
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.driver-payslip-print .payslip-cell h2 {
+  font-size: 10pt;
+  font-weight: 700;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.driver-payslip-print .payslip-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 3px;
+  font-size: 9.5pt;
+}
+
+.driver-payslip-print .payslip-kv dt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.driver-payslip-print .payslip-kv dd {
+  margin: 0;
+}
+
+.driver-payslip-print .payslip-nickname {
+  margin-top: 6px;
+  font-size: 9pt;
+  font-style: italic;
+}
+
+.driver-payslip-print .payslip-amount-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+}
+
+.driver-payslip-print .payslip-amount-table td {
+  padding: 2px 0;
+  vertical-align: top;
+}
+
+.driver-payslip-print .payslip-amount-table td:last-child {
+  text-align: right;
+  font-family: ui-monospace, "Courier New", monospace;
+  white-space: nowrap;
+}
+
+/* GROSS PAY / BALANCE / NET PAY — label + amount both emphasized */
+.driver-payslip-print .payslip-amount-table tr.payslip-total td,
+.driver-payslip-print .payslip-amount-table tr.payslip-net td {
+  font-weight: 700;
+  font-size: 10.5pt; /* +1pt vs body 9.5pt */
+  color: #000;
+}
+
+.driver-payslip-print .payslip-amount-table tr.payslip-total td {
+  border-top: 1px solid #111;
+  padding-top: 4px;
+}
+
+.driver-payslip-print .payslip-advance-list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin-bottom: 8px;
+}
+
+.driver-payslip-print .payslip-advance-list th,
+.driver-payslip-print .payslip-advance-list td {
+  border-bottom: 1px solid #ccc;
+  padding: 3px 4px;
+  text-align: left;
+}
+
+.driver-payslip-print .payslip-advance-list td.amount {
+  text-align: right;
+  font-family: ui-monospace, "Courier New", monospace;
+}
+
+.driver-payslip-print .payslip-signature-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 16px;
+  font-size: 9pt;
+  font-weight: 700;
+}
+
+.driver-payslip-print .payslip-signature-line {
+  margin-top: 28px;
+  border-top: 1px solid #111;
+  width: 55%;
+  padding-top: 4px;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  .driver-payslip-print {
+    font-size: 10pt;
+  }
+
+  .driver-payslip-print .payslip-letterhead-logo {
+    height: 48px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .driver-payslip-batch-print {
+    gap: 0;
+  }
+
+  .driver-payslip-batch-page {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .driver-payslip-batch-page--last {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+.driver-payslip-batch-print {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.driver-payslip-batch-page {
+  page-break-after: always;
+  break-after: page;
+}
+
+.driver-payslip-batch-page--last {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.driver-payslip-package {
+  display: block;
+}
+
+.trip-listing-print {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  color: #111;
+  page-break-before: always;
+  break-before: page;
+  margin-top: 24px;
+}
+
+.trip-listing-print .trip-listing-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11pt;
+  margin: 0 0 6px;
+  text-decoration: underline;
+}
+
+.trip-listing-print .trip-listing-driver {
+  text-align: center;
+  font-weight: 700;
+  font-size: 10pt;
+  margin: 0 0 4px;
+}
+
+.trip-listing-print .trip-listing-driver-sub {
+  text-align: center;
+  font-weight: 400;
+  font-size: 9pt;
+  margin: 0 0 12px;
+  color: #444;
+}
+
+.trip-listing-print .trip-listing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+.trip-listing-print .trip-listing-table th,
+.trip-listing-print .trip-listing-table td {
+  border: 1px solid #111;
+  padding: 4px 6px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.trip-listing-print .trip-listing-table th.amount,
+.trip-listing-print .trip-listing-table td.amount {
+  text-align: right;
+  font-family: ui-monospace, "Courier New", monospace;
+  white-space: nowrap;
+}
+
+.trip-listing-print .trip-listing-table thead th {
+  background: #f3f4f6;
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.trip-listing-print .trip-listing-empty {
+  text-align: center;
+  color: #666;
+  padding: 16px;
+}
+
+.trip-listing-print .trip-listing-total td {
+  font-weight: 700;
+  border-top: 2px solid #111;
+}
+
+@media print {
+  .trip-listing-print {
+    margin-top: 0;
+  }
+}
+
+</style></head><body><div class="sheet"><article class="driver-payslip-print document-print"><header class="payslip-letterhead"><div class="payslip-letterhead-brand"><img src="/logo.png" alt="WTL Express" class="payslip-letterhead-logo"/><div class="payslip-letterhead-text"><h1>WTL EXPRESS SDN.BHD.</h1><p>202201017123 (1462820-W)</p><p>Lot 1918, Kampung Baru, Pekan Baru, 06010 Changloon, Kedah</p><p>Tel: 011-1150 3888   Email: wtlexpress3888@gmail.com</p></div></div></header><p class="payslip-title">PAYSLIP FOR THE MONTH OF JUNE 2026</p><div class="payslip-grid"><section class="payslip-cell"><h2>Employee</h2><dl class="payslip-kv"><dt>NAME</dt><dd>Abdul Halim Bin Ahmad</dd><dt>I/C NO.</dt><dd>920423-02-5747</dd><dt>A/C NO.</dt><dd>CIMB 705-806-8978</dd><dt>BASIC RATE</dt><dd>1700.00</dd></dl><p class="payslip-nickname">(Halim)</p></section><section class="payslip-cell"><h2>Others</h2><table class="payslip-amount-table"><tbody><tr><td>EPF&#x27;YER</td><td>463.00</td></tr><tr><td>SOCSO&#x27;YER</td><td>62.15</td></tr><tr><td>EIS&#x27;YER</td><td>7.10</td></tr></tbody></table></section><section class="payslip-cell"><h2>Payment</h2><table class="payslip-amount-table"><tbody><tr><td>BASIC PAY</td><td>1700.00</td></tr><tr><td>WAGES</td><td>1850.00</td></tr><tr class="payslip-total"><td>GROSS PAY</td><td>3550.00</td></tr><tr><td>EPF</td><td>-392.00</td></tr><tr><td>SOCSO</td><td>-17.75</td></tr><tr><td>EIS</td><td>-7.10</td></tr><tr><td>LINDUNG 24 JAM</td><td>-26.65</td></tr><tr><td>PCB</td><td>0.00</td></tr><tr class="payslip-total"><td>BALANCE</td><td>3106.50</td></tr><tr><td>ADVANCE</td><td>-1500.00</td></tr><tr class="payslip-net"><td>NET PAY</td><td>1606.50</td></tr></tbody></table></section><section class="payslip-cell"><h2>Advance</h2><table class="payslip-advance-list"><thead><tr><th>Date</th><th class="amount">Amount (RM)</th></tr></thead><tbody><tr><td>15/06/2026</td><td class="amount">1500.00</td></tr></tbody></table><div class="payslip-signature-row"><div class="payslip-signature-line">EMPLOYEE&#x27;S SIGNATURE</div><div>TOTAL  <span style="font-family:ui-monospace, monospace">1500.00</span></div></div></section></div></article></div></body></html>

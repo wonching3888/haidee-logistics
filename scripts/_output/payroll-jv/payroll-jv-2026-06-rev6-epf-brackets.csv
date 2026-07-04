@@ -1,0 +1,112 @@
+﻿日期 Date,JV号 JVNo,科目码 AccountCode,借 Debit,贷 Credit,备注 Description
+2026-06-30,JV-2606-001,6308-AKIM,1700.00,,底薪 Base Salary - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,6307-AKIM,2930.00,,工钱 Wages - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,9005-AKIM,604.00,,EPF雇主 EPF Employer - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,9006-AKIM,90.61,,SOCSO+EIS雇主 SOCSO/EIS Employer - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,4101-0000,,1115.00,EPF应付 EPF Payable - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,4102-0000,,157.97,SOCSO/EIS/Lindung 应付 PERKESO Payable - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,4103-0000,,41.50,PCB应付 PCB Payable - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,3301-AKIM,,1800.00,借支 Advance - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-001,4104-AKIM,,2210.14,实发 Net Pay - Muhammad Hakim Bin Mat Sarip
+2026-06-30,JV-2606-002,6308-WANG,1700.00,,底薪 Base Salary - Sharif Bin Mat
+2026-06-30,JV-2606-002,6307-WANG,3090.00,,工钱 Wages - Sharif Bin Mat
+2026-06-30,JV-2606-002,9005-WANG,624.00,,EPF雇主 EPF Employer - Sharif Bin Mat
+2026-06-30,JV-2606-002,9006-WANG,92.73,,SOCSO+EIS雇主 SOCSO/EIS Employer - Sharif Bin Mat
+2026-06-30,JV-2606-002,4101-0000,,1152.00,EPF应付 EPF Payable - Sharif Bin Mat
+2026-06-30,JV-2606-002,4102-0000,,161.71,SOCSO/EIS/Lindung 应付 PERKESO Payable - Sharif Bin Mat
+2026-06-30,JV-2606-002,3301-WANG,,2500.00,借支 Advance - Sharif Bin Mat
+2026-06-30,JV-2606-002,4104-WANG,,1693.02,实发 Net Pay - Sharif Bin Mat
+2026-06-30,JV-2606-003,6308-AZAR,1700.00,,底薪 Base Salary - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,6307-AZAR,3030.00,,工钱 Wages - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,9005-AZAR,617.00,,EPF雇主 EPF Employer - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,9006-AZAR,92.61,,SOCSO+EIS雇主 SOCSO/EIS Employer - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,4101-0000,,1139.00,EPF应付 EPF Payable - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,4102-0000,,161.47,SOCSO/EIS/Lindung 应付 PERKESO Payable - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,4103-0000,,38.65,PCB应付 PCB Payable - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,3301-AZAR,,1500.00,借支 Advance - Norazhar Bin Baharom
+2026-06-30,JV-2606-003,4104-AZAR,,2600.49,实发 Net Pay - Norazhar Bin Baharom
+2026-06-30,JV-2606-004,6308-PEIN,1700.00,,底薪 Base Salary - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,6307-PEIN,2390.00,,工钱 Wages - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,9005-PEIN,533.00,,EPF雇主 EPF Employer - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,9006-PEIN,79.03,,SOCSO+EIS雇主 SOCSO/EIS Employer - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,4101-0000,,984.00,EPF应付 EPF Payable - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,4102-0000,,137.81,SOCSO/EIS/Lindung 应付 PERKESO Payable - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,3301-PEIN,,2300.00,借支 Advance - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-004,4104-PEIN,,1280.22,实发 Net Pay - Mohd Azrin Bin Mohd Sadri
+2026-06-30,JV-2606-005,6308-FAIZ,1700.00,,底薪 Base Salary - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,6307-FAIZ,2950.00,,工钱 Wages - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,9005-FAIZ,606.00,,EPF雇主 EPF Employer - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,9006-FAIZ,90.65,,SOCSO+EIS雇主 SOCSO/EIS Employer - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,4101-0000,,1119.00,EPF应付 EPF Payable - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,4102-0000,,158.05,SOCSO/EIS/Lindung 应付 PERKESO Payable - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,4103-0000,,36.20,PCB应付 PCB Payable - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,3301-FAIZ,,1500.00,借支 Advance - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-005,4104-FAIZ,,2533.40,实发 Net Pay - Ku Mohd Faizal Bin Ku Aziz
+2026-06-30,JV-2606-006,6308-FOOK,1700.00,,底薪 Base Salary - Yong Ah Fook
+2026-06-30,JV-2606-006,6307-FOOK,2810.00,,工钱 Wages - Yong Ah Fook
+2026-06-30,JV-2606-006,9005-FOOK,588.00,,EPF雇主 EPF Employer - Yong Ah Fook
+2026-06-30,JV-2606-006,9006-FOOK,56.90,,SOCSO+EIS雇主 SOCSO/EIS Employer - Yong Ah Fook
+2026-06-30,JV-2606-006,4101-0000,,1086.00,EPF应付 EPF Payable - Yong Ah Fook
+2026-06-30,JV-2606-006,4102-0000,,91.05,SOCSO/EIS/Lindung 应付 PERKESO Payable - Yong Ah Fook
+2026-06-30,JV-2606-006,4103-0000,,52.55,PCB应付 PCB Payable - Yong Ah Fook
+2026-06-30,JV-2606-006,3301-FOOK,,1500.00,借支 Advance - Yong Ah Fook
+2026-06-30,JV-2606-006,4104-FOOK,,2425.30,实发 Net Pay - Yong Ah Fook
+2026-06-30,JV-2606-007,6308-HLIM,1700.00,,底薪 Base Salary - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,6307-HLIM,1850.00,,工钱 Wages - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,9005-HLIM,463.00,,EPF雇主 EPF Employer - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,9006-HLIM,69.25,,SOCSO+EIS雇主 SOCSO/EIS Employer - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,4101-0000,,855.00,EPF应付 EPF Payable - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,4102-0000,,120.75,SOCSO/EIS/Lindung 应付 PERKESO Payable - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,3301-HLIM,,1500.00,借支 Advance - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-007,4104-HLIM,,1606.50,实发 Net Pay - Abdul Halim Bin Ahmad
+2026-06-30,JV-2606-008,6308-IMAL,1700.00,,底薪 Base Salary - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,6307-IMAL,2910.00,,工钱 Wages - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,9005-IMAL,601.00,,EPF雇主 EPF Employer - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,9006-IMAL,90.57,,SOCSO+EIS雇主 SOCSO/EIS Employer - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,4101-0000,,1110.00,EPF应付 EPF Payable - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,4102-0000,,157.89,SOCSO/EIS/Lindung 应付 PERKESO Payable - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,3301-IMAL,,2000.00,借支 Advance - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-008,4104-IMAL,,2033.68,实发 Net Pay - Mohd Ikmal Hisham Bin Hanapi
+2026-06-30,JV-2606-009,6308-NAIM,1700.00,,底薪 Base Salary - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,6307-NAIM,3130.00,,工钱 Wages - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,9005-NAIM,630.00,,EPF雇主 EPF Employer - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,9006-NAIM,94.51,,SOCSO+EIS雇主 SOCSO/EIS Employer - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,4101-0000,,1163.00,EPF应付 EPF Payable - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,4102-0000,,164.77,SOCSO/EIS/Lindung 应付 PERKESO Payable - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,4103-0000,,41.75,PCB应付 PCB Payable - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,3301-NAIM,,2500.00,借支 Advance - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-009,4104-NAIM,,1684.99,实发 Net Pay - Mohamad Naim Bin Zulkefli
+2026-06-30,JV-2606-010,6308-OWN1,1700.00,,底薪 Base Salary - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,6307-OWN1,2450.00,,工钱 Wages - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,9005-OWN1,541.00,,EPF雇主 EPF Employer - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,9006-OWN1,80.95,,SOCSO+EIS雇主 SOCSO/EIS Employer - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,4101-0000,,999.00,EPF应付 EPF Payable - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,4102-0000,,141.15,SOCSO/EIS/Lindung 应付 PERKESO Payable - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,4103-0000,,24.45,PCB应付 PCB Payable - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,3301-OWN1,,1500.00,借支 Advance - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-010,4104-OWN1,,2107.35,实发 Net Pay - Muhammad Asrul Bin Abdul Jalil
+2026-06-30,JV-2606-011,6308-PNAT,1700.00,,底薪 Base Salary - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,6307-PNAT,3340.00,,工钱 Wages - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,9005-PNAT,612.00,,EPF雇主 EPF Employer - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,9006-PNAT,98.43,,SOCSO+EIS雇主 SOCSO/EIS Employer - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,4101-0000,,1173.00,EPF应付 EPF Payable - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,4102-0000,,171.61,SOCSO/EIS/Lindung 应付 PERKESO Payable - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,3301-PNAT,,2000.00,借支 Advance - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-011,4104-PNAT,,2405.82,实发 Net Pay - Mohd Shafinar Bin Abdullah
+2026-06-30,JV-2606-012,6308-ROZA,1700.00,,底薪 Base Salary - Rozaime Bin Othman
+2026-06-30,JV-2606-012,6307-ROZA,2450.00,,工钱 Wages - Rozaime Bin Othman
+2026-06-30,JV-2606-012,9005-ROZA,541.00,,EPF雇主 EPF Employer - Rozaime Bin Othman
+2026-06-30,JV-2606-012,9006-ROZA,80.95,,SOCSO+EIS雇主 SOCSO/EIS Employer - Rozaime Bin Othman
+2026-06-30,JV-2606-012,4101-0000,,999.00,EPF应付 EPF Payable - Rozaime Bin Othman
+2026-06-30,JV-2606-012,4102-0000,,141.15,SOCSO/EIS/Lindung 应付 PERKESO Payable - Rozaime Bin Othman
+2026-06-30,JV-2606-012,3301-ROZA,,1800.00,借支 Advance - Rozaime Bin Othman
+2026-06-30,JV-2606-012,4104-ROZA,,1831.80,实发 Net Pay - Rozaime Bin Othman
+2026-06-30,JV-2606-013,6308-WAN1,1700.00,,底薪 Base Salary - Mustafa
+2026-06-30,JV-2606-013,6307-WAN1,3090.00,,工钱 Wages - Mustafa
+2026-06-30,JV-2606-013,9005-WAN1,624.00,,EPF雇主 EPF Employer - Mustafa
+2026-06-30,JV-2606-013,9006-WAN1,92.73,,SOCSO+EIS雇主 SOCSO/EIS Employer - Mustafa
+2026-06-30,JV-2606-013,4101-0000,,1152.00,EPF应付 EPF Payable - Mustafa
+2026-06-30,JV-2606-013,4102-0000,,161.71,SOCSO/EIS/Lindung 应付 PERKESO Payable - Mustafa
+2026-06-30,JV-2606-013,4103-0000,,11.65,PCB应付 PCB Payable - Mustafa
+2026-06-30,JV-2606-013,3301-WAN1,,2700.00,借支 Advance - Mustafa
+2026-06-30,JV-2606-013,4104-WAN1,,1481.37,实发 Net Pay - Mustafa
