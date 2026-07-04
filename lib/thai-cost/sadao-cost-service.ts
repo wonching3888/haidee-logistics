@@ -10,7 +10,7 @@ import {
   isHolidayRate,
 } from "@/lib/thai-cost/holiday";
 import {
-  computeDailyLaborCost,
+  computeDailyLaborDayCost,
   computeDailyLaborLunchTotal,
   computeMonthlyWorkerTotal,
   computeSadaoHandlingCommission,
@@ -126,9 +126,14 @@ export async function getSadaoMonthlyCost(
   );
 
   const dailyLaborWageTotalThb = attendanceRows.reduce((sum, row) => {
-    const count = row.attendanceCount;
-    const wage = decimalToNumber(row.dailyWage) ?? 0;
-    return sum + computeDailyLaborCost(count, wage);
+    return (
+      sum +
+      computeDailyLaborDayCost({
+        attendanceCount: row.attendanceCount,
+        dailyWage: decimalToNumber(row.dailyWage) ?? 0,
+        totalWagePaid: decimalToNumber(row.totalWagePaid),
+      })
+    );
   }, 0);
 
   const dailyLaborRosterCount = roster?.rosterCount ?? 0;

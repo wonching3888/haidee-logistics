@@ -149,6 +149,27 @@ export function computeDailyLaborCost(
 }
 
 /**
+ * Resolve one attendance day's wage cost.
+ * Prefer totalWagePaid when present (Songkhla mixed rates);
+ * otherwise attendanceCount × dailyWage (Sadao).
+ */
+export function computeDailyLaborDayCost(input: {
+  attendanceCount: number;
+  dailyWage: number;
+  totalWagePaid?: number | null;
+}): number {
+  if (input.totalWagePaid != null) {
+    if (!Number.isFinite(input.totalWagePaid) || input.totalWagePaid < 0) {
+      throw new SadaoHandlingValidationError(
+        "totalWagePaid 必须是非负数 must be non-negative"
+      );
+    }
+    return input.totalWagePaid;
+  }
+  return computeDailyLaborCost(input.attendanceCount, input.dailyWage);
+}
+
+/**
  * Daily-labor LUNCH = roster headcount × monthly lunch rate.
  * Fixed full amount (not pro-rated by attendance days).
  */

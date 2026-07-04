@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { PnlIncompleteWarning } from "@/components/thai-cost/PnlIncompleteWarning";
 import type { PattaniPnlDetail } from "@/lib/thai-cost/pattani-pnl";
 import { Input } from "@/components/ui/input";
 
@@ -79,6 +80,8 @@ export function PattaniSummaryView({ pnl }: { pnl: PattaniPnlDetail }) {
         </div>
       </div>
 
+      <PnlIncompleteWarning message={pnl.completeness.incompleteWarning} />
+
       <div className="rounded-lg border p-4 text-sm">
         <h3 className="font-medium">真实成本分项 (THB)</h3>
         <ul className="mt-3 space-y-2">
@@ -105,6 +108,10 @@ export function PattaniSummaryView({ pnl }: { pnl: PattaniPnlDetail }) {
             <span className="font-mono">
               {money(r.driverTripCommissionThb)}
             </span>
+          </li>
+          <li className="flex justify-between">
+            <span>外部租车成本</span>
+            <span className="font-mono">{money(r.rentedVehicleCostThb)}</span>
           </li>
           <li className="flex justify-between border-t pt-2 font-medium">
             <span>真实成本合计</span>

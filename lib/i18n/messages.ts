@@ -271,6 +271,12 @@ export const MESSAGES = {
     en: "Pattani Summary",
     th: "สรุปปัตตานี",
   },
+  "nav.thaiCostRentedVehicles": {
+    zh: "外部租车",
+    en: "Rented Vehicles",
+    th: "รถเช่าภายนอก",
+  },
+
 
 
 

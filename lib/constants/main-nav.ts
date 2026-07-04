@@ -167,6 +167,11 @@ export const MAIN_NAV_THAI_COST_PATTANI_SUMMARY: MainNavLink = {
   messageKey: "nav.thaiCostPattaniSummary",
 };
 
+export const MAIN_NAV_THAI_COST_RENTED_VEHICLES: MainNavLink = {
+  href: "/thai-cost/rented-vehicles",
+  messageKey: "nav.thaiCostRentedVehicles",
+};
+
 export const MAIN_NAV_THAI_COST: MainNavGroup = {
   id: "thai-cost",
   messageKey: "nav.thaiCost",
@@ -181,6 +186,7 @@ export const MAIN_NAV_THAI_COST: MainNavGroup = {
     MAIN_NAV_THAI_COST_PATTANI_HANDLING,
     MAIN_NAV_THAI_COST_PATTANI_SUMMARY,
     MAIN_NAV_THAI_COST_DRIVER_TRIPS,
+    MAIN_NAV_THAI_COST_RENTED_VEHICLES,
     MAIN_NAV_THAI_COST_HOLIDAYS,
     MAIN_NAV_THAI_COST_SETTINGS,
   ],

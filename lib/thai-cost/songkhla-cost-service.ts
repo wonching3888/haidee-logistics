@@ -1,13 +1,9 @@
-import {
-  DEFAULT_LUNCH_ALLOWANCE_THB,
-  yearMonthKey,
-} from "@/lib/constants/thai-cost";
+import { yearMonthKey } from "@/lib/constants/thai-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import {
-  computeDailyLaborCost,
-  computeDailyLaborLunchTotal,
+  computeDailyLaborDayCost,
   computeMonthlyWorkerTotal,
   computeSadaoHandlingCommission,
   sumSadaoMonthlyCost,
@@ -46,6 +42,7 @@ export interface SongkhlaMonthlyCostDetail extends SadaoMonthlyCostSummary {
   driverBaseWageAllocatedThb: number;
   driverTripCommissionThb: number;
   driverTotalThb: number;
+  rentedVehicleCostThb: number;
   drivers: SongkhlaDriverCostDetail[];
   realCostTotalThb: number;
   rates: ResolvedThaiCostRates;
@@ -59,27 +56,41 @@ export async function getSongkhlaMonthlyRealCost(
   const { start, end } = getMonthDateRange(year, month);
   const ym = yearMonthKey(year, month);
 
-  const [workers, attendanceRows, handlingRows, roster, rates, tripRows, drivers] =
-    await Promise.all([
-      prisma.thaiMonthlyWorker.findMany({
-        where: { station: "SONGKHLA", active: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.thaiDailyLaborAttendance.findMany({
-        where: { station: "SONGKHLA", date: { gte: start, lte: end } },
-      }),
-      prisma.songkhlaCrateHandlingDaily.findMany({
-        where: { date: { gte: start, lte: end } },
-      }),
-      prisma.thaiDailyLaborMonthlyRoster.findUnique({
-        where: { yearMonth_station: { yearMonth: ym, station: "SONGKHLA" } },
-      }),
-      resolveThaiCostRatesForMonth(year, month),
-      prisma.thaiDriverTripDaily.findMany({
-        where: { date: { gte: start, lte: end } },
-      }),
-      prisma.thaiDriver.findMany({ where: { active: true } }),
-    ]);
+  const [
+    workers,
+    attendanceRows,
+    handlingRows,
+    roster,
+    rates,
+    tripRows,
+    drivers,
+    rentedTrips,
+  ] = await Promise.all([
+    prisma.thaiMonthlyWorker.findMany({
+      where: { station: "SONGKHLA", active: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.thaiDailyLaborAttendance.findMany({
+      where: { station: "SONGKHLA", date: { gte: start, lte: end } },
+    }),
+    prisma.songkhlaCrateHandlingDaily.findMany({
+      where: { date: { gte: start, lte: end } },
+    }),
+    prisma.thaiDailyLaborMonthlyRoster.findUnique({
+      where: { yearMonth_station: { yearMonth: ym, station: "SONGKHLA" } },
+    }),
+    resolveThaiCostRatesForMonth(year, month),
+    prisma.thaiDriverTripDaily.findMany({
+      where: { date: { gte: start, lte: end } },
+    }),
+    prisma.thaiDriver.findMany({ where: { active: true } }),
+    prisma.thaiRentedVehicleTrip.findMany({
+      where: {
+        station: "SONGKHLA",
+        date: { gte: start, lte: end },
+      },
+    }),
+  ]);
 
   const monthlyWorkers = workers.map((w) => {
     const monthlyWage = decimalToNumber(w.monthlyWage) ?? 0;
@@ -119,18 +130,17 @@ export async function getSongkhlaMonthlyRealCost(
   const dailyLaborWageTotalThb = attendanceRows.reduce((sum, row) => {
     return (
       sum +
-      computeDailyLaborCost(
-        row.attendanceCount,
-        decimalToNumber(row.dailyWage) ?? 0
-      )
+      computeDailyLaborDayCost({
+        attendanceCount: row.attendanceCount,
+        dailyWage: decimalToNumber(row.dailyWage) ?? 0,
+        totalWagePaid: decimalToNumber(row.totalWagePaid),
+      })
     );
   }, 0);
 
+  // Songkhla daily labor has no LUNCH/FUEL/RENT ROOM (clerk records wage total only).
   const dailyLaborRosterCount = roster?.rosterCount ?? 0;
-  const dailyLaborLunchTotalThb = computeDailyLaborLunchTotal(
-    dailyLaborRosterCount,
-    DEFAULT_LUNCH_ALLOWANCE_THB
-  );
+  const dailyLaborLunchTotalThb = 0;
 
   let handlingSmallCommissionThb = 0;
   let handlingLargeCommissionThb = 0;
@@ -208,7 +218,12 @@ export async function getSongkhlaMonthlyRealCost(
 
   const driverTotalThb =
     driverBaseWageAllocatedThb + driverTripCommissionThb;
-  const realCostTotalThb = laborSummary.totalCostThb + driverTotalThb;
+  const rentedVehicleCostThb = rentedTrips.reduce(
+    (s, t) => s + (decimalToNumber(t.tripCost) ?? 0),
+    0
+  );
+  const realCostTotalThb =
+    laborSummary.totalCostThb + driverTotalThb + rentedVehicleCostThb;
 
   return {
     year,
@@ -221,6 +236,7 @@ export async function getSongkhlaMonthlyRealCost(
     driverBaseWageAllocatedThb,
     driverTripCommissionThb,
     driverTotalThb,
+    rentedVehicleCostThb,
     drivers: driverDetails,
     realCostTotalThb,
     rates,

@@ -215,6 +215,7 @@ async function main() {
       pattaniContractorCrate: 20,
       pattaniContractorBox: 5,
       pattaniSakriCrate: 2.2,
+      largeTongTypeCodes: ["VIO", "BS", "GKS"],
     },
     actor.id
   );

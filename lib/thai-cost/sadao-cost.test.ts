@@ -8,6 +8,7 @@ import {
 } from "@/lib/constants/thai-cost";
 import {
   computeDailyLaborCost,
+  computeDailyLaborDayCost,
   computeDailyLaborLunchTotal,
   computeMonthlyWorkerTotal,
   computeSadaoBillableCrates,
@@ -93,6 +94,38 @@ describe("computeDailyLaborCost", () => {
   it("supports holiday wage 400 entered manually", () => {
     expect(computeDailyLaborCost(21, 400)).toBe(8400);
     expect(computeDailyLaborCost(21, 300)).toBe(6300);
+  });
+});
+
+describe("computeDailyLaborDayCost", () => {
+  it("uses totalWagePaid when set (Songkhla), ignoring count × unit", () => {
+    expect(
+      computeDailyLaborDayCost({
+        attendanceCount: 10,
+        dailyWage: 999,
+        totalWagePaid: 3250,
+      })
+    ).toBe(3250);
+  });
+
+  it("falls back to count × unit when totalWagePaid is null (Sadao)", () => {
+    expect(
+      computeDailyLaborDayCost({
+        attendanceCount: 21,
+        dailyWage: 300,
+        totalWagePaid: null,
+      })
+    ).toBe(6300);
+  });
+
+  it("treats totalWagePaid=0 as explicit total", () => {
+    expect(
+      computeDailyLaborDayCost({
+        attendanceCount: 5,
+        dailyWage: 300,
+        totalWagePaid: 0,
+      })
+    ).toBe(0);
   });
 });
 

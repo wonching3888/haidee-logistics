@@ -3,6 +3,10 @@ import { yearMonthKey } from "@/lib/constants/thai-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import {
+  detectThaiPnlCompleteness,
+  type PnlCompleteness,
+} from "@/lib/thai-cost/pnl-completeness";
+import {
   getPattaniMonthlyRealCost,
   type PattaniMonthlyCostDetail,
 } from "@/lib/thai-cost/pattani-cost-service";
@@ -18,6 +22,7 @@ export interface PattaniPnlDetail {
   realCostMyr: number;
   pnlMyr: number | null;
   real: PattaniMonthlyCostDetail;
+  completeness: PnlCompleteness;
 }
 
 export async function getPattaniPnl(
@@ -25,11 +30,13 @@ export async function getPattaniPnl(
   month: number
 ): Promise<PattaniPnlDetail> {
   const ym = yearMonthKey(year, month);
-  const [real, segmentSnap, exchangeRateRow] = await Promise.all([
-    getPattaniMonthlyRealCost(year, month),
-    getSegmentInternalCostSnapshot(year, month, "PATTANI"),
-    prisma.exchangeRate.findUnique({ where: { yearMonth: ym } }),
-  ]);
+  const [real, segmentSnap, exchangeRateRow, completeness] =
+    await Promise.all([
+      getPattaniMonthlyRealCost(year, month),
+      getSegmentInternalCostSnapshot(year, month, "PATTANI"),
+      prisma.exchangeRate.findUnique({ where: { yearMonth: ym } }),
+      detectThaiPnlCompleteness("PATTANI", year, month),
+    ]);
 
   const exchangeRate =
     decimalToNumber(exchangeRateRow?.rate) ?? DEFAULT_EXCHANGE_RATE;
@@ -58,5 +65,6 @@ export async function getPattaniPnl(
     realCostMyr,
     pnlMyr,
     real,
+    completeness,
   };
 }

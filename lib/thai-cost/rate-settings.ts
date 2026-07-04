@@ -8,6 +8,13 @@ import {
 } from "@/lib/constants/thai-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
+import {
+  DEFAULT_THAI_COST_LARGE_TONG_TYPE_CODES,
+  parseLargeTongTypeCodes,
+  serializeLargeTongTypeCodes,
+} from "@/lib/thai-cost/crate-classify";
+
+export const LARGE_TONG_TYPE_CODES_KEY = "large_tong_type_codes";
 
 export const THAI_COST_RATE_KEYS = [
   "handling_small_weekday",
@@ -45,6 +52,8 @@ export interface ThaiCostRates {
   pattaniContractorCrate: number;
   pattaniContractorBox: number;
   pattaniSakriCrate: number;
+  /** Thai-cost only; independent of MY unloading LARGE_CRATE_CODES. */
+  largeTongTypeCodes: string[];
 }
 
 export interface ResolvedThaiCostRates extends ThaiCostRates {
@@ -100,7 +109,10 @@ function mapRates(r: ThaiCostRates): ThaiCostRates {
   return { ...r };
 }
 
-function ratesFromMap(byKey: Map<string, number>): ThaiCostRates {
+function ratesFromMap(
+  byKey: Map<string, number>,
+  largeTongTypeCodes: string[]
+): ThaiCostRates {
   return mapRates({
     handlingSmallWeekday:
       byKey.get("handling_small_weekday") ??
@@ -129,6 +141,7 @@ function ratesFromMap(byKey: Map<string, number>): ThaiCostRates {
     pattaniSakriCrate:
       byKey.get("pattani_sakri_crate") ??
       DEFAULT_THAI_COST_RATES.pattani_sakri_crate,
+    largeTongTypeCodes,
   });
 }
 
@@ -144,6 +157,29 @@ export async function ensureThaiCostRateSettings(): Promise<void> {
       });
     }
   }
+  const largeCodes = await prisma.thaiCostRateSetting.findUnique({
+    where: { key: LARGE_TONG_TYPE_CODES_KEY },
+  });
+  if (!largeCodes) {
+    await prisma.thaiCostRateSetting.create({
+      data: {
+        key: LARGE_TONG_TYPE_CODES_KEY,
+        value: 0,
+        valueText: serializeLargeTongTypeCodes([
+          ...DEFAULT_THAI_COST_LARGE_TONG_TYPE_CODES,
+        ]),
+      },
+    });
+  } else if (!largeCodes.valueText) {
+    await prisma.thaiCostRateSetting.update({
+      where: { key: LARGE_TONG_TYPE_CODES_KEY },
+      data: {
+        valueText: serializeLargeTongTypeCodes([
+          ...DEFAULT_THAI_COST_LARGE_TONG_TYPE_CODES,
+        ]),
+      },
+    });
+  }
 }
 
 export async function loadCurrentThaiCostRates(): Promise<ThaiCostRates> {
@@ -152,7 +188,9 @@ export async function loadCurrentThaiCostRates(): Promise<ThaiCostRates> {
   const byKey = new Map(
     rows.map((r) => [r.key, decimalToNumber(r.value) ?? 0])
   );
-  return ratesFromMap(byKey);
+  const largeRow = rows.find((r) => r.key === LARGE_TONG_TYPE_CODES_KEY);
+  const largeTongTypeCodes = parseLargeTongTypeCodes(largeRow?.valueText);
+  return ratesFromMap(byKey, largeTongTypeCodes);
 }
 
 export async function saveCurrentThaiCostRates(
@@ -180,6 +218,17 @@ export async function saveCurrentThaiCostRates(
       update: { value, updatedBy },
     });
   }
+  const codesJson = serializeLargeTongTypeCodes(rates.largeTongTypeCodes);
+  await prisma.thaiCostRateSetting.upsert({
+    where: { key: LARGE_TONG_TYPE_CODES_KEY },
+    create: {
+      key: LARGE_TONG_TYPE_CODES_KEY,
+      value: 0,
+      valueText: codesJson,
+      updatedBy,
+    },
+    update: { valueText: codesJson, updatedBy },
+  });
   return loadCurrentThaiCostRates();
 }
 
@@ -209,6 +258,7 @@ export async function resolveThaiCostRatesForMonth(
         pattaniSakriCrate:
           decimalToNumber(snap.pattaniSakriCrate) ??
           DEFAULT_THAI_COST_RATES.pattani_sakri_crate,
+        largeTongTypeCodes: parseLargeTongTypeCodes(snap.largeTongTypeCodes),
       }),
       source: "monthly_snapshot",
       yearMonth: ym,
@@ -249,6 +299,7 @@ export async function lockThaiCostRatesForMonth(input: {
     pattaniContractorCrate: rates.pattaniContractorCrate,
     pattaniContractorBox: rates.pattaniContractorBox,
     pattaniSakriCrate: rates.pattaniSakriCrate,
+    largeTongTypeCodes: serializeLargeTongTypeCodes(rates.largeTongTypeCodes),
     snapshotAt: new Date(),
     createdBy: input.createdBy,
   };

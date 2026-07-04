@@ -228,15 +228,17 @@ async function main() {
       pattaniContractorCrate: 20,
       pattaniContractorBox: 5,
       pattaniSakriCrate: 2.2,
+      largeTongTypeCodes: ["VIO", "BS", "GKS"],
     },
     actor.id
   );
 
   const pnl = await getSongkhlaPnl(YEAR, MONTH);
-  // Worker 9000, daily 5*300=1500, lunch 5*1000=5000
+  // Marker worker 9000 + production SAMRAN 20000 + PRATHUENG 15000
+  // daily 5*300=1500, Songkhla daily LUNCH=0 (no roster lunch)
   // Handling weekday: 100*3+20*4+10*3 = 300+80+30 = 410
   // Driver: base 8000 * (2/3) = 5333.33, trips 2*700 = 1400
-  const expectedLabor = 9000 + 1500 + 5000 + 410;
+  const expectedLabor = 9000 + 20000 + 15000 + 1500 + 0 + 410;
   const expectedDriverBase = Math.round((8000 * 2) / 3 * 100) / 100;
   const expectedDriverTrip = 1400;
   const expectedReal =

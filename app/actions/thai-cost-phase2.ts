@@ -489,6 +489,97 @@ export async function getPattaniPnlSummary(
  * Insert SAKRI (PATTANI) only when no row exists.
  * Never updates an existing record (manual edits on 月薪工人 page are preserved).
  */
+// ─── Rented vehicles ─────────────────────────────────────────────────────────
+
+export interface ThaiRentedVehicleTripRow {
+  id: string;
+  date: string;
+  station: "SONGKHLA" | "PATTANI";
+  driverName: string;
+  truckPlate: string | null;
+  tripCost: number;
+  notes: string | null;
+}
+
+export async function listThaiRentedVehicleTrips(input: {
+  year: number;
+  month: number;
+  station?: "SONGKHLA" | "PATTANI";
+}): Promise<ThaiRentedVehicleTripRow[]> {
+  await requireRead();
+  const { start, end } = getMonthDateRange(input.year, input.month);
+  const rows = await prisma.thaiRentedVehicleTrip.findMany({
+    where: {
+      date: { gte: start, lte: end },
+      ...(input.station ? { station: input.station } : {}),
+    },
+    orderBy: [{ date: "asc" }, { driverName: "asc" }],
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    date: toDateInputValue(r.date),
+    station: r.station as "SONGKHLA" | "PATTANI",
+    driverName: r.driverName,
+    truckPlate: r.truckPlate,
+    tripCost: decimalToNumber(r.tripCost) ?? 0,
+    notes: r.notes,
+  }));
+}
+
+export async function saveThaiRentedVehicleTrip(input: {
+  id?: string;
+  date: string;
+  station: "SONGKHLA" | "PATTANI";
+  driverName: string;
+  truckPlate?: string | null;
+  tripCost: number;
+  notes?: string | null;
+}) {
+  const user = await requireWrite();
+  const driverName = input.driverName.trim();
+  if (!driverName) throw new Error("司机名不能为空");
+  if (!Number.isFinite(input.tripCost) || input.tripCost < 0) {
+    throw new Error("租车费用必须是非负数");
+  }
+  if (input.station !== "SONGKHLA" && input.station !== "PATTANI") {
+    throw new Error("据点必须是宋卡或北大年");
+  }
+  const date = parseDateInput(input.date);
+  const notes = input.notes?.trim() || null;
+  const truckPlate = input.truckPlate?.trim() || null;
+  const data = {
+    date,
+    station: input.station,
+    driverName,
+    truckPlate,
+    tripCost: input.tripCost,
+    notes,
+    createdBy: user.id,
+  };
+  if (input.id) {
+    await prisma.thaiRentedVehicleTrip.update({
+      where: { id: input.id },
+      data: {
+        date: data.date,
+        station: data.station,
+        driverName: data.driverName,
+        truckPlate: data.truckPlate,
+        tripCost: data.tripCost,
+        notes: data.notes,
+      },
+    });
+  } else {
+    await prisma.thaiRentedVehicleTrip.create({ data });
+  }
+  revalidateThaiCost();
+}
+
+export async function deleteThaiRentedVehicleTrip(id: string) {
+  await requireWrite();
+  await prisma.thaiRentedVehicleTrip.delete({ where: { id } });
+  revalidateThaiCost();
+}
+
 export async function seedPattaniSakriWorker(): Promise<{
   inserted: boolean;
 }> {

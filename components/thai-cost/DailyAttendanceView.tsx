@@ -45,6 +45,10 @@ function money(n: number) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2 });
 }
 
+function isTotalPaidStation(station: ThaiCostStation) {
+  return station === "SONGKHLA";
+}
+
 export function DailyAttendanceView({
   year,
   month,
@@ -66,12 +70,15 @@ export function DailyAttendanceView({
     station: "SADAO" as ThaiCostStation,
     attendanceCount: String(SADAO_JUNE_2026_DAILY_LABOR_ROSTER_COUNT),
     dailyWage: String(DEFAULT_SADAO_DAILY_WAGE_THB),
+    totalWagePaid: "",
     notes: "",
   });
   const [holidayInfo, setHolidayInfo] = useState<HolidayRateInfo | null>(null);
 
+  const formUsesTotalPaid = isTotalPaidStation(form.station);
+
   useEffect(() => {
-    if (!showForm || !form.date) {
+    if (!showForm || !form.date || formUsesTotalPaid) {
       setHolidayInfo(null);
       return;
     }
@@ -86,7 +93,7 @@ export function DailyAttendanceView({
     return () => {
       cancelled = true;
     };
-  }, [showForm, form.date]);
+  }, [showForm, form.date, formUsesTotalPaid]);
 
   function openCreate() {
     setEditId(undefined);
@@ -97,6 +104,7 @@ export function DailyAttendanceView({
         roster?.rosterCount ?? SADAO_JUNE_2026_DAILY_LABOR_ROSTER_COUNT
       ),
       dailyWage: String(DEFAULT_SADAO_DAILY_WAGE_THB),
+      totalWagePaid: "",
       notes: "",
     });
     setShowForm(true);
@@ -110,6 +118,8 @@ export function DailyAttendanceView({
       station: row.station,
       attendanceCount: String(row.attendanceCount),
       dailyWage: String(row.dailyWage),
+      totalWagePaid:
+        row.totalWagePaid != null ? String(row.totalWagePaid) : "",
       notes: row.notes ?? "",
     });
     setShowForm(true);
@@ -140,9 +150,9 @@ export function DailyAttendanceView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        日薪外劳每日出勤（只记总人数）。当天日薪成本 = 人数 ×
-        当天日薪单价。LUNCH 按当月在册人数 × {DEFAULT_LUNCH_ALLOWANCE_THB}{" "}
-        固定发放（不随出勤天数打折，也不按每天出勤人数累加）。
+        Sadao：当天日薪成本 = 出勤人数 × 当天日薪单价；LUNCH = 当月在册人数 ×{" "}
+        {DEFAULT_LUNCH_ALLOWANCE_THB}（固定全额）。宋卡：出勤人数 +
+        当天实发工资总额（金额不一，不按单价×人数，无日薪 LUNCH）。
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -179,9 +189,11 @@ export function DailyAttendanceView({
       </div>
 
       <div className="rounded-lg border border-haidee-border bg-haidee-surface/50 p-4">
-        <h3 className="text-sm font-medium">当月日薪工人在册人数 Roster</h3>
+        <h3 className="text-sm font-medium">
+          Sadao 当月日薪工人在册人数 Roster
+        </h3>
         <p className="mt-1 text-xs text-haidee-muted">
-          LUNCH = 在册人数 × {DEFAULT_LUNCH_ALLOWANCE_THB} THB（固定全额，不按出勤天数比例）。
+          仅 Sadao：LUNCH = 在册人数 × {DEFAULT_LUNCH_ALLOWANCE_THB} THB（固定全额）。宋卡日薪工人无 LUNCH。
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="space-y-1 text-sm">
@@ -227,7 +239,7 @@ export function DailyAttendanceView({
             </Button>
           )}
           <div className="text-sm">
-            LUNCH 合计：{" "}
+            Sadao LUNCH 合计：{" "}
             <span className="font-mono font-medium">{money(lunchTotal)}</span>
           </div>
         </div>
@@ -245,14 +257,27 @@ export function DailyAttendanceView({
           onSubmit={(e) => {
             e.preventDefault();
             run(async () => {
-              await saveThaiDailyAttendance({
-                id: editId,
-                date: form.date,
-                station: form.station,
-                attendanceCount: Number(form.attendanceCount),
-                dailyWage: Number(form.dailyWage),
-                notes: form.notes || null,
-              });
+              if (isTotalPaidStation(form.station)) {
+                await saveThaiDailyAttendance({
+                  id: editId,
+                  date: form.date,
+                  station: form.station,
+                  attendanceCount: Number(form.attendanceCount),
+                  dailyWage: 0,
+                  totalWagePaid: Number(form.totalWagePaid),
+                  notes: form.notes || null,
+                });
+              } else {
+                await saveThaiDailyAttendance({
+                  id: editId,
+                  date: form.date,
+                  station: form.station,
+                  attendanceCount: Number(form.attendanceCount),
+                  dailyWage: Number(form.dailyWage),
+                  totalWagePaid: null,
+                  notes: form.notes || null,
+                });
+              }
             });
           }}
         >
@@ -297,28 +322,50 @@ export function DailyAttendanceView({
               required
             />
           </label>
-          <label className="space-y-1 text-sm">
-            <span>当天日薪单价 (THB)</span>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.dailyWage}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, dailyWage: e.target.value }))
-              }
-              required
-            />
-          </label>
-          {holidayInfo?.isHolidayRate && (
+          {formUsesTotalPaid ? (
+            <label className="space-y-1 text-sm">
+              <span>当天实发工资总额 (THB)</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.totalWagePaid}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, totalWagePaid: e.target.value }))
+                }
+                required
+              />
+            </label>
+          ) : (
+            <label className="space-y-1 text-sm">
+              <span>当天日薪单价 (THB)</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.dailyWage}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, dailyWage: e.target.value }))
+                }
+                required
+              />
+            </label>
+          )}
+          {holidayInfo?.isHolidayRate && !formUsesTotalPaid && (
             <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2 lg:col-span-3">
               该日期是假日
               {holidayInfo.reason === "sunday" && "（星期日）"}
               {holidayInfo.reason === "public_holiday" &&
                 `（公众假期${holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""}）`}
               ，你填的单价是否正确？假日通常为{" "}
-              {SUGGESTED_SADAO_HOLIDAY_DAILY_WAGE_THB} THB（系统不强制改价，请手动确认）。
+              {SUGGESTED_SADAO_HOLIDAY_DAILY_WAGE_THB}{" "}
+              THB（系统不强制改价，请手动确认）。
             </div>
+          )}
+          {formUsesTotalPaid && (
+            <p className="text-xs text-haidee-muted sm:col-span-2 lg:col-span-3">
+              宋卡日薪工人金额不一，请直接填当天实发总额（成本=实发总额，不用人数×单价）。
+            </p>
           )}
           <label className="space-y-1 text-sm sm:col-span-2">
             <span>备注 Notes</span>
@@ -354,7 +401,7 @@ export function DailyAttendanceView({
               <TableHead>日期</TableHead>
               <TableHead>驻点</TableHead>
               <TableHead className="text-right">人数</TableHead>
-              <TableHead className="text-right">日薪单价</TableHead>
+              <TableHead className="text-right">单价/实发</TableHead>
               <TableHead className="text-right">当天成本</TableHead>
               <TableHead>备注</TableHead>
               {canWrite && <TableHead className="text-right">操作</TableHead>}
@@ -376,8 +423,10 @@ export function DailyAttendanceView({
                   <TableCell>{formatDisplay(r.date)}</TableCell>
                   <TableCell>{r.station}</TableCell>
                   <TableCell className="text-right">{r.attendanceCount}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(r.dailyWage)}
+                  <TableCell className="text-right font-mono text-xs">
+                    {r.totalWagePaid != null
+                      ? `实发 ${money(r.totalWagePaid)}`
+                      : `单价 ${money(r.dailyWage)}`}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(r.dayCostThb)}

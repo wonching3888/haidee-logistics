@@ -21,6 +21,7 @@ import {
   type HolidayRateInfo,
 } from "@/lib/thai-cost/holiday";
 import {
+  computeDailyLaborDayCost,
   computeSadaoHandlingCommission,
   SadaoHandlingValidationError,
 } from "@/lib/thai-cost/sadao-cost";
@@ -47,6 +48,7 @@ export async function revalidateThaiCost() {
   revalidatePath("/thai-cost/driver-trips");
   revalidatePath("/thai-cost/pattani-handling");
   revalidatePath("/thai-cost/pattani-summary");
+  revalidatePath("/thai-cost/rented-vehicles");
 }
 
 async function requireThaiCostRead() {
@@ -256,6 +258,8 @@ export interface ThaiDailyAttendanceRow {
   station: ThaiCostStation;
   attendanceCount: number;
   dailyWage: number;
+  /** When set, day cost uses this total (Songkhla); null = count × unit (Sadao). */
+  totalWagePaid: number | null;
   dayCostThb: number;
   notes: string | null;
 }
@@ -274,18 +278,34 @@ export async function listThaiDailyAttendance(input: {
     },
     orderBy: [{ date: "asc" }, { station: "asc" }],
   });
-  return rows.map((r) => {
-    const dailyWage = decimalToNumber(r.dailyWage) ?? 0;
-    return {
-      id: r.id,
-      date: toDateInputValue(r.date),
-      station: r.station as ThaiCostStation,
+  return rows.map((r) => mapAttendanceRow(r));
+}
+
+function mapAttendanceRow(r: {
+  id: string;
+  date: Date;
+  station: string;
+  attendanceCount: number;
+  dailyWage: unknown;
+  totalWagePaid: unknown;
+  notes: string | null;
+}): ThaiDailyAttendanceRow {
+  const dailyWage = decimalToNumber(r.dailyWage) ?? 0;
+  const totalWagePaid = decimalToNumber(r.totalWagePaid);
+  return {
+    id: r.id,
+    date: toDateInputValue(r.date),
+    station: r.station as ThaiCostStation,
+    attendanceCount: r.attendanceCount,
+    dailyWage,
+    totalWagePaid,
+    dayCostThb: computeDailyLaborDayCost({
       attendanceCount: r.attendanceCount,
       dailyWage,
-      dayCostThb: r.attendanceCount * dailyWage,
-      notes: r.notes,
-    };
-  });
+      totalWagePaid,
+    }),
+    notes: r.notes,
+  };
 }
 
 export async function saveThaiDailyAttendance(input: {
@@ -293,7 +313,10 @@ export async function saveThaiDailyAttendance(input: {
   date: string;
   station: string;
   attendanceCount: number;
-  dailyWage: number;
+  /** Unit rate mode (Sadao). Ignored when totalWagePaid is set. */
+  dailyWage?: number | null;
+  /** Total paid mode (Songkhla). When set, day cost = this amount. */
+  totalWagePaid?: number | null;
   notes?: string | null;
 }): Promise<ThaiDailyAttendanceRow> {
   const user = await requireThaiCostWrite();
@@ -307,8 +330,34 @@ export async function saveThaiDailyAttendance(input: {
   ) {
     throw new Error("出勤人数必须是非负整数 Attendance count must be a non-negative integer");
   }
-  if (!Number.isFinite(input.dailyWage) || input.dailyWage < 0) {
-    throw new Error("日薪必须是非负数 Daily wage must be non-negative");
+
+  const hasTotal =
+    input.totalWagePaid != null &&
+    input.totalWagePaid !== undefined &&
+    !(typeof input.totalWagePaid === "number" && Number.isNaN(input.totalWagePaid));
+
+  let dailyWage = 0;
+  let totalWagePaid: number | null = null;
+
+  if (hasTotal) {
+    if (!Number.isFinite(input.totalWagePaid!) || input.totalWagePaid! < 0) {
+      throw new Error("实发工资总额必须是非负数 Total wage paid must be non-negative");
+    }
+    totalWagePaid = input.totalWagePaid!;
+    dailyWage =
+      input.dailyWage != null && Number.isFinite(input.dailyWage)
+        ? input.dailyWage
+        : 0;
+  } else {
+    if (
+      input.dailyWage == null ||
+      !Number.isFinite(input.dailyWage) ||
+      input.dailyWage < 0
+    ) {
+      throw new Error("日薪必须是非负数 Daily wage must be non-negative");
+    }
+    dailyWage = input.dailyWage;
+    totalWagePaid = null;
   }
 
   const date = parseDateInput(input.date);
@@ -317,7 +366,8 @@ export async function saveThaiDailyAttendance(input: {
     date,
     station: input.station,
     attendanceCount: input.attendanceCount,
-    dailyWage: input.dailyWage,
+    dailyWage,
+    totalWagePaid,
     notes,
     createdBy: user.id,
   };
@@ -331,6 +381,7 @@ export async function saveThaiDailyAttendance(input: {
         station: data.station,
         attendanceCount: data.attendanceCount,
         dailyWage: data.dailyWage,
+        totalWagePaid: data.totalWagePaid,
         notes: data.notes,
       },
     });
@@ -343,22 +394,14 @@ export async function saveThaiDailyAttendance(input: {
       update: {
         attendanceCount: data.attendanceCount,
         dailyWage: data.dailyWage,
+        totalWagePaid: data.totalWagePaid,
         notes: data.notes,
       },
     });
   }
 
-  revalidateThaiCost();
-  const dailyWage = decimalToNumber(row.dailyWage) ?? 0;
-  return {
-    id: row.id,
-    date: toDateInputValue(row.date),
-    station: row.station as ThaiCostStation,
-    attendanceCount: row.attendanceCount,
-    dailyWage,
-    dayCostThb: row.attendanceCount * dailyWage,
-    notes: row.notes,
-  };
+  await revalidateThaiCost();
+  return mapAttendanceRow(row);
 }
 
 export async function deleteThaiDailyAttendance(id: string): Promise<void> {

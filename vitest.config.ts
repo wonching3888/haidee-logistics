@@ -90,6 +90,8 @@ export default defineConfig({
       "lib/monthly-invoice-listing-by-shipper.test.ts",
       "lib/thai-cost/sadao-cost.test.ts",
       "lib/thai-cost/holiday.test.ts",
+      "lib/thai-cost/crate-classify.test.ts",
+      "lib/thai-cost/vehicle-trip-cost.test.ts",
     ],
   },
   resolve: {

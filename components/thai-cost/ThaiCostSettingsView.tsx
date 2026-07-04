@@ -104,6 +104,33 @@ export function ThaiCostSettingsView({
         </div>
       </div>
 
+      <div className="rounded-lg border border-haidee-border p-4">
+        <h3 className="text-sm font-medium">
+          泰国成本大桶桶型（与马来西亚卸货费分类独立）
+        </h3>
+        <p className="mt-1 text-xs text-haidee-muted">
+          逗号分隔桶型代码，默认 VIO,BS,GKS。仅影响 Sadao/宋卡从派车回填时的大小桶归类，
+          不影响马来西亚下货费（仍为 VIO/BS）。
+        </p>
+        <label className="mt-3 block space-y-1 text-sm">
+          <span>大桶代码 large_tong_type_codes</span>
+          <Input
+            value={rates.largeTongTypeCodes.join(",")}
+            disabled={!canWrite}
+            onChange={(e) =>
+              setRates((r) => ({
+                ...r,
+                largeTongTypeCodes: e.target.value
+                  .split(/[,;\s]+/)
+                  .map((c) => c.trim().toUpperCase())
+                  .filter(Boolean),
+              }))
+            }
+            placeholder="VIO,BS,GKS"
+          />
+        </label>
+      </div>
+
       {canWrite && (
         <Button
           type="button"

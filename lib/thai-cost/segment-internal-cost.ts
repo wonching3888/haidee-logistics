@@ -113,6 +113,7 @@ export async function lockThaiMonthSnapshots(input: {
     pattaniContractorCrate: rateSnap.pattaniContractorCrate,
     pattaniContractorBox: rateSnap.pattaniContractorBox,
     pattaniSakriCrate: rateSnap.pattaniSakriCrate,
+    largeTongTypeCodes: rateSnap.largeTongTypeCodes,
     lineCounts: computed.lineCounts,
   };
 

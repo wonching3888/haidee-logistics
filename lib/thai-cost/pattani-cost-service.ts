@@ -17,6 +17,7 @@ export interface PattaniMonthlyCostDetail {
   driverBaseWageAllocatedThb: number;
   driverTripCommissionThb: number;
   driverTotalThb: number;
+  rentedVehicleCostThb: number;
   realCostTotalThb: number;
   handlingDays: number;
   rates: ResolvedThaiCostRates;
@@ -36,20 +37,27 @@ export async function getPattaniMonthlyRealCost(
 ): Promise<PattaniMonthlyCostDetail> {
   const { start, end } = getMonthDateRange(year, month);
 
-  const [workers, handlingRows, rates, tripRows, drivers] = await Promise.all([
-    prisma.thaiMonthlyWorker.findMany({
-      where: { station: "PATTANI", active: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.pattaniCrateHandlingDaily.findMany({
-      where: { date: { gte: start, lte: end } },
-    }),
-    resolveThaiCostRatesForMonth(year, month),
-    prisma.thaiDriverTripDaily.findMany({
-      where: { date: { gte: start, lte: end } },
-    }),
-    prisma.thaiDriver.findMany({ where: { active: true } }),
-  ]);
+  const [workers, handlingRows, rates, tripRows, drivers, rentedTrips] =
+    await Promise.all([
+      prisma.thaiMonthlyWorker.findMany({
+        where: { station: "PATTANI", active: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.pattaniCrateHandlingDaily.findMany({
+        where: { date: { gte: start, lte: end } },
+      }),
+      resolveThaiCostRatesForMonth(year, month),
+      prisma.thaiDriverTripDaily.findMany({
+        where: { date: { gte: start, lte: end } },
+      }),
+      prisma.thaiDriver.findMany({ where: { active: true } }),
+      prisma.thaiRentedVehicleTrip.findMany({
+        where: {
+          station: "PATTANI",
+          date: { gte: start, lte: end },
+        },
+      }),
+    ]);
 
   const workerDetails = workers.map((w) => {
     const monthlyWage = decimalToNumber(w.monthlyWage) ?? 0;
@@ -118,11 +126,16 @@ export async function getPattaniMonthlyRealCost(
 
   const driverTotalThb =
     driverBaseWageAllocatedThb + driverTripCommissionThb;
+  const rentedVehicleCostThb = rentedTrips.reduce(
+    (s, t) => s + (decimalToNumber(t.tripCost) ?? 0),
+    0
+  );
   const realCostTotalThb =
     sakriMonthlyWageThb +
     sakriCommissionThb +
     contractorThb +
-    driverTotalThb;
+    driverTotalThb +
+    rentedVehicleCostThb;
 
   return {
     year,
@@ -133,6 +146,7 @@ export async function getPattaniMonthlyRealCost(
     driverBaseWageAllocatedThb,
     driverTripCommissionThb,
     driverTotalThb,
+    rentedVehicleCostThb,
     realCostTotalThb,
     handlingDays: handlingRows.length,
     rates,

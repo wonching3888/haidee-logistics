@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { PnlIncompleteWarning } from "@/components/thai-cost/PnlIncompleteWarning";
 import type { SongkhlaPnlDetail } from "@/lib/thai-cost/songkhla-pnl";
 import { Input } from "@/components/ui/input";
 
@@ -87,6 +88,8 @@ export function SongkhlaSummaryView({ pnl }: { pnl: SongkhlaPnlDetail }) {
         </div>
       </div>
 
+      <PnlIncompleteWarning message={pnl.completeness.incompleteWarning} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-haidee-border p-4 text-sm">
           <h3 className="font-medium">真实成本明细 (THB)</h3>
@@ -127,6 +130,12 @@ export function SongkhlaSummaryView({ pnl }: { pnl: SongkhlaPnlDetail }) {
               <span>司机宋卡趟次提成</span>
               <span className="font-mono">
                 {money(r.driverTripCommissionThb)}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span>外部租车成本</span>
+              <span className="font-mono">
+                {money(r.rentedVehicleCostThb)}
               </span>
             </li>
             <li className="flex justify-between border-t border-haidee-border pt-1 font-medium">

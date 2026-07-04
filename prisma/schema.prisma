@@ -1313,12 +1313,17 @@ model ThaiDailyLaborMonthlyRoster {
 }
 
 /// Daily-wage foreign labor attendance (headcount only, no names).
+/// Cost modes:
+/// - Sadao: attendanceCount × dailyWage (totalWagePaid is null)
+/// - Songkhla: totalWagePaid when set (mixed unit rates; clerk enters day total)
 model ThaiDailyLaborAttendance {
   id               String   @id @default(uuid()) @db.Uuid
   date             DateTime @db.Date
   station          String // SADAO | SONGKHLA | PATTANI
   attendanceCount  Int      @map("attendance_count")
   dailyWage        Decimal  @map("daily_wage") @db.Decimal(12, 2)
+  /// When set, day cost = this amount (ignores attendanceCount × dailyWage).
+  totalWagePaid    Decimal? @map("total_wage_paid") @db.Decimal(12, 2)
   notes            String?
   createdBy        String   @map("created_by") @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at")
@@ -1338,13 +1343,16 @@ model ThaiDriver {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  trips ThaiDriverTripDaily[]
+  trips        ThaiDriverTripDaily[]
+  vehicleTrips ThaiVehicleTripDaily[]
 
   @@index([active])
   @@map("thai_drivers")
 }
 
 /// Daily trip counts per Thai driver (Songkhla / Pattani commission).
+/// Kept as a driver-commission aggregate (formal drivers only).
+/// Per-trip plate-level rows live in ThaiVehicleTripDaily.
 model ThaiDriverTripDaily {
   id                String   @id @default(uuid()) @db.Uuid
   date              DateTime @db.Date
@@ -1363,11 +1371,37 @@ model ThaiDriverTripDaily {
   @@map("thai_driver_trip_daily")
 }
 
+/// One row per Thai-segment vehicle trip (Excel trip line; not driver-day aggregate).
+/// Formal drivers have driverId; rented/unknown have driverId=null and notes like RENTED:BANHENG.
+model ThaiVehicleTripDaily {
+  id         String   @id @default(uuid()) @db.Uuid
+  date       DateTime @db.Date
+  truckPlate String   @map("truck_plate")
+  driverId   String?  @map("driver_id") @db.Uuid
+  station    String // SONGKHLA | PATTANI
+  tongQty    Int      @default(0) @map("tong_qty")
+  boxQty     Int      @default(0) @map("box_qty")
+  notes      String?
+  createdBy  String   @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  driver ThaiDriver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([truckPlate, date])
+  @@index([station, date])
+  @@index([driverId, date])
+  @@map("thai_vehicle_trip_daily")
+}
+
 /// Current Thai cost rate defaults (future records / unlocked months).
 model ThaiCostRateSetting {
   id        String   @id @default(uuid()) @db.Uuid
   key       String   @unique
-  value     Decimal  @db.Decimal(12, 4)
+  value     Decimal  @default(0) @db.Decimal(12, 4)
+  /// Non-numeric settings (e.g. large_tong_type_codes JSON array).
+  valueText String?  @map("value_text")
   updatedBy String?  @map("updated_by") @db.Uuid
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1387,10 +1421,29 @@ model ThaiCostMonthlyRateSnapshot {
   pattaniContractorCrate  Decimal  @default(20) @map("pattani_contractor_crate") @db.Decimal(12, 4)
   pattaniContractorBox    Decimal  @default(5) @map("pattani_contractor_box") @db.Decimal(12, 4)
   pattaniSakriCrate       Decimal  @default(2.2) @map("pattani_sakri_crate") @db.Decimal(12, 4)
+  /// JSON array of tong type codes treated as large for Thai cost only.
+  largeTongTypeCodes      String   @default("[\"VIO\",\"BS\",\"GKS\"]") @map("large_tong_type_codes")
   snapshotAt              DateTime @map("snapshot_at")
   createdBy               String   @map("created_by") @db.Uuid
 
   @@map("thai_cost_monthly_rate_snapshots")
+}
+
+/// External rented vehicle trips (not company Thai drivers; no base wage / trip commission).
+model ThaiRentedVehicleTrip {
+  id         String   @id @default(uuid()) @db.Uuid
+  date       DateTime @db.Date
+  station    String // SONGKHLA | PATTANI
+  driverName String   @map("driver_name")
+  truckPlate String?  @map("truck_plate")
+  tripCost   Decimal  @map("trip_cost") @db.Decimal(12, 2)
+  notes      String?
+  createdBy  String   @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([station, date])
+  @@map("thai_rented_vehicle_trips")
 }
 
 /// Locked monthly Thai-segment internal cost (MYR) by pickup location.

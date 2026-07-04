@@ -3,6 +3,10 @@ import { yearMonthKey } from "@/lib/constants/thai-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import {
+  detectThaiPnlCompleteness,
+  type PnlCompleteness,
+} from "@/lib/thai-cost/pnl-completeness";
+import {
   getSongkhlaMonthlyRealCost,
   type SongkhlaMonthlyCostDetail,
 } from "@/lib/thai-cost/songkhla-cost-service";
@@ -19,6 +23,7 @@ export interface SongkhlaPnlDetail {
   pnlMyr: number | null;
   real: SongkhlaMonthlyCostDetail;
   ratesUsedSnapshot: unknown | null;
+  completeness: PnlCompleteness;
 }
 
 export async function getSongkhlaPnl(
@@ -26,11 +31,13 @@ export async function getSongkhlaPnl(
   month: number
 ): Promise<SongkhlaPnlDetail> {
   const ym = yearMonthKey(year, month);
-  const [real, segmentSnap, exchangeRateRow] = await Promise.all([
-    getSongkhlaMonthlyRealCost(year, month),
-    getSegmentInternalCostSnapshot(year, month, "SONGKHLA"),
-    prisma.exchangeRate.findUnique({ where: { yearMonth: ym } }),
-  ]);
+  const [real, segmentSnap, exchangeRateRow, completeness] =
+    await Promise.all([
+      getSongkhlaMonthlyRealCost(year, month),
+      getSegmentInternalCostSnapshot(year, month, "SONGKHLA"),
+      prisma.exchangeRate.findUnique({ where: { yearMonth: ym } }),
+      detectThaiPnlCompleteness("SONGKHLA", year, month),
+    ]);
 
   const exchangeRate =
     decimalToNumber(exchangeRateRow?.rate) ?? DEFAULT_EXCHANGE_RATE;
@@ -60,5 +67,6 @@ export async function getSongkhlaPnl(
     pnlMyr,
     real,
     ratesUsedSnapshot: segmentSnap?.ratesUsedSnapshot ?? null,
+    completeness,
   };
 }

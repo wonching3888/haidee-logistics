@@ -7,7 +7,6 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { LARGE_CRATE_CODES } from "../lib/driver-expense/constants";
 import {
   resolveSessionPickupLocation,
   type PickupLocation,
@@ -15,17 +14,13 @@ import {
 import { prisma } from "../lib/prisma";
 import { getMonthDateRange } from "../lib/reports/period-report-shared";
 import { toDateInputValue } from "../lib/date-utils";
+import { classifyThaiCostCrate } from "../lib/thai-cost/crate-classify";
+import { loadCurrentThaiCostRates } from "../lib/thai-cost/rate-settings";
 
 const YEAR = 2026;
 const MONTH = 6;
 
 type Bucket = "small" | "large" | "box";
-
-function classifyCrate(tongCode: string, isBox: boolean): Bucket {
-  if (isBox || tongCode.toUpperCase() === "BOX") return "box";
-  if (LARGE_CRATE_CODES.has(tongCode.toUpperCase())) return "large";
-  return "small";
-}
 
 type DayAgg = {
   small: number;
@@ -65,6 +60,11 @@ function add(
 
 async function main() {
   const { start, end, lastDay } = getMonthDateRange(YEAR, MONTH);
+  const rates = await loadCurrentThaiCostRates();
+  const largeCodes = rates.largeTongTypeCodes;
+
+  const classifyCrate = (tongCode: string, isBox: boolean): Bucket =>
+    classifyThaiCostCrate(tongCode, isBox, largeCodes);
 
   const dispatches = await prisma.dispatchOrder.findMany({
     where: {
@@ -199,10 +199,11 @@ async function main() {
   console.log("    shipper.pickup_location (fallback)");
   console.log("  truck_id → trucks.country (MY/TH)");
   console.log("");
-  console.log("Bucket rules (same as unloading/driver-expense):");
+  console.log("Bucket rules (Thai-cost only, NOT MY unloading):");
   console.log("  box  = tong_types.is_box OR code=BOX");
-  console.log("  large = code in {VIO, BS}");
+  console.log(`  large = code in {${largeCodes.join(", ")}}`);
   console.log("  small = everything else");
+  console.log("  MY unloading still uses VIO/BS only (driver-expense LARGE_CRATE_CODES)");
   console.log("");
 
   console.log("=== June 2026 coverage ===");
