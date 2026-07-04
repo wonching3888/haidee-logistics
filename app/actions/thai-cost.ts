@@ -35,7 +35,7 @@ import {
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { randomUUID } from "crypto";
 
-export function revalidateThaiCost() {
+export async function revalidateThaiCost() {
   revalidatePath("/thai-cost/workers");
   revalidatePath("/thai-cost/attendance");
   revalidatePath("/thai-cost/sadao-handling");
