@@ -1,16 +1,16 @@
 -- Thai-cost-only large tong codes (independent of MY unloading VIO/BS).
 -- External rented vehicle trips for Songkhla/Pattani.
 
-ALTER TABLE "thai_cost_rate_settings" ADD COLUMN "value_text" TEXT;
+ALTER TABLE "thai_cost_rate_settings" ADD COLUMN IF NOT EXISTS "value_text" TEXT;
 
 INSERT INTO "thai_cost_rate_settings" ("id", "key", "value", "value_text", "updated_at") VALUES
 (gen_random_uuid(), 'large_tong_type_codes', 0, '["VIO","BS","GKS"]', CURRENT_TIMESTAMP)
 ON CONFLICT ("key") DO UPDATE SET "value_text" = EXCLUDED."value_text";
 
 ALTER TABLE "thai_cost_monthly_rate_snapshots"
-  ADD COLUMN "large_tong_type_codes" TEXT NOT NULL DEFAULT '["VIO","BS","GKS"]';
+  ADD COLUMN IF NOT EXISTS "large_tong_type_codes" TEXT NOT NULL DEFAULT '["VIO","BS","GKS"]';
 
-CREATE TABLE "thai_rented_vehicle_trips" (
+CREATE TABLE IF NOT EXISTS "thai_rented_vehicle_trips" (
     "id" UUID NOT NULL,
     "date" DATE NOT NULL,
     "station" TEXT NOT NULL,
@@ -25,5 +25,5 @@ CREATE TABLE "thai_rented_vehicle_trips" (
     CONSTRAINT "thai_rented_vehicle_trips_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "thai_rented_vehicle_trips_station_date_idx"
+CREATE INDEX IF NOT EXISTS "thai_rented_vehicle_trips_station_date_idx"
   ON "thai_rented_vehicle_trips"("station", "date");

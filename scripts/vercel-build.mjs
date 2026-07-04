@@ -30,15 +30,19 @@ function baselineExistingDatabase() {
 }
 
 function resolveFailedMigration(output) {
-  const failedMatch = output.match(/The `([^`]+)` migration/);
+  const failedMatch =
+    output.match(/The `([^`]+)` migration/) ??
+    output.match(/Migration name:\s*([^\s\r\n]+)/);
   const failedMigration = failedMatch?.[1];
   if (!failedMigration) {
     console.error("[P3009] Could not parse failed migration name from output.");
     return false;
   }
 
+  // Column/table may already exist from a prior manual apply; mark rolled-back
+  // then re-apply (migrations must be idempotent with IF NOT EXISTS).
   console.log(
-    `[P3009] Resolving failed migration as rolled back: ${failedMigration}`
+    `[P3009/P3018] Resolving failed migration as rolled back: ${failedMigration}`
   );
   run(`npx prisma migrate resolve --rolled-back ${failedMigration}`);
   return true;
