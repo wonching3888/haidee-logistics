@@ -27,10 +27,7 @@ import {
 } from "@/components/ui/table";
 import { formatDisplay } from "@/lib/date-utils";
 import type { CrateExportListRow } from "@/lib/crate-export-list";
-import {
-  stickyActionsColTableClass,
-  stickyFirstColTableClass,
-} from "@/lib/table-scroll";
+import { stickyFirstColTableClass } from "@/lib/table-scroll";
 import { cn } from "@/lib/utils";
 
 interface CrateExportListTableProps {
@@ -95,11 +92,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
       <ScrollMatrixTable heightOffset={520} className="rounded-lg border-0">
         <Table
           noScrollContainer
-          className={cn(
-            "text-sm",
-            stickyFirstColTableClass,
-            stickyActionsColTableClass
-          )}
+          className={cn("text-sm", stickyFirstColTableClass)}
         >
           <TableHeader>
           <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
