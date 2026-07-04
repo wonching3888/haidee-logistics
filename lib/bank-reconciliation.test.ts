@@ -101,8 +101,8 @@ describe("bank-reconciliation helpers", () => {
     expect(csv).toContain(
       "Currency,Bank Account,Payment Date,Customer,Amount,Invoice Nos,Reconciled,Reconciled At"
     );
-    expect(csv).toContain("THB,HAIDEE_BBL5030,2026-06-05,Alpha,40.00,HD-2606-001,Y,");
+    expect(csv).toContain("THB,HAIDEE BBL 5335,2026-06-05,Alpha,40.00,HD-2606-001,Y,");
     expect(csv).toContain('"Beta, Co"');
-    expect(csv).toContain("MYR,WTL_PBB1725,2026-06-08,Charlie,50.00,,N,");
+    expect(csv).toContain("MYR,WTL PBB 1725,2026-06-08,Charlie,50.00,,N,");
   });
 });

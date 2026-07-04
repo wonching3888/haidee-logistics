@@ -1,4 +1,7 @@
-import type { InvoiceBankAccount } from "@/lib/constants/invoice-bank-accounts";
+import {
+  invoiceBankAccountDisplayLabel,
+  type InvoiceBankAccount,
+} from "@/lib/constants/invoice-bank-accounts";
 import type { ReceivableCurrency } from "@/lib/receivable-invoices";
 
 export interface BankReconciliationPaymentRow {
@@ -78,7 +81,7 @@ export function buildBankReconciliationCsv(
       lines.push(
         [
           payment.currency,
-          payment.bankAccount,
+          escape(invoiceBankAccountDisplayLabel(payment.bankAccount)),
           payment.paymentDate,
           escape(payment.customerName),
           payment.amount.toFixed(2),

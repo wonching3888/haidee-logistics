@@ -5,26 +5,32 @@ export const INVOICE_BANK_ACCOUNTS = [
   {
     value: "HAIDEE_BBL5030",
     currency: "THB",
+    /** Accounting display name (matches UI labels). */
+    displayLabel: "HAIDEE BBL 5335",
     labelKey: "invoiceCollections.bankAccount.haideeBbl5030",
   },
   {
     value: "HUPDEE_KBANK5020",
     currency: "THB",
+    displayLabel: "HUPDEE KBANK 5020",
     labelKey: "invoiceCollections.bankAccount.hupdeeKbank5020",
   },
   {
     value: "HUPDEE_BBL7044",
     currency: "THB",
+    displayLabel: "HUPDEE BBL 7044",
     labelKey: "invoiceCollections.bankAccount.hupdeeBbl7044",
   },
   {
     value: "WTL_PBB1725",
     currency: "MYR",
+    displayLabel: "WTL PBB 1725",
     labelKey: "invoiceCollections.bankAccount.wtlPbb1725",
   },
   {
     value: "CASH",
     currency: "BOTH",
+    displayLabel: "现金 CASH",
     labelKey: "invoiceCollections.bankAccount.cash",
   },
 ] as const;
@@ -82,4 +88,12 @@ export function invoiceBankAccountLabelKey(
 ): MessageKey {
   const config = INVOICE_BANK_ACCOUNTS.find((item) => item.value === bankAccount);
   return (config?.labelKey ?? "invoiceCollections.bankAccount.cash") as MessageKey;
+}
+
+/** Human-readable account name for CSV / exports (same text as UI). */
+export function invoiceBankAccountDisplayLabel(
+  bankAccount: InvoiceBankAccount | string
+): string {
+  const config = INVOICE_BANK_ACCOUNTS.find((item) => item.value === bankAccount);
+  return config?.displayLabel ?? bankAccount;
 }
