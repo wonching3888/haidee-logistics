@@ -9,6 +9,7 @@ import {
   Settings,
   BarChart3,
   Landmark,
+  MapPin,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -109,6 +110,44 @@ export const MAIN_NAV_FINANCIAL_BANK_RECONCILIATION: MainNavLink = {
 export const MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT: MainNavLink = {
   href: "/financial/autocount-export",
   messageKey: "nav.autocountExport",
+};
+
+export const MAIN_NAV_THAI_COST_WORKERS: MainNavLink = {
+  href: "/thai-cost/workers",
+  messageKey: "nav.thaiCostWorkers",
+};
+
+export const MAIN_NAV_THAI_COST_ATTENDANCE: MainNavLink = {
+  href: "/thai-cost/attendance",
+  messageKey: "nav.thaiCostAttendance",
+};
+
+export const MAIN_NAV_THAI_COST_SADAO_HANDLING: MainNavLink = {
+  href: "/thai-cost/sadao-handling",
+  messageKey: "nav.thaiCostSadaoHandling",
+};
+
+export const MAIN_NAV_THAI_COST_SADAO_SUMMARY: MainNavLink = {
+  href: "/thai-cost/sadao-summary",
+  messageKey: "nav.thaiCostSadaoSummary",
+};
+
+export const MAIN_NAV_THAI_COST_HOLIDAYS: MainNavLink = {
+  href: "/thai-cost/holidays",
+  messageKey: "nav.thaiCostHolidays",
+};
+
+export const MAIN_NAV_THAI_COST: MainNavGroup = {
+  id: "thai-cost",
+  messageKey: "nav.thaiCost",
+  icon: MapPin,
+  children: [
+    MAIN_NAV_THAI_COST_WORKERS,
+    MAIN_NAV_THAI_COST_ATTENDANCE,
+    MAIN_NAV_THAI_COST_SADAO_HANDLING,
+    MAIN_NAV_THAI_COST_SADAO_SUMMARY,
+    MAIN_NAV_THAI_COST_HOLIDAYS,
+  ],
 };
 
 export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {

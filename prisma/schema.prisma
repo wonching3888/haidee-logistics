@@ -1277,3 +1277,96 @@ model CrateChangeLog {
   @@index([createdAt])
   @@map("crate_change_logs")
 }
+
+// ─── Thai cost (Phase 2 stage 1: Sadao labor + handling) ─────────────────────
+
+/// Monthly-salaried Thai workers (named profiles; few people).
+model ThaiMonthlyWorker {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String
+  station           String // SADAO | SONGKHLA | PATTANI
+  monthlyWage       Decimal  @map("monthly_wage") @db.Decimal(12, 2)
+  lunchAllowance    Decimal  @default(1000) @map("lunch_allowance") @db.Decimal(12, 2)
+  fuelAllowance     Decimal  @default(0) @map("fuel_allowance") @db.Decimal(12, 2)
+  rentRoomAllowance Decimal  @default(0) @map("rent_room_allowance") @db.Decimal(12, 2)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([station, active])
+  @@map("thai_monthly_workers")
+}
+
+/// Monthly roster headcount for daily-wage labor (no named profiles).
+/// Used for fixed LUNCH allowance = rosterCount × lunch rate (not pro-rated by attendance days).
+model ThaiDailyLaborMonthlyRoster {
+  id          String   @id @default(uuid()) @db.Uuid
+  yearMonth   String   @map("year_month")
+  station     String // SADAO | SONGKHLA | PATTANI
+  rosterCount Int      @map("roster_count")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([yearMonth, station])
+  @@map("thai_daily_labor_monthly_rosters")
+}
+
+/// Daily-wage foreign labor attendance (headcount only, no names).
+model ThaiDailyLaborAttendance {
+  id               String   @id @default(uuid()) @db.Uuid
+  date             DateTime @db.Date
+  station          String // SADAO | SONGKHLA | PATTANI
+  attendanceCount  Int      @map("attendance_count")
+  dailyWage        Decimal  @map("daily_wage") @db.Decimal(12, 2)
+  notes            String?
+  createdBy        String   @map("created_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, station])
+  @@index([station, date])
+  @@map("thai_daily_labor_attendance")
+}
+
+/// Thai driver master (base wage only; trip commission rules in later stages).
+model ThaiDriver {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  baseWage  Decimal  @map("base_wage") @db.Decimal(12, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([active])
+  @@map("thai_drivers")
+}
+
+/// Thai public holidays (manual calendar; Sundays are auto holiday-rate without rows here).
+model ThaiPublicHoliday {
+  id        String   @id @default(uuid()) @db.Uuid
+  date      DateTime @unique @db.Date
+  name      String
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("thai_public_holidays")
+}
+
+/// Sadao daily crate handling (commission = billable qty × fixed rates in lib/constants).
+model SadaoCrateHandlingDaily {
+  id                   String   @id @default(uuid()) @db.Uuid
+  date                 DateTime @unique @db.Date
+  smallCrateTotalQty   Int      @map("small_crate_total_qty")
+  largeCrateTotalQty   Int      @map("large_crate_total_qty")
+  boxTotalQty          Int      @default(0) @map("box_total_qty")
+  smallCrateNoCheckQty Int      @default(0) @map("small_crate_no_check_qty")
+  largeCrateNoCheckQty Int      @default(0) @map("large_crate_no_check_qty")
+  boxNoCheckQty        Int      @default(0) @map("box_no_check_qty")
+  notes                String?
+  createdBy            String   @map("created_by") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("sadao_crate_handling_daily")
+}

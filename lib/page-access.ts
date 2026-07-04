@@ -2,6 +2,7 @@ import {
   canAccessAutocountExport,
   canAccessDriverExpenses,
   canAccessSettings,
+  canAccessThaiCost,
   canViewDriverPayroll,
   canViewInvoiceAmounts,
   canViewInvoiceCollections,
@@ -32,7 +33,8 @@ export type PageAccessGate =
   | "history"
   | "driver-expenses"
   | "invoice-collections"
-  | "autocount-export";
+  | "autocount-export"
+  | "thai-cost";
 
 function normalizePathname(pathname: string): string {
   const path = pathname.split("?")[0].replace(/\/$/, "") || "/";
@@ -68,6 +70,9 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
     path.startsWith("/financial/autocount-export/")
   ) {
     return "autocount-export";
+  }
+  if (path === "/thai-cost" || path.startsWith("/thai-cost/")) {
+    return "thai-cost";
   }
 
   if (
@@ -155,6 +160,8 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
       return canViewInvoiceCollections(role);
     case "autocount-export":
       return canAccessAutocountExport(role);
+    case "thai-cost":
+      return canAccessThaiCost(role);
     case "settings":
       return canAccessSettings(role);
     case "history":

@@ -88,6 +88,8 @@ export default defineConfig({
       "lib/ar-invoice-export/ar-invoice-charter-export.test.ts",
       "lib/invoice-amount-words.test.ts",
       "lib/monthly-invoice-listing-by-shipper.test.ts",
+      "lib/thai-cost/sadao-cost.test.ts",
+      "lib/thai-cost/holiday.test.ts",
     ],
   },
   resolve: {

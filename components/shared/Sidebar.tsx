@@ -23,6 +23,7 @@ import {
   MAIN_NAV_REPORTS,
   MAIN_NAV_SETTINGS,
   MAIN_NAV_SUMMARY,
+  MAIN_NAV_THAI_COST,
   isGroupActive,
   isPathActive,
   type MainNavGroup,
@@ -81,6 +82,7 @@ export function Sidebar({ role, isOpen = false, onNavigate }: SidebarProps) {
       [
         filterNavGroupByAccess(role, MAIN_NAV_OPERATIONS),
         filterNavGroupByAccess(role, MAIN_NAV_FINANCIAL_CONTROL),
+        filterNavGroupByAccess(role, MAIN_NAV_THAI_COST),
         filterNavGroupByAccess(role, MAIN_NAV_DOCUMENTS),
         filterNavGroupByAccess(role, MAIN_NAV_CRATE),
         filterNavGroupByAccess(role, MAIN_NAV_REPORTS),

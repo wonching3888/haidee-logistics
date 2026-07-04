@@ -211,6 +211,38 @@ export const MESSAGES = {
     en: "AutoCount Export",
     th: "ส่งออก AutoCount",
   },
+  "nav.thaiCost": {
+    zh: "泰国成本",
+    en: "Thai Cost",
+    th: "ต้นทุนไทย",
+  },
+  "nav.thaiCostWorkers": {
+    zh: "月薪工人",
+    en: "Monthly Workers",
+    th: "พนักงานรายเดือน",
+  },
+  "nav.thaiCostAttendance": {
+    zh: "日薪出勤",
+    en: "Daily Attendance",
+    th: "เข้างานรายวัน",
+  },
+  "nav.thaiCostSadaoHandling": {
+    zh: "Sadao 搬运",
+    en: "Sadao Handling",
+    th: "ขนย้ายสะเดา",
+  },
+  "nav.thaiCostSadaoSummary": {
+    zh: "Sadao 月度汇总",
+    en: "Sadao Monthly Summary",
+    th: "สรุปรายเดือนสะเดา",
+  },
+  "nav.thaiCostHolidays": {
+    zh: "假期设置",
+    en: "Holiday Settings",
+    th: "ตั้งค่าวันหยุด",
+  },
+
+
   "bankReconciliation.pageSubtitle": {
     zh: "按银行账户核对系统收款与银行对账单",
     en: "Match system receipts to bank statements by account",

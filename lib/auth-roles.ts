@@ -222,6 +222,32 @@ export function canAccessSettings(role: StoredUserRole): boolean {
   return role === "admin";
 }
 
+/** Thai cost module (Sadao labor / handling): admin / thai_acct / my_acct / clerk */
+export function canAccessThaiCost(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "thai_accounting":
+    case "my_accounting":
+    case "clerk":
+    case "accounting":
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Thai cost writes: admin / thai_acct / clerk (attendance entry) */
+export function canWriteThaiCost(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "thai_accounting":
+    case "clerk":
+      return true;
+    default:
+      return false;
+  }
+}
+
 // ─── Legacy compatibility (still used by pages/actions today) ────────────────
 
 export function canViewFreightInfo(role: StoredUserRole) {
