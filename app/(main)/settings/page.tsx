@@ -5,6 +5,7 @@ import { getDriverPayrollSettingsData } from "@/app/actions/driver-payroll";
 import { getRouteMasterSettingsData } from "@/app/actions/route-master";
 import { getAllowanceSettingsData } from "@/app/actions/allowance-settings";
 import { getCrateRentalRates } from "@/app/actions/crate-rental-rates";
+import { getCrateExportMismatchWhitelistData } from "@/app/actions/crate-export-mismatch-whitelist";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import {
   parseSettingsSection,
@@ -38,6 +39,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     routeMasters,
     payrollSettings,
     crateRentalRates,
+    crateExportMismatchWhitelist,
   ] = await Promise.all([
     getSettingsData(),
     getFreightSettingsData(),
@@ -52,6 +54,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       : Promise.resolve(null),
     activeSection === "crate-rental-rates"
       ? getCrateRentalRates()
+      : Promise.resolve([]),
+    activeSection === "crate-export-settings"
+      ? getCrateExportMismatchWhitelistData()
       : Promise.resolve([]),
   ]);
 
@@ -73,6 +78,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         routeMasters={routeMasters}
         payrollSettings={payrollSettings}
         crateRentalRates={crateRentalRates}
+        crateExportMismatchWhitelist={crateExportMismatchWhitelist}
       />
     </div>
   );

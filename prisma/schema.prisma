@@ -153,6 +153,7 @@ model Shipper {
   customerOriginLocations               CustomerOriginLocation[]
   subCustomerChannelsAsParent           SubCustomerChannel[] @relation("SubCustomerChannelParent")
   subCustomerChannelsAsOwner            SubCustomerChannel[] @relation("SubCustomerChannelOwner")
+  crateExportMismatchWhitelist          CrateExportMismatchWhitelist?
 
   @@map("shippers")
 }
@@ -840,6 +841,18 @@ model TongExport {
 
   @@index([exportNo])
   @@map("tong_exports")
+}
+
+/// Suppress suggested-vs-actual mismatch highlight on crate export list for specific shippers.
+model CrateExportMismatchWhitelist {
+  shipperId   String   @id @map("shipper_id") @db.Uuid
+  note        String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by_id") @db.Uuid
+
+  shipper Shipper @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+
+  @@map("crate_export_mismatch_whitelist")
 }
 
 model TongStockAdjustment {

@@ -1818,6 +1818,31 @@ export const MESSAGES = {
     en: "Short {n}",
     th: "ค้าง {n}",
   },
+  "crateExport.suggestedActualMismatch": {
+    zh: "建议与实际不符",
+    en: "Suggested ≠ actual",
+    th: "แนะนำ ≠ จริง",
+  },
+  "crateExport.expandMismatch": {
+    zh: "展开",
+    en: "Expand",
+    th: "ขยาย",
+  },
+  "crateExport.collapseMismatch": {
+    zh: "收起",
+    en: "Collapse",
+    th: "ย่อ",
+  },
+  "crateExport.crateType": {
+    zh: "桶型",
+    en: "Crate type",
+    th: "ประเภทลัง",
+  },
+  "crateExport.suggestedActualDiff": {
+    zh: "差异",
+    en: "Diff",
+    th: "ต่าง",
+  },
   "crateExport.reprint": {
     zh: "重打",
     en: "Reprint",

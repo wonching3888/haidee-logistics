@@ -55,6 +55,7 @@ export default defineConfig({
       "lib/crate-export-due-today.test.ts",
       "lib/crate-export-line-math.test.ts",
       "lib/crate-export-live-owed.test.ts",
+      "lib/crate-export-sync-suggested.test.ts",
       "lib/crate-return-billing.test.ts",
       "lib/driver-payroll-crate-commission.test.ts",
       "lib/driver-payroll-crate-multi-market.test.ts",

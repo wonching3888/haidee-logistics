@@ -32,8 +32,11 @@ import {
 import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
 import {
   CRATE_EXPORT_LIST_LIMIT,
+  resolveCrateExportListMismatch,
+  type CrateExportListLineDetail,
   type CrateExportListRow,
 } from "@/lib/crate-export-list";
+import { loadCrateExportMismatchWhitelistShipperIds } from "@/lib/crate-export-mismatch-whitelist-service";
 import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
 import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
 import { assertOriginInCustomerList } from "@/lib/multi-origin-customer";
@@ -301,6 +304,7 @@ export async function listCrateExportsForDate(
   });
 
   const owedIndex = useLive ? await loadLiveOwedIndex(dateInput) : null;
+  const whitelistShipperIds = await loadCrateExportMismatchWhitelistShipperIds();
   const locationByExportNo = useLive
     ? await resolveExportStockLocations(
         rows.map((row) => row.exportNo?.trim() || row.id)
@@ -309,25 +313,35 @@ export async function listCrateExportsForDate(
 
   const grouped = new Map<
     string,
-    CrateExportListRow & {
+    {
+      exportNo: string;
+      date: string;
+      shipperName: string;
+      thVehiclePlate: string;
+      totalActual: number;
+      totalShortage: number;
+      lineCount: number;
       sortCreatedAt: number;
       shipperId: string;
       shipperCode: string;
       shipperKind: string | null;
-      lineDetails: { tongCode: string; quantityActual: number }[];
+      lineDetails: CrateExportListLineDetail[];
     }
   >();
 
   for (const row of rows) {
     const exportNo = row.exportNo?.trim() || row.id;
+    const lineDetail: CrateExportListLineDetail = {
+      tongCode: row.tongType.code,
+      quantitySuggested: row.quantitySuggested ?? 0,
+      quantityActual: row.quantityActual,
+    };
     const existing = grouped.get(exportNo);
     if (existing) {
       existing.totalActual += row.quantityActual;
+      existing.totalShortage += row.shortage;
       existing.lineCount += 1;
-      existing.lineDetails.push({
-        tongCode: row.tongType.code,
-        quantityActual: row.quantityActual,
-      });
+      existing.lineDetails.push(lineDetail);
       continue;
     }
 
@@ -343,7 +357,7 @@ export async function listCrateExportsForDate(
       shipperId: row.shipperId,
       shipperCode: row.shipper.code,
       shipperKind: row.shipper.shipperKind,
-      lineDetails: [{ tongCode: row.tongType.code, quantityActual: row.quantityActual }],
+      lineDetails: [lineDetail],
     });
   }
 
@@ -361,8 +375,18 @@ export async function listCrateExportsForDate(
           location: locationByExportNo.get(row.exportNo) ?? "",
           isAgentReceipt,
         });
-        totalShortage = totalLiveShortageForLines(owed, row.lineDetails);
+        totalShortage = totalLiveShortageForLines(
+          owed,
+          row.lineDetails.map((line) => ({
+            tongCode: line.tongCode,
+            quantityActual: line.quantityActual,
+          }))
+        );
       }
+
+      const lines = [...row.lineDetails].sort((a, b) =>
+        a.tongCode.localeCompare(b.tongCode)
+      );
 
       return {
         exportNo: row.exportNo,
@@ -372,6 +396,12 @@ export async function listCrateExportsForDate(
         totalActual: row.totalActual,
         totalShortage,
         lineCount: row.lineCount,
+        lines,
+        hasSuggestedActualMismatch: resolveCrateExportListMismatch(
+          lines,
+          row.shipperId,
+          whitelistShipperIds
+        ),
       };
     });
 }

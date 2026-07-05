@@ -47,6 +47,7 @@ import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrol
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
 import { PayrollSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
+import { CrateExportMismatchWhitelistSection } from "@/components/settings/CrateExportMismatchWhitelistSection";
 import { UnloadingRatesSettings } from "@/components/driver-expenses/UnloadingRatesSettings";
 import type { GlobalCostSettingRow } from "@/lib/global-cost-settings-service";
 import type { RouteMasterRow } from "@/components/settings/RouteFormDialog";
@@ -66,6 +67,7 @@ import {
   SETTINGS_SECTION_TITLES,
   type SettingsSection,
 } from "@/lib/constants/settings-nav";
+import type { CrateExportMismatchWhitelistRow } from "@/lib/crate-export-mismatch-whitelist-service";
 import { SHIPPER_INVOICE_COMPANIES } from "@/lib/constants/shipper-invoice-company";
 
 interface MarketOption {
@@ -226,6 +228,7 @@ interface SettingsClientProps {
     currency: "MYR" | "THB";
     notes: string | null;
   }[];
+  crateExportMismatchWhitelist: CrateExportMismatchWhitelistRow[];
 }
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -259,6 +262,7 @@ export function SettingsClient({
   routeMasters,
   payrollSettings,
   crateRentalRates,
+  crateExportMismatchWhitelist,
 }: SettingsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -768,6 +772,17 @@ export function SettingsClient({
 
         {activeSection === "crate-rental-rates" && (
           <CrateRentalRatesSection rates={crateRentalRates} />
+        )}
+
+        {activeSection === "crate-export-settings" && (
+          <CrateExportMismatchWhitelistSection
+            entries={crateExportMismatchWhitelist}
+            shippers={data.shippers.map((s) => ({
+              id: s.id,
+              code: s.code,
+              name: s.name,
+            }))}
+          />
         )}
 
         {activeSection === "unload-settings" && <UnloadingRatesSettings />}

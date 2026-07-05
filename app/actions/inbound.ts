@@ -46,6 +46,10 @@ import {
   buildInboundCrateEditAuditLogs,
 } from "@/lib/crate-audit";
 import {
+  collectInboundSaveSyncContexts,
+  syncCrateExportSuggestedForContexts,
+} from "@/lib/crate-export-sync-suggested";
+import {
   computeInboundLineFreight,
   MC_MARKET_CODE,
   normalizeMcDeliveryMode,
@@ -257,6 +261,7 @@ function revalidateInboundRelatedPaths() {
   revalidatePath("/reports/market");
   revalidatePath("/reports/crate");
   revalidatePath("/crate/customer-stock");
+  revalidatePath("/crate/export", "page");
   revalidatePath("/dashboard");
 }
 
@@ -1392,6 +1397,18 @@ export async function saveInboundSession(input: SaveInboundInput) {
       });
     }
 
+    if (status === "confirmed") {
+      await syncCrateExportSuggestedForContexts(
+        collectInboundSaveSyncContexts({
+          before: {
+            date: existing.date,
+            shipperId: existing.shipperId,
+          },
+          after: { date, shipperId: input.shipperId },
+        })
+      );
+    }
+
     revalidateInboundRelatedPaths();
     return { ok: true as const };
   }
@@ -1495,6 +1512,14 @@ export async function saveInboundSession(input: SaveInboundInput) {
       },
       allLines,
       typeMap
+    );
+  }
+
+  if (status === "confirmed") {
+    await syncCrateExportSuggestedForContexts(
+      collectInboundSaveSyncContexts({
+        after: { date, shipperId: input.shipperId },
+      })
     );
   }
 

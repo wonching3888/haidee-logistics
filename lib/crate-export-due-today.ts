@@ -347,27 +347,32 @@ export function sortCrateExportDueTodayItems(
   });
 }
 
-export function buildCrateExportDueToday(
+type InboundMemberDue = {
+  memberId: string;
+  memberCode: string;
+  memberName: string;
+  agentId: string;
+  poolPickup?: "SONGKHLA" | "PATTANI";
+  due: QtyMap;
+  location: string;
+  areaNote: string;
+  isMultiOrigin: boolean;
+  origin?: string;
+};
+
+export type InboundDueBuckets = {
+  standaloneDue: Map<string, QtyMap>;
+  multiOriginDue: Map<string, { due: QtyMap; origin: string; areaNote: string }>;
+  memberInbounds: InboundMemberDue[];
+};
+
+/** Aggregate inbound crate quantities by account — includes fully-returned contexts. */
+export function aggregateInboundDueBuckets(
   input: BuildCrateExportDueTodayInput
-): CrateExportDueTodayData {
-  const { date } = input;
-
-  type MemberInbound = {
-    memberId: string;
-    memberCode: string;
-    memberName: string;
-    agentId: string;
-    poolPickup?: "SONGKHLA" | "PATTANI";
-    due: QtyMap;
-    location: string;
-    areaNote: string;
-    isMultiOrigin: boolean;
-    origin?: string;
-  };
-
+): InboundDueBuckets {
   const standaloneDue = new Map<string, QtyMap>();
   const multiOriginDue = new Map<string, { due: QtyMap; origin: string; areaNote: string }>();
-  const memberInbounds: MemberInbound[] = [];
+  const memberInbounds: InboundMemberDue[] = [];
 
   for (const session of input.inboundSessions) {
     const shipper = input.shippers.get(session.shipperId);
@@ -523,6 +528,16 @@ export function buildCrateExportDueToday(
     standaloneDue.set(k, cur);
   }
 
+  return { standaloneDue, multiOriginDue, memberInbounds };
+}
+
+export function buildCrateExportDueToday(
+  input: BuildCrateExportDueTodayInput
+): CrateExportDueTodayData {
+  const { date } = input;
+  const { standaloneDue, multiOriginDue, memberInbounds } =
+    aggregateInboundDueBuckets(input);
+
   const items: CrateExportDueItem[] = [];
 
   for (const [shipperId, due] of Array.from(standaloneDue.entries())) {
@@ -565,7 +580,7 @@ export function buildCrateExportDueToday(
     if (row) items.push({ kind: "row", row });
   }
 
-  const membersByAgent = new Map<string, MemberInbound[]>();
+  const membersByAgent = new Map<string, InboundMemberDue[]>();
   for (const m of memberInbounds) {
     const list = membersByAgent.get(m.agentId) ?? [];
     list.push(m);

@@ -27,6 +27,12 @@ export function isLiveCrateExportDueDate(
   return dueDate === todayInput;
 }
 
+export interface CrateExportListLineDetail {
+  tongCode: string;
+  quantitySuggested: number;
+  quantityActual: number;
+}
+
 export interface CrateExportListRow {
   exportNo: string;
   date: string;
@@ -35,4 +41,23 @@ export interface CrateExportListRow {
   totalActual: number;
   totalShortage: number;
   lineCount: number;
+  lines: CrateExportListLineDetail[];
+  hasSuggestedActualMismatch: boolean;
+}
+
+export function crateExportHasSuggestedActualMismatch(
+  lines: CrateExportListLineDetail[]
+): boolean {
+  return lines.some(
+    (line) => line.quantitySuggested !== line.quantityActual
+  );
+}
+
+export function resolveCrateExportListMismatch(
+  lines: CrateExportListLineDetail[],
+  shipperId: string,
+  whitelistShipperIds: ReadonlySet<string>
+): boolean {
+  if (whitelistShipperIds.has(shipperId)) return false;
+  return crateExportHasSuggestedActualMismatch(lines);
 }

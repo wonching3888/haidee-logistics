@@ -7,6 +7,7 @@ export type SettingsSection =
   | "routes"
   | "payroll-settings"
   | "crate-rental-rates"
+  | "crate-export-settings"
   | "unload-settings"
   | "shipper-rates"
   | "consignee-rates"
@@ -25,6 +26,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "routes",
   "payroll-settings",
   "crate-rental-rates",
+  "crate-export-settings",
   "unload-settings",
   "shipper-rates",
   "consignee-rates",
@@ -52,6 +54,10 @@ export const SETTINGS_SECTION_TITLES: Record<
   routes: { label: "路线", labelEn: "Routes" },
   "payroll-settings": { label: "薪资设定", labelEn: "Payroll Settings" },
   "crate-rental-rates": { label: "租桶费率", labelEn: "Crate Rental Rates" },
+  "crate-export-settings": {
+    label: "归还桶设定",
+    labelEn: "Crate Export Settings",
+  },
   "unload-settings": { label: "下货费设定", labelEn: "Unload Settings" },
   "shipper-rates": { label: "寄货人费率", labelEn: "Shipper Rates" },
   "consignee-rates": { label: "收货人费率", labelEn: "Consignee Rates" },
@@ -177,6 +183,11 @@ export const SETTINGS_SIDEBAR_GROUPS: SettingsSidebarGroup[] = [
         section: "crate-rental-rates",
         label: "租桶费率",
         labelEn: "Crate Rental Rates",
+      },
+      {
+        section: "crate-export-settings",
+        label: "归还桶设定",
+        labelEn: "Crate Export Settings",
       },
     ],
   },
