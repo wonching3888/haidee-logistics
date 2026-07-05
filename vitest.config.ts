@@ -63,6 +63,7 @@ export default defineConfig({
       "lib/payroll-statutory.test.ts",
       "lib/pcb-calculation.test.ts",
       "lib/driver-pcb-profile.test.ts",
+      "lib/pcb-policy.test.ts",
       "lib/driver-payslip.test.ts",
       "lib/driver-trip-listing.test.ts",
       "lib/constants/socso-brackets.test.ts",

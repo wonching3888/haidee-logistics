@@ -142,6 +142,7 @@ function toPayrollDriverInput(
     name: driver.name,
     baseSalary: driver.baseSalary,
     maritalStatus: driver.maritalStatus,
+    spouseWorking: driver.spouseWorking,
     childCount: driver.childCount,
     isSocsoSecondCategory: driver.isSocsoSecondCategory,
   };
@@ -166,6 +167,13 @@ function buildSummaryFromRecords(input: {
     eisEmployerOverride: unknown;
     pcbOverride: unknown;
     lindung24JamOverride: unknown;
+    pcbLocked?: boolean;
+    pcbFinal?: unknown;
+  };
+  pcbContext?: {
+    payrollYear: number;
+    payrollMonth: number;
+    pcbYtdBeforeMonth?: import("@/lib/pcb-calculation").PcbYearToDate;
   };
 }) {
   return buildDriverPayrollSummaryFromRecords({
@@ -173,6 +181,13 @@ function buildSummaryFromRecords(input: {
     trips: input.trips,
     extras: input.extras,
     overrides: input.overrides,
+    pcbContext: input.pcbContext
+      ? {
+          ...input.pcbContext,
+          pcbLocked: input.overrides.pcbLocked ?? false,
+          pcbFinal: decimalToNumber(input.overrides.pcbFinal),
+        }
+      : undefined,
   });
 }
 
@@ -241,11 +256,23 @@ export async function getDriverPayrollMonth(input: {
 
   const allowanceContext = await loadPayrollAllowanceContext();
 
+  const { loadPcbYtdBalancesAsOf, priorPayrollYearMonth, emptyPcbYtd } =
+    await import("@/lib/pcb-ytd-balance");
+  const ytdMap = await loadPcbYtdBalancesAsOf(
+    priorPayrollYearMonth(input.year, input.month)
+  );
+  const pcbContext = {
+    payrollYear: input.year,
+    payrollMonth: input.month,
+    pcbYtdBeforeMonth: ytdMap.get(input.driverId) ?? emptyPcbYtd(),
+  };
+
   const summary = buildSummaryFromRecords({
     driver: serializedDriver,
     trips: record.trips,
     extras: record.extras,
     overrides: record,
+    pcbContext,
   });
 
   const autoStatutory = buildSummaryFromRecords({
@@ -261,7 +288,10 @@ export async function getDriverPayrollMonth(input: {
       eisEmployerOverride: null,
       pcbOverride: null,
       lindung24JamOverride: null,
+      pcbLocked: false,
+      pcbFinal: null,
     },
+    pcbContext,
   }).statutory;
 
   return {

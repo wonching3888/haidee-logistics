@@ -1,16 +1,12 @@
 /**
- * LHDN MTD (PCB) computerized calculation — draft formula engine (NOT production).
+ * LHDN MTD (PCB) computerized calculation — formula engine (NOT production-wired).
  *
  * Intentionally not called from lib/payroll-statutory.ts payslip/JV paths until
- * accounting signs off. Use lib/pcb-calculation.test.ts + EXHIBIT 5 to verify fixes.
+ * accounting signs off and YTD opening balances are imported.
  *
- * Known gaps before production enablement:
- * - K2: spread must truncate to sen (omit subsequent figures) before min(K1, spread)
- * - MTD: final amount rounds UP to nearest 5 sen per LHDN spec (not half-up to cent)
- * - X: accumulated MTD paid (∑ prior months) — no roll-forward from payroll history yet
- * - LP: TP1 deductions (∑LP + LP1) — field exists on input but not wired from payroll
- * - April bonus: Additional Remuneration formula (EXHIBIT 5 Steps 2–5) not implemented
- * - Y/K opening balance: mid-year go-live needs real Jan–(m−1) gross/EPF or TP3 import
+ * Remaining out of scope:
+ * - April Additional Remuneration (bonus) formula (EXHIBIT 5 Steps 2–5)
+ * - Y/K/X opening-balance import from payroll history (engine accepts params; no DB yet)
  *
  * @see lib/constants/pcb-2026.ts
  * @see scripts/_output/spesifikasi-pcb-2026.pdf EXHIBIT 5
@@ -26,8 +22,27 @@ import {
   type PcbEmployeeCategory,
 } from "@/lib/constants/pcb-2026";
 
-function roundMoney(value: number) {
+/** Truncate toward zero to sen (omit subsequent figures). e.g. 308.6363… → 308.63 */
+export function truncateToSen(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return value >= 0
+    ? Math.trunc(value * 100) / 100
+    : -Math.trunc(-value * 100) / 100;
+}
+
+/** Half-up to sen (for display / YTD roll-forward only). */
+export function roundToSen(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * Round UP to the nearest 5 sen (LHDN MTD final step).
+ * Examples: 287.02 → 287.05, 287.06 → 287.10, 287.00 → 287.00, 108.20042 → 108.20
+ */
+export function roundUpToNearest5Sen(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const cents = Math.round(value * 100);
+  return (Math.ceil(cents / 5) * 5) / 100;
 }
 
 export interface PcbProfile {
@@ -35,6 +50,51 @@ export interface PcbProfile {
   qualifyingChildren: number;
   needsReview: boolean;
   reviewReasons: string[];
+}
+
+/**
+ * Year-to-date accumulators for the PCB formula (values BEFORE the current month).
+ * Defaults are all 0 (treat as first payroll month of the year).
+ * Opening-balance import will populate these for mid-year go-live.
+ */
+export interface PcbYearToDate {
+  /** ∑Y — accumulated gross remuneration before current month. */
+  accumulatedGrossY: number;
+  /** ∑K — accumulated EPF employee before current month. */
+  accumulatedEpfK: number;
+  /** X — accumulated MTD (PCB) paid before current month. */
+  accumulatedMtdX: number;
+  /** ∑Z — accumulated zakat before current month. */
+  accumulatedZakatZ: number;
+}
+
+export function emptyPcbYearToDate(): PcbYearToDate {
+  return {
+    accumulatedGrossY: 0,
+    accumulatedEpfK: 0,
+    accumulatedMtdX: 0,
+    accumulatedZakatZ: 0,
+  };
+}
+
+/** Roll YTD forward after a month is finalized (for multi-month exhibit / future import). */
+export function advancePcbYearToDate(
+  prior: PcbYearToDate,
+  month: {
+    grossSalary: number;
+    epfEmployee: number;
+    pcb: number;
+    zakat?: number;
+  }
+): PcbYearToDate {
+  return {
+    accumulatedGrossY: roundToSen(prior.accumulatedGrossY + month.grossSalary),
+    accumulatedEpfK: roundToSen(prior.accumulatedEpfK + month.epfEmployee),
+    accumulatedMtdX: roundToSen(prior.accumulatedMtdX + month.pcb),
+    accumulatedZakatZ: roundToSen(
+      prior.accumulatedZakatZ + (month.zakat ?? 0)
+    ),
+  };
 }
 
 export interface MonthlyPcbInput {
@@ -48,29 +108,47 @@ export interface MonthlyPcbInput {
   childCount: number;
   /** Payroll calendar month 1–12. */
   month: number;
-  /** Accumulated gross Y before current month (default 0). */
+  /** ∑Y — accumulated gross before current month (default 0). */
   accumulatedGrossY?: number;
-  /** Accumulated EPF K before current month (default 0). */
+  /** ∑K — accumulated EPF before current month (default 0). */
   accumulatedEpfK?: number;
-  /** Accumulated MTD paid X before current month (default 0). */
+  /**
+   * X — accumulated MTD paid before current month (default 0).
+   * Required for months after January; opening-balance import will supply this.
+   */
   accumulatedMtdX?: number;
-  /** Accumulated zakat Z before current month (default 0). */
+  /** ∑Z — accumulated zakat before current month (default 0). */
   accumulatedZakatZ?: number;
-  /** Optional TP1 deductions ∑LP + LP1 for current month (default 0). */
+  /**
+   * LP — TP1 deductions for the year (∑LP + LP1), default 0.
+   * Drivers typically have no TP1; field is reserved for future use.
+   * Alias: `lpDeductions`.
+   */
+  lp?: number;
+  /** @deprecated Prefer `lp`. Same as LP (TP1 deductions). */
   lpDeductions?: number;
-  /** Additional remuneration net (Yt-Kt) for current month (default 0). */
+  /** Additional remuneration net (Yt−Kt) for current month (default 0). Bonus formula not implemented. */
   additionalRemunerationNet?: number;
-  /** Zakat for current month (default 0). */
+  /** Zakat for current month (default 0), subtracted after MTD. */
   currentMonthZakat?: number;
   /** When false, treat incomplete marital data as single (conservative). */
   pcbMaritalDataVerified?: boolean;
 }
 
 export interface MonthlyPcbResult {
+  /** Final MTD after 5-sen round-up and current-month zakat (0 if below minimum). */
   pcb: number;
+  /** Annual chargeable income P (to sen). */
   annualChargeableP: number;
   annualTax: number;
+  /** MTD before current-month zakat, after 5-sen round-up. */
   mtdBeforeZakat: number;
+  /** K2 after truncate-to-sen (used in P). */
+  k2: number;
+  /** LP (TP1) applied in P. */
+  lp: number;
+  /** X (accumulated MTD) applied in MTD formula. */
+  accumulatedMtdX: number;
   profile: PcbProfile;
 }
 
@@ -148,18 +226,29 @@ function epfReliefs(input: {
   return { d, s, qc };
 }
 
-function computeK2(input: {
+/**
+ * K2 = min(K1, truncateToSen([4000 − (K + K1 + Kt)] / n))
+ * Truncation is mandatory before any further use in P.
+ */
+export function computeK2(input: {
   kAccumulated: number;
   k1: number;
-  kt: number;
+  kt?: number;
   n: number;
 }): number {
+  const kt = input.kt ?? 0;
   const remainingCap = Math.max(
     0,
-    PCB_EPF_ANNUAL_CAP - input.kAccumulated - input.k1 - input.kt
+    PCB_EPF_ANNUAL_CAP - input.kAccumulated - input.k1 - kt
   );
   const spread = input.n > 0 ? remainingCap / input.n : 0;
-  return Math.min(input.k1, spread);
+  const spreadTruncated = truncateToSen(spread);
+  return Math.min(input.k1, spreadTruncated);
+}
+
+function resolveLp(input: MonthlyPcbInput): number {
+  const raw = input.lp ?? input.lpDeductions ?? 0;
+  return Math.max(0, raw);
 }
 
 function annualTaxFromP(p: number, category: PcbEmployeeCategory): number {
@@ -170,7 +259,7 @@ function annualTaxFromP(p: number, category: PcbEmployeeCategory): number {
       const b =
         category === 2 ? bracket.bCat2 : bracket.bCat1And3;
       const tax = ((p - bracket.m) * bracket.r) / 100 + b;
-      return Math.max(0, roundMoney(tax));
+      return Math.max(0, roundToSen(tax));
     }
   }
   return 0;
@@ -178,7 +267,7 @@ function annualTaxFromP(p: number, category: PcbEmployeeCategory): number {
 
 /**
  * LHDN normal remuneration MTD (PCB) — computerized calculation method 2026.
- * MTD = [(P – M) × R + B – (Z + X)] / (n + 1)
+ * MTD = [(P – M) × R + B – (Z + X)] / (n + 1), then round UP to nearest 5 sen.
  */
 export function calculateMonthlyPcb(input: MonthlyPcbInput): MonthlyPcbResult {
   const profile = resolvePcbProfile({
@@ -197,7 +286,7 @@ export function calculateMonthlyPcb(input: MonthlyPcbInput): MonthlyPcbResult {
   const kAccum = Math.max(0, input.accumulatedEpfK ?? 0);
   const x = Math.max(0, input.accumulatedMtdX ?? 0);
   const z = Math.max(0, input.accumulatedZakatZ ?? 0);
-  const lp = Math.max(0, input.lpDeductions ?? 0);
+  const lp = resolveLp(input);
   const ytKt = input.additionalRemunerationNet ?? 0;
   const kt = 0;
 
@@ -214,7 +303,7 @@ export function calculateMonthlyPcb(input: MonthlyPcbInput): MonthlyPcbResult {
   const projected = sumYK + y1Net + y2Net * n + ytKt;
 
   const { d, s, qc } = epfReliefs(profile);
-  const annualChargeableP = roundMoney(projected - (d + s + qc + lp));
+  const annualChargeableP = roundToSen(projected - (d + s + qc + lp));
   const annualTax = annualTaxFromP(annualChargeableP, profile.category);
 
   const bracket = PCB_TAX_BRACKETS_2026.find((b) => annualChargeableP <= b.maxP);
@@ -225,11 +314,13 @@ export function calculateMonthlyPcb(input: MonthlyPcbInput): MonthlyPcbResult {
 
   const mtdNumerator =
     ((annualChargeableP - m) * r) / 100 + bVal - (z + x);
-  const mtdBeforeZakat = roundMoney(mtdNumerator / (n + 1));
+  const mtdRaw = mtdNumerator / (n + 1);
+  const mtdBeforeZakat = roundUpToNearest5Sen(Math.max(0, mtdRaw));
 
   let pcb = 0;
   if (mtdBeforeZakat >= PCB_MINIMUM_DEDUCTION) {
-    const netMtd = roundMoney(
+    // 5-sen rule applies to MTD; current-month zakat is subtracted after.
+    const netMtd = roundToSen(
       Math.max(0, mtdBeforeZakat - (input.currentMonthZakat ?? 0))
     );
     pcb = netMtd >= PCB_MINIMUM_DEDUCTION ? netMtd : 0;
@@ -240,6 +331,9 @@ export function calculateMonthlyPcb(input: MonthlyPcbInput): MonthlyPcbResult {
     annualChargeableP,
     annualTax,
     mtdBeforeZakat,
+    k2,
+    lp,
+    accumulatedMtdX: x,
     profile,
   };
 }
@@ -249,15 +343,15 @@ export function estimatePayrollYtdForPcb(input: {
   grossSalary: number;
   epfEmployee: number;
   month: number;
-}) {
+}): Pick<PcbYearToDate, "accumulatedGrossY" | "accumulatedEpfK"> {
   const prior = Math.max(0, Math.min(11, Math.round(input.month) - 1));
   return {
-    accumulatedGrossY: roundMoney(prior * input.grossSalary),
-    accumulatedEpfK: roundMoney(prior * input.epfEmployee),
+    accumulatedGrossY: roundToSen(prior * input.grossSalary),
+    accumulatedEpfK: roundToSen(prior * input.epfEmployee),
   };
 }
 
-/** Back-compat wrapper used by payroll statutory pipeline. */
+/** Back-compat wrapper used by payroll statutory pipeline (when re-enabled). */
 export function calculatePcb(input: {
   grossSalary: number;
   epfEmployee: number;
@@ -268,6 +362,8 @@ export function calculatePcb(input: {
   accumulatedGrossY?: number;
   accumulatedEpfK?: number;
   accumulatedMtdX?: number;
+  lp?: number;
+  lpDeductions?: number;
   pcbMaritalDataVerified?: boolean;
 }): number {
   return calculateMonthlyPcb({
@@ -280,6 +376,8 @@ export function calculatePcb(input: {
     accumulatedGrossY: input.accumulatedGrossY,
     accumulatedEpfK: input.accumulatedEpfK,
     accumulatedMtdX: input.accumulatedMtdX,
+    lp: input.lp,
+    lpDeductions: input.lpDeductions,
     pcbMaritalDataVerified: input.pcbMaritalDataVerified,
   }).pcb;
 }

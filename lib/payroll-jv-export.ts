@@ -322,16 +322,23 @@ export async function buildMonthlyDriverJvRows(
   const yearMonth = parseYearMonth(year, month);
   const jvDate = jvDateForMonth(year, month);
 
-  const drivers = await prisma.driver.findMany({
-    where: driverQueryCandidatesForPayroll(),
-    orderBy: { name: "asc" },
-    include: {
-      payrollMonths: {
-        where: { yearMonth },
-        include: { trips: true, extras: true },
+  const { loadPcbYtdBalancesAsOf, priorPayrollYearMonth, emptyPcbYtd } =
+    await import("@/lib/pcb-ytd-balance");
+  const priorYm = priorPayrollYearMonth(year, month);
+
+  const [drivers, ytdBalances] = await Promise.all([
+    prisma.driver.findMany({
+      where: driverQueryCandidatesForPayroll(),
+      orderBy: { name: "asc" },
+      include: {
+        payrollMonths: {
+          where: { yearMonth },
+          include: { trips: true, extras: true },
+        },
       },
-    },
-  });
+    }),
+    loadPcbYtdBalancesAsOf(priorYm),
+  ]);
 
   const skippedDrivers: SkippedPayrollJvDriver[] = [];
   const driverJvs: DriverPayrollJv[] = [];
@@ -366,6 +373,7 @@ export async function buildMonthlyDriverJvRows(
       name: driver.name,
       baseSalary: decimalToNumber(driver.baseSalary),
       maritalStatus: driver.maritalStatus as MaritalStatus | null,
+      spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
     };
@@ -381,6 +389,8 @@ export async function buildMonthlyDriverJvRows(
       eisEmployeeOverride: monthRecord?.eisEmployeeOverride,
       eisEmployerOverride: monthRecord?.eisEmployerOverride,
       pcbOverride: monthRecord?.pcbOverride,
+      pcbLocked: monthRecord?.pcbLocked,
+      pcbFinal: monthRecord?.pcbFinal,
     };
 
     const summary = buildDriverPayrollSummaryFromRecords({
@@ -388,6 +398,13 @@ export async function buildMonthlyDriverJvRows(
       trips: monthInput.trips,
       extras: monthInput.extras,
       overrides: monthInput,
+      pcbContext: {
+        payrollYear: year,
+        payrollMonth: month,
+        pcbYtdBeforeMonth: ytdBalances.get(driver.id) ?? emptyPcbYtd(),
+        pcbLocked: monthRecord?.pcbLocked ?? false,
+        pcbFinal: decimalToNumber(monthRecord?.pcbFinal),
+      },
     });
 
     driverJvs.push(

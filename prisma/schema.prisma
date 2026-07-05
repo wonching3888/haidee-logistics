@@ -389,8 +389,33 @@ model Driver {
   trucks            Truck[]
   payrollMonths     DriverPayrollMonth[]
   payrollChangeLogs PayrollChangeLog[]
+  pcbYtdBalances    DriverPcbYtdBalance[]
 
   @@map("drivers")
+}
+
+/**
+ * End-of-month PCB YTD (∑Y / ∑K / X) for the next month's auto calculation.
+ * asOfYearMonth = "2026-06" means balances after June is closed (July opening).
+ */
+model DriverPcbYtdBalance {
+  id                 String   @id @default(uuid()) @db.Uuid
+  driverId           String   @map("driver_id") @db.Uuid
+  asOfYearMonth      String   @map("as_of_year_month")
+  accumulatedGrossY  Decimal  @default(0) @map("accumulated_gross_y") @db.Decimal(12, 2)
+  accumulatedEpfK    Decimal  @default(0) @map("accumulated_epf_k") @db.Decimal(12, 2)
+  accumulatedMtdX    Decimal  @default(0) @map("accumulated_mtd_x") @db.Decimal(12, 2)
+  accumulatedZakatZ  Decimal  @default(0) @map("accumulated_zakat_z") @db.Decimal(12, 2)
+  /** seed | lock | manual */
+  source             String   @default("seed")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, asOfYearMonth])
+  @@index([asOfYearMonth])
+  @@map("driver_pcb_ytd_balances")
 }
 
 model DriverPayrollMonth {
@@ -406,6 +431,18 @@ model DriverPayrollMonth {
   eisEmployerOverride   Decimal? @map("eis_employer_override") @db.Decimal(10, 2)
   pcbOverride           Decimal? @map("pcb_override") @db.Decimal(10, 2)
   lindung24JamOverride  Decimal? @map("lindung_24_jam_override") @db.Decimal(10, 2)
+  /** Last auto-computed PCB (informational; override still wins when set). */
+  pcbComputed           Decimal? @map("pcb_computed") @db.Decimal(10, 2)
+  /** Frozen PCB when month is locked (auto or override value at lock time). */
+  pcbFinal              Decimal? @map("pcb_final") @db.Decimal(10, 2)
+  pcbLocked             Boolean  @default(false) @map("pcb_locked")
+  pcbLockedAt           DateTime? @map("pcb_locked_at")
+  /** YTD inputs used for the locked/computed PCB (before this month). */
+  pcbSnapshotYtdGross   Decimal? @map("pcb_snapshot_ytd_gross") @db.Decimal(12, 2)
+  pcbSnapshotYtdEpf     Decimal? @map("pcb_snapshot_ytd_epf") @db.Decimal(12, 2)
+  pcbSnapshotYtdMtd     Decimal? @map("pcb_snapshot_ytd_mtd") @db.Decimal(12, 2)
+  pcbSnapshotMonthGross Decimal? @map("pcb_snapshot_month_gross") @db.Decimal(12, 2)
+  pcbSnapshotMonthEpf   Decimal? @map("pcb_snapshot_month_epf") @db.Decimal(12, 2)
   updatedAt DateTime @updatedAt @map("updated_at")
 
   driver Driver              @relation(fields: [driverId], references: [id])

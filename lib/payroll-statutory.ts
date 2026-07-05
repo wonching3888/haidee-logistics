@@ -4,6 +4,11 @@ import { lookupEpfContributions } from "@/lib/constants/epf-brackets";
 import { lookupLindung24Jam } from "@/lib/constants/lindung-24-jam-brackets";
 import { lookupSocsoContributions } from "@/lib/constants/socso-brackets";
 import { lookupSocsoSecondCategoryEmployer } from "@/lib/constants/socso-second-category-brackets";
+import {
+  emptyPcbYtd,
+  resolvePayrollPcb,
+} from "@/lib/pcb-policy";
+import type { PcbYearToDate } from "@/lib/pcb-calculation";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -49,10 +54,13 @@ export function calculateStatutoryDeductions(input: {
   maritalStatus: MaritalStatus | null | undefined;
   spouseWorking?: boolean | null;
   childCount: number;
+  /** Calendar year (required for auto PCB from 2026-07). */
+  payrollYear?: number;
   payrollMonth?: number;
-  accumulatedGrossY?: number;
-  accumulatedEpfK?: number;
-  accumulatedMtdX?: number;
+  /** YTD before this month (from driver_pcb_ytd_balances). */
+  pcbYtdBeforeMonth?: PcbYearToDate;
+  pcbLocked?: boolean;
+  pcbFinal?: number | null;
   pcbMaritalDataVerified?: boolean;
   isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
@@ -89,8 +97,28 @@ export function calculateStatutoryDeductions(input: {
     input.overrides?.eisEmployer ??
     (eisExempt ? 0 : roundMoney(eisBase * EIS_RATE));
 
-  /** Manual override only until auto PCB is production-ready (pcbOverride on payroll month). */
-  const pcb = input.overrides?.pcb ?? 0;
+  /**
+   * PCB: override > locked final > auto engine (from 2026-07) > 0.
+   * Pre-July months stay override-only (June accounting unchanged).
+   */
+  const year = input.payrollYear ?? 0;
+  const month = input.payrollMonth ?? 0;
+  const pcb =
+    year > 0 && month > 0
+      ? resolvePayrollPcb({
+          year,
+          month,
+          grossSalary: gross,
+          epfEmployee,
+          maritalStatus: input.maritalStatus,
+          spouseWorking: input.spouseWorking,
+          childCount: input.childCount,
+          ytdBeforeMonth: input.pcbYtdBeforeMonth ?? emptyPcbYtd(),
+          pcbOverride: input.overrides?.pcb,
+          pcbLocked: input.pcbLocked,
+          pcbFinal: input.pcbFinal,
+        }).pcb
+      : (input.overrides?.pcb ?? 0);
 
   return {
     epfEmployee,
@@ -143,10 +171,11 @@ export function buildPayrollSummary(input: {
   maritalStatus: MaritalStatus | null | undefined;
   spouseWorking?: boolean | null;
   childCount: number;
+  payrollYear?: number;
   payrollMonth?: number;
-  accumulatedGrossY?: number;
-  accumulatedEpfK?: number;
-  accumulatedMtdX?: number;
+  pcbYtdBeforeMonth?: PcbYearToDate;
+  pcbLocked?: boolean;
+  pcbFinal?: number | null;
   pcbMaritalDataVerified?: boolean;
   isSocsoSecondCategory?: boolean;
   overrides?: StatutoryOverrides;
@@ -168,10 +197,11 @@ export function buildPayrollSummary(input: {
     maritalStatus: input.maritalStatus,
     spouseWorking: input.spouseWorking,
     childCount: input.childCount,
+    payrollYear: input.payrollYear,
     payrollMonth: input.payrollMonth,
-    accumulatedGrossY: input.accumulatedGrossY,
-    accumulatedEpfK: input.accumulatedEpfK,
-    accumulatedMtdX: input.accumulatedMtdX,
+    pcbYtdBeforeMonth: input.pcbYtdBeforeMonth,
+    pcbLocked: input.pcbLocked,
+    pcbFinal: input.pcbFinal,
     pcbMaritalDataVerified: input.pcbMaritalDataVerified,
     isSocsoSecondCategory: input.isSocsoSecondCategory,
     overrides: input.overrides,

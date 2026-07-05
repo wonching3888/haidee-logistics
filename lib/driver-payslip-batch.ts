@@ -119,22 +119,29 @@ export async function loadBatchDriverPayslipEntries(
   await syncFleetPayrollForMonth(year, month);
   const yearMonth = parseYearMonth(year, month);
 
-  const drivers = await prisma.driver.findMany({
-    where: driverQueryCandidatesForPayroll(),
-    orderBy: { name: "asc" },
-    include: {
-      payrollMonths: {
-        where: { yearMonth },
-        include: {
-          trips: {
-            orderBy: [{ date: "asc" }, { sortOrder: "asc" }],
-            include: PAYROLL_TRIP_LISTING_INCLUDE,
+  const { loadPcbYtdBalancesAsOf, priorPayrollYearMonth, emptyPcbYtd } =
+    await import("@/lib/pcb-ytd-balance");
+  const priorYm = priorPayrollYearMonth(year, month);
+
+  const [drivers, ytdBalances] = await Promise.all([
+    prisma.driver.findMany({
+      where: driverQueryCandidatesForPayroll(),
+      orderBy: { name: "asc" },
+      include: {
+        payrollMonths: {
+          where: { yearMonth },
+          include: {
+            trips: {
+              orderBy: [{ date: "asc" }, { sortOrder: "asc" }],
+              include: PAYROLL_TRIP_LISTING_INCLUDE,
+            },
+            extras: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
           },
-          extras: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] },
         },
       },
-    },
-  });
+    }),
+    loadPcbYtdBalancesAsOf(priorYm),
+  ]);
 
   const entries: DriverPayslipPrintEntry[] = [];
   const skipped: { name: string; reason: string }[] = [];
@@ -157,6 +164,7 @@ export async function loadBatchDriverPayslipEntries(
       name: driver.name,
       baseSalary: decimalToNumber(driver.baseSalary),
       maritalStatus: driver.maritalStatus as MaritalStatus | null,
+      spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
     };
@@ -166,6 +174,13 @@ export async function loadBatchDriverPayslipEntries(
       trips: monthRecord.trips,
       extras: monthRecord.extras,
       overrides: monthRecord,
+      pcbContext: {
+        payrollYear: year,
+        payrollMonth: month,
+        pcbYtdBeforeMonth: ytdBalances.get(driver.id) ?? emptyPcbYtd(),
+        pcbLocked: monthRecord.pcbLocked,
+        pcbFinal: decimalToNumber(monthRecord.pcbFinal),
+      },
     });
 
     entries.push({

@@ -11,6 +11,11 @@ import {
 } from "@/lib/driver-payroll-eligibility";
 import { prisma } from "@/lib/prisma";
 import { syncFleetPayrollForMonth } from "@/lib/payroll-month-sync";
+import {
+  emptyPcbYtd,
+  loadPcbYtdBalancesAsOf,
+  priorPayrollYearMonth,
+} from "@/lib/pcb-ytd-balance";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -21,6 +26,7 @@ export interface DriverPayrollDriverInput {
   name: string;
   baseSalary: number | null;
   maritalStatus: MaritalStatus | null;
+  spouseWorking?: boolean | null;
   childCount: number;
   isSocsoSecondCategory?: boolean;
 }
@@ -53,6 +59,8 @@ export interface DriverPayrollMonthInput {
   eisEmployeeOverride?: unknown;
   eisEmployerOverride?: unknown;
   pcbOverride?: unknown;
+  pcbLocked?: boolean;
+  pcbFinal?: unknown;
 }
 
 export interface DriverPayrollSummaryRow {
@@ -169,18 +177,39 @@ function earningsFromTrips(
   };
 }
 
+export interface PayrollPcbContext {
+  payrollYear: number;
+  payrollMonth: number;
+  pcbYtdBeforeMonth?: import("@/lib/pcb-calculation").PcbYearToDate;
+  pcbLocked?: boolean;
+  pcbFinal?: number | null;
+}
+
 /** Full driver summary (charter salary in gross + statutory). */
 export function buildDriverPayrollSummaryFromRecords(input: {
   driver: DriverPayrollDriverInput;
   trips: DriverPayrollMonthInput["trips"];
   extras: DriverPayrollMonthInput["extras"];
-  overrides?: DriverPayrollOverridesInput;
+  overrides?: DriverPayrollOverridesInput & {
+    pcbLocked?: boolean;
+    pcbFinal?: unknown;
+  };
+  pcbContext?: PayrollPcbContext;
 }): PayrollSummary {
   return buildPayrollSummary({
     earnings: earningsFromTrips(input.driver, input.trips, input.extras),
     maritalStatus: input.driver.maritalStatus,
+    spouseWorking: input.driver.spouseWorking,
     childCount: input.driver.childCount,
     isSocsoSecondCategory: input.driver.isSocsoSecondCategory,
+    payrollYear: input.pcbContext?.payrollYear,
+    payrollMonth: input.pcbContext?.payrollMonth,
+    pcbYtdBeforeMonth: input.pcbContext?.pcbYtdBeforeMonth,
+    pcbLocked:
+      input.pcbContext?.pcbLocked ?? input.overrides?.pcbLocked ?? false,
+    pcbFinal:
+      input.pcbContext?.pcbFinal ??
+      decimalToNumber(input.overrides?.pcbFinal),
     overrides: statutoryOverridesFromInput(input.overrides),
   });
 }
@@ -190,15 +219,13 @@ export function buildCompanyPayrollSummaryFromRecords(input: {
   driver: DriverPayrollDriverInput;
   trips: DriverPayrollMonthInput["trips"];
   extras: DriverPayrollMonthInput["extras"];
-  overrides?: DriverPayrollOverridesInput;
+  overrides?: DriverPayrollOverridesInput & {
+    pcbLocked?: boolean;
+    pcbFinal?: unknown;
+  };
+  pcbContext?: PayrollPcbContext;
 }): PayrollSummary {
-  return buildPayrollSummary({
-    earnings: earningsFromTrips(input.driver, input.trips, input.extras),
-    maritalStatus: input.driver.maritalStatus,
-    childCount: input.driver.childCount,
-    isSocsoSecondCategory: input.driver.isSocsoSecondCategory,
-    overrides: statutoryOverridesFromInput(input.overrides),
-  });
+  return buildDriverPayrollSummaryFromRecords(input);
 }
 
 /** Single source of truth: accounting full company driver payroll cost. */
@@ -352,16 +379,20 @@ export async function loadFleetPayrollAggregate(
   }
 
   const yearMonth = parseYearMonth(year, month);
-  const allDrivers = await prisma.driver.findMany({
-    where: driverQueryCandidatesForPayroll(),
-    orderBy: { name: "asc" },
-    include: {
-      payrollMonths: {
-        where: { yearMonth },
-        include: { trips: true, extras: true },
+  const priorYm = priorPayrollYearMonth(year, month);
+  const [allDrivers, ytdBalances] = await Promise.all([
+    prisma.driver.findMany({
+      where: driverQueryCandidatesForPayroll(),
+      orderBy: { name: "asc" },
+      include: {
+        payrollMonths: {
+          where: { yearMonth },
+          include: { trips: true, extras: true },
+        },
       },
-    },
-  });
+    }),
+    loadPcbYtdBalancesAsOf(priorYm),
+  ]);
   const drivers = allDrivers.filter((driver) =>
     isDriverEligibleForPayrollMonth(driver, year, month)
   );
@@ -373,6 +404,7 @@ export async function loadFleetPayrollAggregate(
       name: driver.name,
       baseSalary: decimalToNumber(driver.baseSalary),
       maritalStatus: driver.maritalStatus as MaritalStatus | null,
+      spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
     };
@@ -380,18 +412,27 @@ export async function loadFleetPayrollAggregate(
     const trips = monthRecord?.trips ?? [];
     const extras = monthRecord?.extras ?? [];
     const overrides = monthRecord;
+    const pcbContext: PayrollPcbContext = {
+      payrollYear: year,
+      payrollMonth: month,
+      pcbYtdBeforeMonth: ytdBalances.get(driver.id) ?? emptyPcbYtd(),
+      pcbLocked: monthRecord?.pcbLocked ?? false,
+      pcbFinal: decimalToNumber(monthRecord?.pcbFinal),
+    };
 
     const summary = buildDriverPayrollSummaryFromRecords({
       driver: driverInput,
       trips,
       extras,
       overrides,
+      pcbContext,
     });
     const companySummary = buildCompanyPayrollSummaryFromRecords({
       driver: driverInput,
       trips,
       extras,
       overrides,
+      pcbContext,
     });
     companyCostByDriverId.set(
       driver.id,
