@@ -37,8 +37,8 @@ export default async function ThaiCostAttendancePage({
     return (
       <ThaiCostEntryShell
         activeTab="attendance"
-        title="数据录入 · 日薪出勤"
-        subtitle="日薪外劳每日出勤人数 · 当天日薪单价 · 当月在册人数 LUNCH (THB)"
+        titleKey="thaiCost.attendance.pageTitle"
+        subtitleKey="thaiCost.attendance.pageSubtitle"
       >
         <DailyAttendanceView
           year={year}

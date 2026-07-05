@@ -3,7 +3,8 @@ import { SongkhlaSummaryView } from "@/components/thai-cost/SongkhlaSummaryView"
 import { ThaiCostSummaryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
-import { canAccessThaiCost } from "@/lib/auth-roles";
+import { canAccessThaiCostMonthlySummary } from "@/lib/auth-roles";
+import { getDefaultRoute } from "@/lib/routes";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -12,7 +13,9 @@ interface PageProps {
 
 export default async function SongkhlaSummaryPage({ searchParams }: PageProps) {
   const user = await requirePageUser();
-  if (!canAccessThaiCost(user.role)) redirect("/dashboard");
+  if (!canAccessThaiCostMonthlySummary(user.role)) {
+    redirect(getDefaultRoute(user.role));
+  }
 
   const params = await searchParams;
   const now = new Date();
@@ -27,18 +30,13 @@ export default async function SongkhlaSummaryPage({ searchParams }: PageProps) {
     return (
       <ThaiCostSummaryShell
         activeTab="songkhla"
-        title="月度汇总 · 宋卡"
-        subtitle="内部固定成本快照 − 宋卡真实成本"
+        titleKey="thaiCost.songkhlaSummary.pageTitle"
+        subtitleKey="thaiCost.songkhlaSummary.pageSubtitle"
       >
         <SongkhlaSummaryView pnl={pnl} crossCheck={crossCheck} />
       </ThaiCostSummaryShell>
     );
   } catch (error) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">宋卡月度汇总</h2>
-        <PageError error={error} />
-      </div>
-    );
+    return <PageError error={error} />;
   }
 }

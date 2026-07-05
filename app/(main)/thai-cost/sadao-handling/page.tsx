@@ -31,8 +31,8 @@ export default async function SadaoHandlingPage({ searchParams }: PageProps) {
     return (
       <ThaiCostEntryShell
         activeTab="sadao"
-        title="数据录入 · Sadao 搬运"
-        subtitle="总数自动从派车汇总；仅录入直达数量"
+        titleKey="thaiCost.sadaoHandling.pageTitle"
+        subtitleKey="thaiCost.sadaoHandling.pageSubtitle"
       >
         <SadaoHandlingView
           year={year}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useT } from "@/components/shared/locale-context";
 import type { SadaoMonthlyCostDetail } from "@/lib/thai-cost/sadao-cost-service";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_LUNCH_ALLOWANCE_THB } from "@/lib/constants/thai-cost";
@@ -20,6 +21,7 @@ export function SadaoMonthlySummaryView({
   summary,
 }: SadaoMonthlySummaryViewProps) {
   const router = useRouter();
+  const { tLocal } = useT();
 
   function changeMonth(nextYear: number, nextMonth: number) {
     router.push(
@@ -27,43 +29,55 @@ export function SadaoMonthlySummaryView({
     );
   }
 
+  const ratesSource = summary.rates.locked
+    ? tLocal("thaiCost.common.lockedSnapshot")
+    : tLocal("thaiCost.sadaoSummary.ratesUnlocked");
+
   const cards = [
     {
-      label: "月薪工人合计 (工资+津贴)",
+      key: "monthlyWorkers",
+      label: tLocal("thaiCost.sadaoSummary.cardMonthlyWorkers"),
       value: summary.monthlyWorkerTotalThb,
-      hint: `${summary.monthlyWorkers.length} 名在职工人`,
+      hint: tLocal("thaiCost.sadaoSummary.workersCount", {
+        count: String(summary.monthlyWorkers.length),
+      }),
     },
     {
-      label: "日薪出勤工资",
+      key: "dailyWage",
+      label: tLocal("thaiCost.sadaoSummary.cardDailyWage"),
       value: summary.dailyLaborWageTotalThb,
-      hint: `${summary.attendanceDays} 天出勤记录`,
+      hint: tLocal("thaiCost.sadaoSummary.attendanceDays", {
+        count: String(summary.attendanceDays),
+      }),
     },
     {
-      label: "日薪 LUNCH",
+      key: "lunch",
+      label: tLocal("thaiCost.sadaoSummary.cardLunch"),
       value: summary.dailyLaborLunchTotalThb,
-      hint: `在册 ${summary.dailyLaborRosterCount} 人 × ${DEFAULT_LUNCH_ALLOWANCE_THB}`,
+      hint: tLocal("thaiCost.sadaoSummary.rosterLunch", {
+        count: String(summary.dailyLaborRosterCount),
+        amount: String(DEFAULT_LUNCH_ALLOWANCE_THB),
+      }),
     },
     {
-      label: "搬运提成合计",
+      key: "handling",
+      label: tLocal("thaiCost.sadaoSummary.cardHandling"),
       value: summary.handlingCommissionTotalThb,
-      hint: `${summary.handlingDays} 天搬运记录`,
+      hint: tLocal("thaiCost.sadaoSummary.handlingDays", {
+        count: String(summary.handlingDays),
+      }),
     },
   ];
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-haidee-muted">
-        Sadao 当月真实总成本 = 月薪工人(工资+LUNCH+FUEL+RENT ROOM) + 日薪出勤工资
-        + 日薪 LUNCH(在册人数×1000) + 搬运提成（小桶/大桶/盒子分列）。搬运费率来源：
-        {summary.rates.locked
-          ? "当月已锁定快照"
-          : "当前默认设置（未锁定，改设置会重算）"}
-        。
+        {tLocal("thaiCost.sadaoSummary.intro", { ratesSource })}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
-          <span>年</span>
+          <span>{tLocal("thaiCost.common.year")}</span>
           <Input
             type="number"
             className="w-24"
@@ -74,7 +88,7 @@ export function SadaoMonthlySummaryView({
           />
         </label>
         <label className="space-y-1 text-sm">
-          <span>月</span>
+          <span>{tLocal("thaiCost.common.month")}</span>
           <Input
             type="number"
             min={1}
@@ -94,7 +108,7 @@ export function SadaoMonthlySummaryView({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <div
-            key={c.label}
+            key={c.key}
             className="rounded-lg border border-haidee-border bg-haidee-surface/50 p-4"
           >
             <p className="text-sm text-haidee-muted">{c.label}</p>
@@ -108,7 +122,7 @@ export function SadaoMonthlySummaryView({
 
       <div className="rounded-lg border-2 border-haidee-blue bg-haidee-blue/5 p-6">
         <p className="text-sm font-medium text-haidee-muted">
-          Sadao 当月真实总成本 Total Sadao cost
+          {tLocal("thaiCost.sadaoSummary.monthTotal")}
         </p>
         <p className="mt-2 font-mono text-3xl font-bold text-haidee-blue">
           {money(summary.totalCostThb)} THB
@@ -117,22 +131,24 @@ export function SadaoMonthlySummaryView({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-haidee-border p-4">
-          <h3 className="text-sm font-medium">月薪工人明细（含津贴）</h3>
+          <h3 className="text-sm font-medium">
+            {tLocal("thaiCost.sadaoSummary.monthlyWorkerDetail")}
+          </h3>
           <ul className="mt-2 space-y-2 text-sm">
             <li className="flex justify-between gap-4 text-haidee-muted">
-              <span>工资合计</span>
+              <span>{tLocal("thaiCost.sadaoSummary.wageTotal")}</span>
               <span className="font-mono">{money(summary.monthlyWageTotalThb)}</span>
             </li>
             <li className="flex justify-between gap-4 text-haidee-muted">
-              <span>LUNCH 合计</span>
+              <span>{tLocal("thaiCost.sadaoSummary.lunchTotalMonthly")}</span>
               <span className="font-mono">{money(summary.monthlyLunchTotalThb)}</span>
             </li>
             <li className="flex justify-between gap-4 text-haidee-muted">
-              <span>FUEL 合计</span>
+              <span>{tLocal("thaiCost.sadaoSummary.fuelTotal")}</span>
               <span className="font-mono">{money(summary.monthlyFuelTotalThb)}</span>
             </li>
             <li className="flex justify-between gap-4 text-haidee-muted">
-              <span>RENT ROOM 合计</span>
+              <span>{tLocal("thaiCost.sadaoSummary.rentRoomTotal")}</span>
               <span className="font-mono">
                 {money(summary.monthlyRentRoomTotalThb)}
               </span>
@@ -147,9 +163,12 @@ export function SadaoMonthlySummaryView({
                     <span className="font-mono">{money(w.totalThb)}</span>
                   </div>
                   <div className="text-xs text-haidee-muted">
-                    工资 {money(w.monthlyWage)} · LUNCH {money(w.lunchAllowance)}{" "}
-                    · FUEL {money(w.fuelAllowance)} · RENT{" "}
-                    {money(w.rentRoomAllowance)}
+                    {tLocal("thaiCost.sadaoSummary.workerAllowanceLine", {
+                      wage: money(w.monthlyWage),
+                      lunch: money(w.lunchAllowance),
+                      fuel: money(w.fuelAllowance),
+                      rent: money(w.rentRoomAllowance),
+                    })}
                   </div>
                 </li>
               ))}
@@ -158,28 +177,30 @@ export function SadaoMonthlySummaryView({
         </div>
 
         <div className="rounded-lg border border-haidee-border p-4">
-          <h3 className="text-sm font-medium">搬运提成明细（分品类）</h3>
+          <h3 className="text-sm font-medium">
+            {tLocal("thaiCost.sadaoSummary.handlingBreakdown")}
+          </h3>
           <ul className="mt-2 space-y-2 text-sm">
             <li className="flex justify-between gap-4">
-              <span>小桶提成</span>
+              <span>{tLocal("thaiCost.sadaoSummary.smallCommission")}</span>
               <span className="font-mono">
                 {money(summary.handlingSmallCommissionThb)}
               </span>
             </li>
             <li className="flex justify-between gap-4">
-              <span>大桶提成</span>
+              <span>{tLocal("thaiCost.sadaoSummary.largeCommission")}</span>
               <span className="font-mono">
                 {money(summary.handlingLargeCommissionThb)}
               </span>
             </li>
             <li className="flex justify-between gap-4">
-              <span>盒子提成</span>
+              <span>{tLocal("thaiCost.sadaoSummary.boxCommission")}</span>
               <span className="font-mono">
                 {money(summary.handlingBoxCommissionThb)}
               </span>
             </li>
             <li className="flex justify-between gap-4 border-t border-haidee-border pt-2 font-medium">
-              <span>提成合计</span>
+              <span>{tLocal("thaiCost.sadaoSummary.commissionTotal")}</span>
               <span className="font-mono">
                 {money(summary.handlingCommissionTotalThb)}
               </span>

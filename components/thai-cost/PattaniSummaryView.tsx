@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useT } from "@/components/shared/locale-context";
 import { PnlIncompleteWarning } from "@/components/thai-cost/PnlIncompleteWarning";
 import { DispatchCrossCheckBanner } from "@/components/thai-cost/DispatchCrossCheckBanner";
 import type { DispatchCrossCheckResult } from "@/lib/thai-cost/dispatch-cross-check";
@@ -22,18 +23,22 @@ export function PattaniSummaryView({
   crossCheck?: DispatchCrossCheckResult | null;
 }) {
   const router = useRouter();
+  const { tLocal } = useT();
   const r = pnl.real;
+
+  const ratesSource = r.rates.locked
+    ? tLocal("thaiCost.common.lockedSnapshot")
+    : tLocal("thaiCost.common.defaultRates");
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-haidee-muted">
-        北大年 P&L = 内部固定成本快照(MYR) − 真实成本(THB÷汇率)。无假日费率。费率来源：
-        {r.rates.locked ? "当月已锁定快照" : "当前默认设置（未锁定）"}。
+        {tLocal("thaiCost.pattaniSummary.intro", { ratesSource })}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
-          年
+          {tLocal("thaiCost.common.year")}
           <Input
             type="number"
             className="w-24"
@@ -46,7 +51,7 @@ export function PattaniSummaryView({
           />
         </label>
         <label className="space-y-1 text-sm">
-          月
+          {tLocal("thaiCost.common.month")}
           <Input
             type="number"
             min={1}
@@ -66,24 +71,33 @@ export function PattaniSummaryView({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-haidee-muted">内部固定成本 (MYR)</p>
+          <p className="text-sm text-haidee-muted">
+            {tLocal("thaiCost.common.internalFixedCost")}
+          </p>
           <p className="mt-2 font-mono text-2xl font-semibold">
             {pnl.internalCostMyr == null
-              ? "未锁定"
+              ? tLocal("thaiCost.pattaniSummary.notLockedLabel")
               : money(pnl.internalCostMyr)}
           </p>
         </div>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-haidee-muted">真实成本</p>
+          <p className="text-sm text-haidee-muted">
+            {tLocal("thaiCost.common.realCost")}
+          </p>
           <p className="mt-2 font-mono text-2xl font-semibold">
             {money(pnl.realCostThb)} THB
           </p>
           <p className="mt-1 text-xs text-haidee-muted">
-            ≈ {money(pnl.realCostMyr)} MYR（汇率 {pnl.exchangeRate}）
+            {tLocal("thaiCost.songkhlaSummary.realCostApprox", {
+              amount: money(pnl.realCostMyr),
+              rate: String(pnl.exchangeRate),
+            })}
           </p>
         </div>
         <div className="rounded-lg border-2 border-haidee-blue bg-haidee-blue/5 p-4">
-          <p className="text-sm text-haidee-muted">北大年 P&L (MYR)</p>
+          <p className="text-sm text-haidee-muted">
+            {tLocal("thaiCost.pattaniSummary.pnlTitle")}
+          </p>
           <p className="mt-2 font-mono text-2xl font-bold text-haidee-blue">
             {pnl.pnlMyr == null ? "—" : money(pnl.pnlMyr)}
           </p>
@@ -93,38 +107,40 @@ export function PattaniSummaryView({
       <PnlIncompleteWarning message={pnl.completeness.incompleteWarning} />
 
       <div className="rounded-lg border p-4 text-sm">
-        <h3 className="font-medium">真实成本分项 (THB)</h3>
+        <h3 className="font-medium">
+          {tLocal("thaiCost.pattaniSummary.realCostBreakdown")}
+        </h3>
         <ul className="mt-3 space-y-2">
           <li className="flex justify-between">
-            <span>SAKRI 月薪</span>
+            <span>{tLocal("thaiCost.pattaniSummary.sakriMonthly")}</span>
             <span className="font-mono">{money(r.sakriMonthlyWageThb)}</span>
           </li>
           <li className="flex justify-between">
-            <span>SAKRI 提成（桶×2.2，盒子不计）</span>
+            <span>{tLocal("thaiCost.pattaniSummary.sakriCommission")}</span>
             <span className="font-mono">{money(r.sakriCommissionThb)}</span>
           </li>
           <li className="flex justify-between">
-            <span>外包费用（桶×20 + 盒子×5）</span>
+            <span>{tLocal("thaiCost.pattaniSummary.contractorFee")}</span>
             <span className="font-mono">{money(r.contractorThb)}</span>
           </li>
           <li className="flex justify-between">
-            <span>司机底薪分摊（按北大年趟次比例）</span>
+            <span>{tLocal("thaiCost.pattaniSummary.driverBaseAllocated")}</span>
             <span className="font-mono">
               {money(r.driverBaseWageAllocatedThb)}
             </span>
           </li>
           <li className="flex justify-between">
-            <span>司机北大年趟次提成</span>
+            <span>{tLocal("thaiCost.pattaniSummary.driverTripCommission")}</span>
             <span className="font-mono">
               {money(r.driverTripCommissionThb)}
             </span>
           </li>
           <li className="flex justify-between">
-            <span>外部租车成本</span>
+            <span>{tLocal("thaiCost.songkhlaSummary.rentedCost")}</span>
             <span className="font-mono">{money(r.rentedVehicleCostThb)}</span>
           </li>
           <li className="flex justify-between border-t pt-2 font-medium">
-            <span>真实成本合计</span>
+            <span>{tLocal("thaiCost.songkhlaSummary.realCostTotal")}</span>
             <span className="font-mono">{money(r.realCostTotalThb)}</span>
           </li>
         </ul>
@@ -132,7 +148,9 @@ export function PattaniSummaryView({
 
       {r.workers.length > 0 && (
         <div className="rounded-lg border p-4 text-sm">
-          <h3 className="font-medium">月薪工人</h3>
+          <h3 className="font-medium">
+            {tLocal("thaiCost.pattaniSummary.monthlyWorkers")}
+          </h3>
           <ul className="mt-2 space-y-1">
             {r.workers.map((w) => (
               <li key={w.id} className="flex justify-between">
@@ -146,7 +164,9 @@ export function PattaniSummaryView({
 
       {r.drivers.length > 0 && (
         <div className="rounded-lg border p-4 text-sm">
-          <h3 className="font-medium">司机明细</h3>
+          <h3 className="font-medium">
+            {tLocal("thaiCost.songkhlaSummary.driverDetail")}
+          </h3>
           <ul className="mt-2 space-y-2">
             {r.drivers.map((d) => (
               <li key={d.driverId}>
@@ -157,9 +177,11 @@ export function PattaniSummaryView({
                   </span>
                 </div>
                 <div className="text-xs text-haidee-muted">
-                  北大年 {d.pattaniTrips} 趟 · 底薪分摊{" "}
-                  {money(d.baseWageAllocatedThb)} · 提成{" "}
-                  {money(d.tripCommissionThb)}
+                  {tLocal("thaiCost.pattaniSummary.driverLine", {
+                    pt: String(d.pattaniTrips),
+                    base: money(d.baseWageAllocatedThb),
+                    comm: money(d.tripCommissionThb),
+                  })}
                 </div>
               </li>
             ))}

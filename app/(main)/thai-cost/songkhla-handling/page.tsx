@@ -25,7 +25,11 @@ export default async function SongkhlaHandlingPage({ searchParams }: PageProps) 
       getCurrentUser(),
     ]);
     return (
-      <ThaiCostEntryShell activeTab="songkhla" title="数据录入 · 宋卡搬运">
+      <ThaiCostEntryShell
+        activeTab="songkhla"
+        titleKey="thaiCost.songkhlaHandling.pageTitle"
+        subtitleKey="thaiCost.songkhlaHandling.pageSubtitle"
+      >
         <SongkhlaHandlingView
           year={year}
           month={month}

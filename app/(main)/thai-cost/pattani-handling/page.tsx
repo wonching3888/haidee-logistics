@@ -25,7 +25,11 @@ export default async function PattaniHandlingPage({ searchParams }: PageProps) {
       getCurrentUser(),
     ]);
     return (
-      <ThaiCostEntryShell activeTab="pattani" title="数据录入 · 北大年搬运">
+      <ThaiCostEntryShell
+        activeTab="pattani"
+        titleKey="thaiCost.pattaniHandling.pageTitle"
+        subtitleKey="thaiCost.pattaniHandling.pageSubtitle"
+      >
         <PattaniHandlingView
           year={year}
           month={month}

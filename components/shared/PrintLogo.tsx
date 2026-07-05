@@ -51,9 +51,11 @@ export function PrintLetterhead({
               {nameTh}
             </div>
           ) : null}
-          <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name">
-            {nameZh}
-          </div>
+          {nameZh ? (
+            <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name">
+              {nameZh}
+            </div>
+          ) : null}
           <div className="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-en">
             {nameEn}
           </div>
@@ -102,7 +104,9 @@ export function PrintLetterhead({
         }}
       />
       <div>
-        <div style={{ fontSize: "20px", fontWeight: "bold" }}>{nameZh}</div>
+        {nameZh ? (
+          <div style={{ fontSize: "20px", fontWeight: "bold" }}>{nameZh}</div>
+        ) : null}
         <div style={{ fontSize: "14px" }}>{nameEn}</div>
       </div>
     </div>

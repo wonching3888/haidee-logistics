@@ -9,10 +9,15 @@ import {
   type ThaiDriverRow,
   type ThaiVehicleTripRow,
 } from "@/app/actions/thai-cost-phase2";
+import { useT } from "@/components/shared/locale-context";
 import {
   THAI_DRIVER_TRIP_PLATE_OPTIONS,
   THAI_DRIVER_TRIP_PLATE_OTHER,
 } from "@/lib/constants/thai-route-masters";
+import {
+  THAI_COST_STATION_LABELS,
+  type ThaiCostStation,
+} from "@/lib/constants/thai-cost";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,6 +46,7 @@ export function DriverTripDailyView({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const { tLocal, locale } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [driverMode, setDriverMode] = useState<DriverMode>("formal");
@@ -69,16 +75,19 @@ export function DriverTripDailyView({
     return plateSelect;
   }
 
+  function stationLabel(station: ThaiCostStation) {
+    return THAI_COST_STATION_LABELS[station][locale];
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        司机趟次日常录入：每条记录对应一次出车（车牌 + 据点 + 桶/盒数）。
-        保存后同步更新司机提成汇总（正式司机）与车辆明细表。租车司机填写姓名即可。
+        {tLocal("thaiCost.driverTrips.intro")}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
-          年
+          {tLocal("thaiCost.common.year")}
           <Input
             type="number"
             className="w-24"
@@ -87,7 +96,7 @@ export function DriverTripDailyView({
           />
         </label>
         <label className="space-y-1 text-sm">
-          月
+          {tLocal("thaiCost.common.month")}
           <Input
             type="number"
             min={1}
@@ -113,7 +122,7 @@ export function DriverTripDailyView({
             setError(null);
             const truckPlate = resolvePlate();
             if (!truckPlate) {
-              setError("请填写车牌");
+              setError(tLocal("thaiCost.driverTrips.plateRequired"));
               return;
             }
             startTransition(async () => {
@@ -138,7 +147,11 @@ export function DriverTripDailyView({
                 setOtherPlate("");
                 router.refresh();
               } catch (err) {
-                setError(err instanceof Error ? err.message : "失败");
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : tLocal("thaiCost.common.failed")
+                );
               }
             });
           }}
@@ -146,7 +159,7 @@ export function DriverTripDailyView({
           {/* Row 1: date + station */}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">
-              日期
+              {tLocal("thaiCost.common.date")}
               <Input
                 type="date"
                 value={form.date}
@@ -157,7 +170,7 @@ export function DriverTripDailyView({
               />
             </label>
             <label className="space-y-1 text-sm">
-              据点
+              {tLocal("thaiCost.common.station")}
               <select
                 className="h-8 w-full rounded-lg border px-2 text-sm"
                 value={form.station}
@@ -168,8 +181,12 @@ export function DriverTripDailyView({
                   }))
                 }
               >
-                <option value="SONGKHLA">宋卡</option>
-                <option value="PATTANI">北大年</option>
+                <option value="SONGKHLA">
+                  {stationLabel("SONGKHLA")}
+                </option>
+                <option value="PATTANI">
+                  {stationLabel("PATTANI")}
+                </option>
               </select>
             </label>
           </div>
@@ -177,7 +194,7 @@ export function DriverTripDailyView({
           {/* Row 2: plate + driver */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 text-sm">
-              <span>车牌</span>
+              <span>{tLocal("thaiCost.common.plate")}</span>
               <select
                 className="h-8 w-full rounded-lg border px-2 text-sm font-mono"
                 value={plateSelect}
@@ -188,12 +205,14 @@ export function DriverTripDailyView({
                     {p}
                   </option>
                 ))}
-                <option value={THAI_DRIVER_TRIP_PLATE_OTHER}>Other</option>
+                <option value={THAI_DRIVER_TRIP_PLATE_OTHER}>
+                  {tLocal("thaiCost.driverTrips.plateOther")}
+                </option>
               </select>
               {plateSelect === THAI_DRIVER_TRIP_PLATE_OTHER && (
                 <Input
                   className="mt-2 font-mono"
-                  placeholder="手动输入车牌"
+                  placeholder={tLocal("thaiCost.driverTrips.platePlaceholder")}
                   value={otherPlate}
                   onChange={(e) => setOtherPlate(e.target.value)}
                   required
@@ -201,7 +220,9 @@ export function DriverTripDailyView({
               )}
             </div>
             <div className="space-y-2 text-sm">
-              <span className="font-medium">司机</span>
+              <span className="font-medium">
+                {tLocal("thaiCost.common.driver")}
+              </span>
               <div className="flex flex-wrap gap-4">
                 <label className="flex items-center gap-2">
                   <input
@@ -209,7 +230,7 @@ export function DriverTripDailyView({
                     checked={driverMode === "formal"}
                     onChange={() => setDriverMode("formal")}
                   />
-                  正式司机
+                  {tLocal("thaiCost.driverTrips.formalDriver")}
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -217,7 +238,7 @@ export function DriverTripDailyView({
                     checked={driverMode === "rental"}
                     onChange={() => setDriverMode("rental")}
                   />
-                  租车司机
+                  {tLocal("thaiCost.driverTrips.rentedDriver")}
                 </label>
               </div>
               {driverMode === "formal" ? (
@@ -236,7 +257,9 @@ export function DriverTripDailyView({
                 </select>
               ) : (
                 <Input
-                  placeholder="租车司机姓名"
+                  placeholder={tLocal(
+                    "thaiCost.driverTrips.rentedNamePlaceholder"
+                  )}
                   value={form.rentalDriverName}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -253,7 +276,7 @@ export function DriverTripDailyView({
           {/* Row 3: tong + box */}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">
-              桶数 (tong)
+              {tLocal("thaiCost.driverTrips.crateQty")}
               <Input
                 type="number"
                 min={0}
@@ -265,7 +288,7 @@ export function DriverTripDailyView({
               />
             </label>
             <label className="space-y-1 text-sm">
-              盒数 (box)
+              {tLocal("thaiCost.driverTrips.boxQty")}
               <Input
                 type="number"
                 min={0}
@@ -279,7 +302,7 @@ export function DriverTripDailyView({
           </div>
 
           <label className="block space-y-1 text-sm">
-            备注
+            {tLocal("thaiCost.common.notes")}
             <Input
               value={form.notes}
               onChange={(e) =>
@@ -293,7 +316,7 @@ export function DriverTripDailyView({
             disabled={isPending}
             className="gap-1 bg-haidee-blue text-white"
           >
-            <Plus className="h-4 w-4" /> 保存趟次
+            <Plus className="h-4 w-4" /> {tLocal("thaiCost.driverTrips.saveTrip")}
           </Button>
         </form>
       )}
@@ -302,12 +325,16 @@ export function DriverTripDailyView({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>日期</TableHead>
-              <TableHead>车牌</TableHead>
-              <TableHead>司机</TableHead>
-              <TableHead>据点</TableHead>
-              <TableHead className="text-right">桶</TableHead>
-              <TableHead className="text-right">盒</TableHead>
+              <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+              <TableHead>{tLocal("thaiCost.common.plate")}</TableHead>
+              <TableHead>{tLocal("thaiCost.common.driver")}</TableHead>
+              <TableHead>{tLocal("thaiCost.common.station")}</TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.driverTrips.crateCol")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.driverTrips.boxCol")}
+              </TableHead>
               {canWrite && <TableHead />}
             </TableRow>
           </TableHeader>
@@ -318,25 +345,23 @@ export function DriverTripDailyView({
                   colSpan={canWrite ? 7 : 6}
                   className="py-8 text-center text-haidee-muted"
                 >
-                  该月暂无趟次记录
+                  {tLocal("thaiCost.driverTrips.noRecords")}
                 </TableCell>
               </TableRow>
             ) : (
-              trips.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell>{formatDisplay(t.date)}</TableCell>
-                  <TableCell className="font-mono">{t.truckPlate}</TableCell>
+              trips.map((trip) => (
+                <TableRow key={trip.id}>
+                  <TableCell>{formatDisplay(trip.date)}</TableCell>
+                  <TableCell className="font-mono">{trip.truckPlate}</TableCell>
                   <TableCell>
-                    {t.driverName ??
-                      (t.rentedDriverName
-                        ? `租车 · ${t.rentedDriverName}`
+                    {trip.driverName ??
+                      (trip.rentedDriverName
+                        ? `${tLocal("thaiCost.driverTrips.rentedPrefix")} ${trip.rentedDriverName}`
                         : "—")}
                   </TableCell>
-                  <TableCell>
-                    {t.station === "SONGKHLA" ? "宋卡" : "北大年"}
-                  </TableCell>
-                  <TableCell className="text-right">{t.tongQty}</TableCell>
-                  <TableCell className="text-right">{t.boxQty}</TableCell>
+                  <TableCell>{stationLabel(trip.station)}</TableCell>
+                  <TableCell className="text-right">{trip.tongQty}</TableCell>
+                  <TableCell className="text-right">{trip.boxQty}</TableCell>
                   {canWrite && (
                     <TableCell>
                       <Button
@@ -346,7 +371,7 @@ export function DriverTripDailyView({
                         disabled={isPending}
                         onClick={() =>
                           startTransition(async () => {
-                            await deleteThaiVehicleTripDaily(t.id);
+                            await deleteThaiVehicleTripDaily(trip.id);
                             router.refresh();
                           })
                         }

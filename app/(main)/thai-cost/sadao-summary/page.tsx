@@ -3,7 +3,8 @@ import { SadaoMonthlySummaryView } from "@/components/thai-cost/SadaoMonthlySumm
 import { ThaiCostSummaryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
-import { canAccessThaiCost } from "@/lib/auth-roles";
+import { canAccessThaiCostMonthlySummary } from "@/lib/auth-roles";
+import { getDefaultRoute } from "@/lib/routes";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -12,8 +13,8 @@ interface PageProps {
 
 export default async function SadaoSummaryPage({ searchParams }: PageProps) {
   const user = await requirePageUser();
-  if (!canAccessThaiCost(user.role)) {
-    redirect("/dashboard");
+  if (!canAccessThaiCostMonthlySummary(user.role)) {
+    redirect(getDefaultRoute(user.role));
   }
 
   const params = await searchParams;
@@ -27,22 +28,13 @@ export default async function SadaoSummaryPage({ searchParams }: PageProps) {
     return (
       <ThaiCostSummaryShell
         activeTab="sadao"
-        title="月度汇总 · Sadao"
-        subtitle="月薪 + 日薪出勤 + 搬运提成 = 当月真实总成本"
+        titleKey="thaiCost.sadaoSummary.pageTitle"
+        subtitleKey="thaiCost.sadaoSummary.pageSubtitle"
       >
         <SadaoMonthlySummaryView summary={summary} />
       </ThaiCostSummaryShell>
     );
   } catch (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            Sadao 月度汇总 Monthly Summary
-          </h2>
-        </div>
-        <PageError error={error} />
-      </div>
-    );
+    return <PageError error={error} />;
   }
 }

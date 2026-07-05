@@ -8,6 +8,11 @@ import {
   saveThaiRentedVehicleTrip,
   type ThaiRentedVehicleTripRow,
 } from "@/app/actions/thai-cost-phase2";
+import { useT } from "@/components/shared/locale-context";
+import {
+  THAI_COST_STATION_LABELS,
+  type ThaiCostStation,
+} from "@/lib/constants/thai-cost";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +37,7 @@ export function RentedVehiclesView({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const { tLocal, locale } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -42,11 +48,14 @@ export function RentedVehiclesView({
     tripCost: "",
   });
 
+  function stationLabel(station: ThaiCostStation) {
+    return THAI_COST_STATION_LABELS[station][locale];
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        外部租车（如 BANHENG / SHS / YIN）：无底薪、无趟次提成，按趟录入租车费。
-        计入宋卡/北大年真实成本，与公司司机成本分列。
+        {tLocal("thaiCost.rentedVehicles.intro")}
       </p>
       <div className="flex flex-wrap gap-3">
         <Input
@@ -95,7 +104,11 @@ export function RentedVehiclesView({
                 setForm((f) => ({ ...f, driverName: "", truckPlate: "", tripCost: "" }));
                 router.refresh();
               } catch (err) {
-                setError(err instanceof Error ? err.message : "失败");
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : tLocal("thaiCost.common.failed")
+                );
               }
             });
           }}
@@ -116,11 +129,11 @@ export function RentedVehiclesView({
               }))
             }
           >
-            <option value="SONGKHLA">宋卡</option>
-            <option value="PATTANI">北大年</option>
+            <option value="SONGKHLA">{stationLabel("SONGKHLA")}</option>
+            <option value="PATTANI">{stationLabel("PATTANI")}</option>
           </select>
           <Input
-            placeholder="司机名 e.g. BANHENG"
+            placeholder={tLocal("thaiCost.rentedVehicles.driverNamePlaceholder")}
             value={form.driverName}
             onChange={(e) =>
               setForm((f) => ({ ...f, driverName: e.target.value }))
@@ -128,7 +141,7 @@ export function RentedVehiclesView({
             required
           />
           <Input
-            placeholder="车牌(可选)"
+            placeholder={tLocal("thaiCost.rentedVehicles.plateOptional")}
             value={form.truckPlate}
             onChange={(e) =>
               setForm((f) => ({ ...f, truckPlate: e.target.value }))
@@ -138,7 +151,7 @@ export function RentedVehiclesView({
             type="number"
             min={0}
             step="0.01"
-            placeholder="租车费 THB"
+            placeholder={tLocal("thaiCost.rentedVehicles.tripCostPlaceholder")}
             value={form.tripCost}
             onChange={(e) =>
               setForm((f) => ({ ...f, tripCost: e.target.value }))
@@ -150,18 +163,20 @@ export function RentedVehiclesView({
             disabled={isPending}
             className="gap-1 bg-haidee-blue text-white"
           >
-            <Plus className="h-4 w-4" /> 保存
+            <Plus className="h-4 w-4" /> {tLocal("thaiCost.common.save")}
           </Button>
         </form>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>日期</TableHead>
-            <TableHead>据点</TableHead>
-            <TableHead>司机</TableHead>
-            <TableHead>车牌</TableHead>
-            <TableHead className="text-right">费用</TableHead>
+            <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.station")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.driver")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.plate")}</TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.rentedVehicles.colCost")}
+            </TableHead>
             {canWrite && <TableHead />}
           </TableRow>
         </TableHeader>
@@ -169,14 +184,14 @@ export function RentedVehiclesView({
           {rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={canWrite ? 6 : 5} className="text-center text-haidee-muted">
-                暂无租车记录
+                {tLocal("thaiCost.rentedVehicles.noRecords")}
               </TableCell>
             </TableRow>
           ) : (
             rows.map((r) => (
               <TableRow key={r.id}>
                 <TableCell>{formatDisplay(r.date)}</TableCell>
-                <TableCell>{r.station}</TableCell>
+                <TableCell>{stationLabel(r.station)}</TableCell>
                 <TableCell>{r.driverName}</TableCell>
                 <TableCell>{r.truckPlate ?? "—"}</TableCell>
                 <TableCell className="text-right font-mono">

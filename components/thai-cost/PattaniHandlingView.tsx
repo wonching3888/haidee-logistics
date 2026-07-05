@@ -9,6 +9,7 @@ import {
   savePattaniHandling,
   type PattaniHandlingRow,
 } from "@/app/actions/thai-cost-phase2";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +34,7 @@ export function PattaniHandlingView({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const { tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -73,8 +75,7 @@ export function PattaniHandlingView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        北大年搬运：总数从派车自动拉取（pickup=PATTANI，assigned 行）。
-        桶数=小桶+大桶；盒子单独计外包费。
+        {tLocal("thaiCost.pattaniHandling.intro")}
       </p>
       <div className="flex flex-wrap gap-3">
         <Input
@@ -111,7 +112,8 @@ export function PattaniHandlingView({
           className="gap-1 bg-haidee-blue text-white"
           onClick={() => setShowForm(true)}
         >
-          <Plus className="h-4 w-4" /> 登记 / 刷新当日
+          <Plus className="h-4 w-4" />{" "}
+          {tLocal("thaiCost.songkhlaHandling.addRecord")}
         </Button>
       )}
       {canWrite && showForm && (
@@ -129,14 +131,18 @@ export function PattaniHandlingView({
                 setShowForm(false);
                 router.refresh();
               } catch (err) {
-                setError(err instanceof Error ? err.message : "失败");
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : tLocal("thaiCost.common.failed")
+                );
               }
             });
           }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">
-              日期
+              {tLocal("thaiCost.common.date")}
               <Input
                 type="date"
                 value={form.date}
@@ -147,7 +153,7 @@ export function PattaniHandlingView({
               />
             </label>
             <label className="space-y-1 text-sm">
-              备注
+              {tLocal("thaiCost.common.notes")}
               <Input
                 value={form.notes}
                 onChange={(e) =>
@@ -158,13 +164,18 @@ export function PattaniHandlingView({
           </div>
           <div className="rounded-md bg-haidee-surface/60 px-3 py-2 text-sm">
             <p className="font-medium text-haidee-text">
-              派车总数（只读，pickup=PATTANI）
+              {tLocal("thaiCost.pattaniHandling.dispatchTotals")}
             </p>
             {loadingDispatch ? (
-              <p className="text-haidee-muted">加载中…</p>
+              <p className="text-haidee-muted">
+                {tLocal("thaiCost.common.loading")}
+              </p>
             ) : (
               <p className="font-mono">
-                桶 {dispatchTotals.crateQty} / 盒 {dispatchTotals.boxQty}
+                {tLocal("thaiCost.pattaniHandling.colCrates")}{" "}
+                {dispatchTotals.crateQty} /{" "}
+                {tLocal("thaiCost.pattaniHandling.colBoxes")}{" "}
+                {dispatchTotals.boxQty}
               </p>
             )}
           </div>
@@ -174,14 +185,14 @@ export function PattaniHandlingView({
               disabled={isPending || loadingDispatch}
               className="bg-haidee-blue text-white"
             >
-              保存
+              {tLocal("thaiCost.common.save")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowForm(false)}
             >
-              取消
+              {tLocal("thaiCost.common.cancel")}
             </Button>
           </div>
         </form>
@@ -189,12 +200,22 @@ export function PattaniHandlingView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>日期</TableHead>
-            <TableHead className="text-right">桶数</TableHead>
-            <TableHead className="text-right">盒子</TableHead>
-            <TableHead className="text-right">外包费用</TableHead>
-            <TableHead className="text-right">SAKRI 提成</TableHead>
-            <TableHead className="text-right">当日合计</TableHead>
+            <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.pattaniHandling.colCrates")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.pattaniHandling.colBoxes")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.pattaniHandling.colContractor")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.pattaniHandling.colSakri")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.pattaniHandling.colDayTotal")}
+            </TableHead>
             {canWrite && <TableHead />}
           </TableRow>
         </TableHeader>

@@ -11,6 +11,7 @@ import {
   type ThaiDailyAttendanceRow,
   type ThaiDailyLaborRosterRow,
 } from "@/app/actions/thai-cost";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,6 +58,7 @@ export function DailyAttendanceView({
   canWrite,
 }: DailyAttendanceViewProps) {
   const router = useRouter();
+  const { t, tLocal, locale } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | undefined>();
@@ -134,7 +136,9 @@ export function DailyAttendanceView({
         setShowForm(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "操作失败");
+        setError(
+          e instanceof Error ? e.message : tLocal("thaiCost.common.operationFailed")
+        );
       }
     });
   }
@@ -150,14 +154,14 @@ export function DailyAttendanceView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        Sadao：当天日薪成本 = 出勤人数 × 当天日薪单价；LUNCH = 当月在册人数 ×{" "}
-        {DEFAULT_LUNCH_ALLOWANCE_THB}（固定全额）。宋卡：出勤人数 +
-        当天实发工资总额（金额不一，不按单价×人数，无日薪 LUNCH）。
+        {tLocal("thaiCost.attendance.intro", {
+          lunch: String(DEFAULT_LUNCH_ALLOWANCE_THB),
+        })}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
-          <span>年</span>
+          <span>{tLocal("thaiCost.common.year")}</span>
           <Input
             type="number"
             className="w-24"
@@ -166,7 +170,7 @@ export function DailyAttendanceView({
           />
         </label>
         <label className="space-y-1 text-sm">
-          <span>月</span>
+          <span>{tLocal("thaiCost.common.month")}</span>
           <Input
             type="number"
             min={1}
@@ -183,21 +187,23 @@ export function DailyAttendanceView({
             onClick={openCreate}
           >
             <Plus className="h-4 w-4" />
-            录入出勤
+            {tLocal("thaiCost.attendance.addRecord")}
           </Button>
         )}
       </div>
 
       <div className="rounded-lg border border-haidee-border bg-haidee-surface/50 p-4">
         <h3 className="text-sm font-medium">
-          Sadao 当月日薪工人在册人数 Roster
+          {tLocal("thaiCost.attendance.rosterTitle")}
         </h3>
         <p className="mt-1 text-xs text-haidee-muted">
-          仅 Sadao：LUNCH = 在册人数 × {DEFAULT_LUNCH_ALLOWANCE_THB} THB（固定全额）。宋卡日薪工人无 LUNCH。
+          {tLocal("thaiCost.attendance.rosterHint", {
+            lunch: String(DEFAULT_LUNCH_ALLOWANCE_THB),
+          })}
         </p>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="space-y-1 text-sm">
-            <span>在册人数</span>
+            <span>{tLocal("thaiCost.attendance.rosterCount")}</span>
             <Input
               type="number"
               min={0}
@@ -209,13 +215,13 @@ export function DailyAttendanceView({
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span>备注</span>
+            <span>{tLocal("thaiCost.common.notes")}</span>
             <Input
               className="w-72"
               value={rosterNotes}
               disabled={!canWrite}
               onChange={(e) => setRosterNotes(e.target.value)}
-              placeholder="如：PDF原始21人，书记确认后调整"
+              placeholder={tLocal("thaiCost.attendance.rosterNotesPlaceholder")}
             />
           </label>
           {canWrite && (
@@ -235,11 +241,11 @@ export function DailyAttendanceView({
                 })
               }
             >
-              保存在册人数
+              {tLocal("thaiCost.attendance.saveRoster")}
             </Button>
           )}
           <div className="text-sm">
-            Sadao LUNCH 合计：{" "}
+            {tLocal("thaiCost.attendance.lunchTotal")}{" "}
             <span className="font-mono font-medium">{money(lunchTotal)}</span>
           </div>
         </div>
@@ -282,7 +288,7 @@ export function DailyAttendanceView({
           }}
         >
           <label className="space-y-1 text-sm">
-            <span>日期 Date</span>
+            <span>{t("thaiCost.common.date")}</span>
             <Input
               type="date"
               value={form.date}
@@ -291,7 +297,7 @@ export function DailyAttendanceView({
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span>驻点 Station</span>
+            <span>{t("thaiCost.common.station")}</span>
             <select
               className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
               value={form.station}
@@ -304,13 +310,13 @@ export function DailyAttendanceView({
             >
               {THAI_COST_STATIONS.map((s) => (
                 <option key={s} value={s}>
-                  {THAI_COST_STATION_LABELS[s].zh} {s}
+                  {THAI_COST_STATION_LABELS[s][locale]} {s}
                 </option>
               ))}
             </select>
           </label>
           <label className="space-y-1 text-sm">
-            <span>出勤人数</span>
+            <span>{tLocal("thaiCost.attendance.headcount")}</span>
             <Input
               type="number"
               min={0}
@@ -324,7 +330,7 @@ export function DailyAttendanceView({
           </label>
           {formUsesTotalPaid ? (
             <label className="space-y-1 text-sm">
-              <span>当天实发工资总额 (THB)</span>
+              <span>{tLocal("thaiCost.attendance.totalPaid")}</span>
               <Input
                 type="number"
                 min={0}
@@ -338,7 +344,7 @@ export function DailyAttendanceView({
             </label>
           ) : (
             <label className="space-y-1 text-sm">
-              <span>当天日薪单价 (THB)</span>
+              <span>{tLocal("thaiCost.attendance.dailyWage")}</span>
               <Input
                 type="number"
                 min={0}
@@ -353,22 +359,25 @@ export function DailyAttendanceView({
           )}
           {holidayInfo?.isHolidayRate && !formUsesTotalPaid && (
             <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2 lg:col-span-3">
-              该日期是假日
-              {holidayInfo.reason === "sunday" && "（星期日）"}
+              {tLocal("thaiCost.attendance.holidayWarning")}
+              {holidayInfo.reason === "sunday" &&
+                tLocal("thaiCost.attendance.sunday")}
               {holidayInfo.reason === "public_holiday" &&
-                `（公众假期${holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""}）`}
-              ，你填的单价是否正确？假日通常为{" "}
-              {SUGGESTED_SADAO_HOLIDAY_DAILY_WAGE_THB}{" "}
-              THB（系统不强制改价，请手动确认）。
+                `${tLocal("thaiCost.attendance.publicHoliday")}${
+                  holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""
+                }）`}
+              {tLocal("thaiCost.attendance.holidayPriceHint", {
+                amount: String(SUGGESTED_SADAO_HOLIDAY_DAILY_WAGE_THB),
+              })}
             </div>
           )}
           {formUsesTotalPaid && (
             <p className="text-xs text-haidee-muted sm:col-span-2 lg:col-span-3">
-              宋卡日薪工人金额不一，请直接填当天实发总额（成本=实发总额，不用人数×单价）。
+              {tLocal("thaiCost.attendance.songkhlaTotalHint")}
             </p>
           )}
           <label className="space-y-1 text-sm sm:col-span-2">
-            <span>备注 Notes</span>
+            <span>{t("thaiCost.common.notes")}</span>
             <Input
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -380,7 +389,7 @@ export function DailyAttendanceView({
               disabled={isPending}
               className="bg-haidee-blue text-white"
             >
-              保存
+              {tLocal("thaiCost.common.save")}
             </Button>
             <Button
               type="button"
@@ -388,7 +397,7 @@ export function DailyAttendanceView({
               disabled={isPending}
               onClick={() => setShowForm(false)}
             >
-              取消
+              {tLocal("thaiCost.common.cancel")}
             </Button>
           </div>
         </form>
@@ -398,13 +407,23 @@ export function DailyAttendanceView({
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>日期</TableHead>
-              <TableHead>驻点</TableHead>
-              <TableHead className="text-right">人数</TableHead>
-              <TableHead className="text-right">单价/实发</TableHead>
-              <TableHead className="text-right">当天成本</TableHead>
-              <TableHead>备注</TableHead>
-              {canWrite && <TableHead className="text-right">操作</TableHead>}
+              <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+              <TableHead>{tLocal("thaiCost.common.station")}</TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.attendance.colHeadcount")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.attendance.colRateOrPaid")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.attendance.colDayCost")}
+              </TableHead>
+              <TableHead>{tLocal("thaiCost.common.notes")}</TableHead>
+              {canWrite && (
+                <TableHead className="text-right">
+                  {tLocal("thaiCost.common.actions")}
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -414,19 +433,21 @@ export function DailyAttendanceView({
                   colSpan={canWrite ? 7 : 6}
                   className="py-8 text-center text-haidee-muted"
                 >
-                  该月暂无出勤记录
+                  {tLocal("thaiCost.attendance.noRecords")}
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{formatDisplay(r.date)}</TableCell>
-                  <TableCell>{r.station}</TableCell>
+                  <TableCell>
+                    {THAI_COST_STATION_LABELS[r.station][locale]} ({r.station})
+                  </TableCell>
                   <TableCell className="text-right">{r.attendanceCount}</TableCell>
                   <TableCell className="text-right font-mono text-xs">
                     {r.totalWagePaid != null
-                      ? `实发 ${money(r.totalWagePaid)}`
-                      : `单价 ${money(r.dailyWage)}`}
+                      ? `${tLocal("thaiCost.attendance.paidLabel")} ${money(r.totalWagePaid)}`
+                      : `${tLocal("thaiCost.attendance.rateLabel")} ${money(r.dailyWage)}`}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(r.dayCostThb)}
@@ -450,7 +471,13 @@ export function DailyAttendanceView({
                         size="sm"
                         disabled={isPending}
                         onClick={() => {
-                          if (!confirm(`删除 ${formatDisplay(r.date)} 出勤？`))
+                          if (
+                            !confirm(
+                              tLocal("thaiCost.attendance.deleteConfirm", {
+                                date: formatDisplay(r.date),
+                              })
+                            )
+                          )
                             return;
                           run(async () => {
                             await deleteThaiDailyAttendance(r.id);
@@ -466,7 +493,9 @@ export function DailyAttendanceView({
             )}
             {rows.length > 0 && (
               <TableRow className="bg-haidee-surface/50 font-medium">
-                <TableCell colSpan={4}>当月日薪合计</TableCell>
+                <TableCell colSpan={4}>
+                  {tLocal("thaiCost.attendance.monthTotal")}
+                </TableCell>
                 <TableCell className="text-right font-mono">
                   {money(monthTotal)}
                 </TableCell>

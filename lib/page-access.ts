@@ -3,6 +3,7 @@ import {
   canAccessDriverExpenses,
   canAccessSettings,
   canAccessThaiCost,
+  canAccessThaiCostMonthlySummary,
   canViewDriverPayroll,
   canViewInvoiceAmounts,
   canViewInvoiceCollections,
@@ -39,6 +40,21 @@ export type PageAccessGate =
 function normalizePathname(pathname: string): string {
   const path = pathname.split("?")[0].replace(/\/$/, "") || "/";
   return path;
+}
+
+const THAI_COST_MONTHLY_SUMMARY_PATHS = [
+  "/thai-cost/sadao-summary",
+  "/thai-cost/songkhla-summary",
+  "/thai-cost/pattani-summary",
+  "/thai-cost/monthly-summary",
+] as const;
+
+/** Clerk cannot access monthly summary tabs; thai_accounting/admin can. */
+export function isThaiCostMonthlySummaryPath(pathname: string): boolean {
+  const path = normalizePathname(pathname);
+  return THAI_COST_MONTHLY_SUMMARY_PATHS.some(
+    (p) => path === p || path.startsWith(`${p}/`)
+  );
 }
 
 /** Resolve which access gate applies to a path under `(main)`. */
@@ -161,6 +177,9 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
     case "autocount-export":
       return canAccessAutocountExport(role);
     case "thai-cost":
+      if (isThaiCostMonthlySummaryPath(pathname)) {
+        return canAccessThaiCostMonthlySummary(role);
+      }
       return canAccessThaiCost(role);
     case "settings":
       return canAccessSettings(role);

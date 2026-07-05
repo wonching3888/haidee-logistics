@@ -48,9 +48,9 @@ export interface SadaoVoucherDetail {
 }
 
 const BUCKET_LABELS: Record<SadaoVoucherLine["bucket"], string> = {
-  small: "小桶",
-  large: "大桶",
-  box: "盒子",
+  small: "ถังเล็ก / Small crate",
+  large: "ถังใหญ่ / Large crate",
+  box: "กล่อง / Box",
 };
 
 function buildVoucherLines(

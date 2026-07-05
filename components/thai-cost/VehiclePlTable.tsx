@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/components/shared/locale-context";
 import {
   Table,
   TableBody,
@@ -8,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { THAI_COST_STATION_LABELS } from "@/lib/constants/thai-cost";
 import type { VehicleTripPlRow } from "@/lib/thai-cost/vehicle-pl";
 
 function money(n: number) {
@@ -15,9 +17,13 @@ function money(n: number) {
 }
 
 export function VehiclePlTable({ rows }: { rows: VehicleTripPlRow[] }) {
+  const { tLocal, locale } = useT();
+
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-haidee-muted">暂无车辆趟次盈亏数据</p>
+      <p className="text-sm text-haidee-muted">
+        {tLocal("thaiCost.vehiclePl.noData")}
+      </p>
     );
   }
 
@@ -35,14 +41,22 @@ export function VehiclePlTable({ rows }: { rows: VehicleTripPlRow[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>日期</TableHead>
-            <TableHead>车牌</TableHead>
-            <TableHead>司机</TableHead>
-            <TableHead>据点</TableHead>
-            <TableHead className="text-right">桶/盒</TableHead>
-            <TableHead className="text-right">收入</TableHead>
-            <TableHead className="text-right">成本</TableHead>
-            <TableHead className="text-right">盈亏</TableHead>
+            <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.plate")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.driver")}</TableHead>
+            <TableHead>{tLocal("thaiCost.common.station")}</TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.common.crate")}/{tLocal("thaiCost.common.box")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.dailyOverview.colIncome")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.dailyOverview.colCost")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.dailyOverview.colPnl")}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -56,7 +70,9 @@ export function VehiclePlTable({ rows }: { rows: VehicleTripPlRow[] }) {
                   <span className="ml-1 text-xs text-amber-700">review</span>
                 )}
               </TableCell>
-              <TableCell>{r.station === "SONGKHLA" ? "宋卡" : "北大年"}</TableCell>
+              <TableCell>
+                {THAI_COST_STATION_LABELS[r.station][locale]}
+              </TableCell>
               <TableCell className="text-right font-mono text-sm">
                 {r.tongQty}/{r.boxQty}
               </TableCell>
@@ -74,7 +90,7 @@ export function VehiclePlTable({ rows }: { rows: VehicleTripPlRow[] }) {
             </TableRow>
           ))}
           <TableRow className="bg-haidee-surface/40 font-medium">
-            <TableCell colSpan={5}>合计</TableCell>
+            <TableCell colSpan={5}>{tLocal("thaiCost.vehiclePl.total")}</TableCell>
             <TableCell className="text-right font-mono">
               {money(totals.income)}
             </TableCell>

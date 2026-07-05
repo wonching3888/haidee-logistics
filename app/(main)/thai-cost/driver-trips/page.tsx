@@ -6,6 +6,7 @@ import {
 } from "@/app/actions/thai-cost-phase2";
 import { DriverTripDailyView } from "@/components/thai-cost/DriverTripDailyView";
 import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
+import { ThaiCostSectionTitle } from "@/components/thai-cost/ThaiCostPageHeader";
 import { VehiclePlTable } from "@/components/thai-cost/VehiclePlTable";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
@@ -40,8 +41,8 @@ export default async function DriverTripsPage({ searchParams }: PageProps) {
     return (
       <ThaiCostEntryShell
         activeTab="driver-trips"
-        title="数据录入 · 司机趟次"
-        subtitle="泰国司机/车辆日常趟次录入（独立于 Dispatch）"
+        titleKey="thaiCost.driverTrips.pageTitle"
+        subtitleKey="thaiCost.driverTrips.pageSubtitle"
       >
         <DriverTripDailyView
           year={year}
@@ -51,7 +52,7 @@ export default async function DriverTripsPage({ searchParams }: PageProps) {
           canWrite={canWrite}
         />
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold">当月车辆盈亏</h3>
+          <ThaiCostSectionTitle titleKey="thaiCost.driverTrips.vehiclePlTitle" />
           <VehiclePlTable rows={vehiclePl} />
         </div>
       </ThaiCostEntryShell>

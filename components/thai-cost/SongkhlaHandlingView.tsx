@@ -9,6 +9,7 @@ import {
   saveSongkhlaHandling,
   type SongkhlaHandlingRow,
 } from "@/app/actions/thai-cost-phase2";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +34,7 @@ export function SongkhlaHandlingView({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const { tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -81,8 +83,7 @@ export function SongkhlaHandlingView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        宋卡搬运：总数从派车自动拉取（pickup=SONGKHLA，assigned 行）。
-        无「直达」扣减；计费数=总数。一律平日费率。
+        {tLocal("thaiCost.songkhlaHandling.intro")}
       </p>
       <div className="flex flex-wrap gap-3">
         <Input
@@ -119,7 +120,8 @@ export function SongkhlaHandlingView({
           className="gap-1 bg-haidee-blue text-white"
           onClick={() => setShowForm(true)}
         >
-          <Plus className="h-4 w-4" /> 登记 / 刷新当日
+          <Plus className="h-4 w-4" />{" "}
+          {tLocal("thaiCost.songkhlaHandling.addRecord")}
         </Button>
       )}
       {canWrite && showForm && (
@@ -137,14 +139,18 @@ export function SongkhlaHandlingView({
                 setShowForm(false);
                 router.refresh();
               } catch (err) {
-                setError(err instanceof Error ? err.message : "失败");
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : tLocal("thaiCost.common.failed")
+                );
               }
             });
           }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">
-              日期
+              {tLocal("thaiCost.common.date")}
               <Input
                 type="date"
                 value={form.date}
@@ -155,7 +161,7 @@ export function SongkhlaHandlingView({
               />
             </label>
             <label className="space-y-1 text-sm">
-              备注
+              {tLocal("thaiCost.common.notes")}
               <Input
                 value={form.notes}
                 onChange={(e) =>
@@ -166,15 +172,19 @@ export function SongkhlaHandlingView({
           </div>
           <div className="rounded-md bg-haidee-surface/60 px-3 py-2 text-sm">
             <p className="font-medium text-haidee-text">
-              派车总数（只读，pickup=SONGKHLA）
+              {tLocal("thaiCost.songkhlaHandling.dispatchTotals")}
             </p>
             {loadingDispatch ? (
-              <p className="text-haidee-muted">加载中…</p>
+              <p className="text-haidee-muted">
+                {tLocal("thaiCost.common.loading")}
+              </p>
             ) : (
               <p className="font-mono">
-                小 {dispatchTotals.smallCrateTotalQty} / 大{" "}
-                {dispatchTotals.largeCrateTotalQty} / 盒{" "}
-                {dispatchTotals.boxTotalQty}
+                {tLocal("thaiCost.dailyOverview.billableBreakdown", {
+                  small: String(dispatchTotals.smallCrateTotalQty),
+                  large: String(dispatchTotals.largeCrateTotalQty),
+                  box: String(dispatchTotals.boxTotalQty),
+                })}
               </p>
             )}
           </div>
@@ -184,14 +194,14 @@ export function SongkhlaHandlingView({
               disabled={isPending || loadingDispatch}
               className="bg-haidee-blue text-white"
             >
-              保存
+              {tLocal("thaiCost.common.save")}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowForm(false)}
             >
-              取消
+              {tLocal("thaiCost.common.cancel")}
             </Button>
           </div>
         </form>
@@ -199,9 +209,13 @@ export function SongkhlaHandlingView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>日期</TableHead>
-            <TableHead className="text-right">小/大/盒</TableHead>
-            <TableHead className="text-right">提成</TableHead>
+            <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.songkhlaHandling.colSizes")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.songkhlaHandling.colCommission")}
+            </TableHead>
             {canWrite && <TableHead />}
           </TableRow>
         </TableHeader>

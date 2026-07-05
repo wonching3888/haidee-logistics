@@ -27,8 +27,8 @@ export default async function RentedVehiclesPage({ searchParams }: PageProps) {
     return (
       <ThaiCostEntryShell
         activeTab="rented"
-        title="数据录入 · 外部租车"
-        subtitle="BANHENG / SHS / YIN 等外部租车按趟费用"
+        titleKey="thaiCost.rentedVehicles.pageTitle"
+        subtitleKey="thaiCost.rentedVehicles.pageSubtitle"
       >
         <RentedVehiclesView
           year={year}

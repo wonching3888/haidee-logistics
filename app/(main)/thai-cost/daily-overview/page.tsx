@@ -1,5 +1,6 @@
 import { getThaiCostDailyOverview } from "@/app/actions/thai-cost";
 import { DailyOverviewView } from "@/components/thai-cost/DailyOverviewView";
+import { ThaiCostPageHeader } from "@/components/thai-cost/ThaiCostPageHeader";
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost } from "@/lib/auth-roles";
@@ -22,12 +23,10 @@ export default async function DailyOverviewPage({ searchParams }: PageProps) {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">每日总览 Daily Overview</h2>
-          <p className="text-sm text-haidee-muted">
-            Sadao / 宋卡 / 北大年分区独立展示，不含跨类别总盈亏。
-          </p>
-        </div>
+        <ThaiCostPageHeader
+          titleKey="thaiCost.dailyOverview.pageTitle"
+          subtitleKey="thaiCost.dailyOverview.pageSubtitle"
+        />
         <DailyOverviewView overview={overview} />
       </div>
     );

@@ -7,7 +7,11 @@ import { PattaniSummaryView } from "@/components/thai-cost/PattaniSummaryView";
 import { ThaiCostSummaryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
-import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
+import {
+  canAccessThaiCostMonthlySummary,
+  canWriteThaiCost,
+} from "@/lib/auth-roles";
+import { getDefaultRoute } from "@/lib/routes";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -16,7 +20,9 @@ interface PageProps {
 
 export default async function PattaniSummaryPage({ searchParams }: PageProps) {
   const user = await requirePageUser();
-  if (!canAccessThaiCost(user.role)) redirect("/dashboard");
+  if (!canAccessThaiCostMonthlySummary(user.role)) {
+    redirect(getDefaultRoute(user.role));
+  }
 
   const params = await searchParams;
   const now = new Date();
@@ -35,8 +41,8 @@ export default async function PattaniSummaryPage({ searchParams }: PageProps) {
     return (
       <ThaiCostSummaryShell
         activeTab="pattani"
-        title="月度汇总 · 北大年"
-        subtitle="SAKRI 月薪/提成 · 外包 · 司机 · 内部成本对冲"
+        titleKey="thaiCost.pattaniSummary.pageTitle"
+        subtitleKey="thaiCost.pattaniSummary.pageSubtitle"
       >
         <PattaniSummaryView pnl={pnl} crossCheck={crossCheck} />
       </ThaiCostSummaryShell>

@@ -1,4 +1,5 @@
 import type { UserLanguage } from "@/types";
+import { THAI_COST_MESSAGES } from "@/lib/i18n/thai-cost-messages";
 
 export const MESSAGES = {
   "nav.dashboard": {
@@ -2812,6 +2813,8 @@ export const MESSAGES = {
     en: "Data completeness",
     th: "ความครบถ้วนของข้อมูล",
   },
+
+  ...THAI_COST_MESSAGES,
 } as const satisfies Record<
   string,
   { zh: string; en: string; th: string }

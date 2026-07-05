@@ -5,11 +5,11 @@ export type ThaiCostStation = (typeof THAI_COST_STATIONS)[number];
 
 export const THAI_COST_STATION_LABELS: Record<
   ThaiCostStation,
-  { zh: string; en: string }
+  { zh: string; en: string; th: string }
 > = {
-  SADAO: { zh: "沙道", en: "Sadao" },
-  SONGKHLA: { zh: "宋卡", en: "Songkhla" },
-  PATTANI: { zh: "北大年", en: "Pattani" },
+  SADAO: { zh: "沙道", en: "Sadao", th: "สะเดา" },
+  SONGKHLA: { zh: "宋卡", en: "Songkhla", th: "สงขลา" },
+  PATTANI: { zh: "北大年", en: "Pattani", th: "ปัตตานี" },
 };
 
 export function isThaiCostStation(value: string): value is ThaiCostStation {

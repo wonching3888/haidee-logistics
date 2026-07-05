@@ -236,6 +236,19 @@ export function canAccessThaiCost(role: StoredUserRole): boolean {
   }
 }
 
+/** Monthly summary (Sadao/Songkhla/Pattani tabs): admin / thai_acct / my_acct — not clerk */
+export function canAccessThaiCostMonthlySummary(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "thai_accounting":
+    case "my_accounting":
+    case "accounting":
+      return true;
+    default:
+      return false;
+  }
+}
+
 /** Thai cost writes: admin / thai_acct / clerk (attendance entry) */
 export function canWriteThaiCost(role: StoredUserRole): boolean {
   switch (role) {

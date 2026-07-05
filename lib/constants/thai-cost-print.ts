@@ -1,0 +1,25 @@
+/** Bilingual Thai+English labels for Thai cost print pages (no Chinese). */
+export const SADAO_VOUCHER_PRINT = {
+  title: "ใบเบิกค่าขนย้ายสะเดา / Sadao Handling Voucher",
+  date: "วันที่ / Date",
+  weekdayRate: "อัตราวันธรรมดา / Weekday rate",
+  holidayRate: "อัตราวันหยุด / Holiday rate",
+  colCrateType: "ประเภทถัง / Crate type",
+  colBillableQty: "จำนวนคิดค่า / Billable qty",
+  colUnitRate: "อัตราต่อหน่วย (THB) / Unit rate (THB)",
+  colAmount: "จำนวนเงิน (THB) / Amount (THB)",
+  noBillableQty: "ไม่มีจำนวนคิดค่าวันนี้ / No billable quantity today",
+  total: "รวม / Total",
+  dispatchTotals: "ยอดรวมจัดรถ / Dispatch totals",
+  direct: "ส่งตรง / Direct",
+  notes: "หมายเหตุ / Notes",
+  footer:
+    "ไม่รวมหักตามกฎหมายและพนักงานรายเดือน / Excludes statutory deductions and monthly workers. Counted in company freight cost model.",
+  foremanSignature: "ลายเซ็นหัวหน้าทีม / Foreman signature",
+  screenTitle: "ใบเบิกหัวหน้าขนย้ายสะเดา / Sadao Handling Foreman Voucher",
+  unsavedPreview: " · ยังไม่บันทึก (ตัวอย่างจากจัดรถ) / Unsaved (dispatch preview)",
+  print: "พิมพ์ / Print",
+  small: "เล็ก / S",
+  large: "ใหญ่ / L",
+  box: "กล่อง / Box",
+} as const;

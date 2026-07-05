@@ -11,6 +11,7 @@ import {
   saveSadaoHandling,
   type SadaoHandlingRow,
 } from "@/app/actions/thai-cost";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,6 +50,7 @@ export function SadaoHandlingView({
   canWrite,
 }: SadaoHandlingViewProps) {
   const router = useRouter();
+  const { t, tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | undefined>();
@@ -152,7 +154,9 @@ export function SadaoHandlingView({
         setShowForm(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "操作失败");
+        setError(
+          e instanceof Error ? e.message : tLocal("thaiCost.common.operationFailed")
+        );
       }
     });
   }
@@ -182,17 +186,17 @@ export function SadaoHandlingView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        Sadao 每日搬运：总数自动从派车数据汇总（全部 assigned，含宋卡/北大年/Sadao
-        提货点）。计费数 = 总数 − 直达数。平日费率小桶/盒子{" "}
-        {SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB}、大桶{" "}
-        {SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB}；假日（星期日/公众假期）小桶/盒子{" "}
-        {SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB}、大桶{" "}
-        {SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB}。
+        {tLocal("thaiCost.sadaoHandling.intro", {
+          smallW: String(SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB),
+          largeW: String(SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB),
+          smallH: String(SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB),
+          largeH: String(SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB),
+        })}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
-          <span>年</span>
+          <span>{tLocal("thaiCost.common.year")}</span>
           <Input
             type="number"
             className="w-24"
@@ -201,7 +205,7 @@ export function SadaoHandlingView({
           />
         </label>
         <label className="space-y-1 text-sm">
-          <span>月</span>
+          <span>{tLocal("thaiCost.common.month")}</span>
           <Input
             type="number"
             min={1}
@@ -218,7 +222,7 @@ export function SadaoHandlingView({
             onClick={openCreate}
           >
             <Plus className="h-4 w-4" />
-            录入搬运
+            {tLocal("thaiCost.sadaoHandling.addRecord")}
           </Button>
         )}
       </div>
@@ -248,7 +252,7 @@ export function SadaoHandlingView({
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <label className="space-y-1 text-sm">
-              <span>日期 Date</span>
+              <span>{t("thaiCost.common.date")}</span>
               <Input
                 type="date"
                 value={form.date}
@@ -262,41 +266,58 @@ export function SadaoHandlingView({
 
           {holidayInfo?.isHolidayRate && (
             <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              今天是假日费率
-              {holidayInfo.reason === "sunday" && "（星期日）"}
+              {tLocal("thaiCost.sadaoHandling.todayHoliday")}
+              {holidayInfo.reason === "sunday" &&
+                tLocal("thaiCost.attendance.sunday")}
               {holidayInfo.reason === "public_holiday" &&
-                `（公众假期${holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""}）`}
-              。将自动套用：小桶/盒子 {getSadaoHandlingRates(true).small}、大桶{" "}
-              {getSadaoHandlingRates(true).large} THB。
+                `${tLocal("thaiCost.attendance.publicHoliday")}${
+                  holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""
+                }）`}
+              {tLocal("thaiCost.sadaoHandling.autoApply", {
+                small: String(getSadaoHandlingRates(true).small),
+                large: String(getSadaoHandlingRates(true).large),
+              })}
             </div>
           )}
           {holidayInfo && !holidayInfo.isHolidayRate && (
             <div className="rounded-md bg-haidee-surface px-3 py-2 text-sm text-haidee-muted">
-              平日费率：小桶/盒子 {getSadaoHandlingRates(false).small}、大桶{" "}
-              {getSadaoHandlingRates(false).large} THB。
+              {tLocal("thaiCost.sadaoHandling.weekdayRates", {
+                small: String(getSadaoHandlingRates(false).small),
+                large: String(getSadaoHandlingRates(false).large),
+              })}
             </div>
           )}
 
           <div className="rounded-md border border-haidee-border bg-white p-3">
-            <p className="text-sm font-medium">派车自动总数（只读）</p>
+            <p className="text-sm font-medium">
+              {tLocal("thaiCost.sadaoHandling.dispatchTotals")}
+            </p>
             {loadingDispatch ? (
-              <p className="mt-2 text-sm text-haidee-muted">加载派车数据…</p>
+              <p className="mt-2 text-sm text-haidee-muted">
+                {tLocal("thaiCost.sadaoHandling.loadingDispatch")}
+              </p>
             ) : (
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <div className="text-sm">
-                  <span className="text-haidee-muted">小桶 </span>
+                  <span className="text-haidee-muted">
+                    {tLocal("thaiCost.sadaoHandling.smallCrate")}{" "}
+                  </span>
                   <span className="font-mono font-medium">
                     {dispatchTotals.smallCrateTotalQty}
                   </span>
                 </div>
                 <div className="text-sm">
-                  <span className="text-haidee-muted">大桶 </span>
+                  <span className="text-haidee-muted">
+                    {tLocal("thaiCost.sadaoHandling.largeCrate")}{" "}
+                  </span>
                   <span className="font-mono font-medium">
                     {dispatchTotals.largeCrateTotalQty}
                   </span>
                 </div>
                 <div className="text-sm">
-                  <span className="text-haidee-muted">盒子 </span>
+                  <span className="text-haidee-muted">
+                    {tLocal("thaiCost.common.box")}{" "}
+                  </span>
                   <span className="font-mono font-medium">
                     {dispatchTotals.boxTotalQty}
                   </span>
@@ -304,8 +325,11 @@ export function SadaoHandlingView({
               </div>
             )}
             <p className="mt-2 text-xs text-haidee-muted">
-              计费预览：小 {billablePreview.small} / 大 {billablePreview.large}{" "}
-              / 盒 {billablePreview.box}
+              {tLocal("thaiCost.sadaoHandling.billablePreview", {
+                small: String(billablePreview.small),
+                large: String(billablePreview.large),
+                box: String(billablePreview.box),
+              })}
             </p>
           </div>
 
@@ -320,12 +344,14 @@ export function SadaoHandlingView({
               ) : (
                 <ChevronRight className="h-4 w-4" />
               )}
-              {showDirect ? "直达" : "+ 添加直达记录"}
+              {showDirect
+                ? tLocal("thaiCost.sadaoHandling.direct")
+                : tLocal("thaiCost.sadaoHandling.addDirect")}
             </button>
             {showDirect && (
               <div className="grid gap-3 border-t border-haidee-border p-3 sm:grid-cols-3">
                 <label className="space-y-1 text-sm">
-                  <span>直达 · 小桶</span>
+                  <span>{tLocal("thaiCost.sadaoHandling.directSmall")}</span>
                   <Input
                     type="number"
                     min={0}
@@ -341,7 +367,7 @@ export function SadaoHandlingView({
                   />
                 </label>
                 <label className="space-y-1 text-sm">
-                  <span>直达 · 大桶</span>
+                  <span>{tLocal("thaiCost.sadaoHandling.directLarge")}</span>
                   <Input
                     type="number"
                     min={0}
@@ -357,7 +383,7 @@ export function SadaoHandlingView({
                   />
                 </label>
                 <label className="space-y-1 text-sm">
-                  <span>直达 · 盒子</span>
+                  <span>{tLocal("thaiCost.sadaoHandling.directBox")}</span>
                   <Input
                     type="number"
                     min={0}
@@ -374,11 +400,11 @@ export function SadaoHandlingView({
           </div>
 
           <label className="block space-y-1 text-sm">
-            <span>备注</span>
+            <span>{tLocal("thaiCost.common.notes")}</span>
             <Input
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="可选，如直达原因"
+              placeholder={tLocal("thaiCost.sadaoHandling.notesPlaceholder")}
             />
           </label>
 
@@ -388,7 +414,7 @@ export function SadaoHandlingView({
               disabled={isPending}
               className="bg-haidee-blue text-white"
             >
-              保存
+              {tLocal("thaiCost.common.save")}
             </Button>
             <Button
               type="button"
@@ -396,7 +422,7 @@ export function SadaoHandlingView({
               disabled={isPending}
               onClick={() => setShowForm(false)}
             >
-              取消
+              {tLocal("thaiCost.common.cancel")}
             </Button>
           </div>
         </form>
@@ -406,21 +432,31 @@ export function SadaoHandlingView({
         <Table>
           <TableHeader>
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>日期</TableHead>
-              <TableHead>费率</TableHead>
-              <TableHead className="text-right">小桶 总/直达/计费</TableHead>
-              <TableHead className="text-right">大桶 总/直达/计费</TableHead>
-              <TableHead className="text-right">盒子 总/直达/计费</TableHead>
-              <TableHead className="text-right">提成 (THB)</TableHead>
-              <TableHead>备注</TableHead>
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
+              <TableHead>{tLocal("thaiCost.sadaoHandling.colRate")}</TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.sadaoHandling.colSmallTotals")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.sadaoHandling.colLargeTotals")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.sadaoHandling.colBoxTotals")}
+              </TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.sadaoHandling.colCommission")}
+              </TableHead>
+              <TableHead>{tLocal("thaiCost.common.notes")}</TableHead>
+              <TableHead className="text-right">
+                {tLocal("thaiCost.common.actions")}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8 text-center text-haidee-muted">
-                  该月暂无搬运记录
+                  {tLocal("thaiCost.sadaoHandling.noRecords")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -428,7 +464,9 @@ export function SadaoHandlingView({
                 <TableRow key={r.id}>
                   <TableCell>{formatDisplay(r.date)}</TableCell>
                   <TableCell className="text-sm">
-                    {r.holidayRate ? "假日" : "平日"}
+                    {r.holidayRate
+                      ? tLocal("thaiCost.common.holiday")
+                      : tLocal("thaiCost.common.weekday")}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {r.smallCrateTotalQty} / {r.smallCrateNoCheckQty} /{" "}
@@ -451,7 +489,7 @@ export function SadaoHandlingView({
                     <Link
                       href={`/thai-cost/sadao-voucher?date=${r.date}`}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-haidee-surface"
-                      title="打印 Voucher"
+                      title={tLocal("thaiCost.sadaoHandling.printVoucher")}
                     >
                       <Printer className="h-4 w-4" />
                     </Link>
@@ -472,7 +510,11 @@ export function SadaoHandlingView({
                           disabled={isPending}
                           onClick={() => {
                             if (
-                              !confirm(`删除 ${formatDisplay(r.date)} 搬运？`)
+                              !confirm(
+                                tLocal("thaiCost.sadaoHandling.deleteConfirm", {
+                                  date: formatDisplay(r.date),
+                                })
+                              )
                             )
                               return;
                             run(async () => {
@@ -491,28 +533,36 @@ export function SadaoHandlingView({
             {rows.length > 0 && (
               <>
                 <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>小桶提成小计</TableCell>
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.subtotalSmall")}
+                  </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(smallTotal)}
                   </TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>大桶提成小计</TableCell>
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.subtotalLarge")}
+                  </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(largeTotal)}
                   </TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>盒子提成小计</TableCell>
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.subtotalBox")}
+                  </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(boxTotal)}
                   </TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/50 font-medium">
-                  <TableCell colSpan={5}>当月提成合计</TableCell>
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.monthTotal")}
+                  </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(monthTotal)}
                   </TableCell>

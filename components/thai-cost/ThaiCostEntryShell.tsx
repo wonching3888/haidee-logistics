@@ -1,32 +1,40 @@
+"use client";
+
 import { Suspense } from "react";
+import { useT } from "@/components/shared/locale-context";
+import type { MessageKey } from "@/lib/i18n/messages";
 import {
   ThaiCostSummaryTabNav,
   ThaiCostTabNav,
 } from "@/components/thai-cost/ThaiCostTabNav";
 
+type EntryTab =
+  | "attendance"
+  | "sadao"
+  | "songkhla"
+  | "pattani"
+  | "driver-trips"
+  | "rented";
+
 export function ThaiCostEntryShell({
   activeTab,
-  title,
-  subtitle,
+  titleKey,
+  subtitleKey,
   children,
 }: {
-  activeTab:
-    | "attendance"
-    | "sadao"
-    | "songkhla"
-    | "pattani"
-    | "driver-trips"
-    | "rented";
-  title: string;
-  subtitle?: string;
+  activeTab: EntryTab;
+  titleKey: MessageKey;
+  subtitleKey?: MessageKey;
   children: React.ReactNode;
 }) {
+  const { tLocal } = useT();
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-haidee-muted">{subtitle}</p>
+        <h2 className="text-2xl font-bold">{tLocal(titleKey)}</h2>
+        {subtitleKey && (
+          <p className="text-sm text-haidee-muted">{tLocal(subtitleKey)}</p>
         )}
       </div>
       <Suspense fallback={null}>
@@ -39,21 +47,23 @@ export function ThaiCostEntryShell({
 
 export function ThaiCostSummaryShell({
   activeTab,
-  title,
-  subtitle,
+  titleKey,
+  subtitleKey,
   children,
 }: {
   activeTab: "sadao" | "songkhla" | "pattani";
-  title: string;
-  subtitle?: string;
+  titleKey: MessageKey;
+  subtitleKey?: MessageKey;
   children: React.ReactNode;
 }) {
+  const { tLocal } = useT();
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-haidee-muted">{subtitle}</p>
+        <h2 className="text-2xl font-bold">{tLocal(titleKey)}</h2>
+        {subtitleKey && (
+          <p className="text-sm text-haidee-muted">{tLocal(subtitleKey)}</p>
         )}
       </div>
       <Suspense fallback={null}>
