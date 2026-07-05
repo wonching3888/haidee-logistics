@@ -28,9 +28,7 @@ import {
 import { formatDisplay } from "@/lib/date-utils";
 import type { CrateExportListRow } from "@/lib/crate-export-list";
 import {
-  STICKY_BODY_ACTIONS,
   STICKY_BODY_FIRST,
-  STICKY_HEAD_ACTIONS,
   STICKY_HEAD_FIRST,
   STICKY_HEAD_TOP,
 } from "@/lib/table-scroll";
@@ -149,7 +147,7 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
               </TableHead>
               <TableHead
                 className={cn(
-                  STICKY_HEAD_ACTIONS,
+                  STICKY_HEAD_TOP,
                   "whitespace-nowrap px-4 py-3 text-right font-medium text-haidee-muted"
                 )}
               >
@@ -218,7 +216,6 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
                     </TableCell>
                     <TableCell
                       className={cn(
-                        STICKY_BODY_ACTIONS,
                         "whitespace-nowrap px-4 py-3 text-right",
                         row.hasSuggestedActualMismatch && "bg-orange-50"
                       )}
