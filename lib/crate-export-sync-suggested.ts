@@ -27,7 +27,7 @@ export function mergeCrateExportSyncContexts(
     if (!dateInput || !shipperId) continue;
     byKey.set(`${dateInput}|${shipperId}`, { dateInput, shipperId });
   }
-  return [...byKey.values()];
+  return Array.from(byKey.values());
 }
 
 async function resolveExportStockLocation(
@@ -94,7 +94,7 @@ export async function syncCrateExportSuggestedForContexts(
       byExportNo.set(exportNo, list);
     }
 
-    for (const [exportNo, rows] of byExportNo) {
+    for (const [exportNo, rows] of Array.from(byExportNo.entries())) {
       const first = rows[0];
       const location = await resolveExportStockLocation(
         exportNo,
@@ -118,7 +118,7 @@ export async function syncCrateExportSuggestedForContexts(
       ]);
 
       let touched = false;
-      for (const code of codes) {
+      for (const code of Array.from(codes)) {
         const existing = rows.find((r) => r.tongType.code === code);
         const suggested = dueByCode[code] ?? 0;
         const actual = existing?.quantityActual ?? 0;

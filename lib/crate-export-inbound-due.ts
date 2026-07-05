@@ -72,7 +72,7 @@ export function buildInboundDueIndexFromDayInput(
     membersByAgent.set(m.agentId, list);
   }
 
-  for (const [agentId, members] of membersByAgent) {
+  for (const [agentId, members] of Array.from(membersByAgent.entries())) {
     const agent = input.agents.get(agentId);
     if (!agent) continue;
 
@@ -84,7 +84,7 @@ export function buildInboundDueIndexFromDayInput(
         mergeQtyRecords(cur, qtyMapToRecord(m.due))
       );
     }
-    const totalDue = mergeQtyRecords(...dueByMember.values());
+    const totalDue = mergeQtyRecords(...Array.from(dueByMember.values()));
     index.byAgentShipperId.set(agentId, totalDue);
     if (agent.isPool && agent.pickup) {
       const poolShipperId = input.poolIds[agent.pickup];
