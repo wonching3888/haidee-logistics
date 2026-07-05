@@ -379,6 +379,8 @@ model Driver {
   bankName              String?  @map("bank_name")
   bankAccount           String?  @map("bank_account")
   maritalStatus         String?  @map("marital_status")
+  spouseWorking         Boolean? @map("spouse_working")
+  pcbNeedsReview        Boolean  @default(true) @map("pcb_needs_review")
   childCount            Int      @default(0) @map("child_count")
   accountCodeSuffix     String?  @map("account_code_suffix")
   isSocsoSecondCategory Boolean  @default(false) @map("is_socso_second_category")

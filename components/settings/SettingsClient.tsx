@@ -197,6 +197,8 @@ interface SettingsClientProps {
     epfNumber: string | null;
     socsoNumber: string | null;
     maritalStatus: string | null;
+    spouseWorking: boolean | null;
+    pcbNeedsReview: boolean;
     childCount: number;
     accountCodeSuffix: string | null;
   }[];

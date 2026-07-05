@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { MARITAL_STATUSES } from "@/lib/constants/payroll";
 
+/** Form encoding: "" = unset, "true" / "false" = boolean. */
+export type SpouseWorkingFormValue = "" | "true" | "false";
+
 export interface DriverFormValue {
   name: string;
   fullName: string;
@@ -22,6 +25,7 @@ export interface DriverFormValue {
   epfNumber: string;
   socsoNumber: string;
   maritalStatus: string;
+  spouseWorking: SpouseWorkingFormValue;
   childCount: string;
   accountCodeSuffix: string;
 }
@@ -37,6 +41,7 @@ const EMPTY_FORM: DriverFormValue = {
   epfNumber: "",
   socsoNumber: "",
   maritalStatus: "",
+  spouseWorking: "",
   childCount: "0",
   accountCodeSuffix: "",
 };
@@ -57,6 +62,22 @@ function optionalNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function spouseWorkingToForm(
+  value: boolean | null | undefined
+): SpouseWorkingFormValue {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return "";
+}
+
+function spouseWorkingFromForm(
+  value: SpouseWorkingFormValue
+): boolean | null {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
 export function DriverFormDialog({
   open,
   onClose,
@@ -70,6 +91,8 @@ export function DriverFormDialog({
   useEffect(() => {
     setForm(initialValue ?? EMPTY_FORM);
   }, [initialValue, open]);
+
+  const isMarried = form.maritalStatus === "married";
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -167,23 +190,54 @@ export function DriverFormDialog({
               />
             </label>
           </div>
-          <label className="block space-y-1 text-sm">
-            婚姻状况 Marital Status
-            <select
-              value={form.maritalStatus}
-              onChange={(e) =>
-                setForm({ ...form, maritalStatus: e.target.value })
-              }
-              className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
-            >
-              <option value="">—</option>
-              {MARITAL_STATUSES.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1 text-sm">
+              婚姻状况 Marital Status
+              <select
+                value={form.maritalStatus}
+                onChange={(e) => {
+                  const maritalStatus = e.target.value;
+                  setForm({
+                    ...form,
+                    maritalStatus,
+                    spouseWorking:
+                      maritalStatus === "married" ? form.spouseWorking : "",
+                  });
+                }}
+                className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+              >
+                <option value="">—</option>
+                {MARITAL_STATUSES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {isMarried ? (
+              <label className="block space-y-1 text-sm">
+                配偶是否工作 Spouse working
+                <select
+                  value={form.spouseWorking}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      spouseWorking: e.target.value as SpouseWorkingFormValue,
+                    })
+                  }
+                  className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
+                >
+                  <option value="">— 待填</option>
+                  <option value="true">是 Yes（配偶有工作）</option>
+                  <option value="false">否 No（配偶无工作）</option>
+                </select>
+              </label>
+            ) : (
+              <div className="text-sm text-haidee-muted self-end pb-3">
+                单身无需填写配偶工作状态
+              </div>
+            )}
+          </div>
           <label className="block space-y-1 text-sm">
             离职日期 Termination date（可选）
             <Input
@@ -232,6 +286,7 @@ export function driverToFormValue(driver: {
   epfNumber: string | null;
   socsoNumber: string | null;
   maritalStatus: string | null;
+  spouseWorking?: boolean | null;
   childCount: number;
   accountCodeSuffix?: string | null;
 }): DriverFormValue {
@@ -248,6 +303,7 @@ export function driverToFormValue(driver: {
     epfNumber: driver.epfNumber ?? "",
     socsoNumber: driver.socsoNumber ?? "",
     maritalStatus: driver.maritalStatus ?? "",
+    spouseWorking: spouseWorkingToForm(driver.spouseWorking),
     childCount: String(driver.childCount),
     accountCodeSuffix: driver.accountCodeSuffix ?? "",
   };
@@ -265,6 +321,7 @@ export function parseDriverFormValue(form: DriverFormValue) {
     epfNumber: form.epfNumber,
     socsoNumber: form.socsoNumber,
     maritalStatus: form.maritalStatus,
+    spouseWorking: spouseWorkingFromForm(form.spouseWorking),
     childCount: Number(form.childCount) || 0,
     accountCodeSuffix: form.accountCodeSuffix.trim() || null,
   };

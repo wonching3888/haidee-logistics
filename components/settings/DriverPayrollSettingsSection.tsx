@@ -38,8 +38,17 @@ interface DriverRow {
   epfNumber: string | null;
   socsoNumber: string | null;
   maritalStatus: string | null;
+  spouseWorking: boolean | null;
+  pcbNeedsReview: boolean;
   childCount: number;
   accountCodeSuffix: string | null;
+}
+
+function spouseWorkingLabel(driver: DriverRow) {
+  if (driver.maritalStatus !== "married") return "—";
+  if (driver.spouseWorking === true) return "是";
+  if (driver.spouseWorking === false) return "否";
+  return "待填";
 }
 
 interface DriverPayrollSettingsSectionProps {
@@ -136,6 +145,8 @@ export function DriverPayrollSettingsSection({
               <TableHead>科目后缀 JV Suffix</TableHead>
               <TableHead className="text-right">底薪</TableHead>
               <TableHead>婚姻/子女</TableHead>
+              <TableHead>配偶工作</TableHead>
+              <TableHead>PCB资料</TableHead>
               <TableHead>离职</TableHead>
               <TableHead>状态</TableHead>
               <TableHead className="text-right">操作</TableHead>
@@ -144,7 +155,7 @@ export function DriverPayrollSettingsSection({
           <TableBody>
             {drivers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-haidee-muted">
+                <TableCell colSpan={11} className="py-8 text-center text-haidee-muted">
                   暂无司机 No drivers
                 </TableCell>
               </TableRow>
@@ -164,6 +175,16 @@ export function DriverPayrollSettingsSection({
                   </TableCell>
                   <TableCell className="text-sm">
                     {driver.maritalStatus ?? "—"} / {driver.childCount}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {spouseWorkingLabel(driver)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={driver.pcbNeedsReview ? "secondary" : "default"}
+                    >
+                      {driver.pcbNeedsReview ? "待补" : "齐全"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-sm font-mono">
                     {driver.terminationDate ?? "—"}

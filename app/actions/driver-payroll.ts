@@ -41,6 +41,10 @@ import { loadBatchDriverPayslipEntries } from "@/lib/driver-payslip-batch";
 import {
   isDriverEligibleForPayrollMonth,
 } from "@/lib/driver-payroll-eligibility";
+import {
+  derivePcbNeedsReview,
+  normalizeSpouseWorking,
+} from "@/lib/driver-pcb-profile";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -95,6 +99,8 @@ function serializeDriver(driver: {
   epfNumber: string | null;
   socsoNumber: string | null;
   maritalStatus: string | null;
+  spouseWorking: boolean | null;
+  pcbNeedsReview: boolean;
   childCount: number;
   accountCodeSuffix: string | null;
   isSocsoSecondCategory: boolean;
@@ -113,6 +119,11 @@ function serializeDriver(driver: {
     epfNumber: driver.epfNumber,
     socsoNumber: driver.socsoNumber,
     maritalStatus: driver.maritalStatus as MaritalStatus | null,
+    spouseWorking: driver.spouseWorking,
+    pcbNeedsReview: derivePcbNeedsReview({
+      maritalStatus: driver.maritalStatus,
+      spouseWorking: driver.spouseWorking,
+    }),
     childCount: driver.childCount,
     accountCodeSuffix: driver.accountCodeSuffix,
     isSocsoSecondCategory: driver.isSocsoSecondCategory,
@@ -765,6 +776,7 @@ export async function saveDriverPayrollMaster(input: {
   epfNumber?: string | null;
   socsoNumber?: string | null;
   maritalStatus?: string | null;
+  spouseWorking?: boolean | null;
   childCount?: number;
   accountCodeSuffix?: string | null;
 }) {
@@ -785,6 +797,19 @@ export async function saveDriverPayrollMaster(input: {
       ? new Date(`${input.terminationDate.trim()}T00:00:00.000Z`)
       : null;
 
+  const maritalStatus =
+    input.maritalStatus && input.maritalStatus !== ""
+      ? input.maritalStatus
+      : null;
+  const spouseWorking = normalizeSpouseWorking({
+    maritalStatus,
+    spouseWorking: input.spouseWorking,
+  });
+  const pcbNeedsReview = derivePcbNeedsReview({
+    maritalStatus,
+    spouseWorking,
+  });
+
   const data = {
     name: input.name.trim(),
     fullName: input.fullName?.trim() || null,
@@ -795,10 +820,9 @@ export async function saveDriverPayrollMaster(input: {
     icNumber: input.icNumber?.trim() || null,
     epfNumber: input.epfNumber?.trim() || null,
     socsoNumber: input.socsoNumber?.trim() || null,
-    maritalStatus:
-      input.maritalStatus && input.maritalStatus !== ""
-        ? input.maritalStatus
-        : null,
+    maritalStatus,
+    spouseWorking,
+    pcbNeedsReview,
     childCount: input.childCount ?? 0,
     accountCodeSuffix: input.accountCodeSuffix?.trim().toUpperCase() || null,
   };
