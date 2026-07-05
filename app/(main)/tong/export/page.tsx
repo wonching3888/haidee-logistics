@@ -45,8 +45,8 @@ export default async function TongExportPage({
     ]);
 
     return (
-      <div className="flex min-h-0 min-w-0 flex-col gap-6 md:h-full md:gap-8">
-        <div className="shrink-0">
+      <div className="space-y-6 md:space-y-8">
+        <div>
           <h2 className="text-2xl font-bold text-haidee-text">
             {t("nav.crateExport", locale)}
           </h2>
@@ -55,17 +55,15 @@ export default async function TongExportPage({
           </p>
         </div>
 
-        <div className="min-h-0 shrink-0 overflow-y-auto md:max-h-[42vh]">
-          <CrateExportWorkbench
-            dueToday={dueToday}
-            dueInteractive={dueInteractive}
-            shippers={shippers}
-            tongTypes={tongTypes}
-          />
-        </div>
+        <CrateExportWorkbench
+          dueToday={dueToday}
+          dueInteractive={dueInteractive}
+          shippers={shippers}
+          tongTypes={tongTypes}
+        />
 
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
-          <div className="shrink-0">
+        <section className="space-y-4 rounded-xl border border-haidee-border bg-white p-4 shadow-sm">
+          <div>
             <h3 className="text-lg font-semibold text-haidee-text">
               {t("crateExport.todayReturns", locale)}
             </h3>
@@ -76,7 +74,7 @@ export default async function TongExportPage({
 
           <Suspense
             fallback={
-              <div className="h-16 shrink-0 animate-pulse rounded-lg bg-haidee-border/30" />
+              <div className="h-16 animate-pulse rounded-lg bg-haidee-border/30" />
             }
           >
             <CrateExportDateFilter />
@@ -86,9 +84,7 @@ export default async function TongExportPage({
             <CrateExportUpdatedBanner />
           </Suspense>
 
-          <div className="min-h-0 min-w-0 flex-1">
-            <CrateExportListTable rows={exports} listDate={listDate} />
-          </div>
+          <CrateExportListTable rows={exports} listDate={listDate} />
         </section>
       </div>
     );

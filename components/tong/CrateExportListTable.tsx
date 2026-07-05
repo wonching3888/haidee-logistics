@@ -93,15 +93,15 @@ export function CrateExportListTable({ rows, listDate }: CrateExportListTablePro
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className="space-y-2">
       <SuccessBanner
         message={successMessage}
         onDismiss={() => setSuccessMessage(null)}
       />
 
       <ScrollMatrixTable
-        fillParent
-        className="min-h-0 flex-1 rounded-lg border-0"
+        heightOffset={300}
+        className="rounded-lg border-0"
         innerClassName="crate-export-list-scroll"
       >
         <Table noScrollContainer className="min-w-[1200px] text-sm">
