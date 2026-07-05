@@ -55,6 +55,23 @@ export function payslipBalanceBeforeAdvance(summary: PayrollSummary) {
   );
 }
 
+/** Portion of advance recovered from net pay (capped at balance before advance). */
+export function payslipAdvanceRecoveredFromPay(summary: PayrollSummary) {
+  const balance = payslipBalanceBeforeAdvance(summary);
+  return roundMoney(Math.min(summary.advanceTotal, Math.max(0, balance)));
+}
+
+/** Advance not recoverable from pay — written off (e.g. termination). */
+export function payslipAdvanceWriteOff(summary: PayrollSummary) {
+  return roundMoney(
+    Math.max(0, summary.advanceTotal - payslipAdvanceRecoveredFromPay(summary))
+  );
+}
+
+export function payslipHasAdvanceWriteOff(summary: PayrollSummary) {
+  return payslipAdvanceWriteOff(summary) > 0;
+}
+
 export function formatPayslipMoney(value: number) {
   return value.toFixed(2);
 }

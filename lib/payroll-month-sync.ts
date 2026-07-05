@@ -11,6 +11,10 @@ import {
   normalizePayrollDriverName,
 } from "@/lib/payroll-driver-match";
 import type { MaritalStatus } from "@/lib/constants/payroll";
+import {
+  driverQueryCandidatesForPayroll,
+  isDriverEligibleForPayrollMonth,
+} from "@/lib/driver-payroll-eligibility";
 
 const dispatchIncludeForPayroll = {
   truck: { select: { type: true, plate: true } },
@@ -242,13 +246,16 @@ async function syncDispatchTripsForMonth(
 
 export async function syncFleetPayrollForMonth(year: number, month: number) {
   const yearMonth = `${year}-${String(month).padStart(2, "0")}`;
-  const [drivers, monthContext] = await Promise.all([
+  const [allDrivers, monthContext] = await Promise.all([
     prisma.driver.findMany({
-      where: { active: true },
+      where: driverQueryCandidatesForPayroll(),
       orderBy: { name: "asc" },
     }),
     loadPayrollMonthContext(year, month),
   ]);
+  const drivers = allDrivers.filter((driver) =>
+    isDriverEligibleForPayrollMonth(driver, year, month)
+  );
 
   const serializedDrivers = drivers.map(serializeDriverForSync);
   const grouped = groupDispatchesForDrivers(

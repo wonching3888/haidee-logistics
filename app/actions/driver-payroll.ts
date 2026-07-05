@@ -38,6 +38,9 @@ import {
   loadTripListingRowsForPayrollMonth,
 } from "@/lib/driver-trip-listing";
 import { loadBatchDriverPayslipEntries } from "@/lib/driver-payslip-batch";
+import {
+  isDriverEligibleForPayrollMonth,
+} from "@/lib/driver-payroll-eligibility";
 
 function payrollTripRouteSource(trip: {
   markets: string[];
@@ -85,6 +88,7 @@ function serializeDriver(driver: {
   name: string;
   fullName: string | null;
   active: boolean;
+  terminationDate: Date | null;
   baseSalary: unknown;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
@@ -100,6 +104,9 @@ function serializeDriver(driver: {
     name: driver.name,
     fullName: driver.fullName,
     active: driver.active,
+    terminationDate: driver.terminationDate
+      ? toDateInputValue(driver.terminationDate)
+      : null,
     baseSalary: decimalToNumber(driver.baseSalary),
     autoCountEmployeeCode: driver.autoCountEmployeeCode,
     icNumber: driver.icNumber,
@@ -158,13 +165,22 @@ function buildSummaryFromRecords(input: {
   });
 }
 
-export async function getDriverPayrollDrivers() {
+export async function getDriverPayrollDrivers(input: {
+  year: number;
+  month: number;
+}) {
   await requirePayrollAccess();
   const drivers = await prisma.driver.findMany({
-    where: { active: true },
+    where: {
+      OR: [{ active: true }, { terminationDate: { not: null } }],
+    },
     orderBy: { name: "asc" },
   });
-  return drivers.map(serializeDriver);
+  return drivers
+    .filter((driver) =>
+      isDriverEligibleForPayrollMonth(driver, input.year, input.month)
+    )
+    .map(serializeDriver);
 }
 
 export async function getDriverPayrollMonthlySummary(input: {
@@ -351,11 +367,15 @@ export async function getDriverPayslipPrintData(input: {
       id: true,
       name: true,
       active: true,
+      terminationDate: true,
       bankName: true,
       bankAccount: true,
     },
   });
-  if (!driver?.active) {
+  if (
+    !driver ||
+    !isDriverEligibleForPayrollMonth(driver, input.year, input.month)
+  ) {
     return null;
   }
 
@@ -738,6 +758,7 @@ export async function saveDriverPayrollMaster(input: {
   name: string;
   fullName?: string | null;
   active: boolean;
+  terminationDate?: string | null;
   baseSalary?: number | null;
   autoCountEmployeeCode?: string | null;
   icNumber?: string | null;
@@ -759,10 +780,16 @@ export async function saveDriverPayrollMaster(input: {
     throw new Error("无效婚姻状况 Invalid marital status");
   }
 
+  const terminationDate =
+    input.terminationDate?.trim()
+      ? new Date(`${input.terminationDate.trim()}T00:00:00.000Z`)
+      : null;
+
   const data = {
     name: input.name.trim(),
     fullName: input.fullName?.trim() || null,
     active: input.active,
+    terminationDate,
     baseSalary: input.baseSalary ?? null,
     autoCountEmployeeCode: input.autoCountEmployeeCode?.trim() || null,
     icNumber: input.icNumber?.trim() || null,

@@ -1,6 +1,10 @@
-import { buildDriverJvAccountCodes } from "@/lib/constants/payroll-jv-accounts";
+import { buildDriverJvAccountCodes, SHARED_PAYROLL_JV_ACCOUNTS } from "@/lib/constants/payroll-jv-accounts";
 import { decimalToNumber } from "@/lib/freight-rates";
 import type { MaritalStatus } from "@/lib/constants/payroll";
+import {
+  payslipAdvanceRecoveredFromPay,
+  payslipAdvanceWriteOff,
+} from "@/lib/driver-payslip";
 import {
   buildDriverPayrollSummaryFromRecords,
   type DriverPayrollDriverInput,
@@ -8,6 +12,10 @@ import {
 } from "@/lib/payroll-fleet";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
 import { getDriverPayrollName } from "@/lib/trip-allowance";
+import {
+  driverQueryCandidatesForPayroll,
+  payrollEligibilitySkipReason,
+} from "@/lib/driver-payroll-eligibility";
 import { prisma } from "@/lib/prisma";
 import { syncFleetPayrollForMonth } from "@/lib/payroll-month-sync";
 
@@ -69,6 +77,8 @@ export interface DriverPayrollJv {
     lindung24Jam: number;
     pcb: number;
     advance: number;
+    advanceRecovered: number;
+    advanceWriteOff: number;
     netSalary: number;
   };
 }
@@ -181,6 +191,9 @@ export function buildDriverJvFromSummary(input: {
       lindung24Jam
   );
 
+  const advanceRecovered = payslipAdvanceRecoveredFromPay(input.summary);
+  const advanceWriteOff = payslipAdvanceWriteOff(input.summary);
+
   const amounts = {
     baseSalary: input.summary.baseSalary,
     wages,
@@ -191,6 +204,8 @@ export function buildDriverJvFromSummary(input: {
     lindung24Jam,
     pcb: statutory.pcb,
     advance: input.summary.advanceTotal,
+    advanceRecovered,
+    advanceWriteOff,
     netSalary: input.summary.netSalary,
   };
 
@@ -251,9 +266,25 @@ export function buildDriverJvFromSummary(input: {
     date: input.jvDate,
     jvNo: input.jvNo,
     accountCode: accounts.advance,
-    amount: amounts.advance,
-    description: `借支 Advance - ${label}`,
+    amount: amounts.advanceRecovered,
+    description: `借支 Advance (offset from pay) - ${label}`,
   });
+  if (amounts.advanceWriteOff > 0) {
+    pushDebitLine(lines, {
+      date: input.jvDate,
+      jvNo: input.jvNo,
+      accountCode: SHARED_PAYROLL_JV_ACCOUNTS.advanceWriteOff,
+      amount: amounts.advanceWriteOff,
+      description: `离职员工借支核销 Terminated employee advance write-off - ${label}`,
+    });
+    pushCreditLine(lines, {
+      date: input.jvDate,
+      jvNo: input.jvNo,
+      accountCode: accounts.advance,
+      amount: amounts.advanceWriteOff,
+      description: `借支核销 Advance balance written off - ${label}`,
+    });
+  }
   pushCreditLine(lines, {
     date: input.jvDate,
     jvNo: input.jvNo,
@@ -292,7 +323,7 @@ export async function buildMonthlyDriverJvRows(
   const jvDate = jvDateForMonth(year, month);
 
   const drivers = await prisma.driver.findMany({
-    where: { active: true },
+    where: driverQueryCandidatesForPayroll(),
     orderBy: { name: "asc" },
     include: {
       payrollMonths: {
@@ -307,11 +338,12 @@ export async function buildMonthlyDriverJvRows(
   let sequence = 0;
 
   for (const driver of drivers) {
-    if (driver.name === "Din") {
+    const skipReason = payrollEligibilitySkipReason(driver, year, month);
+    if (skipReason) {
       skippedDrivers.push({
         driverId: driver.id,
         driverName: driver.name,
-        reason: "inactive 不生成JV Skipped (inactive driver)",
+        reason: skipReason,
       });
       continue;
     }

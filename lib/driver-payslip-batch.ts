@@ -11,9 +11,10 @@ import type { PayrollSummary } from "@/lib/payroll-statutory";
 import { syncFleetPayrollForMonth } from "@/lib/payroll-month-sync";
 import { prisma } from "@/lib/prisma";
 import { getDriverPayrollName } from "@/lib/trip-allowance";
-
-/** Same skip rule as JV export (inactive / non-payslip drivers). */
-export const PAYSLIP_BATCH_SKIP_DRIVER_NAMES = ["Din"] as const;
+import {
+  driverQueryCandidatesForPayroll,
+  payrollEligibilitySkipReason,
+} from "@/lib/driver-payroll-eligibility";
 
 export interface DriverPayslipPrintEntry {
   driverId: string;
@@ -109,8 +110,7 @@ function parseYearMonth(year: number, month: number) {
 }
 
 /**
- * One fleet sync + one query for all active payslip drivers.
- * Skips Din and drivers without a payroll month row.
+ * One fleet sync + one query for all payslip-eligible drivers in the month.
  */
 export async function loadBatchDriverPayslipEntries(
   year: number,
@@ -120,10 +120,7 @@ export async function loadBatchDriverPayslipEntries(
   const yearMonth = parseYearMonth(year, month);
 
   const drivers = await prisma.driver.findMany({
-    where: {
-      active: true,
-      name: { notIn: [...PAYSLIP_BATCH_SKIP_DRIVER_NAMES] },
-    },
+    where: driverQueryCandidatesForPayroll(),
     orderBy: { name: "asc" },
     include: {
       payrollMonths: {
@@ -142,11 +139,13 @@ export async function loadBatchDriverPayslipEntries(
   const entries: DriverPayslipPrintEntry[] = [];
   const skipped: { name: string; reason: string }[] = [];
 
-  for (const skipName of PAYSLIP_BATCH_SKIP_DRIVER_NAMES) {
-    skipped.push({ name: skipName, reason: "inactive / excluded from batch payslip" });
-  }
-
   for (const driver of drivers) {
+    const skipReason = payrollEligibilitySkipReason(driver, year, month);
+    if (skipReason) {
+      skipped.push({ name: driver.name, reason: skipReason });
+      continue;
+    }
+
     const monthRecord = driver.payrollMonths[0];
     if (!monthRecord) {
       skipped.push({ name: driver.name, reason: "no payroll month record" });

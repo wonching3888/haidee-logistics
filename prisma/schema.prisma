@@ -370,6 +370,7 @@ model Driver {
   nickname  String?
   fullName  String?  @map("full_name")
   active    Boolean  @default(true)
+  terminationDate       DateTime? @map("termination_date") @db.Date
   baseSalary            Decimal? @map("base_salary") @db.Decimal(10, 2)
   autoCountEmployeeCode String?  @map("autocount_employee_code")
   icNumber              String?  @unique @map("ic_number")

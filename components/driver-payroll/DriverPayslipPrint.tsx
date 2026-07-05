@@ -3,7 +3,10 @@ import { formatDisplayDate, parseDateInput } from "@/lib/date-utils";
 import {
   formatPayslipBankAccount,
   formatPayslipMoney,
+  payslipAdvanceRecoveredFromPay,
+  payslipAdvanceWriteOff,
   payslipBalanceBeforeAdvance,
+  payslipHasAdvanceWriteOff,
   payslipMonthTitle,
   payslipWagesTotal,
   WTL_PAYSLIP_LETTERHEAD,
@@ -70,6 +73,9 @@ export function DriverPayslipPrint({
   const wages = payslipWagesTotal(summary);
   const balance = payslipBalanceBeforeAdvance(summary);
   const advanceTotal = summary.advanceTotal;
+  const advanceRecovered = payslipAdvanceRecoveredFromPay(summary);
+  const advanceWriteOff = payslipAdvanceWriteOff(summary);
+  const showAdvanceBreakdown = payslipHasAdvanceWriteOff(summary);
 
   return (
     <article className="driver-payslip-print document-print">
@@ -143,9 +149,25 @@ export function DriverPayslipPrint({
               <AmountRow label="PCB" value={-statutory.pcb} sectionLine />
               <AmountRow label="BALANCE" value={balance} emphasis />
               <AmountRow label="ADVANCE" value={-advanceTotal} sectionLine />
+              {showAdvanceBreakdown ? (
+                <>
+                  <AmountRow
+                    label="ADV RECOVERED"
+                    value={-advanceRecovered}
+                  />
+                  <AmountRow label="ADV WRITEOFF" value={advanceWriteOff} />
+                </>
+              ) : null}
               <AmountRow label="NET PAY" value={summary.netSalary} net />
             </tbody>
           </table>
+          {showAdvanceBreakdown ? (
+            <p className="payslip-advance-note">
+              Advance RM{formatPayslipMoney(advanceTotal)}: RM
+              {formatPayslipMoney(advanceRecovered)} offset from pay; RM
+              {formatPayslipMoney(advanceWriteOff)} written off (termination).
+            </p>
+          ) : null}
         </section>
 
         <section className="payslip-cell">

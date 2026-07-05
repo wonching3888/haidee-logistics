@@ -5,6 +5,10 @@ import {
 } from "@/lib/payroll-statutory";
 import type { MaritalStatus } from "@/lib/constants/payroll";
 import type { PayrollSummary } from "@/lib/payroll-statutory";
+import {
+  driverQueryCandidatesForPayroll,
+  isDriverEligibleForPayrollMonth,
+} from "@/lib/driver-payroll-eligibility";
 import { prisma } from "@/lib/prisma";
 import { syncFleetPayrollForMonth } from "@/lib/payroll-month-sync";
 
@@ -348,8 +352,8 @@ export async function loadFleetPayrollAggregate(
   }
 
   const yearMonth = parseYearMonth(year, month);
-  const drivers = await prisma.driver.findMany({
-    where: { active: true },
+  const allDrivers = await prisma.driver.findMany({
+    where: driverQueryCandidatesForPayroll(),
     orderBy: { name: "asc" },
     include: {
       payrollMonths: {
@@ -358,6 +362,9 @@ export async function loadFleetPayrollAggregate(
       },
     },
   });
+  const drivers = allDrivers.filter((driver) =>
+    isDriverEligibleForPayrollMonth(driver, year, month)
+  );
 
   const companyCostByDriverId = new Map<string, number>();
   const rows = drivers.map((driver) => {

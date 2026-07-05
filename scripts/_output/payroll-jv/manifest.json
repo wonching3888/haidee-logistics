@@ -63,11 +63,23 @@
     {
       "yearMonth": "2026-06",
       "filename": "payroll-jv-2026-06-rev6-epf-brackets.csv",
-      "status": "active",
+      "status": "void",
       "revision": 6,
       "driverCount": 13,
       "notes": "EPF官方分档表；Pinat 612/561；Wan PCB 11.65 NET 1481.37；Naim借支2500",
-      "exportedAt": "2026-07-04T15:16:42.264Z"
+      "exportedAt": "2026-07-04T15:16:42.264Z",
+      "voidReason": "补充Din离职月数据+底薪修正，替换为rev7",
+      "voidedAt": "2026-07-05T02:57:06.716Z",
+      "supersededBy": "payroll-jv-2026-06-rev7-din-termination.csv"
+    },
+    {
+      "yearMonth": "2026-06",
+      "filename": "payroll-jv-2026-06-rev7-din-termination.csv",
+      "status": "active",
+      "revision": 7,
+      "driverCount": 14,
+      "notes": "Din termination 2026-06-10; base 550; advance write-off 695.74 → 6315-0000",
+      "exportedAt": "2026-07-05T02:57:06.730Z"
     }
   ]
 }

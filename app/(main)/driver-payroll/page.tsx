@@ -21,7 +21,7 @@ export default async function DriverPayrollPage({
 
   try {
     const [drivers, user] = await Promise.all([
-      getDriverPayrollDrivers(),
+      getDriverPayrollDrivers({ year, month }),
       getCurrentUser(),
     ]);
     const canExportJv = user

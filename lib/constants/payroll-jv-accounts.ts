@@ -4,6 +4,11 @@ export const SHARED_PAYROLL_JV_ACCOUNTS = {
   /** SOCSO + EIS + Lindung 24 jam (SKBBK) employee remittance to PERKESO. */
   socsoEisPayable: "4102-0000",
   pcbPayable: "4103-0000",
+  /**
+   * Employee advance unrecoverable balance (e.g. termination write-off).
+   * 离职员工借支核销 / 呆账损失
+   */
+  advanceWriteOff: "6315-0000",
 } as const;
 
 const DRIVER_JV_ACCOUNT_PREFIXES = {

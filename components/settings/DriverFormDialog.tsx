@@ -15,6 +15,7 @@ export interface DriverFormValue {
   name: string;
   fullName: string;
   active: boolean;
+  terminationDate: string;
   baseSalary: string;
   autoCountEmployeeCode: string;
   icNumber: string;
@@ -29,6 +30,7 @@ const EMPTY_FORM: DriverFormValue = {
   name: "",
   fullName: "",
   active: true,
+  terminationDate: "",
   baseSalary: "",
   autoCountEmployeeCode: "",
   icNumber: "",
@@ -182,6 +184,16 @@ export function DriverFormDialog({
               ))}
             </select>
           </label>
+          <label className="block space-y-1 text-sm">
+            离职日期 Termination date（可选）
+            <Input
+              type="date"
+              value={form.terminationDate}
+              onChange={(e) =>
+                setForm({ ...form, terminationDate: e.target.value })
+              }
+            />
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -213,6 +225,7 @@ export function driverToFormValue(driver: {
   name: string;
   fullName: string | null;
   active: boolean;
+  terminationDate?: string | null;
   baseSalary: number | null;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
@@ -228,6 +241,7 @@ export function driverToFormValue(driver: {
     name: driver.name,
     fullName: driver.fullName ?? "",
     active: driver.active,
+    terminationDate: driver.terminationDate ?? "",
     baseSalary: num(driver.baseSalary),
     autoCountEmployeeCode: driver.autoCountEmployeeCode ?? "",
     icNumber: driver.icNumber ?? "",
@@ -244,6 +258,7 @@ export function parseDriverFormValue(form: DriverFormValue) {
     name: form.name,
     fullName: form.fullName.trim() || null,
     active: form.active,
+    terminationDate: form.terminationDate.trim() || null,
     baseSalary: optionalNumber(form.baseSalary),
     autoCountEmployeeCode: form.autoCountEmployeeCode,
     icNumber: form.icNumber,

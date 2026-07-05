@@ -20,7 +20,7 @@ const JUNE_2026_ANCHORS: Array<{
   { name: "Naim", gross: 4830, employer: 630, employee: 533 },
   { name: "Azhar", gross: 4730, employer: 617, employee: 522 },
   { name: "Pinat", gross: 5040, employer: 612, employee: 561 },
-  { name: "Din", gross: 880, employer: 115, employee: 97 },
+  { name: "Din", gross: 920, employer: 120, employee: 102 },
   { name: "Ikmal", gross: 4610, employer: 601, employee: 509 },
 ];
 

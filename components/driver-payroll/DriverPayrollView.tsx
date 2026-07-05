@@ -268,8 +268,7 @@ export function DriverPayrollView({
                 className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-haidee-border bg-white px-4 text-sm font-medium hover:bg-haidee-surface"
               >
                 <Printer className="h-4 w-4" />
-                批量工资单 Batch Payslip (
-                {summaryData.rows.filter((r) => r.name !== "Din").length} 人)
+                批量工资单 Batch Payslip ({summaryData.rows.length} 人)
               </Link>
             </div>
             {canExportJv ? (

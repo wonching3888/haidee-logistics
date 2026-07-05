@@ -31,6 +31,7 @@ interface DriverRow {
   name: string;
   fullName: string | null;
   active: boolean;
+  terminationDate: string | null;
   baseSalary: number | null;
   autoCountEmployeeCode: string | null;
   icNumber: string | null;
@@ -101,6 +102,12 @@ export function DriverPayrollSettingsSection({
             <dt className="text-haidee-muted">PCB 应付</dt>
             <dd className="font-mono">{SHARED_PAYROLL_JV_ACCOUNTS.pcbPayable}</dd>
           </div>
+          <div>
+            <dt className="text-haidee-muted">借支核销 Write-off</dt>
+            <dd className="font-mono">
+              {SHARED_PAYROLL_JV_ACCOUNTS.advanceWriteOff}
+            </dd>
+          </div>
         </dl>
       </div>
 
@@ -129,6 +136,7 @@ export function DriverPayrollSettingsSection({
               <TableHead>科目后缀 JV Suffix</TableHead>
               <TableHead className="text-right">底薪</TableHead>
               <TableHead>婚姻/子女</TableHead>
+              <TableHead>离职</TableHead>
               <TableHead>状态</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
@@ -136,7 +144,7 @@ export function DriverPayrollSettingsSection({
           <TableBody>
             {drivers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-haidee-muted">
+                <TableCell colSpan={9} className="py-8 text-center text-haidee-muted">
                   暂无司机 No drivers
                 </TableCell>
               </TableRow>
@@ -156,6 +164,9 @@ export function DriverPayrollSettingsSection({
                   </TableCell>
                   <TableCell className="text-sm">
                     {driver.maritalStatus ?? "—"} / {driver.childCount}
+                  </TableCell>
+                  <TableCell className="text-sm font-mono">
+                    {driver.terminationDate ?? "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={driver.active ? "default" : "secondary"}>
