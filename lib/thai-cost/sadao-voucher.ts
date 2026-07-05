@@ -3,7 +3,6 @@
  * Excludes statutory deductions and monthly salaried workers.
  */
 import {
-  getSadaoHandlingRates,
   type SadaoHandlingRates,
 } from "@/lib/constants/thai-cost";
 import { prisma } from "@/lib/prisma";
@@ -102,9 +101,6 @@ export async function getSadaoVoucherForDate(
 
   const holidayKeys = buildPublicHolidayKeySet(holiday ? [holiday] : []);
   const holidayRate = isHolidayRate(date, holidayKeys);
-  const ratePair = holidayRate
-    ? getSadaoHandlingRates(true)
-    : getSadaoHandlingRates(false);
 
   if (stored) {
     const commission = computeSadaoHandlingCommission(stored, {
