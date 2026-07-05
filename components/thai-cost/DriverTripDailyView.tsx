@@ -9,6 +9,10 @@ import {
   type ThaiDriverRow,
   type ThaiVehicleTripRow,
 } from "@/app/actions/thai-cost-phase2";
+import {
+  THAI_DRIVER_TRIP_PLATE_OPTIONS,
+  THAI_DRIVER_TRIP_PLATE_OTHER,
+} from "@/lib/constants/thai-route-masters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,9 +44,12 @@ export function DriverTripDailyView({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [driverMode, setDriverMode] = useState<DriverMode>("formal");
+  const [plateSelect, setPlateSelect] = useState<string>(
+    THAI_DRIVER_TRIP_PLATE_OPTIONS[0]
+  );
+  const [otherPlate, setOtherPlate] = useState("");
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
-    truckPlate: "",
     driverId: drivers[0]?.id ?? "",
     rentalDriverName: "",
     station: "SONGKHLA" as "SONGKHLA" | "PATTANI",
@@ -53,6 +60,13 @@ export function DriverTripDailyView({
 
   function changeMonth(y: number, m: number) {
     router.push(`/thai-cost/driver-trips?year=${y}&month=${m}`);
+  }
+
+  function resolvePlate(): string {
+    if (plateSelect === THAI_DRIVER_TRIP_PLATE_OTHER) {
+      return otherPlate.trim();
+    }
+    return plateSelect;
   }
 
   return (
@@ -93,31 +107,35 @@ export function DriverTripDailyView({
 
       {canWrite && (
         <form
-          className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
+          className="space-y-4 rounded-lg border p-4"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
+            const truckPlate = resolvePlate();
+            if (!truckPlate) {
+              setError("请填写车牌");
+              return;
+            }
             startTransition(async () => {
               try {
                 await saveThaiVehicleTripDaily({
                   date: form.date,
-                  truckPlate: form.truckPlate,
+                  truckPlate,
                   station: form.station,
                   tongQty: Number(form.tongQty),
                   boxQty: Number(form.boxQty),
-                  driverId:
-                    driverMode === "formal" ? form.driverId : null,
+                  driverId: driverMode === "formal" ? form.driverId : null,
                   rentalDriverName:
                     driverMode === "rental" ? form.rentalDriverName : null,
                   notes: form.notes || null,
                 });
                 setForm((f) => ({
                   ...f,
-                  truckPlate: "",
                   tongQty: "0",
                   boxQty: "0",
                   notes: "",
                 }));
+                setOtherPlate("");
                 router.refresh();
               } catch (err) {
                 setError(err instanceof Error ? err.message : "失败");
@@ -125,117 +143,142 @@ export function DriverTripDailyView({
             });
           }}
         >
-          <label className="space-y-1 text-sm">
-            日期
-            <Input
-              type="date"
-              value={form.date}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, date: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            车牌
-            <Input
-              value={form.truckPlate}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, truckPlate: e.target.value }))
-              }
-              placeholder="如 PKM 9389"
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            据点
-            <select
-              className="h-8 w-full rounded-lg border px-2 text-sm"
-              value={form.station}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  station: e.target.value as "SONGKHLA" | "PATTANI",
-                }))
-              }
-            >
-              <option value="SONGKHLA">宋卡</option>
-              <option value="PATTANI">北大年</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            桶数 (tong)
-            <Input
-              type="number"
-              min={0}
-              value={form.tongQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, tongQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            盒数 (box)
-            <Input
-              type="number"
-              min={0}
-              value={form.boxQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, boxQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-
-          <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-            <p className="text-sm font-medium">司机</p>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  checked={driverMode === "formal"}
-                  onChange={() => setDriverMode("formal")}
-                />
-                正式司机
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  checked={driverMode === "rental"}
-                  onChange={() => setDriverMode("rental")}
-                />
-                租车司机
-              </label>
-            </div>
-            {driverMode === "formal" ? (
-              <select
-                className="h-8 w-full max-w-xs rounded-lg border px-2 text-sm"
-                value={form.driverId}
+          {/* Row 1: date + station */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              日期
+              <Input
+                type="date"
+                value={form.date}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, driverId: e.target.value }))
+                  setForm((f) => ({ ...f, date: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              据点
+              <select
+                className="h-8 w-full rounded-lg border px-2 text-sm"
+                value={form.station}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    station: e.target.value as "SONGKHLA" | "PATTANI",
+                  }))
                 }
               >
-                {drivers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
+                <option value="SONGKHLA">宋卡</option>
+                <option value="PATTANI">北大年</option>
               </select>
-            ) : (
-              <Input
-                className="max-w-xs"
-                placeholder="租车司机姓名"
-                value={form.rentalDriverName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, rentalDriverName: e.target.value }))
-                }
-                required={driverMode === "rental"}
-              />
-            )}
+            </label>
           </div>
 
-          <label className="space-y-1 text-sm sm:col-span-2">
+          {/* Row 2: plate + driver */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1 text-sm">
+              <span>车牌</span>
+              <select
+                className="h-8 w-full rounded-lg border px-2 text-sm font-mono"
+                value={plateSelect}
+                onChange={(e) => setPlateSelect(e.target.value)}
+              >
+                {THAI_DRIVER_TRIP_PLATE_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+                <option value={THAI_DRIVER_TRIP_PLATE_OTHER}>Other</option>
+              </select>
+              {plateSelect === THAI_DRIVER_TRIP_PLATE_OTHER && (
+                <Input
+                  className="mt-2 font-mono"
+                  placeholder="手动输入车牌"
+                  value={otherPlate}
+                  onChange={(e) => setOtherPlate(e.target.value)}
+                  required
+                />
+              )}
+            </div>
+            <div className="space-y-2 text-sm">
+              <span className="font-medium">司机</span>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={driverMode === "formal"}
+                    onChange={() => setDriverMode("formal")}
+                  />
+                  正式司机
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={driverMode === "rental"}
+                    onChange={() => setDriverMode("rental")}
+                  />
+                  租车司机
+                </label>
+              </div>
+              {driverMode === "formal" ? (
+                <select
+                  className="h-8 w-full rounded-lg border px-2 text-sm"
+                  value={form.driverId}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, driverId: e.target.value }))
+                  }
+                >
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  placeholder="租车司机姓名"
+                  value={form.rentalDriverName}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      rentalDriverName: e.target.value,
+                    }))
+                  }
+                  required={driverMode === "rental"}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: tong + box */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              桶数 (tong)
+              <Input
+                type="number"
+                min={0}
+                value={form.tongQty}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, tongQty: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              盒数 (box)
+              <Input
+                type="number"
+                min={0}
+                value={form.boxQty}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, boxQty: e.target.value }))
+                }
+                required
+              />
+            </label>
+          </div>
+
+          <label className="block space-y-1 text-sm">
             备注
             <Input
               value={form.notes}
@@ -245,15 +288,13 @@ export function DriverTripDailyView({
             />
           </label>
 
-          <div className="flex items-end sm:col-span-2 lg:col-span-4">
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="gap-1 bg-haidee-blue text-white"
-            >
-              <Plus className="h-4 w-4" /> 保存趟次
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="gap-1 bg-haidee-blue text-white"
+          >
+            <Plus className="h-4 w-4" /> 保存趟次
+          </Button>
         </form>
       )}
 
@@ -324,5 +365,4 @@ export function DriverTripDailyView({
   );
 }
 
-// Re-export for type-only usage in pages
 export type { ThaiDriverRow, ThaiVehicleTripRow };

@@ -8,11 +8,14 @@ import {
   saveThaiCostRateSettings,
 } from "@/app/actions/thai-cost-phase2";
 import type { ThaiCostRates } from "@/lib/thai-cost/rate-settings";
+import type { ThaiRouteMasterRow } from "@/app/actions/thai-cost-phase2";
+import { ThaiRoutesSettingsSection } from "@/components/thai-cost/ThaiRoutesSettingsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface ThaiCostSettingsViewProps {
   initialRates: ThaiCostRates;
+  thaiRoutes: ThaiRouteMasterRow[];
   canWrite: boolean;
   year: number;
   month: number;
@@ -21,6 +24,7 @@ interface ThaiCostSettingsViewProps {
 
 export function ThaiCostSettingsView({
   initialRates,
+  thaiRoutes,
   canWrite,
   year,
   month,
@@ -73,6 +77,8 @@ export function ThaiCostSettingsView({
         </p>
       )}
 
+      <ThaiRoutesSettingsSection routes={thaiRoutes} canWrite={canWrite} />
+
       <div className="rounded-lg border border-haidee-border p-4">
         <h3 className="text-sm font-medium">
           Sadao / 宋卡 搬运费率（THB，盒子=小桶）
@@ -86,7 +92,12 @@ export function ThaiCostSettingsView({
       </div>
 
       <div className="rounded-lg border border-haidee-border p-4">
-        <h3 className="text-sm font-medium">泰国司机趟次提成（THB/趟）</h3>
+        <h3 className="text-sm font-medium">
+          司机趟次提成（按趟计，THB/趟）
+        </h3>
+        <p className="mt-1 text-xs text-haidee-muted">
+          付给泰国正式司机的每趟提成。与营运设定里的「泰国段车力分拆费率（按桶/盒）」不同。
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {field("driverTripSongkhla", "宋卡 / 趟")}
           {field("driverTripPattani", "北大年 / 趟")}

@@ -1,6 +1,7 @@
 import {
   getThaiCostRateSettings,
   getThaiCostRatesForMonth,
+  getThaiRouteMasters,
 } from "@/app/actions/thai-cost-phase2";
 import { ThaiCostSettingsView } from "@/components/thai-cost/ThaiCostSettingsView";
 import { PageError } from "@/components/shared/PageError";
@@ -22,9 +23,10 @@ export default async function ThaiCostSettingsPage({ searchParams }: PageProps) 
   const month = Number(params.month) || now.getMonth() + 1;
 
   try {
-    const [rates, monthRates, current] = await Promise.all([
+    const [rates, monthRates, thaiRoutes, current] = await Promise.all([
       getThaiCostRateSettings(),
       getThaiCostRatesForMonth({ year, month }),
+      getThaiRouteMasters(),
       getCurrentUser(),
     ]);
     const canWrite = current ? canWriteThaiCost(current.role) : false;
@@ -41,6 +43,7 @@ export default async function ThaiCostSettingsPage({ searchParams }: PageProps) 
         </div>
         <ThaiCostSettingsView
           initialRates={rates}
+          thaiRoutes={thaiRoutes}
           canWrite={canWrite}
           year={year}
           month={month}

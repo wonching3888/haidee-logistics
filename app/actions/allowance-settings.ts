@@ -10,6 +10,7 @@ import {
   DEFAULT_CRATE_RETURN_MULTI_MARKET_ALLOWANCE,
   DEFAULT_EXTRA_MARKET_ALLOWANCE,
 } from "@/lib/constants/payroll-allowance";
+import { isMalaysiaPayrollRouteCode } from "@/lib/constants/thai-route-masters";
 async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
@@ -52,13 +53,15 @@ export async function getAllowanceSettingsData() {
   ]);
 
   return {
-    routes: routes.map((route) => ({
-      id: route.id,
-      code: route.code,
-      name: route.name,
-      markets: route.markets,
-      driverAllowance: decimalToNumber(route.driverAllowance),
-    })),
+    routes: routes
+      .filter((route) => isMalaysiaPayrollRouteCode(route.code))
+      .map((route) => ({
+        id: route.id,
+        code: route.code,
+        name: route.name,
+        markets: route.markets,
+        driverAllowance: decimalToNumber(route.driverAllowance),
+      })),
     extraMarketAllowance:
       decimalToNumber(settings.extraMarketAllowance) ??
       DEFAULT_EXTRA_MARKET_ALLOWANCE,

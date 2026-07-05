@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { decimalToNumber } from "@/lib/freight-rates";
+import { isMalaysiaPayrollRouteCode } from "@/lib/constants/thai-route-masters";
 import { sortMarkets } from "@/lib/markets";
 
 async function requireAdmin() {
@@ -61,7 +62,9 @@ export async function getRouteMasterSettingsData() {
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
 
-  return routes.map(serializeRouteMaster);
+  return routes
+    .filter((route) => isMalaysiaPayrollRouteCode(route.code))
+    .map(serializeRouteMaster);
 }
 
 export async function saveRouteMaster(input: {

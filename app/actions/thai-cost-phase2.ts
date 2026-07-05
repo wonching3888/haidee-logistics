@@ -24,6 +24,13 @@ import { getPattaniPnl, type PattaniPnlDetail } from "@/lib/thai-cost/pattani-pn
 import { revalidateThaiCost } from "@/app/actions/thai-cost";
 import { randomUUID } from "crypto";
 import { compareManualVsDispatchCrates } from "@/lib/thai-cost/dispatch-cross-check";
+import {
+  aggregateDispatchCratesForDate,
+} from "@/lib/thai-cost/dispatch-crate-aggregate";
+import {
+  isThaiRouteMasterCode,
+  THAI_ROUTE_MASTER_CODES,
+} from "@/lib/constants/thai-route-masters";
 
 async function requireRead() {
   const user = await getCurrentUser();
@@ -80,6 +87,108 @@ export async function lockThaiCostMonth(input: {
   });
   revalidateThaiCost();
   return result;
+}
+
+// ─── Thai route masters (SONGKHLA / PATTANI) ─────────────────────────────────
+
+export interface ThaiRouteMasterRow {
+  id: string;
+  code: string;
+  name: string;
+  sadooMileageKm: number | null;
+  tollFee: number | null;
+  parkingFee: number | null;
+}
+
+export async function getThaiRouteMasters(): Promise<ThaiRouteMasterRow[]> {
+  await requireRead();
+  const rows = await prisma.routeMaster.findMany({
+    where: { code: { in: [...THAI_ROUTE_MASTER_CODES] } },
+    orderBy: { code: "asc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    sadooMileageKm: decimalToNumber(r.sadooMileageKm),
+    tollFee: decimalToNumber(r.tollFee),
+    parkingFee: decimalToNumber(r.parkingFee),
+  }));
+}
+
+export async function saveThaiRouteMaster(input: {
+  id: string;
+  sadooMileageKm?: number | null;
+  tollFee?: number | null;
+  parkingFee?: number | null;
+}) {
+  await requireWrite();
+  const existing = await prisma.routeMaster.findUnique({
+    where: { id: input.id },
+  });
+  if (!existing || !isThaiRouteMasterCode(existing.code)) {
+    throw new Error("只能编辑泰国路线 SONGKHLA / PATTANI");
+  }
+
+  function parseFee(value: number | null | undefined) {
+    if (value == null) return null;
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error("数值不能为负数");
+    }
+    return value;
+  }
+
+  await prisma.routeMaster.update({
+    where: { id: input.id },
+    data: {
+      sadooMileageKm: parseFee(input.sadooMileageKm),
+      tollFee: parseFee(input.tollFee),
+      parkingFee: parseFee(input.parkingFee),
+    },
+  });
+  revalidateThaiCost();
+}
+
+/** Live dispatch totals for Songkhla/Pattani handling forms. */
+export async function getStationDispatchTotalsForDate(
+  dateInput: string,
+  pickup: "SONGKHLA" | "PATTANI"
+): Promise<{
+  smallCrateTotalQty: number;
+  largeCrateTotalQty: number;
+  boxTotalQty: number;
+  crateQty: number;
+}> {
+  await requireRead();
+  const date = parseDateInput(dateInput);
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
+  const totals = await aggregateDispatchCratesForDate(date, {
+    pickupFilter: pickup,
+    largeTongTypeCodes: rates.largeTongTypeCodes,
+  });
+  return {
+    smallCrateTotalQty: totals.small,
+    largeCrateTotalQty: totals.large,
+    boxTotalQty: totals.box,
+    crateQty: totals.small + totals.large,
+  };
+}
+
+async function fetchStationHandlingTotals(
+  date: Date,
+  pickup: "SONGKHLA" | "PATTANI"
+) {
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
+  return aggregateDispatchCratesForDate(date, {
+    pickupFilter: pickup,
+    largeTongTypeCodes: rates.largeTongTypeCodes,
+  });
 }
 
 // ─── Songkhla handling ───────────────────────────────────────────────────────
@@ -141,17 +250,18 @@ export async function listSongkhlaHandling(input: {
 export async function saveSongkhlaHandling(input: {
   id?: string;
   date: string;
-  smallCrateTotalQty: number;
-  largeCrateTotalQty: number;
-  boxTotalQty: number;
   notes?: string | null;
 }) {
   const user = await requireWrite();
   const date = parseDateInput(input.date);
+  const totals = await fetchStationHandlingTotals(date, "SONGKHLA");
+
   try {
     computeSadaoHandlingCommission(
       {
-        ...input,
+        smallCrateTotalQty: totals.small,
+        largeCrateTotalQty: totals.large,
+        boxTotalQty: totals.box,
         smallCrateNoCheckQty: 0,
         largeCrateNoCheckQty: 0,
         boxNoCheckQty: 0,
@@ -166,9 +276,9 @@ export async function saveSongkhlaHandling(input: {
   const notes = input.notes?.trim() || null;
   const data = {
     date,
-    smallCrateTotalQty: input.smallCrateTotalQty,
-    largeCrateTotalQty: input.largeCrateTotalQty,
-    boxTotalQty: input.boxTotalQty,
+    smallCrateTotalQty: totals.small,
+    largeCrateTotalQty: totals.large,
+    boxTotalQty: totals.box,
     notes,
     createdBy: user.id,
   };
@@ -673,25 +783,23 @@ export async function listPattaniHandling(input: {
 export async function savePattaniHandling(input: {
   id?: string;
   date: string;
-  crateQty: number;
-  boxQty: number;
   notes?: string | null;
 }) {
   const user = await requireWrite();
-  if (
-    !Number.isInteger(input.crateQty) ||
-    input.crateQty < 0 ||
-    !Number.isInteger(input.boxQty) ||
-    input.boxQty < 0
-  ) {
-    throw new Error("桶数/盒子必须是非负整数");
-  }
   const date = parseDateInput(input.date);
+  const totals = await fetchStationHandlingTotals(date, "PATTANI");
+  const crateQty = totals.small + totals.large;
+  const boxQty = totals.box;
+
+  if (crateQty < 0 || boxQty < 0) {
+    throw new Error("派车汇总数量无效");
+  }
+
   const notes = input.notes?.trim() || null;
   const data = {
     date,
-    crateQty: input.crateQty,
-    boxQty: input.boxQty,
+    crateQty,
+    boxQty,
     notes,
     createdBy: user.id,
   };

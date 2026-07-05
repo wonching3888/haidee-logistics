@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
   deleteSongkhlaHandling,
+  getStationDispatchTotalsForDate,
   saveSongkhlaHandling,
   type SongkhlaHandlingRow,
 } from "@/app/actions/thai-cost-phase2";
@@ -34,19 +35,54 @@ export function SongkhlaHandlingView({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [dispatchTotals, setDispatchTotals] = useState({
+    smallCrateTotalQty: 0,
+    largeCrateTotalQty: 0,
+    boxTotalQty: 0,
+  });
+  const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
-    small: "",
-    large: "",
-    box: "0",
     notes: "",
   });
+
+  useEffect(() => {
+    if (!showForm || !form.date) return;
+    let cancelled = false;
+    setLoadingDispatch(true);
+    getStationDispatchTotalsForDate(form.date, "SONGKHLA")
+      .then((totals) => {
+        if (!cancelled) {
+          setDispatchTotals({
+            smallCrateTotalQty: totals.smallCrateTotalQty,
+            largeCrateTotalQty: totals.largeCrateTotalQty,
+            boxTotalQty: totals.boxTotalQty,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDispatchTotals({
+            smallCrateTotalQty: 0,
+            largeCrateTotalQty: 0,
+            boxTotalQty: 0,
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDispatch(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showForm, form.date]);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        宋卡搬运：无不过车排除，计费数=总数。一律平日费率（小桶/盒子与大桶，无假日/OT
-        档；宋卡固定周日休息）。费率来自设置页，月度快照锁定。
+        宋卡搬运：总数从派车自动拉取（pickup=SONGKHLA，assigned 行）。
+        无「直达」扣减；计费数=总数。一律平日费率。
       </p>
       <div className="flex flex-wrap gap-3">
         <Input
@@ -77,9 +113,18 @@ export function SongkhlaHandlingView({
           {error}
         </p>
       )}
-      {canWrite && (
+      {canWrite && !showForm && (
+        <Button
+          type="button"
+          className="gap-1 bg-haidee-blue text-white"
+          onClick={() => setShowForm(true)}
+        >
+          <Plus className="h-4 w-4" /> 登记 / 刷新当日
+        </Button>
+      )}
+      {canWrite && showForm && (
         <form
-          className="grid gap-2 rounded-lg border p-3 sm:grid-cols-5"
+          className="space-y-3 rounded-lg border p-4"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
@@ -87,11 +132,9 @@ export function SongkhlaHandlingView({
               try {
                 await saveSongkhlaHandling({
                   date: form.date,
-                  smallCrateTotalQty: Number(form.small),
-                  largeCrateTotalQty: Number(form.large),
-                  boxTotalQty: Number(form.box),
                   notes: form.notes || null,
                 });
+                setShowForm(false);
                 router.refresh();
               } catch (err) {
                 setError(err instanceof Error ? err.message : "失败");
@@ -99,43 +142,58 @@ export function SongkhlaHandlingView({
             });
           }}
         >
-          <Input
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            placeholder="小桶"
-            value={form.small}
-            onChange={(e) => setForm((f) => ({ ...f, small: e.target.value }))}
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            placeholder="大桶"
-            value={form.large}
-            onChange={(e) => setForm((f) => ({ ...f, large: e.target.value }))}
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            placeholder="盒子"
-            value={form.box}
-            onChange={(e) => setForm((f) => ({ ...f, box: e.target.value }))}
-            required
-          />
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="gap-1 bg-haidee-blue text-white"
-          >
-            <Plus className="h-4 w-4" /> 保存
-          </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              日期
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, date: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              备注
+              <Input
+                value={form.notes}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
+            </label>
+          </div>
+          <div className="rounded-md bg-haidee-surface/60 px-3 py-2 text-sm">
+            <p className="font-medium text-haidee-text">
+              派车总数（只读，pickup=SONGKHLA）
+            </p>
+            {loadingDispatch ? (
+              <p className="text-haidee-muted">加载中…</p>
+            ) : (
+              <p className="font-mono">
+                小 {dispatchTotals.smallCrateTotalQty} / 大{" "}
+                {dispatchTotals.largeCrateTotalQty} / 盒{" "}
+                {dispatchTotals.boxTotalQty}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isPending || loadingDispatch}
+              className="bg-haidee-blue text-white"
+            >
+              保存
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(false)}
+            >
+              取消
+            </Button>
+          </div>
         </form>
       )}
       <Table>

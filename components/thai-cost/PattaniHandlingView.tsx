@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
   deletePattaniHandling,
+  getStationDispatchTotalsForDate,
   savePattaniHandling,
   type PattaniHandlingRow,
 } from "@/app/actions/thai-cost-phase2";
@@ -34,17 +35,46 @@ export function PattaniHandlingView({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [dispatchTotals, setDispatchTotals] = useState({
+    crateQty: 0,
+    boxQty: 0,
+  });
+  const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
-    crateQty: "",
-    boxQty: "0",
+    notes: "",
   });
+
+  useEffect(() => {
+    if (!showForm || !form.date) return;
+    let cancelled = false;
+    setLoadingDispatch(true);
+    getStationDispatchTotalsForDate(form.date, "PATTANI")
+      .then((totals) => {
+        if (!cancelled) {
+          setDispatchTotals({
+            crateQty: totals.crateQty,
+            boxQty: totals.boxTotalQty,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDispatchTotals({ crateQty: 0, boxQty: 0 });
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDispatch(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showForm, form.date]);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        北大年搬运：同一批桶数同时算出外包费用与 SAKRI
-        提成。无假日/OT。盒子只计入外包（5 THB），不计入 SAKRI。
+        北大年搬运：总数从派车自动拉取（pickup=PATTANI，assigned 行）。
+        桶数=小桶+大桶；盒子单独计外包费。
       </p>
       <div className="flex flex-wrap gap-3">
         <Input
@@ -75,9 +105,18 @@ export function PattaniHandlingView({
           {error}
         </p>
       )}
-      {canWrite && (
+      {canWrite && !showForm && (
+        <Button
+          type="button"
+          className="gap-1 bg-haidee-blue text-white"
+          onClick={() => setShowForm(true)}
+        >
+          <Plus className="h-4 w-4" /> 登记 / 刷新当日
+        </Button>
+      )}
+      {canWrite && showForm && (
         <form
-          className="grid gap-2 rounded-lg border p-3 sm:grid-cols-4"
+          className="space-y-3 rounded-lg border p-4"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
@@ -85,9 +124,9 @@ export function PattaniHandlingView({
               try {
                 await savePattaniHandling({
                   date: form.date,
-                  crateQty: Number(form.crateQty),
-                  boxQty: Number(form.boxQty),
+                  notes: form.notes || null,
                 });
+                setShowForm(false);
                 router.refresh();
               } catch (err) {
                 setError(err instanceof Error ? err.message : "失败");
@@ -95,37 +134,56 @@ export function PattaniHandlingView({
             });
           }}
         >
-          <Input
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            placeholder="桶数"
-            value={form.crateQty}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, crateQty: e.target.value }))
-            }
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            placeholder="盒子"
-            value={form.boxQty}
-            onChange={(e) => setForm((f) => ({ ...f, boxQty: e.target.value }))}
-            required
-          />
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="gap-1 bg-haidee-blue text-white"
-          >
-            <Plus className="h-4 w-4" /> 保存
-          </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              日期
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, date: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              备注
+              <Input
+                value={form.notes}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
+            </label>
+          </div>
+          <div className="rounded-md bg-haidee-surface/60 px-3 py-2 text-sm">
+            <p className="font-medium text-haidee-text">
+              派车总数（只读，pickup=PATTANI）
+            </p>
+            {loadingDispatch ? (
+              <p className="text-haidee-muted">加载中…</p>
+            ) : (
+              <p className="font-mono">
+                桶 {dispatchTotals.crateQty} / 盒 {dispatchTotals.boxQty}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isPending || loadingDispatch}
+              className="bg-haidee-blue text-white"
+            >
+              保存
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(false)}
+            >
+              取消
+            </Button>
+          </div>
         </form>
       )}
       <Table>

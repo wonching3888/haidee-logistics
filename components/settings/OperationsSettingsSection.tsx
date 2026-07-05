@@ -423,10 +423,11 @@ export function OperationsSettingsSection({
       <div className="rounded-lg border border-haidee-border bg-white p-4">
         <div className="mb-3">
           <h4 className="text-sm font-semibold text-haidee-text">
-            泰国段车力设定 Thai Segment Freight
+            泰国段车力分拆费率 Thai Segment Freight（按桶/盒计，THB）
           </h4>
           <p className="text-xs text-haidee-muted">
-            内部成本分拆：按收货地点将总车力拆为泰国段与马来西亚段（THB 费率）。不影响客户账单。
+            用于入库行泰国段内部成本分摊与车辆盈亏表的收入侧计算。
+            与「泰国成本设置」里的司机趟次提成（按趟计）无关。
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

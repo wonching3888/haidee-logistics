@@ -153,7 +153,7 @@ export function PayrollSettingsSection({
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
         每趟津贴 = 该趟最高路线津贴 +（额外市场数 × 额外市场津贴）。例：KD +
-        A → A 路线津贴 + RM30。
+        A → A 路线津贴 + RM30。仅显示马来西亚派车路线；宋卡/北大年泰国路线请在「泰国成本设置」维护。
       </p>
 
       {error && (
