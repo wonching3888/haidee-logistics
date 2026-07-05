@@ -1,9 +1,12 @@
 import {
+  getVehicleTripPlForMonth,
   listThaiDrivers,
-  listThaiDriverTrips,
+  listThaiVehicleTrips,
   seedThaiDriversPhase2,
 } from "@/app/actions/thai-cost-phase2";
-import { DriverTripsView } from "@/components/thai-cost/DriverTripsView";
+import { DriverTripDailyView } from "@/components/thai-cost/DriverTripDailyView";
+import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
+import { VehiclePlTable } from "@/components/thai-cost/VehiclePlTable";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -29,21 +32,29 @@ export default async function DriverTripsPage({ searchParams }: PageProps) {
     if (drivers.length === 0 && canWrite) {
       drivers = await seedThaiDriversPhase2();
     }
-    const trips = await listThaiDriverTrips({ year, month });
+    const [trips, vehiclePl] = await Promise.all([
+      listThaiVehicleTrips({ year, month }),
+      getVehicleTripPlForMonth({ year, month }),
+    ]);
 
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">泰国司机趟次 Driver Trips</h2>
-        </div>
-        <DriverTripsView
+      <ThaiCostEntryShell
+        activeTab="driver-trips"
+        title="数据录入 · 司机趟次"
+        subtitle="泰国司机/车辆日常趟次录入（独立于 Dispatch）"
+      >
+        <DriverTripDailyView
           year={year}
           month={month}
           drivers={drivers}
           trips={trips}
           canWrite={canWrite}
         />
-      </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">当月车辆盈亏</h3>
+          <VehiclePlTable rows={vehiclePl} />
+        </div>
+      </ThaiCostEntryShell>
     );
   } catch (error) {
     return <PageError error={error} />;

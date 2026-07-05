@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  isSettingsExternalLink,
   isSettingsFreightSubgroup,
   parseSettingsSection,
   SETTINGS_SIDEBAR_GROUPS,
@@ -13,6 +14,7 @@ import {
   type SettingsFreightSubgroup,
   type SettingsSidebarGroupItem,
 } from "@/lib/constants/settings-nav";
+import { isPathActive } from "@/lib/constants/main-nav";
 
 interface SettingsSidebarMenuProps {
   onNavigate?: () => void;
@@ -112,10 +114,12 @@ function FreightRatesSubgroup({
 function SettingsMenuItem({
   item,
   settingsSection,
+  pathname,
   onNavigate,
 }: {
   item: SettingsSidebarGroupItem;
   settingsSection: string;
+  pathname: string | null;
   onNavigate?: () => void;
 }) {
   if (isSettingsFreightSubgroup(item)) {
@@ -125,6 +129,20 @@ function SettingsMenuItem({
         settingsSection={settingsSection}
         onNavigate={onNavigate}
       />
+    );
+  }
+
+  if (isSettingsExternalLink(item)) {
+    return (
+      <li>
+        <SettingsSubLink
+          href={item.externalHref}
+          label={item.label}
+          labelEn={item.labelEn}
+          isActive={isPathActive(pathname, item.externalHref)}
+          onNavigate={onNavigate}
+        />
+      </li>
     );
   }
 
@@ -142,6 +160,7 @@ function SettingsMenuItem({
 }
 
 export function SettingsSidebarMenu({ onNavigate }: SettingsSidebarMenuProps) {
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const settingsSection = parseSettingsSection(searchParams.get("section"));
 
@@ -156,10 +175,13 @@ export function SettingsSidebarMenu({ onNavigate }: SettingsSidebarMenuProps) {
                 key={
                   isSettingsFreightSubgroup(item)
                     ? item.labelEn
-                    : item.section
+                    : isSettingsExternalLink(item)
+                      ? item.externalHref
+                      : item.section
                 }
                 item={item}
                 settingsSection={settingsSection}
+                pathname={pathname}
                 onNavigate={onNavigate}
               />
             ))}

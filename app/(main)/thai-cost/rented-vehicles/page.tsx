@@ -1,5 +1,6 @@
 import { listThaiRentedVehicleTrips } from "@/app/actions/thai-cost-phase2";
 import { RentedVehiclesView } from "@/components/thai-cost/RentedVehiclesView";
+import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -24,20 +25,18 @@ export default async function RentedVehiclesPage({ searchParams }: PageProps) {
       getCurrentUser(),
     ]);
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">外部租车 Rented Vehicles</h2>
-          <p className="text-sm text-haidee-muted">
-            BANHENG / SHS / YIN 等外部租车按趟费用
-          </p>
-        </div>
+      <ThaiCostEntryShell
+        activeTab="rented"
+        title="数据录入 · 外部租车"
+        subtitle="BANHENG / SHS / YIN 等外部租车按趟费用"
+      >
         <RentedVehiclesView
           year={year}
           month={month}
           rows={rows}
           canWrite={current ? canWriteThaiCost(current.role) : false}
         />
-      </div>
+      </ThaiCostEntryShell>
     );
   } catch (error) {
     return <PageError error={error} />;

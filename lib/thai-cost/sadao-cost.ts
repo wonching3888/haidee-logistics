@@ -77,17 +77,17 @@ export function computeSadaoBillableCrates(
 
   if (smallNoCheck > smallTotal) {
     throw new SadaoHandlingValidationError(
-      `不过车小桶数(${smallNoCheck})不能超过小桶总数(${smallTotal}) small no-check qty cannot exceed small total`
+      `直达小桶数(${smallNoCheck})不能超过小桶总数(${smallTotal}) direct small qty cannot exceed small total`
     );
   }
   if (largeNoCheck > largeTotal) {
     throw new SadaoHandlingValidationError(
-      `不过车大桶数(${largeNoCheck})不能超过大桶总数(${largeTotal}) large no-check qty cannot exceed large total`
+      `直达大桶数(${largeNoCheck})不能超过大桶总数(${largeTotal}) direct large qty cannot exceed large total`
     );
   }
   if (boxNoCheck > boxTotal) {
     throw new SadaoHandlingValidationError(
-      `不过车盒子数(${boxNoCheck})不能超过盒子总数(${boxTotal}) box no-check qty cannot exceed box total`
+      `直达盒子数(${boxNoCheck})不能超过盒子总数(${boxTotal}) direct box qty cannot exceed box total`
     );
   }
 

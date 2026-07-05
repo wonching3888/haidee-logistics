@@ -101,18 +101,34 @@ export type SettingsSidebarLeaf = {
   labelEn: string;
 };
 
+/** Link to a route outside /settings?section= (e.g. Thai cost admin pages). */
+export type SettingsExternalLink = {
+  externalHref: string;
+  label: string;
+  labelEn: string;
+};
+
 export type SettingsFreightSubgroup = {
   label: string;
   labelEn: string;
   children: SettingsSidebarLeaf[];
 };
 
-export type SettingsSidebarGroupItem = SettingsSidebarLeaf | SettingsFreightSubgroup;
+export type SettingsSidebarGroupItem =
+  | SettingsSidebarLeaf
+  | SettingsFreightSubgroup
+  | SettingsExternalLink;
 
 export function isSettingsFreightSubgroup(
   item: SettingsSidebarGroupItem
 ): item is SettingsFreightSubgroup {
   return "children" in item;
+}
+
+export function isSettingsExternalLink(
+  item: SettingsSidebarGroupItem
+): item is SettingsExternalLink {
+  return "externalHref" in item;
 }
 
 export type SettingsSidebarGroup = {
@@ -198,6 +214,21 @@ export const SETTINGS_SIDEBAR_GROUPS: SettingsSidebarGroup[] = [
         section: "operations-settings",
         label: "营运设定",
         labelEn: "Operations Settings",
+      },
+      {
+        externalHref: "/thai-cost/workers",
+        label: "泰国月薪工人",
+        labelEn: "Thai Monthly Workers",
+      },
+      {
+        externalHref: "/thai-cost/settings",
+        label: "泰国成本费率",
+        labelEn: "Thai Cost Rates",
+      },
+      {
+        externalHref: "/thai-cost/holidays",
+        label: "泰国公众假期",
+        labelEn: "Thai Public Holidays",
       },
     ],
   },

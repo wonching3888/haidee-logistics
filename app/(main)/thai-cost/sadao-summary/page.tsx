@@ -1,5 +1,6 @@
 import { getSadaoMonthlyCostSummary } from "@/app/actions/thai-cost";
 import { SadaoMonthlySummaryView } from "@/components/thai-cost/SadaoMonthlySummaryView";
+import { ThaiCostSummaryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost } from "@/lib/auth-roles";
@@ -24,17 +25,13 @@ export default async function SadaoSummaryPage({ searchParams }: PageProps) {
     const summary = await getSadaoMonthlyCostSummary(year, month);
 
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            Sadao 月度汇总 Monthly Summary
-          </h2>
-          <p className="text-sm text-haidee-muted">
-            月薪 + 日薪出勤 + 搬运提成 = Sadao 当月真实总成本
-          </p>
-        </div>
+      <ThaiCostSummaryShell
+        activeTab="sadao"
+        title="月度汇总 · Sadao"
+        subtitle="月薪 + 日薪出勤 + 搬运提成 = 当月真实总成本"
+      >
         <SadaoMonthlySummaryView summary={summary} />
-      </div>
+      </ThaiCostSummaryShell>
     );
   } catch (error) {
     return (

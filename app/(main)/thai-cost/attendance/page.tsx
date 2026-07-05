@@ -3,6 +3,7 @@ import {
   listThaiDailyAttendance,
 } from "@/app/actions/thai-cost";
 import { DailyAttendanceView } from "@/components/thai-cost/DailyAttendanceView";
+import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -34,15 +35,11 @@ export default async function ThaiCostAttendancePage({
     const canWrite = current ? canWriteThaiCost(current.role) : false;
 
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            日薪出勤 Daily Attendance
-          </h2>
-          <p className="text-sm text-haidee-muted">
-            日薪外劳每日出勤人数 · 当天日薪单价 · 当月在册人数 LUNCH (THB)
-          </p>
-        </div>
+      <ThaiCostEntryShell
+        activeTab="attendance"
+        title="数据录入 · 日薪出勤"
+        subtitle="日薪外劳每日出勤人数 · 当天日薪单价 · 当月在册人数 LUNCH (THB)"
+      >
         <DailyAttendanceView
           year={year}
           month={month}
@@ -50,7 +47,7 @@ export default async function ThaiCostAttendancePage({
           roster={roster}
           canWrite={canWrite}
         />
-      </div>
+      </ThaiCostEntryShell>
     );
   } catch (error) {
     return (

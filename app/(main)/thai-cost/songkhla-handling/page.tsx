@@ -1,5 +1,6 @@
 import { listSongkhlaHandling } from "@/app/actions/thai-cost-phase2";
 import { SongkhlaHandlingView } from "@/components/thai-cost/SongkhlaHandlingView";
+import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -24,17 +25,14 @@ export default async function SongkhlaHandlingPage({ searchParams }: PageProps) 
       getCurrentUser(),
     ]);
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">宋卡搬运 Songkhla Handling</h2>
-        </div>
+      <ThaiCostEntryShell activeTab="songkhla" title="数据录入 · 宋卡搬运">
         <SongkhlaHandlingView
           year={year}
           month={month}
           rows={rows}
           canWrite={current ? canWriteThaiCost(current.role) : false}
         />
-      </div>
+      </ThaiCostEntryShell>
     );
   } catch (error) {
     return <PageError error={error} />;

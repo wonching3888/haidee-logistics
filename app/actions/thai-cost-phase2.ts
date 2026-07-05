@@ -23,6 +23,7 @@ import { getSongkhlaPnl, type SongkhlaPnlDetail } from "@/lib/thai-cost/songkhla
 import { getPattaniPnl, type PattaniPnlDetail } from "@/lib/thai-cost/pattani-pnl";
 import { revalidateThaiCost } from "@/app/actions/thai-cost";
 import { randomUUID } from "crypto";
+import { compareManualVsDispatchCrates } from "@/lib/thai-cost/dispatch-cross-check";
 
 async function requireRead() {
   const user = await getCurrentUser();
@@ -350,6 +351,253 @@ export async function deleteThaiDriverTrip(id: string) {
   await requireWrite();
   await prisma.thaiDriverTripDaily.delete({ where: { id } });
   revalidateThaiCost();
+}
+
+// ─── Vehicle trip daily (plate-level + driver aggregate sync) ───────────────
+
+export interface ThaiVehicleTripRow {
+  id: string;
+  date: string;
+  truckPlate: string;
+  driverId: string | null;
+  driverName: string | null;
+  rentedDriverName: string | null;
+  station: "SONGKHLA" | "PATTANI";
+  tongQty: number;
+  boxQty: number;
+  notes: string | null;
+}
+
+function parseRentedFromNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  const m = notes.match(/^RENTED:([^;]+)/);
+  return m ? m[1].trim() : null;
+}
+
+export async function listThaiVehicleTrips(input: {
+  year: number;
+  month: number;
+  station?: "SONGKHLA" | "PATTANI";
+}): Promise<ThaiVehicleTripRow[]> {
+  await requireRead();
+  const { start, end } = getMonthDateRange(input.year, input.month);
+  const rows = await prisma.thaiVehicleTripDaily.findMany({
+    where: {
+      date: { gte: start, lte: end },
+      ...(input.station ? { station: input.station } : {}),
+    },
+    include: { driver: { select: { name: true } } },
+    orderBy: [{ date: "asc" }, { station: "asc" }, { truckPlate: "asc" }],
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    date: toDateInputValue(r.date),
+    truckPlate: r.truckPlate,
+    driverId: r.driverId,
+    driverName: r.driver?.name ?? null,
+    rentedDriverName: parseRentedFromNotes(r.notes),
+    station: r.station as "SONGKHLA" | "PATTANI",
+    tongQty: r.tongQty,
+    boxQty: r.boxQty,
+    notes: r.notes,
+  }));
+}
+
+/** Upsert one vehicle trip row and sync thai_driver_trip_daily for formal drivers. */
+export async function saveThaiVehicleTripDaily(input: {
+  id?: string;
+  date: string;
+  truckPlate: string;
+  station: "SONGKHLA" | "PATTANI";
+  tongQty: number;
+  boxQty: number;
+  /** Formal driver id; omit when rentalDriverName is set. */
+  driverId?: string | null;
+  /** Rental driver name (free text); stored as RENTED:name in notes. */
+  rentalDriverName?: string | null;
+  notes?: string | null;
+}) {
+  const user = await requireWrite();
+  const plate = input.truckPlate.trim();
+  if (!plate) throw new Error("车牌不能为空");
+  if (input.station !== "SONGKHLA" && input.station !== "PATTANI") {
+    throw new Error("据点必须是宋卡或北大年");
+  }
+  if (
+    !Number.isInteger(input.tongQty) ||
+    input.tongQty < 0 ||
+    !Number.isInteger(input.boxQty) ||
+    input.boxQty < 0
+  ) {
+    throw new Error("桶数/盒数必须是非负整数");
+  }
+  if (input.tongQty === 0 && input.boxQty === 0) {
+    throw new Error("桶数与盒数不能同时为 0");
+  }
+
+  const rentalName = input.rentalDriverName?.trim() || null;
+  const driverId = rentalName ? null : input.driverId ?? null;
+  if (!rentalName && !driverId) {
+    throw new Error("请选择正式司机或填写租车司机姓名");
+  }
+  if (rentalName && driverId) {
+    throw new Error("正式司机与租车司机不能同时填写");
+  }
+
+  const date = parseDateInput(input.date);
+  const extraNotes = input.notes?.trim() || null;
+  const notes = rentalName
+    ? `RENTED:${rentalName}${extraNotes ? `;${extraNotes}` : ""}`
+    : extraNotes;
+
+  const data = {
+    date,
+    truckPlate: plate,
+    driverId,
+    station: input.station,
+    tongQty: input.tongQty,
+    boxQty: input.boxQty,
+    notes,
+    createdBy: user.id,
+  };
+
+  if (input.id) {
+    await prisma.thaiVehicleTripDaily.update({
+      where: { id: input.id },
+      data: {
+        date: data.date,
+        truckPlate: data.truckPlate,
+        driverId: data.driverId,
+        station: data.station,
+        tongQty: data.tongQty,
+        boxQty: data.boxQty,
+        notes: data.notes,
+      },
+    });
+  } else {
+    await prisma.thaiVehicleTripDaily.create({
+      data: { id: randomUUID(), ...data },
+    });
+  }
+
+  if (driverId) {
+    await syncDriverTripAggregateForDate(date, driverId, user.id);
+  }
+
+  revalidateThaiCost();
+}
+
+async function syncDriverTripAggregateForDate(
+  date: Date,
+  driverId: string,
+  createdBy: string
+) {
+  const vehicleRows = await prisma.thaiVehicleTripDaily.findMany({
+    where: { date, driverId },
+  });
+  let songkhla = 0;
+  let pattani = 0;
+  for (const v of vehicleRows) {
+    if (v.station === "SONGKHLA") songkhla += 1;
+    else if (v.station === "PATTANI") pattani += 1;
+  }
+
+  if (songkhla === 0 && pattani === 0) {
+    await prisma.thaiDriverTripDaily.deleteMany({
+      where: { date, driverId },
+    });
+    return;
+  }
+
+  await prisma.thaiDriverTripDaily.upsert({
+    where: { date_driverId: { date, driverId } },
+    create: {
+      id: randomUUID(),
+      date,
+      driverId,
+      songkhlaTripCount: songkhla,
+      pattaniTripCount: pattani,
+      createdBy,
+    },
+    update: {
+      songkhlaTripCount: songkhla,
+      pattaniTripCount: pattani,
+    },
+  });
+}
+
+export async function deleteThaiVehicleTripDaily(id: string) {
+  await requireWrite();
+  const row = await prisma.thaiVehicleTripDaily.findUnique({
+    where: { id },
+    select: { date: true, driverId: true, createdBy: true },
+  });
+  if (!row) return;
+  await prisma.thaiVehicleTripDaily.delete({ where: { id } });
+  if (row.driverId) {
+    await syncDriverTripAggregateForDate(
+      row.date,
+      row.driverId,
+      row.createdBy
+    );
+  }
+  revalidateThaiCost();
+}
+
+export async function getDispatchCrossCheck(input: {
+  year: number;
+  month: number;
+  station: "SONGKHLA" | "PATTANI";
+}) {
+  await requireRead();
+  const rates = await resolveThaiCostRatesForMonth(input.year, input.month);
+  return compareManualVsDispatchCrates({
+    year: input.year,
+    month: input.month,
+    station: input.station,
+    largeTongTypeCodes: rates.largeTongTypeCodes,
+  });
+}
+
+export async function getVehicleTripPlForMonth(input: {
+  year: number;
+  month: number;
+  station?: "SONGKHLA" | "PATTANI";
+}) {
+  await requireRead();
+  const { loadVehiclePlContext, computeVehicleTripPl } = await import(
+    "@/lib/thai-cost/vehicle-pl"
+  );
+  const { start, end } = getMonthDateRange(input.year, input.month);
+  const [rows, ctx] = await Promise.all([
+    prisma.thaiVehicleTripDaily.findMany({
+      where: {
+        date: { gte: start, lte: end },
+        ...(input.station ? { station: input.station } : {}),
+      },
+      include: { driver: { select: { name: true } } },
+      orderBy: [{ date: "asc" }, { truckPlate: "asc" }],
+    }),
+    loadVehiclePlContext(input.year, input.month),
+  ]);
+
+  return rows.map((v) => {
+    const rented = parseRentedFromNotes(v.notes);
+    return computeVehicleTripPl(
+      {
+        id: v.id,
+        date: toDateInputValue(v.date),
+        truckPlate: v.truckPlate,
+        driverName:
+          v.driver?.name ?? (rented ? `RENTED:${rented}` : null),
+        station: v.station as "SONGKHLA" | "PATTANI",
+        tongQty: v.tongQty,
+        boxQty: v.boxQty,
+        notes: v.notes,
+      },
+      ctx
+    );
+  });
 }
 
 // ─── Songkhla P&L ────────────────────────────────────────────────────────────

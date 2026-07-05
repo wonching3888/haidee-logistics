@@ -33,6 +33,9 @@ import {
   resolveThaiCostRatesForMonth,
   type ThaiCostRates,
 } from "@/lib/thai-cost/rate-settings";
+import { aggregateSadaoDispatchTotalsForDate } from "@/lib/thai-cost/dispatch-crate-aggregate";
+import { getSadaoVoucherForDate } from "@/lib/thai-cost/sadao-voucher";
+import { getDailyOverview } from "@/lib/thai-cost/daily-overview";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { randomUUID } from "crypto";
 
@@ -49,6 +52,10 @@ export async function revalidateThaiCost() {
   revalidatePath("/thai-cost/pattani-handling");
   revalidatePath("/thai-cost/pattani-summary");
   revalidatePath("/thai-cost/rented-vehicles");
+  revalidatePath("/thai-cost/data-entry");
+  revalidatePath("/thai-cost/monthly-summary");
+  revalidatePath("/thai-cost/daily-overview");
+  revalidatePath("/thai-cost/sadao-voucher");
 }
 
 async function requireThaiCostRead() {
@@ -503,12 +510,29 @@ export async function listSadaoHandling(input: {
   return rows.map((row) => toHandlingRow(row, holidayKeys, rates));
 }
 
-export async function saveSadaoHandling(input: {
-  id?: string;
-  date: string;
+/** Live dispatch totals for Sadao handling form (read-only display). */
+export async function getSadaoDispatchTotalsForDate(dateInput: string): Promise<{
   smallCrateTotalQty: number;
   largeCrateTotalQty: number;
   boxTotalQty: number;
+}> {
+  await requireThaiCostRead();
+  const date = parseDateInput(dateInput);
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
+  const totals = await aggregateSadaoDispatchTotalsForDate(date, rates);
+  return {
+    smallCrateTotalQty: totals.small,
+    largeCrateTotalQty: totals.large,
+    boxTotalQty: totals.box,
+  };
+}
+
+export async function saveSadaoHandling(input: {
+  id?: string;
+  date: string;
   smallCrateNoCheckQty: number;
   largeCrateNoCheckQty: number;
   boxNoCheckQty: number;
@@ -527,8 +551,18 @@ export async function saveSadaoHandling(input: {
     date.getUTCMonth() + 1
   );
 
+  const dispatchTotals = await aggregateSadaoDispatchTotalsForDate(date, rates);
+  const qtyInput = {
+    smallCrateTotalQty: dispatchTotals.small,
+    largeCrateTotalQty: dispatchTotals.large,
+    boxTotalQty: dispatchTotals.box,
+    smallCrateNoCheckQty: input.smallCrateNoCheckQty,
+    largeCrateNoCheckQty: input.largeCrateNoCheckQty,
+    boxNoCheckQty: input.boxNoCheckQty,
+  };
+
   try {
-    computeSadaoHandlingCommission(input, { holidayRate, rateConfig: rates });
+    computeSadaoHandlingCommission(qtyInput, { holidayRate, rateConfig: rates });
   } catch (e) {
     if (e instanceof SadaoHandlingValidationError) throw e;
     throw e;
@@ -537,9 +571,9 @@ export async function saveSadaoHandling(input: {
   const notes = input.notes?.trim() || null;
   const data = {
     date,
-    smallCrateTotalQty: input.smallCrateTotalQty,
-    largeCrateTotalQty: input.largeCrateTotalQty,
-    boxTotalQty: input.boxTotalQty,
+    smallCrateTotalQty: dispatchTotals.small,
+    largeCrateTotalQty: dispatchTotals.large,
+    boxTotalQty: dispatchTotals.box,
     smallCrateNoCheckQty: input.smallCrateNoCheckQty,
     largeCrateNoCheckQty: input.largeCrateNoCheckQty,
     boxNoCheckQty: input.boxNoCheckQty,
@@ -687,4 +721,14 @@ export async function getSadaoMonthlyCostSummary(
 ): Promise<SadaoMonthlyCostDetail> {
   await requireThaiCostRead();
   return getSadaoMonthlyCost(year, month);
+}
+
+export async function getSadaoVoucher(date: string) {
+  await requireThaiCostRead();
+  return getSadaoVoucherForDate(date);
+}
+
+export async function getThaiCostDailyOverview(date: string) {
+  await requireThaiCostRead();
+  return getDailyOverview(date);
 }

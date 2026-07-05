@@ -172,23 +172,29 @@ export const MAIN_NAV_THAI_COST_RENTED_VEHICLES: MainNavLink = {
   messageKey: "nav.thaiCostRentedVehicles",
 };
 
+export const MAIN_NAV_THAI_COST_DATA_ENTRY: MainNavLink = {
+  href: "/thai-cost/data-entry",
+  messageKey: "nav.thaiCostDataEntry",
+};
+
+export const MAIN_NAV_THAI_COST_MONTHLY_SUMMARY: MainNavLink = {
+  href: "/thai-cost/monthly-summary",
+  messageKey: "nav.thaiCostMonthlySummary",
+};
+
+export const MAIN_NAV_THAI_COST_DAILY_OVERVIEW: MainNavLink = {
+  href: "/thai-cost/daily-overview",
+  messageKey: "nav.thaiCostDailyOverview",
+};
+
 export const MAIN_NAV_THAI_COST: MainNavGroup = {
   id: "thai-cost",
   messageKey: "nav.thaiCost",
   icon: MapPin,
   children: [
-    MAIN_NAV_THAI_COST_WORKERS,
-    MAIN_NAV_THAI_COST_ATTENDANCE,
-    MAIN_NAV_THAI_COST_SADAO_HANDLING,
-    MAIN_NAV_THAI_COST_SADAO_SUMMARY,
-    MAIN_NAV_THAI_COST_SONGKHLA_HANDLING,
-    MAIN_NAV_THAI_COST_SONGKHLA_SUMMARY,
-    MAIN_NAV_THAI_COST_PATTANI_HANDLING,
-    MAIN_NAV_THAI_COST_PATTANI_SUMMARY,
-    MAIN_NAV_THAI_COST_DRIVER_TRIPS,
-    MAIN_NAV_THAI_COST_RENTED_VEHICLES,
-    MAIN_NAV_THAI_COST_HOLIDAYS,
-    MAIN_NAV_THAI_COST_SETTINGS,
+    MAIN_NAV_THAI_COST_DATA_ENTRY,
+    MAIN_NAV_THAI_COST_MONTHLY_SUMMARY,
+    MAIN_NAV_THAI_COST_DAILY_OVERVIEW,
   ],
 };
 
@@ -262,7 +268,12 @@ export const MAIN_NAV_SETTINGS: MainNavGroup = {
   id: "settings",
   messageKey: "nav.settings",
   icon: Settings,
-  children: [{ href: "/settings", messageKey: "nav.settings" }],
+  children: [
+    { href: "/settings", messageKey: "nav.settings" },
+    MAIN_NAV_THAI_COST_WORKERS,
+    MAIN_NAV_THAI_COST_SETTINGS,
+    MAIN_NAV_THAI_COST_HOLIDAYS,
+  ],
 };
 
 export function isPathActive(pathname: string | null, href: string) {

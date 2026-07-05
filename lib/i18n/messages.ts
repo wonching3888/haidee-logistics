@@ -276,6 +276,21 @@ export const MESSAGES = {
     en: "Rented Vehicles",
     th: "รถเช่าภายนอก",
   },
+  "nav.thaiCostDataEntry": {
+    zh: "数据录入",
+    en: "Data Entry",
+    th: "บันทึกข้อมูล",
+  },
+  "nav.thaiCostMonthlySummary": {
+    zh: "月度汇总",
+    en: "Monthly Summary",
+    th: "สรุปรายเดือน",
+  },
+  "nav.thaiCostDailyOverview": {
+    zh: "每日总览",
+    en: "Daily Overview",
+    th: "ภาพรวมรายวัน",
+  },
 
 
 

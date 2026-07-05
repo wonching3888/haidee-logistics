@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import {
   deleteSadaoHandling,
+  getSadaoDispatchTotalsForDate,
   getThaiHolidayRateInfo,
   saveSadaoHandling,
   type SadaoHandlingRow,
@@ -51,11 +53,15 @@ export function SadaoHandlingView({
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | undefined>();
   const [showForm, setShowForm] = useState(false);
+  const [showDirect, setShowDirect] = useState(false);
+  const [dispatchTotals, setDispatchTotals] = useState({
+    smallCrateTotalQty: 0,
+    largeCrateTotalQty: 0,
+    boxTotalQty: 0,
+  });
+  const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
-    smallCrateTotalQty: "",
-    largeCrateTotalQty: "",
-    boxTotalQty: "0",
     smallCrateNoCheckQty: "0",
     largeCrateNoCheckQty: "0",
     boxNoCheckQty: "0",
@@ -81,13 +87,36 @@ export function SadaoHandlingView({
     };
   }, [showForm, form.date]);
 
+  useEffect(() => {
+    if (!showForm || !form.date) return;
+    let cancelled = false;
+    setLoadingDispatch(true);
+    getSadaoDispatchTotalsForDate(form.date)
+      .then((totals) => {
+        if (!cancelled) setDispatchTotals(totals);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDispatchTotals({
+            smallCrateTotalQty: 0,
+            largeCrateTotalQty: 0,
+            boxTotalQty: 0,
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDispatch(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showForm, form.date]);
+
   function openCreate() {
     setEditId(undefined);
+    setShowDirect(false);
     setForm({
       date: `${year}-${String(month).padStart(2, "0")}-01`,
-      smallCrateTotalQty: "",
-      largeCrateTotalQty: "",
-      boxTotalQty: "0",
       smallCrateNoCheckQty: "0",
       largeCrateNoCheckQty: "0",
       boxNoCheckQty: "0",
@@ -99,11 +128,13 @@ export function SadaoHandlingView({
 
   function openEdit(row: SadaoHandlingRow) {
     setEditId(row.id);
+    const hasDirect =
+      row.smallCrateNoCheckQty > 0 ||
+      row.largeCrateNoCheckQty > 0 ||
+      row.boxNoCheckQty > 0;
+    setShowDirect(hasDirect);
     setForm({
       date: row.date,
-      smallCrateTotalQty: String(row.smallCrateTotalQty),
-      largeCrateTotalQty: String(row.largeCrateTotalQty),
-      boxTotalQty: String(row.boxTotalQty),
       smallCrateNoCheckQty: String(row.smallCrateNoCheckQty),
       largeCrateNoCheckQty: String(row.largeCrateNoCheckQty),
       boxNoCheckQty: String(row.boxNoCheckQty),
@@ -137,14 +168,26 @@ export function SadaoHandlingView({
   const largeTotal = rows.reduce((s, r) => s + r.largeCommissionThb, 0);
   const boxTotal = rows.reduce((s, r) => s + r.boxCommissionThb, 0);
 
+  const billablePreview = {
+    small:
+      dispatchTotals.smallCrateTotalQty -
+      (Number(form.smallCrateNoCheckQty) || 0),
+    large:
+      dispatchTotals.largeCrateTotalQty -
+      (Number(form.largeCrateNoCheckQty) || 0),
+    box:
+      dispatchTotals.boxTotalQty - (Number(form.boxNoCheckQty) || 0),
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        Sadao 每日搬运：计费数 = 总数 − 不过车数。平日费率小桶/盒子{" "}
+        Sadao 每日搬运：总数自动从派车数据汇总（全部 assigned，含宋卡/北大年/Sadao
+        提货点）。计费数 = 总数 − 直达数。平日费率小桶/盒子{" "}
         {SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB}、大桶{" "}
         {SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB}；假日（星期日/公众假期）小桶/盒子{" "}
         {SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB}、大桶{" "}
-        {SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB}。费率保存时自动套用，无需手动选档。
+        {SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB}。
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -188,16 +231,13 @@ export function SadaoHandlingView({
 
       {showForm && canWrite && (
         <form
-          className="grid gap-3 rounded-lg border border-haidee-border bg-haidee-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="space-y-3 rounded-lg border border-haidee-border bg-haidee-surface/50 p-4"
           onSubmit={(e) => {
             e.preventDefault();
             run(async () => {
               await saveSadaoHandling({
                 id: editId,
                 date: form.date,
-                smallCrateTotalQty: Number(form.smallCrateTotalQty),
-                largeCrateTotalQty: Number(form.largeCrateTotalQty),
-                boxTotalQty: Number(form.boxTotalQty),
                 smallCrateNoCheckQty: Number(form.smallCrateNoCheckQty),
                 largeCrateNoCheckQty: Number(form.largeCrateNoCheckQty),
                 boxNoCheckQty: Number(form.boxNoCheckQty),
@@ -206,118 +246,143 @@ export function SadaoHandlingView({
             });
           }}
         >
-          <label className="space-y-1 text-sm">
-            <span>日期 Date</span>
-            <Input
-              type="date"
-              value={form.date}
-              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-              required
-            />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="space-y-1 text-sm">
+              <span>日期 Date</span>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, date: e.target.value }))
+                }
+                required
+              />
+            </label>
+          </div>
+
           {holidayInfo?.isHolidayRate && (
-            <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2 lg:col-span-3">
+            <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
               今天是假日费率
               {holidayInfo.reason === "sunday" && "（星期日）"}
               {holidayInfo.reason === "public_holiday" &&
                 `（公众假期${holidayInfo.holidayName ? `：${holidayInfo.holidayName}` : ""}）`}
-              。将自动套用：小桶/盒子{" "}
-              {getSadaoHandlingRates(true).small}、大桶{" "}
+              。将自动套用：小桶/盒子 {getSadaoHandlingRates(true).small}、大桶{" "}
               {getSadaoHandlingRates(true).large} THB。
             </div>
           )}
           {holidayInfo && !holidayInfo.isHolidayRate && (
-            <div className="rounded-md bg-haidee-surface px-3 py-2 text-sm text-haidee-muted sm:col-span-2 lg:col-span-3">
+            <div className="rounded-md bg-haidee-surface px-3 py-2 text-sm text-haidee-muted">
               平日费率：小桶/盒子 {getSadaoHandlingRates(false).small}、大桶{" "}
               {getSadaoHandlingRates(false).large} THB。
             </div>
           )}
-          <label className="space-y-1 text-sm">
-            <span>小桶总数</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.smallCrateTotalQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, smallCrateTotalQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>大桶总数</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.largeCrateTotalQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, largeCrateTotalQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>盒子总数</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.boxTotalQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, boxTotalQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>不过车小桶</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.smallCrateNoCheckQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, smallCrateNoCheckQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>不过车大桶</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.largeCrateNoCheckQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, largeCrateNoCheckQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>不过车盒子</span>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={form.boxNoCheckQty}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, boxNoCheckQty: e.target.value }))
-              }
-              required
-            />
-          </label>
-          <label className="space-y-1 text-sm sm:col-span-2 lg:col-span-3">
-            <span>备注（如不过车原因）</span>
+
+          <div className="rounded-md border border-haidee-border bg-white p-3">
+            <p className="text-sm font-medium">派车自动总数（只读）</p>
+            {loadingDispatch ? (
+              <p className="mt-2 text-sm text-haidee-muted">加载派车数据…</p>
+            ) : (
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <div className="text-sm">
+                  <span className="text-haidee-muted">小桶 </span>
+                  <span className="font-mono font-medium">
+                    {dispatchTotals.smallCrateTotalQty}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-haidee-muted">大桶 </span>
+                  <span className="font-mono font-medium">
+                    {dispatchTotals.largeCrateTotalQty}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-haidee-muted">盒子 </span>
+                  <span className="font-mono font-medium">
+                    {dispatchTotals.boxTotalQty}
+                  </span>
+                </div>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-haidee-muted">
+              计费预览：小 {billablePreview.small} / 大 {billablePreview.large}{" "}
+              / 盒 {billablePreview.box}
+            </p>
+          </div>
+
+          <div className="rounded-md border border-dashed border-haidee-border">
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium hover:bg-haidee-surface/50"
+              onClick={() => setShowDirect((v) => !v)}
+            >
+              {showDirect ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              {showDirect ? "直达" : "+ 添加直达记录"}
+            </button>
+            {showDirect && (
+              <div className="grid gap-3 border-t border-haidee-border p-3 sm:grid-cols-3">
+                <label className="space-y-1 text-sm">
+                  <span>直达 · 小桶</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.smallCrateNoCheckQty}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        smallCrateNoCheckQty: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>直达 · 大桶</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.largeCrateNoCheckQty}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        largeCrateNoCheckQty: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>直达 · 盒子</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.boxNoCheckQty}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, boxNoCheckQty: e.target.value }))
+                    }
+                    required
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          <label className="block space-y-1 text-sm">
+            <span>备注</span>
             <Input
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="可选，如直达原因"
             />
           </label>
-          <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+
+          <div className="flex gap-2">
             <Button
               type="submit"
               disabled={isPending}
@@ -343,21 +408,18 @@ export function SadaoHandlingView({
             <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
               <TableHead>日期</TableHead>
               <TableHead>费率</TableHead>
-              <TableHead className="text-right">小桶 总/不过车/计费</TableHead>
-              <TableHead className="text-right">大桶 总/不过车/计费</TableHead>
-              <TableHead className="text-right">盒子 总/不过车/计费</TableHead>
+              <TableHead className="text-right">小桶 总/直达/计费</TableHead>
+              <TableHead className="text-right">大桶 总/直达/计费</TableHead>
+              <TableHead className="text-right">盒子 总/直达/计费</TableHead>
               <TableHead className="text-right">提成 (THB)</TableHead>
               <TableHead>备注</TableHead>
-              {canWrite && <TableHead className="text-right">操作</TableHead>}
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={canWrite ? 8 : 7}
-                  className="py-8 text-center text-haidee-muted"
-                >
+                <TableCell colSpan={8} className="py-8 text-center text-haidee-muted">
                   该月暂无搬运记录
                 </TableCell>
               </TableRow>
@@ -385,33 +447,44 @@ export function SadaoHandlingView({
                   <TableCell className="max-w-[12rem] truncate">
                     {r.notes ?? "—"}
                   </TableCell>
-                  {canWrite && (
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(r)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => {
-                          if (!confirm(`删除 ${formatDisplay(r.date)} 搬运？`))
-                            return;
-                          run(async () => {
-                            await deleteSadaoHandling(r.id);
-                          });
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-haidee-red" />
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/thai-cost/sadao-voucher?date=${r.date}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-haidee-surface"
+                      title="打印 Voucher"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Link>
+                    {canWrite && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(r)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => {
+                            if (
+                              !confirm(`删除 ${formatDisplay(r.date)} 搬运？`)
+                            )
+                              return;
+                            run(async () => {
+                              await deleteSadaoHandling(r.id);
+                            });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-haidee-red" />
+                        </Button>
+                      </>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -422,28 +495,28 @@ export function SadaoHandlingView({
                   <TableCell className="text-right font-mono">
                     {money(smallTotal)}
                   </TableCell>
-                  <TableCell colSpan={canWrite ? 2 : 1} />
+                  <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/30 text-sm">
                   <TableCell colSpan={5}>大桶提成小计</TableCell>
                   <TableCell className="text-right font-mono">
                     {money(largeTotal)}
                   </TableCell>
-                  <TableCell colSpan={canWrite ? 2 : 1} />
+                  <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/30 text-sm">
                   <TableCell colSpan={5}>盒子提成小计</TableCell>
                   <TableCell className="text-right font-mono">
                     {money(boxTotal)}
                   </TableCell>
-                  <TableCell colSpan={canWrite ? 2 : 1} />
+                  <TableCell colSpan={2} />
                 </TableRow>
                 <TableRow className="bg-haidee-surface/50 font-medium">
                   <TableCell colSpan={5}>当月提成合计</TableCell>
                   <TableCell className="text-right font-mono">
                     {money(monthTotal)}
                   </TableCell>
-                  <TableCell colSpan={canWrite ? 2 : 1} />
+                  <TableCell colSpan={2} />
                 </TableRow>
               </>
             )}

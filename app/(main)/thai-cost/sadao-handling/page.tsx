@@ -1,5 +1,6 @@
 import { listSadaoHandling } from "@/app/actions/thai-cost";
 import { SadaoHandlingView } from "@/components/thai-cost/SadaoHandlingView";
+import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -28,22 +29,18 @@ export default async function SadaoHandlingPage({ searchParams }: PageProps) {
     const canWrite = current ? canWriteThaiCost(current.role) : false;
 
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-haidee-text">
-            Sadao 搬运 Handling
-          </h2>
-          <p className="text-sm text-haidee-muted">
-            每日小桶/大桶总数与不过车桶数 · 提成按固定费率计算
-          </p>
-        </div>
+      <ThaiCostEntryShell
+        activeTab="sadao"
+        title="数据录入 · Sadao 搬运"
+        subtitle="总数自动从派车汇总；仅录入直达数量"
+      >
         <SadaoHandlingView
           year={year}
           month={month}
           rows={rows}
           canWrite={canWrite}
         />
-      </div>
+      </ThaiCostEntryShell>
     );
   } catch (error) {
     return (

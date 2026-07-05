@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { PnlIncompleteWarning } from "@/components/thai-cost/PnlIncompleteWarning";
+import { DispatchCrossCheckBanner } from "@/components/thai-cost/DispatchCrossCheckBanner";
+import type { DispatchCrossCheckResult } from "@/lib/thai-cost/dispatch-cross-check";
 import type { PattaniPnlDetail } from "@/lib/thai-cost/pattani-pnl";
 import { Input } from "@/components/ui/input";
 
@@ -12,7 +14,13 @@ function money(n: number) {
   });
 }
 
-export function PattaniSummaryView({ pnl }: { pnl: PattaniPnlDetail }) {
+export function PattaniSummaryView({
+  pnl,
+  crossCheck,
+}: {
+  pnl: PattaniPnlDetail;
+  crossCheck?: DispatchCrossCheckResult | null;
+}) {
   const router = useRouter();
   const r = pnl.real;
 
@@ -53,6 +61,8 @@ export function PattaniSummaryView({ pnl }: { pnl: PattaniPnlDetail }) {
           />
         </label>
       </div>
+
+      <DispatchCrossCheckBanner result={crossCheck ?? null} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border p-4">

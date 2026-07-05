@@ -1,8 +1,10 @@
 import {
   getPattaniPnlSummary,
+  getDispatchCrossCheck,
   seedPattaniSakriWorker,
 } from "@/app/actions/thai-cost-phase2";
 import { PattaniSummaryView } from "@/components/thai-cost/PattaniSummaryView";
+import { ThaiCostSummaryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
 import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
@@ -26,17 +28,18 @@ export default async function PattaniSummaryPage({ searchParams }: PageProps) {
     if (current && canWriteThaiCost(current.role)) {
       await seedPattaniSakriWorker();
     }
-    const pnl = await getPattaniPnlSummary(year, month);
+    const [pnl, crossCheck] = await Promise.all([
+      getPattaniPnlSummary(year, month),
+      getDispatchCrossCheck({ year, month, station: "PATTANI" }),
+    ]);
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">北大年月度汇总 Pattani P&L</h2>
-          <p className="text-sm text-haidee-muted">
-            SAKRI 月薪/提成 · 外包 · 司机 · 内部成本对冲
-          </p>
-        </div>
-        <PattaniSummaryView pnl={pnl} />
-      </div>
+      <ThaiCostSummaryShell
+        activeTab="pattani"
+        title="月度汇总 · 北大年"
+        subtitle="SAKRI 月薪/提成 · 外包 · 司机 · 内部成本对冲"
+      >
+        <PattaniSummaryView pnl={pnl} crossCheck={crossCheck} />
+      </ThaiCostSummaryShell>
     );
   } catch (error) {
     return <PageError error={error} />;
