@@ -190,6 +190,7 @@ interface SettingsClientProps {
     name: string;
     fullName: string | null;
     active: boolean;
+    terminationDate: string | null;
     baseSalary: number | null;
     autoCountEmployeeCode: string | null;
     icNumber: string | null;
