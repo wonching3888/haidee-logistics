@@ -146,6 +146,15 @@ describe("buildCrateExportDueToday", () => {
         expect(prefill.members[0].label).toBe("KWAN");
         expect(prefill.members[0].due).toEqual({ ABB: 20 });
       }
+      const memberPrefill = result.items[0].group.members[0].prefill;
+      expect(isAgentCrateExportPrefill(memberPrefill)).toBe(true);
+      if (isAgentCrateExportPrefill(memberPrefill)) {
+        expect(memberPrefill.mode).toBe("agent");
+        expect(memberPrefill.shipperId).toBe("agent-421");
+        expect(memberPrefill.shipperCode).toBe("AGENT-421");
+        expect(memberPrefill.areaNote).toBe("KWAN");
+        expect(memberPrefill.owedByCode).toEqual({ ABB: 20 });
+      }
     }
   });
 
