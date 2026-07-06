@@ -101,13 +101,13 @@ export function HistoryView({ records, filterDate, activeTab }: HistoryViewProps
         )}
       </div>
 
-      <ScrollMatrixTable heightOffset={300}>
+      <ScrollMatrixTable heightOffset={380} className="rounded-xl">
         {records.length === 0 ? (
           <p className="p-8 text-center text-haidee-muted">
             暂无修改记录 No modification records
           </p>
         ) : (
-          <Table noScrollContainer className={stickyFirstColTableClass}>
+          <Table noScrollContainer className={`min-w-[1400px] ${stickyFirstColTableClass}`}>
             <TableHeader>
               <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
                 {activeTab === "all" && <TableHead>类型 Type</TableHead>}
