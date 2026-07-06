@@ -10,7 +10,7 @@ export interface ReceiptLine {
 }
 
 export interface ReceiptData {
-  kind?: "standard" | "agent";
+  kind?: "standard" | "agent" | "pool";
   exportNo: string;
   date: string;
   shipperName: string;
@@ -161,6 +161,68 @@ function AgentExportReceipt({ data }: TongExportReceiptProps) {
   );
 }
 
+function PoolExportReceipt({ data }: TongExportReceiptProps) {
+  const totalActual = data.lines.reduce((s, l) => s + l.quantityActual, 0);
+  const shipperDisplay = receiptEnglishText(data.shipperName);
+
+  return (
+    <div className="tong-receipt">
+      <ReceiptHeader />
+
+      <div className="receipt-title">ใบรับคืนลังเปล่า Empty Crate Receipt</div>
+
+      <div className="receipt-meta">
+        <div>
+          นาม: <strong>{shipperDisplay}</strong> ({data.thVehiclePlate})
+        </div>
+        <div>
+          วันที่ Date: <strong>{data.date}</strong>
+        </div>
+        <div>
+          No: <strong>{data.exportNo}</strong>
+        </div>
+      </div>
+
+      <table className="receipt-table">
+        <thead>
+          <tr>
+            <th>จำนวน Qty</th>
+            <th>桶型 Crate</th>
+            <th>จำนวนเงิน Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.lines.map((line, i) => (
+            <tr key={line.tongCode ?? i}>
+              <td className="text-center">{line.quantityActual}</td>
+              <td className="font-mono">
+                {line.tongCode ?? receiptEnglishText(line.tongName)}
+              </td>
+              <td className="text-center">-</td>
+            </tr>
+          ))}
+          {data.lines.length === 0 && (
+            <tr>
+              <td colSpan={3} className="text-center">
+                —
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      <div className="receipt-total">
+        รวมเงิน Total: - &nbsp;&nbsp; {totalActual} ลัง
+      </div>
+
+      <div className="receipt-signatures">
+        <div>ผู้รับ Receiver _______________</div>
+        <div>ผู้ส่ง Sender _______________</div>
+      </div>
+    </div>
+  );
+}
+
 function StandardExportReceipt({ data }: TongExportReceiptProps) {
   const totalActual = data.lines.reduce((s, l) => s + l.quantityActual, 0);
   const shipperDisplay = receiptEnglishText(data.shipperName);
@@ -230,6 +292,9 @@ function StandardExportReceipt({ data }: TongExportReceiptProps) {
 export function TongExportReceipt({ data }: TongExportReceiptProps) {
   if (data.kind === "agent") {
     return <AgentExportReceipt data={data} />;
+  }
+  if (data.kind === "pool") {
+    return <PoolExportReceipt data={data} />;
   }
   return <StandardExportReceipt data={data} />;
 }

@@ -813,9 +813,55 @@ export async function getCrateExportReceiptData(
   if (rows.length === 0) return null;
 
   const first = rows[0];
+  const isPoolReceipt = isLocationPoolShipperCode(first.shipper.code);
   const isAgentReceipt =
-    isCrateStockAgentShipper(first.shipper) ||
-    isLocationPoolShipperCode(first.shipper.code);
+    isCrateStockAgentShipper(first.shipper) && !isPoolReceipt;
+
+  if (isPoolReceipt) {
+    const linesByCode = new Map<
+      string,
+      {
+        tongName: string;
+        tongCode: string;
+        quantityActual: number;
+        displayOrder: number;
+      }
+    >();
+    for (const row of rows) {
+      if (row.quantityActual <= 0) continue;
+      const code = row.tongType.code;
+      const existing = linesByCode.get(code);
+      if (existing) {
+        existing.quantityActual += row.quantityActual;
+      } else {
+        linesByCode.set(code, {
+          tongName: row.tongType.name,
+          tongCode: code,
+          quantityActual: row.quantityActual,
+          displayOrder: row.tongType.displayOrder,
+        });
+      }
+    }
+
+    const lines = [...linesByCode.values()]
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((line) => ({
+        tongName: line.tongName,
+        tongCode: line.tongCode,
+        quantity: line.quantityActual,
+        quantityActual: line.quantityActual,
+        shortage: 0,
+      }));
+
+    return {
+      kind: "pool",
+      exportNo: trimmed,
+      date: formatDisplayDate(first.date),
+      shipperName: first.shipper.name,
+      thVehiclePlate: first.thVehiclePlate,
+      lines,
+    };
+  }
 
   if (isAgentReceipt) {
     const actualTotalsByCode: Record<string, number> = {};
