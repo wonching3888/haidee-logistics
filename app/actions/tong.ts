@@ -46,6 +46,7 @@ import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shipper
 import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
 import { requireSadaoGateStockAdmin } from "@/lib/sadao-gate-stock-permissions";
 import { requireWrite } from "@/lib/require-auth";
+import { loadLocationPoolMemberShipperIds } from "@/lib/location-pool-export-guard";
 
 export type ImportRowInput = CrateImportRowInput;
 
@@ -144,16 +145,18 @@ export async function ensureLocationPoolShippers() {
 }
 
 export async function getShippersForExport() {
-  const [poolShippers, shippers] = await Promise.all([
+  const [poolShippers, shippers, locationPoolMemberIds] = await Promise.all([
     listLocationPoolShippers(),
     prisma.shipper.findMany({
       where: OPERATIONAL_SHIPPER_WHERE,
       orderBy: { name: "asc" },
       select: { id: true, code: true, name: true },
     }),
+    loadLocationPoolMemberShipperIds(),
   ]);
 
-  return [...poolShippers, ...shippers];
+  const operational = shippers.filter((s) => !locationPoolMemberIds.has(s.id));
+  return [...poolShippers, ...operational];
 }
 
 export async function getThVehiclesForShipper(shipperId: string) {

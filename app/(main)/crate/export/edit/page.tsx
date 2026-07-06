@@ -35,6 +35,14 @@ export default async function CrateExportEditPage({
 
     if (!initialData) notFound();
 
+    const extraShipper = shippers.some((s) => s.id === initialData.shipperId)
+      ? null
+      : {
+          id: initialData.shipperId,
+          code: initialData.shipperCode,
+          name: initialData.shipperName,
+        };
+
     const returnHref = `/crate/export?date=${encodeURIComponent(initialData.date)}`;
 
     return (
@@ -64,6 +72,7 @@ export default async function CrateExportEditPage({
           initialData={initialData}
           shippers={shippers}
           tongTypes={tongTypes}
+          extraShipper={extraShipper}
         />
       </div>
     );

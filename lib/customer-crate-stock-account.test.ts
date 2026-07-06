@@ -20,6 +20,7 @@ function accountFor(input: {
   shipperPickup?: string | null;
   areaNote?: string | null;
   agentMembershipByMemberId?: Record<string, string>;
+  agentShipperCodeById?: Record<string, string>;
 }) {
   return resolveCustomerCrateStockAccount({
     operationalShipperId: input.operationalShipperId ?? OPERATIONAL_ID,
@@ -34,6 +35,7 @@ function accountFor(input: {
     areaNote: input.areaNote ?? null,
     poolIds: input.sessionDate ? POOL_IDS : undefined,
     agentMembershipByMemberId: input.agentMembershipByMemberId,
+    agentShipperCodeById: input.agentShipperCodeById,
   });
 }
 
@@ -189,6 +191,20 @@ describe("resolveCustomerCrateStockAccount", () => {
     ).toEqual({
       shipperId: POOL_IDS.SONGKHLA,
       location: "SONGKHLA",
+    });
+  });
+
+  it("location pool member export redirect uses pool pickup location", () => {
+    expect(
+      resolveCustomerCrateStockAccount({
+        operationalShipperId: OPERATIONAL_ID,
+        location: "",
+        agentMembershipByMemberId: { [OPERATIONAL_ID]: POOL_IDS.PATTANI },
+        agentShipperCodeById: { [POOL_IDS.PATTANI]: "LOC-PATTANI" },
+      })
+    ).toEqual({
+      shipperId: POOL_IDS.PATTANI,
+      location: "PATTANI",
     });
   });
 

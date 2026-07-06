@@ -176,6 +176,16 @@ describe("buildCrateExportDueToday", () => {
         expect(prefill.shipperId).toBe("pool-sk");
         expect(prefill.owedByCode).toEqual({ ABB: 15 });
       }
+      const memberPrefill = poolItem.group.members[0].prefill;
+      expect(isAgentCrateExportPrefill(memberPrefill)).toBe(true);
+      if (isAgentCrateExportPrefill(memberPrefill)) {
+        expect(memberPrefill.mode).toBe("pool");
+        expect(memberPrefill.shipperId).toBe("pool-sk");
+        expect(memberPrefill.shipperCode).toBe("LOC-SONGKHLA");
+        expect(memberPrefill.areaNote).toBe("SK Member");
+        expect(memberPrefill.location).toBe("SONGKHLA");
+        expect(memberPrefill.owedByCode).toEqual({ ABB: 15 });
+      }
     }
   });
 

@@ -37,8 +37,12 @@ import {
   type CrateExportListRow,
 } from "@/lib/crate-export-list";
 import { loadCrateExportMismatchWhitelistShipperIds } from "@/lib/crate-export-mismatch-whitelist-service";
-import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
+import {
+  loadCrateStockAgentCodeByShipperId,
+  loadCrateStockAgentMembershipByMemberId,
+} from "@/lib/crate-stock-agent-membership-service";
 import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
+import { assertCrateExportShipperAllowed } from "@/lib/location-pool-export-guard";
 import { assertOriginInCustomerList } from "@/lib/multi-origin-customer";
 import { buildCustomerCrateStockLedgerNotes } from "@/lib/customer-crate-stock-ledger-notes";
 import { t } from "@/lib/i18n/translate";
@@ -71,6 +75,7 @@ export interface CrateExportEditData {
   exportNo: string;
   date: string;
   shipperId: string;
+  shipperCode: string;
   shipperName: string;
   thVehiclePlate: string;
   areaNote: string;
@@ -440,6 +445,11 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
 
   if (!shipper) throw new Error(t("error.shipperNotFound", locale));
 
+  const isEdit = Boolean(input.forceExportNo?.trim());
+  if (!isEdit) {
+    await assertCrateExportShipperAllowed(input.shipperId, locale);
+  }
+
   const poolStockLocation = stockLocationForPoolShipperCode(shipper.code);
   let customerStockLocation: string;
   if (poolStockLocation) {
@@ -467,7 +477,6 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     quantityActual: number;
     shortage: number;
   }[] = [];
-  const isEdit = Boolean(input.forceExportNo?.trim());
 
   for (const line of activeLines) {
     const tongType = tongTypeMap.get(line.tongTypeId);
@@ -555,14 +564,19 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   });
 
   if (crateAdditions.length > 0) {
-    const agentMembershipByMemberId =
-      await loadCrateStockAgentMembershipByMemberId();
+    const [agentMembershipByMemberId, agentShipperCodeById] = await Promise.all([
+      loadCrateStockAgentMembershipByMemberId(),
+      loadCrateStockAgentCodeByShipperId(),
+    ]);
     const stockAccount = resolveCustomerCrateStockAccount({
       operationalShipperId: input.shipperId,
       location: customerStockLocation,
       isMultiOriginCustomer: shipper.isMultiOriginCustomer,
       agentMembershipByMemberId,
+      agentShipperCodeById,
     });
+    const stockLocation =
+      poolStockLocation ?? stockAccount.location;
     const ledgerNotes = buildCustomerCrateStockLedgerNotes({
       baseNote: exportNo ? `归还 ${exportNo}` : undefined,
       operationalShipperId: input.shipperId,
@@ -574,7 +588,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
       stockAccount.shipperId,
       crateAdditions,
       "export",
-      stockAccount.location,
+      stockLocation,
       ledgerNotes
     );
   }
@@ -625,11 +639,13 @@ async function resolveCrateExportStockAccount(
 
   const agentMembershipByMemberId =
     await loadCrateStockAgentMembershipByMemberId();
+  const agentShipperCodeById = await loadCrateStockAgentCodeByShipperId();
   return resolveCustomerCrateStockAccount({
     operationalShipperId,
     location,
     isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
     agentMembershipByMemberId,
+    agentShipperCodeById,
   });
 }
 
@@ -733,7 +749,7 @@ export async function getCrateExportForEdit(
   const rows = await prisma.tongExport.findMany({
     where: { exportNo: trimmed },
     include: {
-      shipper: { select: { id: true, name: true } },
+      shipper: { select: { id: true, code: true, name: true } },
       tongType: { select: { displayOrder: true } },
     },
     orderBy: { tongType: { displayOrder: "asc" } },
@@ -748,6 +764,7 @@ export async function getCrateExportForEdit(
     exportNo: trimmed,
     date: toDateInputValue(first.date),
     shipperId: first.shipperId,
+    shipperCode: first.shipper.code,
     shipperName: first.shipper.name,
     thVehiclePlate: first.thVehiclePlate,
     areaNote: first.areaNote ?? "",

@@ -1,6 +1,7 @@
 import {
   resolveSessionPickupLocation,
 } from "@/lib/constants/pickup-locations";
+import { stockLocationForPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import type { LocationPoolShipperIds } from "@/lib/location-pool-shippers-service";
 import {
   INBOUND_OFFICE_POOL_CUTOFF_DATE,
@@ -33,6 +34,10 @@ export interface ResolveCustomerCrateStockAccountInput {
   agentMembershipByMemberId?:
     | ReadonlyMap<string, string>
     | Record<string, string>;
+  /** agentShipperId → shipper code (for SK/PTN pool location on export redirect). */
+  agentShipperCodeById?:
+    | ReadonlyMap<string, string>
+    | Record<string, string>;
   /** Parent-billing sub-customer crate route (overrides membership / office pool). */
   subChannel?: SubCustomerChannelRecord | null;
 }
@@ -52,6 +57,17 @@ function lookupAgentShipperId(
     return membership.get(memberShipperId);
   }
   return (membership as Record<string, string>)[memberShipperId];
+}
+
+function lookupAgentShipperCode(
+  agentShipperId: string,
+  codes?: ReadonlyMap<string, string> | Record<string, string>
+): string | undefined {
+  if (!codes) return undefined;
+  if (codes instanceof Map) {
+    return codes.get(agentShipperId);
+  }
+  return (codes as Record<string, string>)[agentShipperId];
 }
 
 function resolveStockLocation(input: ResolveCustomerCrateStockAccountInput): string {
@@ -152,8 +168,22 @@ export function resolveCustomerCrateStockAccount(
     input.agentMembershipByMemberId
   );
 
+  if (agentShipperId) {
+    const agentCode = lookupAgentShipperCode(
+      agentShipperId,
+      input.agentShipperCodeById
+    );
+    const poolLocation = agentCode
+      ? stockLocationForPoolShipperCode(agentCode)
+      : null;
+    if (poolLocation) {
+      return { shipperId: agentShipperId, location: poolLocation };
+    }
+    return { shipperId: agentShipperId, location };
+  }
+
   return {
-    shipperId: agentShipperId ?? input.operationalShipperId,
+    shipperId: input.operationalShipperId,
     location,
   };
 }

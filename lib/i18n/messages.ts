@@ -1903,6 +1903,11 @@ export const MESSAGES = {
     en: "Export not found",
     th: "ไม่พบใบคืนลัง",
   },
+  "crateExport.error.locationPoolMemberBlocked": {
+    zh: "宋卡/北大年池成员不能单独开归还单，请选择池主体（LOC-SONGKHLA / LOC-PATTANI）",
+    en: "Songkhla/Pattani pool members cannot open returns alone — select the pool shipper (LOC-SONGKHLA / LOC-PATTANI)",
+    th: "สมาชิกพูลสงขลา/ปัตตานีต้องเลือกพูลหลัก (LOC-SONGKHLA / LOC-PATTANI) ไม่ใช่ลูกค้าราย",
+  },
   "crateImport.pageSubtitle": {
     zh: "马来西亚车回程空桶回收录入",
     en: "MY truck return crate collection",

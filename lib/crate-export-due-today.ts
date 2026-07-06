@@ -294,6 +294,62 @@ function makeAgentPrefill(input: {
   };
 }
 
+/** Pool member row: shipper = pool entity; member name in areaNote; owed = member slice. */
+function makePoolMemberExportPrefill(input: {
+  date: string;
+  poolShipperId: string;
+  agent: { id: string; code: string; name: string; pickup: "SONGKHLA" | "PATTANI" };
+  member: {
+    memberId: string;
+    memberCode: string;
+    memberName: string;
+    due: QtyMap;
+    areaNote: string;
+  };
+  returned: QtyMap;
+}): CrateExportPrefillTarget {
+  const owed = subtractQty(input.member.due, input.returned);
+  const areaNote = [input.member.memberName, input.member.areaNote.trim()]
+    .filter(Boolean)
+    .join(" — ");
+  return makeAgentPrefill({
+    date: input.date,
+    mode: "pool",
+    shipper: {
+      id: input.poolShipperId,
+      code: input.agent.code,
+      name: input.agent.name,
+    },
+    agentId: input.agent.id,
+    location: input.agent.pickup,
+    areaNote,
+    owed: qtyMapToRecord(owed),
+    members: [
+      {
+        key: `pool-member-prefill:${input.member.memberId}`,
+        label: input.member.memberName,
+        due: qtyMapToRecord(input.member.due),
+        returned: qtyMapToRecord(input.returned),
+        owed: qtyMapToRecord(owed),
+        totalDue: totalOf(input.member.due),
+        totalReturned: totalOf(input.returned),
+        totalOwed: totalOf(owed),
+        prefill: makePrefill(
+          input.date,
+          {
+            id: input.poolShipperId,
+            code: input.agent.code,
+            name: input.agent.name,
+          },
+          input.agent.pickup,
+          areaNote,
+          "pool"
+        ),
+      },
+    ],
+  });
+}
+
 function buildRow(
   key: string,
   label: string,
@@ -610,12 +666,24 @@ export function buildCrateExportDueToday(
           m.memberName,
           m.due,
           returned,
-          makePrefill(
+          makePoolMemberExportPrefill({
             date,
-            { id: m.memberId, code: m.memberCode, name: m.memberName },
-            m.location,
-            m.areaNote
-          )
+            poolShipperId,
+            agent: {
+              id: agentId,
+              code: agent.code,
+              name: agent.name,
+              pickup: agent.pickup,
+            },
+            member: {
+              memberId: m.memberId,
+              memberCode: m.memberCode,
+              memberName: m.memberName,
+              due: m.due,
+              areaNote: m.areaNote,
+            },
+            returned,
+          })
         );
         if (row) memberRows.push(row);
       }

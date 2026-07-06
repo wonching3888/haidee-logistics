@@ -129,6 +129,8 @@ export function TongExportForm({
 
   useEffect(() => {
     if (!agentPrefill?.agentId || isEdit) return;
+    // Member row under a location pool: keep member slice + areaNote (do not replace with pool aggregate).
+    if (agentPrefill.mode === "pool" && agentPrefill.areaNote.trim()) return;
     let cancelled = false;
     void getAgentCrateReturnPrefill(agentPrefill.agentId, date).then((next) => {
       if (cancelled || !next || !isAgentCrateExportPrefill(next)) return;
@@ -138,7 +140,7 @@ export function TongExportForm({
     return () => {
       cancelled = true;
     };
-  }, [date, agentPrefill?.agentId, isEdit]);
+  }, [date, agentPrefill?.agentId, agentPrefill?.areaNote, agentPrefill?.mode, isEdit]);
 
   useEffect(() => {
     if (!shipperId) {
