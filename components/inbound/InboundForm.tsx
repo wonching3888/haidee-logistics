@@ -620,7 +620,7 @@ export function InboundForm({
           <Input
             value={areaNote}
             onChange={(e) => setAreaNote(e.target.value)}
-            placeholder="如 PTN, RN, SK..."
+            placeholder={t("inbound.areaNotePlaceholder")}
             className="min-h-[44px]"
           />
         </div>

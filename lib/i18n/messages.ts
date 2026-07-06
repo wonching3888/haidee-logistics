@@ -1064,9 +1064,14 @@ export const MESSAGES = {
     th: "จุดรับสินค้าเที่ยวนี้",
   },
   "inbound.areaNote": {
-    zh: "地区/备注",
-    en: "Area/Note",
-    th: "เขต/หมายเหตุ",
+    zh: "备注",
+    en: "Note",
+    th: "หมายเหตุ",
+  },
+  "inbound.areaNotePlaceholder": {
+    zh: "内部备注，不影响库存分账",
+    en: "Internal note; does not affect stock buckets",
+    th: "หมายเหตุภายใน ไม่กระทบการแยกสต็อก",
   },
   "inbound.thPlateField": {
     zh: "泰国车牌",
