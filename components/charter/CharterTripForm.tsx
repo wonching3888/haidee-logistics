@@ -223,7 +223,7 @@ export function CharterTripForm({
     requiresCustomerOriginSelection(isMultiOriginCustomer, effectivePickup);
   const originRequiredOnSave = charterCustomerOriginRequiredOnSave(
     showOriginDropdown,
-    mode,
+    mode === "new" ? "create" : "edit",
     initial?.customerOriginLocation
   );
   const originOptionalLegacy =
