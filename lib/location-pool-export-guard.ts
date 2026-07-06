@@ -1,26 +1,22 @@
 import { prisma } from "@/lib/prisma";
-import {
-  LOCATION_POOL_SHIPPER_CODES,
-  isLocationPoolShipperCode,
-} from "@/lib/constants/location-pool-shippers";
+import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shippers";
+import { SHIPPER_KIND } from "@/lib/constants/shipper-kind";
 import { t } from "@/lib/i18n/translate";
 import type { UserLanguage } from "@/types";
 
-const LOCATION_POOL_AGENT_CODES = [
-  LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
-  LOCATION_POOL_SHIPPER_CODES.PATTANI,
-] as const;
-
-/** Active members of LOC-SONGKHLA / LOC-PATTANI (location pools only). */
-export async function loadLocationPoolMemberShipperIds(): Promise<Set<string>> {
-  const poolAgents = await prisma.shipper.findMany({
-    where: { code: { in: [...LOCATION_POOL_AGENT_CODES] } },
+/** Active members of any active crate_stock_agent (location pools + named agents). */
+export async function loadCrateStockAgentMemberShipperIds(): Promise<Set<string>> {
+  const agents = await prisma.shipper.findMany({
+    where: {
+      active: true,
+      shipperKind: SHIPPER_KIND.CRATE_STOCK_AGENT,
+    },
     select: { id: true },
   });
-  if (poolAgents.length === 0) return new Set();
+  if (agents.length === 0) return new Set();
 
   const members = await prisma.crateStockAgentMember.findMany({
-    where: { agentShipperId: { in: poolAgents.map((row) => row.id) } },
+    where: { agentShipperId: { in: agents.map((row) => row.id) } },
     select: { memberShipperId: true },
   });
 
@@ -31,13 +27,13 @@ export function isLocationPoolAgentCode(code: string): boolean {
   return isLocationPoolShipperCode(code);
 }
 
-/** Blocks new exports where the operational shipper is a SK/PTN pool member. */
+/** Blocks new exports where the operational shipper is an active agent member. */
 export async function assertCrateExportShipperAllowed(
   shipperId: string,
   locale: UserLanguage = "zh"
 ): Promise<void> {
-  const memberIds = await loadLocationPoolMemberShipperIds();
+  const memberIds = await loadCrateStockAgentMemberShipperIds();
   if (memberIds.has(shipperId)) {
-    throw new Error(t("crateExport.error.locationPoolMemberBlocked", locale));
+    throw new Error(t("crateExport.error.agentMemberBlocked", locale));
   }
 }

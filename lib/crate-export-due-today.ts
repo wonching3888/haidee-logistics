@@ -350,6 +350,72 @@ function makePoolMemberExportPrefill(input: {
   });
 }
 
+/** Named agent member row: shipper = agent entity; member name in areaNote; owed = member slice. */
+function makeAgentMemberExportPrefill(input: {
+  date: string;
+  agent: { id: string; code: string; name: string };
+  member: {
+    memberId: string;
+    memberCode: string;
+    memberName: string;
+    due: QtyMap;
+    areaNote: string;
+    location: string;
+    origin?: string;
+    isMultiOrigin: boolean;
+  };
+  returned: QtyMap;
+}): CrateExportPrefillTarget {
+  const owed = subtractQty(input.member.due, input.returned);
+  const areaNote = [input.member.memberName, input.member.areaNote.trim()]
+    .filter(Boolean)
+    .join(" — ");
+  const location =
+    input.member.isMultiOrigin && input.member.origin
+      ? input.member.origin
+      : input.member.location;
+  const label =
+    input.member.isMultiOrigin && input.member.origin
+      ? `${input.member.memberName} — ${input.member.origin}`
+      : input.member.memberName;
+  return makeAgentPrefill({
+    date: input.date,
+    mode: "agent",
+    shipper: {
+      id: input.agent.id,
+      code: input.agent.code,
+      name: input.agent.name,
+    },
+    agentId: input.agent.id,
+    location,
+    areaNote,
+    owed: qtyMapToRecord(owed),
+    members: [
+      {
+        key: `agent-member-prefill:${input.member.memberId}`,
+        label,
+        due: qtyMapToRecord(input.member.due),
+        returned: qtyMapToRecord(input.returned),
+        owed: qtyMapToRecord(owed),
+        totalDue: totalOf(input.member.due),
+        totalReturned: totalOf(input.returned),
+        totalOwed: totalOf(owed),
+        prefill: makePrefill(
+          input.date,
+          {
+            id: input.agent.id,
+            code: input.agent.code,
+            name: input.agent.name,
+          },
+          location,
+          areaNote,
+          "agent"
+        ),
+      },
+    ],
+  });
+}
+
 function buildRow(
   key: string,
   label: string,
@@ -758,12 +824,21 @@ export function buildCrateExportDueToday(
         label,
         m.due,
         returned,
-        makePrefill(
+        makeAgentMemberExportPrefill({
           date,
-          { id: m.memberId, code: m.memberCode, name: m.memberName },
-          m.isMultiOrigin && m.origin ? m.origin : m.location,
-          m.areaNote
-        )
+          agent: { id: agentId, code: agent.code, name: agent.name },
+          member: {
+            memberId: m.memberId,
+            memberCode: m.memberCode,
+            memberName: m.memberName,
+            due: m.due,
+            areaNote: m.areaNote,
+            location: m.location,
+            origin: m.origin,
+            isMultiOrigin: m.isMultiOrigin,
+          },
+          returned,
+        })
       );
       if (row) memberRows.push(row);
     }

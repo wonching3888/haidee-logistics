@@ -1778,6 +1778,11 @@ export const MESSAGES = {
     en: "Today's inbound per member (reference only). Enter actual totals for the agent.",
     th: "รายการรับเข้าวันนี้ต่อลูกค้าย่อย (อ้างอิง) กรอกจำนวนจริงรวมของตัวแทน",
   },
+  "crateExport.poolMemberBreakdownHint": {
+    zh: "以下为当日来货，仅供参考；实收数量请按汇总填写。",
+    en: "Today's inbound per member (reference only). Enter actual totals for the pool.",
+    th: "รายการรับเข้าวันนี้ต่อลูกค้าย่อย (อ้างอิง) กรอกจำนวนจริงรวม",
+  },
   "crateExport.sadaoStock": {
     zh: "SADAO现货",
     en: "Stock",
@@ -1903,10 +1908,10 @@ export const MESSAGES = {
     en: "Export not found",
     th: "ไม่พบใบคืนลัง",
   },
-  "crateExport.error.locationPoolMemberBlocked": {
-    zh: "宋卡/北大年池成员不能单独开归还单，请选择池主体（LOC-SONGKHLA / LOC-PATTANI）",
-    en: "Songkhla/Pattani pool members cannot open returns alone — select the pool shipper (LOC-SONGKHLA / LOC-PATTANI)",
-    th: "สมาชิกพูลสงขลา/ปัตตานีต้องเลือกพูลหลัก (LOC-SONGKHLA / LOC-PATTANI) ไม่ใช่ลูกค้าราย",
+  "crateExport.error.agentMemberBlocked": {
+    zh: "代理/池成员不能单独开归还单，请选择对应代理或池主体开单",
+    en: "Agent/pool members cannot open returns alone — select the agent or pool shipper",
+    th: "สมาชิกตัวแทน/พูลต้องเลือกตัวแทนหรือพูลหลัก ไม่ใช่ลูกค้าราย",
   },
   "crateImport.pageSubtitle": {
     zh: "马来西亚车回程空桶回收录入",
