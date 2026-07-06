@@ -855,12 +855,13 @@ export async function getCrateExportReceiptData(
           tongName: row.tongType.name,
           tongCode: code,
           quantityActual: row.quantityActual,
-          displayOrder: row.tongType.displayOrder,
+          // TongType.displayOrder is Int? in schema; null sorts last (same as trip-allowance).
+          displayOrder: row.tongType.displayOrder ?? 999,
         });
       }
     }
 
-    const lines = [...linesByCode.values()]
+    const lines = Array.from(linesByCode.values())
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .map((line) => ({
         tongName: line.tongName,

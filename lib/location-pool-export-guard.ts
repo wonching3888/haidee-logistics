@@ -3,7 +3,8 @@ import {
   LOCATION_POOL_SHIPPER_CODES,
   isLocationPoolShipperCode,
 } from "@/lib/constants/location-pool-shippers";
-import { t, type UserLanguage } from "@/lib/i18n/translate";
+import { t } from "@/lib/i18n/translate";
+import type { UserLanguage } from "@/types";
 
 const LOCATION_POOL_AGENT_CODES = [
   LOCATION_POOL_SHIPPER_CODES.SONGKHLA,
