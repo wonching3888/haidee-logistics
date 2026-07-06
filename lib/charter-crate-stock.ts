@@ -3,10 +3,7 @@ import {
   addCustomerCratesBatch,
   deductCustomerCratesBatch,
 } from "@/app/actions/customerCrateStock";
-import {
-  resolveInboundCrateStockLocation,
-  resolveSessionPickupLocation,
-} from "@/lib/constants/pickup-locations";
+import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
 import { listCrateRentalRates } from "@/lib/crate-rental-rates-service";
 import { prisma } from "@/lib/prisma";
 
@@ -38,12 +35,24 @@ async function loadRentalByCode() {
   return new Map(rates.map((row) => [row.crateType, row.isRental]));
 }
 
-export async function resolveCharterCrateStockLocation(input: {
-  shipperPickupLocation: string | null | undefined;
-  stockAreaNote?: string | null;
-}) {
-  const pickup = resolveSessionPickupLocation(null, input.shipperPickupLocation);
-  return resolveInboundCrateStockLocation(pickup, input.stockAreaNote ?? null);
+export async function resolveCharterCrateStockAccount(
+  shipperId: string,
+  customerOriginLocation?: string | null
+) {
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { pickupLocation: true, isMultiOriginCustomer: true },
+  });
+  if (!shipper) throw new Error("寄货人不存在 Shipper not found");
+
+  return resolveCustomerCrateStockAccount({
+    operationalShipperId: shipperId,
+    shipperPickupLocation: shipper.pickupLocation,
+    sessionPickupLocation: null,
+    customerOriginLocation,
+    isMultiOriginCustomer: shipper.isMultiOriginCustomer,
+    areaNote: null,
+  });
 }
 
 export async function applyCharterCrateDeduction(input: {
@@ -102,19 +111,16 @@ export async function reverseCharterCrateDeduction(input: {
   );
 }
 
-export async function resolveCharterStockContext(shipperId: string, stockAreaNote?: string | null) {
-  const shipper = await prisma.shipper.findUnique({
-    where: { id: shipperId },
-    select: { pickupLocation: true },
-  });
-  if (!shipper) throw new Error("寄货人不存在 Shipper not found");
+export async function resolveCharterStockContext(
+  shipperId: string,
+  customerOriginLocation?: string | null
+) {
+  const account = await resolveCharterCrateStockAccount(
+    shipperId,
+    customerOriginLocation
+  );
 
-  const stockLocation = await resolveCharterCrateStockLocation({
-    shipperPickupLocation: shipper.pickupLocation,
-    stockAreaNote,
-  });
-
-  return { stockLocation };
+  return { stockLocation: account.location };
 }
 
 export async function charterLinesToStockLines(

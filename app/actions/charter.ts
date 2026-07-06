@@ -29,6 +29,11 @@ import {
   resolveCharterStockContext,
   reverseCharterCrateDeduction,
 } from "@/lib/charter-crate-stock";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import {
+  requiresCustomerOriginSelection,
+  resolveCharterCustomerOrigin,
+} from "@/lib/multi-origin-customer";
 import { OPERATIONAL_SHIPPER_WHERE } from "@/lib/constants/shipper-kind";
 import {
   buildCharterCostPreview,
@@ -424,10 +429,52 @@ function buildCharterTripData(input: CharterTripInput) {
   };
 }
 
+async function validateCharterCustomerOrigin(
+  shipperId: string | null,
+  cargoType: string,
+  submittedOrigin: string | null | undefined,
+  options: { mode: "create" } | { mode: "edit"; priorStored: string | null }
+): Promise<string | null> {
+  if (cargoType !== "seafood" || !shipperId) return null;
+
+  const shipper = await prisma.shipper.findUnique({
+    where: { id: shipperId },
+    select: { pickupLocation: true, isMultiOriginCustomer: true },
+  });
+  if (!shipper) {
+    throw new Error("寄货人不存在 Shipper not found");
+  }
+
+  const effectivePickup = resolveSessionPickupLocation(
+    null,
+    shipper.pickupLocation
+  );
+  if (
+    !requiresCustomerOriginSelection(
+      shipper.isMultiOriginCustomer,
+      effectivePickup
+    )
+  ) {
+    return null;
+  }
+
+  const originRows = await prisma.customerOriginLocation.findMany({
+    where: { shipperId },
+    orderBy: [{ sortOrder: "asc" }, { locationName: "asc" }],
+    select: { locationName: true },
+  });
+  const locations = originRows
+    .map((row) => row.locationName)
+    .filter((name) => name.trim() !== "");
+
+  return resolveCharterCustomerOrigin(submittedOrigin, locations, options);
+}
+
 type CharterStockSnapshot = {
   cargoType: string;
   shipperId: string | null;
   stockAreaNote: string | null;
+  customerOriginLocation: string | null;
   charterNo: string | null;
   lines: Array<{ tongTypeId: string; quantity: number }>;
 };
@@ -444,7 +491,7 @@ async function syncCharterCrateStock(input: {
   ) {
     const { stockLocation } = await resolveCharterStockContext(
       input.before.shipperId,
-      input.before.stockAreaNote
+      input.before.customerOriginLocation
     );
     const stockLines = await charterLinesToStockLines(input.before.lines);
     await reverseCharterCrateDeduction({
@@ -463,7 +510,7 @@ async function syncCharterCrateStock(input: {
   ) {
     const { stockLocation } = await resolveCharterStockContext(
       input.after.shipperId,
-      input.after.stockAreaNote
+      input.after.customerOriginLocation
     );
     const stockLines = await charterLinesToStockLines(input.after.lines);
     await applyCharterCrateDeduction({
@@ -538,6 +585,7 @@ export async function saveCharterTrip(
           cargoType: true,
           shipperId: true,
           stockAreaNote: true,
+          customerOriginLocation: true,
           driverName: true,
           charterRevenueMyr: true,
           charterDriverSalaryMyr: true,
@@ -565,10 +613,18 @@ export async function saveCharterTrip(
     if (!existing) throw new Error("包车记录不存在 Charter trip not found");
     if (!newTruck) throw new Error("请选择车牌 Select truck plate");
 
+    const customerOriginLocation = await validateCharterCustomerOrigin(
+      data.shipperId,
+      data.cargoType,
+      input.customerOriginLocation,
+      { mode: "edit", priorStored: existing.customerOriginLocation }
+    );
+
     const beforeSnapshot: CharterStockSnapshot = {
       cargoType: existing.cargoType,
       shipperId: existing.shipperId,
       stockAreaNote: existing.stockAreaNote,
+      customerOriginLocation: existing.customerOriginLocation,
       charterNo: existing.charterNo,
       lines: existing.lines,
     };
@@ -602,6 +658,7 @@ export async function saveCharterTrip(
           truckId: input.truckId,
           driverName,
           ...data,
+          customerOriginLocation,
           computedLkimMyr: storedCosts.lkimMyr,
           computedCrateRentalMyr: storedCosts.crateRentalMyr,
         },
@@ -720,6 +777,7 @@ export async function saveCharterTrip(
         cargoType: data.cargoType,
         shipperId: data.shipperId,
         stockAreaNote: data.stockAreaNote,
+        customerOriginLocation,
         charterNo: existing.charterNo,
         lines: afterLines,
       },
@@ -737,6 +795,13 @@ export async function saveCharterTrip(
   });
   if (!createTruck) throw new Error("请选择车牌 Select truck plate");
 
+  const customerOriginLocation = await validateCharterCustomerOrigin(
+    data.shipperId,
+    data.cargoType,
+    input.customerOriginLocation,
+    { mode: "create" }
+  );
+
   const created = await prisma.$transaction(async (tx) => {
     const trip = await tx.charterTrip.create({
       data: {
@@ -746,6 +811,7 @@ export async function saveCharterTrip(
         driverName,
         createdById: user.id,
         ...data,
+        customerOriginLocation,
         computedLkimMyr: storedCosts.lkimMyr,
         computedCrateRentalMyr: storedCosts.crateRentalMyr,
       },
@@ -804,6 +870,7 @@ export async function saveCharterTrip(
       cargoType: data.cargoType,
       shipperId: data.shipperId,
       stockAreaNote: data.stockAreaNote,
+      customerOriginLocation,
       charterNo,
       lines: afterLines,
     },
@@ -829,6 +896,7 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
       billingCompany: true,
       shipperId: true,
       stockAreaNote: true,
+      customerOriginLocation: true,
       truck: { select: { plate: true } },
       lines: { select: { tongTypeId: true, quantity: true } },
     },
@@ -869,6 +937,7 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
         cargoType: existing.cargoType,
         shipperId: existing.shipperId,
         stockAreaNote: existing.stockAreaNote,
+        customerOriginLocation: existing.customerOriginLocation,
         charterNo: existing.charterNo,
         lines: existing.lines,
       },
@@ -876,6 +945,7 @@ export async function deleteCharterTrip(id: string): Promise<{ ok: true }> {
         cargoType: "general",
         shipperId: null,
         stockAreaNote: null,
+        customerOriginLocation: null,
         charterNo: existing.charterNo,
         lines: [],
       },

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   assertOriginInCustomerList,
   buildMultiOriginCustomerStockLocations,
+  charterCustomerOriginRequiredOnSave,
   filterMultiOriginDropdownOptions,
   parseOriginLocationNames,
   requiresCustomerOriginSelection,
+  resolveCharterCustomerOrigin,
   selectableMultiOriginStockLocations,
 } from "@/lib/multi-origin-customer";
 
@@ -29,6 +31,62 @@ describe("multi-origin-customer", () => {
     expect(() =>
       assertOriginInCustomerList("", ["KRABI"])
     ).toThrow(/请选择标准产地/);
+  });
+
+  it("resolveCharterCustomerOrigin: create requires origin", () => {
+    expect(
+      resolveCharterCustomerOrigin("krabi", ["KRABI", "PHUKET"], {
+        mode: "create",
+      })
+    ).toBe("KRABI");
+    expect(() =>
+      resolveCharterCustomerOrigin("", ["KRABI"], { mode: "create" })
+    ).toThrow(/请选择标准产地/);
+  });
+
+  it("resolveCharterCustomerOrigin: edit with empty prior allows empty or fill", () => {
+    expect(
+      resolveCharterCustomerOrigin("", ["KRABI"], {
+        mode: "edit",
+        priorStored: null,
+      })
+    ).toBeNull();
+    expect(
+      resolveCharterCustomerOrigin("krabi", ["KRABI"], {
+        mode: "edit",
+        priorStored: "",
+      })
+    ).toBe("KRABI");
+  });
+
+  it("resolveCharterCustomerOrigin: edit with prior value cannot clear", () => {
+    expect(
+      resolveCharterCustomerOrigin("PHUKET", ["KRABI", "PHUKET"], {
+        mode: "edit",
+        priorStored: "KRABI",
+      })
+    ).toBe("PHUKET");
+    expect(() =>
+      resolveCharterCustomerOrigin("", ["KRABI"], {
+        mode: "edit",
+        priorStored: "KRABI",
+      })
+    ).toThrow(/不能清空/);
+  });
+
+  it("charterCustomerOriginRequiredOnSave follows create vs edit prior", () => {
+    expect(
+      charterCustomerOriginRequiredOnSave(true, "create", null)
+    ).toBe(true);
+    expect(
+      charterCustomerOriginRequiredOnSave(true, "edit", null)
+    ).toBe(false);
+    expect(
+      charterCustomerOriginRequiredOnSave(true, "edit", "KRABI")
+    ).toBe(true);
+    expect(
+      charterCustomerOriginRequiredOnSave(false, "create", null)
+    ).toBe(false);
   });
 
   it("filters blank names from multi-origin dropdown options", () => {

@@ -9,7 +9,9 @@ import {
   previewCharterCosts,
   saveCharterTrip,
 } from "@/app/actions/charter";
+import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
 import { useCanWrite } from "@/components/shared/can-write-context";
+import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +32,11 @@ import {
   type CharterExtraItemRecord,
   type CharterTripRecord,
 } from "@/lib/charter";
+import { resolveSessionPickupLocation } from "@/lib/constants/pickup-locations";
+import {
+  charterCustomerOriginRequiredOnSave,
+  requiresCustomerOriginSelection,
+} from "@/lib/multi-origin-customer";
 
 interface TruckOption {
   id: string;
@@ -142,6 +149,7 @@ export function CharterTripForm({
   initial = null,
 }: CharterTripFormProps) {
   const router = useRouter();
+  const { t } = useT();
   const userCanWrite = useCanWrite();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +165,11 @@ export function CharterTripForm({
   const [stockAreaNote, setStockAreaNote] = useState(
     noteField(initial?.stockAreaNote)
   );
+  const [customerOriginLocation, setCustomerOriginLocation] = useState(
+    initial?.customerOriginLocation ?? ""
+  );
+  const [isMultiOriginCustomer, setIsMultiOriginCustomer] = useState(false);
+  const [multiOriginLocations, setMultiOriginLocations] = useState<string[]>([]);
   const [driverName, setDriverName] = useState(initial?.driverName ?? "");
   const [includeBorderFees, setIncludeBorderFees] = useState(
     initial?.includeBorderFees ?? false
@@ -196,6 +209,50 @@ export function CharterTripForm({
   const [lines, setLines] = useState<LineDraft[]>(() => linesFromInitial(initial));
   const [preview, setPreview] = useState<CharterCostPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  const selectedShipper = useMemo(
+    () => shippers.find((s) => s.id === shipperId) ?? null,
+    [shippers, shipperId]
+  );
+  const effectivePickup = resolveSessionPickupLocation(
+    null,
+    selectedShipper?.pickupLocation
+  );
+  const showOriginDropdown =
+    cargoType === "seafood" &&
+    requiresCustomerOriginSelection(isMultiOriginCustomer, effectivePickup);
+  const originRequiredOnSave = charterCustomerOriginRequiredOnSave(
+    showOriginDropdown,
+    mode,
+    initial?.customerOriginLocation
+  );
+  const originOptionalLegacy =
+    showOriginDropdown &&
+    mode === "edit" &&
+    !initial?.customerOriginLocation?.trim();
+
+  useEffect(() => {
+    if (!shipperId) {
+      setIsMultiOriginCustomer(false);
+      setMultiOriginLocations([]);
+      setCustomerOriginLocation("");
+      return;
+    }
+
+    let cancelled = false;
+    void getMultiOriginConfig(shipperId).then((config) => {
+      if (cancelled) return;
+      setIsMultiOriginCustomer(config.isMultiOrigin);
+      setMultiOriginLocations(config.locations);
+      if (!config.isMultiOrigin) {
+        setCustomerOriginLocation("");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shipperId]);
 
   useEffect(() => {
     if (!truckId && trucks.length === 1) {
@@ -288,6 +345,10 @@ export function CharterTripForm({
 
   function handleSave() {
     setError(null);
+    if (originRequiredOnSave && !customerOriginLocation) {
+      setError(t("multiOrigin.error.required"));
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await saveCharterTrip({
@@ -296,6 +357,9 @@ export function CharterTripForm({
           truckId,
           shipperId: shipperId.trim() || null,
           stockAreaNote: cargoType === "seafood" ? stockAreaNote : null,
+          customerOriginLocation: showOriginDropdown
+            ? customerOriginLocation
+            : undefined,
           billToCustomerName: billToCustomerName.trim() || null,
           billingCompany,
           driverName,
@@ -534,7 +598,7 @@ export function CharterTripForm({
               <Input
                 value={stockAreaNote}
                 onChange={(e) => setStockAreaNote(e.target.value)}
-                placeholder="例如 PANTAI REMIS，留空则用默认库位"
+                placeholder={t("charter.stockAreaNotePlaceholder")}
                 className="min-h-[44px]"
               />
             </div>
@@ -552,6 +616,33 @@ export function CharterTripForm({
             </div>
           )}
         </div>
+
+        {showOriginDropdown ? (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-haidee-text">
+              {t("multiOrigin.standardOrigin")}{" "}
+              {originOptionalLegacy ? (
+                <span className="font-normal text-haidee-muted">
+                  ({t("charter.originOptionalHint")})
+                </span>
+              ) : (
+                <span className="text-red-600">*</span>
+              )}
+            </label>
+            <select
+              value={customerOriginLocation}
+              onChange={(e) => setCustomerOriginLocation(e.target.value)}
+              className="min-h-[44px] w-full rounded-lg border border-haidee-border bg-white px-3 text-sm focus:border-haidee-accent focus:outline-none focus:ring-2 focus:ring-haidee-accent/30"
+            >
+              <option value="">{t("multiOrigin.selectOrigin")}</option>
+              {multiOriginLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {cargoType === "seafood" && shipperId && (
           <p className="text-xs text-haidee-muted">

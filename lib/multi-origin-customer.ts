@@ -110,6 +110,19 @@ export function selectableMultiOriginStockLocations<
   return locations.filter((loc) => loc.location.trim() !== "");
 }
 
+function matchOriginInCustomerList(
+  origin: string,
+  locations: readonly string[]
+): string {
+  const match = locations.find(
+    (loc) => loc.toLowerCase() === origin.toLowerCase()
+  );
+  if (!match) {
+    throw new Error("所选产地不在该客户标准清单中 Invalid origin for this customer");
+  }
+  return match;
+}
+
 export function assertOriginInCustomerList(
   origin: string | null | undefined,
   locations: readonly string[]
@@ -118,11 +131,45 @@ export function assertOriginInCustomerList(
   if (!trimmed) {
     throw new Error("请选择标准产地 Origin is required for this customer");
   }
-  const match = locations.find(
-    (loc) => loc.toLowerCase() === trimmed.toLowerCase()
-  );
-  if (!match) {
-    throw new Error("所选产地不在该客户标准清单中 Invalid origin for this customer");
+  return matchOriginInCustomerList(trimmed, locations);
+}
+
+/** Charter trip origin: required on create; edit allows empty only if prior was empty. */
+export function resolveCharterCustomerOrigin(
+  submitted: string | null | undefined,
+  locations: readonly string[],
+  options:
+    | { mode: "create" }
+    | { mode: "edit"; priorStored: string | null | undefined }
+): string | null {
+  const submittedNorm = normalizeOriginLocationName(submitted ?? "");
+
+  if (options.mode === "create") {
+    if (!submittedNorm) {
+      throw new Error("请选择标准产地 Origin is required for this customer");
+    }
+    return matchOriginInCustomerList(submittedNorm, locations);
   }
-  return match;
+
+  const priorNorm = normalizeOriginLocationName(options.priorStored ?? "");
+  if (!priorNorm) {
+    if (!submittedNorm) return null;
+    return matchOriginInCustomerList(submittedNorm, locations);
+  }
+
+  if (!submittedNorm) {
+    throw new Error("已有产地不能清空 Origin cannot be cleared once set");
+  }
+  return matchOriginInCustomerList(submittedNorm, locations);
+}
+
+/** Client save guard: when origin dropdown is shown, is a value required? */
+export function charterCustomerOriginRequiredOnSave(
+  showOriginDropdown: boolean,
+  mode: "create" | "edit",
+  priorStoredOrigin?: string | null
+): boolean {
+  if (!showOriginDropdown) return false;
+  if (mode === "create") return true;
+  return Boolean(normalizeOriginLocationName(priorStoredOrigin ?? ""));
 }

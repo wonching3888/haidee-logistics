@@ -722,6 +722,7 @@ model CharterTrip {
   date                   DateTime @db.Date
   truckId                String   @map("truck_id") @db.Uuid
   shipperId              String?  @map("shipper_id") @db.Uuid
+  customerOriginLocation String?  @map("customer_origin_location")
   stockAreaNote          String?  @map("stock_area_note")
   driverName             String?  @map("driver_name")
   cargoType              String   @map("cargo_type")

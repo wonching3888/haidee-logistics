@@ -60,6 +60,7 @@ export interface CharterTripRecord {
   shipperCode: string | null;
   shipperName: string | null;
   stockAreaNote: string | null;
+  customerOriginLocation: string | null;
   billToCustomerName: string | null;
   billingCompany: CharterBillingCompany;
   driverName: string | null;
@@ -97,6 +98,7 @@ export interface CharterTripInput {
   truckId: string;
   shipperId?: string | null;
   stockAreaNote?: string | null;
+  customerOriginLocation?: string | null;
   billToCustomerName?: string | null;
   billingCompany?: CharterBillingCompany;
   driverName?: string | null;
@@ -217,6 +219,7 @@ export function serializeCharterTrip(row: {
   driverName: string | null;
   shipperId?: string | null;
   stockAreaNote?: string | null;
+  customerOriginLocation?: string | null;
   billToCustomerName?: string | null;
   billingCompany: string;
   cargoType: string;
@@ -266,6 +269,7 @@ export function serializeCharterTrip(row: {
     shipperCode: row.shipper?.code ?? null,
     shipperName: row.shipper?.name ?? null,
     stockAreaNote: row.stockAreaNote ?? null,
+    customerOriginLocation: row.customerOriginLocation ?? null,
     billToCustomerName: row.billToCustomerName ?? null,
     billingCompany: row.billingCompany,
     driverName: row.driverName,
