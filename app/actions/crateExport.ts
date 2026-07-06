@@ -53,6 +53,17 @@ import {
   resolveCrateExportQuantitySuggested,
 } from "@/lib/crate-export-line-math";
 
+function revalidateCrateExportRelatedPaths() {
+  if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
+  revalidatePath("/tong/export");
+  revalidatePath("/crate/export");
+  revalidatePath("/crate/export/print");
+  revalidatePath("/tong/stock");
+  revalidatePath("/crate/stock");
+  revalidatePath("/crate/customer-stock");
+  revalidatePath("/history");
+}
+
 export interface CrateExportLineInput {
   tongTypeId: string;
   quantitySuggested: number;
@@ -593,13 +604,7 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     );
   }
 
-  revalidatePath("/tong/export");
-  revalidatePath("/crate/export");
-  revalidatePath("/crate/export/print");
-  revalidatePath("/tong/stock");
-  revalidatePath("/crate/stock");
-  revalidatePath("/crate/customer-stock");
-  revalidatePath("/history");
+  revalidateCrateExportRelatedPaths();
 
   return {
     exportNo,
@@ -622,7 +627,7 @@ async function resolveCrateExportStockAccount(
         changeType: "export",
         notes: { contains: trimmed },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       select: { shipperId: true, location: true },
     });
     if (ledger) {
@@ -728,11 +733,7 @@ export async function voidCrateExport(exportNo: string) {
 
   await reverseCrateExportInternal(trimmed, locale);
 
-  revalidatePath("/crate/export");
-  revalidatePath("/tong/export");
-  revalidatePath("/crate/stock");
-  revalidatePath("/tong/stock");
-  revalidatePath("/crate/customer-stock");
+  revalidateCrateExportRelatedPaths();
 
   return { ok: true as const };
 }
