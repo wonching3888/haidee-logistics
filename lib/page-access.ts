@@ -130,6 +130,13 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
   }
 
   if (
+    path === "/crate/stock-anomalies" ||
+    path.startsWith("/crate/stock-anomalies/")
+  ) {
+    return "settings";
+  }
+
+  if (
     path === "/inbound" ||
     path.startsWith("/inbound/") ||
     path === "/search" ||

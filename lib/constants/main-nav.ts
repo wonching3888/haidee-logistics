@@ -223,6 +223,10 @@ export const MAIN_NAV_CRATE: MainNavGroup = {
       href: "/crate/customer-stock",
       messageKey: "nav.customerCrateStock",
     },
+    {
+      href: "/crate/stock-anomalies",
+      messageKey: "nav.crateStockAnomalies",
+    },
   ],
 };
 

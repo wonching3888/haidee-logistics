@@ -162,6 +162,11 @@ export const MESSAGES = {
     en: "Customer Crate Stock",
     th: "สต๊อกลังลูกค้า",
   },
+  "nav.crateStockAnomalies": {
+    zh: "桶库存异常",
+    en: "Crate Stock Anomalies",
+    th: "ความผิดปกติสต๊อกลัง",
+  },
   "nav.reports": {
     zh: "报表",
     en: "Reports",
