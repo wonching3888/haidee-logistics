@@ -33,25 +33,63 @@ export interface TruckCostInput {
   costItems: { annualAmount: number }[];
 }
 
+/** Route row for Thai-segment vehicle cost (mileage + per-trip fixed THB fees). */
+export interface ThaiRouteCostRow {
+  code: string;
+  sadooMileageKm: number | null;
+  tollFee: number | null;
+  parkingFee: number | null;
+}
+
 export interface ThaiVehicleTripCostResult {
   truckPlate: string;
   station: ThaiVehicleStation;
   distanceKm: number;
   costPerKmThb: number | null;
+  /** Fuel + maintenance (MY→THB/km × km, or TH native/km × km). */
+  variableCostThb: number;
+  tollFeeThb: number;
+  parkingFeeThb: number;
   tripCostThb: number;
   needsReview: boolean;
   reason: string | null;
 }
 
+function findThaiRoute(
+  station: ThaiVehicleStation,
+  routes: ThaiRouteCostRow[]
+): ThaiRouteCostRow | undefined {
+  const code = THAI_ROUTE_CODES[station];
+  return routes.find((r) => r.code === code);
+}
+
 export function resolveThaiRouteMileageKm(
   station: ThaiVehicleStation,
-  routes: { code: string; sadooMileageKm: number | null }[]
+  routes: ThaiRouteCostRow[]
 ): number | null {
-  const code = THAI_ROUTE_CODES[station];
-  const route = routes.find((r) => r.code === code);
-  const km = route?.sadooMileageKm;
+  const km = findThaiRoute(station, routes)?.sadooMileageKm;
   if (km == null || !Number.isFinite(km) || km <= 0) return null;
   return km;
+}
+
+/** Per-trip fixed THB fees from route_masters (not per-km). */
+export function resolveThaiRouteFixedFeesThb(
+  station: ThaiVehicleStation,
+  routes: ThaiRouteCostRow[]
+): { tollFeeThb: number; parkingFeeThb: number } {
+  const route = findThaiRoute(station, routes);
+  const toll = route?.tollFee;
+  const parking = route?.parkingFee;
+  return {
+    tollFeeThb:
+      toll != null && Number.isFinite(toll) && toll > 0
+        ? Math.round(toll * 100) / 100
+        : 0,
+    parkingFeeThb:
+      parking != null && Number.isFinite(parking) && parking > 0
+        ? Math.round(parking * 100) / 100
+        : 0,
+  };
 }
 
 /**
@@ -96,35 +134,44 @@ export function computeThaiVehicleTripCostThb(input: {
   truckPlate: string;
   station: ThaiVehicleStation;
   truck: TruckCostInput | null;
-  routes: { code: string; sadooMileageKm: number | null }[];
+  routes: ThaiRouteCostRow[];
   fuelPrice: { myrPerLiter: number; thbPerLiter: number };
   exchangeRateMyrPerThbUnit: number;
 }): ThaiVehicleTripCostResult {
   const distanceKm =
     resolveThaiRouteMileageKm(input.station, input.routes) ?? 0;
+  const { tollFeeThb, parkingFeeThb } = resolveThaiRouteFixedFeesThb(
+    input.station,
+    input.routes
+  );
+
+  const zeroResult = (
+    overrides: Partial<ThaiVehicleTripCostResult> &
+      Pick<ThaiVehicleTripCostResult, "needsReview" | "reason">
+  ): ThaiVehicleTripCostResult => ({
+    truckPlate: input.truckPlate,
+    station: input.station,
+    distanceKm,
+    costPerKmThb: null,
+    variableCostThb: 0,
+    tollFeeThb: 0,
+    parkingFeeThb: 0,
+    tripCostThb: 0,
+    ...overrides,
+  });
 
   if (!input.truck) {
-    return {
-      truckPlate: input.truckPlate,
-      station: input.station,
-      distanceKm,
-      costPerKmThb: null,
-      tripCostThb: 0,
+    return zeroResult({
       needsReview: true,
       reason: "truck_not_in_master",
-    };
+    });
   }
 
   if (truckNeedsCostReview(input.truck)) {
-    return {
-      truckPlate: input.truckPlate,
-      station: input.station,
-      distanceKm,
-      costPerKmThb: null,
-      tripCostThb: 0,
+    return zeroResult({
       needsReview: true,
       reason: "needs_review",
-    };
+    });
   }
 
   const nativePerKm = computeTruckCostPerKmNative(
@@ -132,15 +179,10 @@ export function computeThaiVehicleTripCostThb(input: {
     input.fuelPrice
   );
   if (nativePerKm == null || distanceKm <= 0) {
-    return {
-      truckPlate: input.truckPlate,
-      station: input.station,
-      distanceKm,
-      costPerKmThb: null,
-      tripCostThb: 0,
+    return zeroResult({
       needsReview: true,
       reason: "needs_review",
-    };
+    });
   }
 
   const country: TruckCountry =
@@ -149,23 +191,24 @@ export function computeThaiVehicleTripCostThb(input: {
     input.exchangeRateMyrPerThbUnit > 0
       ? input.exchangeRateMyrPerThbUnit
       : 0;
-  // exchangeRate is THB per 1 MYR? In this codebase exchangeRate for 2026-06 is 8.2
-  // used as realCostMyr = realCostThb / exchangeRate, so exchangeRate = THB per MYR? 
-  // Wait: realCostMyr = realCostThb / exchangeRate with exchangeRate=8.2
-  // So 1 MYR = exchangeRate THB? No: THB / 8.2 = MYR means 8.2 THB = 1 MYR, so FX = THB per MYR.
-  // MYR cost * exchangeRate = THB cost.
   const costPerKmThb =
     country === "MY"
       ? Math.round(nativePerKm * fx * 10000) / 10000
       : nativePerKm;
 
-  const tripCostThb = Math.round(costPerKmThb * distanceKm * 100) / 100;
+  const variableCostThb =
+    Math.round(costPerKmThb * distanceKm * 100) / 100;
+  const tripCostThb =
+    Math.round((variableCostThb + tollFeeThb + parkingFeeThb) * 100) / 100;
 
   return {
     truckPlate: input.truckPlate,
     station: input.station,
     distanceKm,
     costPerKmThb,
+    variableCostThb,
+    tollFeeThb,
+    parkingFeeThb,
     tripCostThb,
     needsReview: false,
     reason: null,
@@ -176,7 +219,7 @@ export function computeThaiVehicleTripCostThb(input: {
 export function sumThaiVehicleTripCostsThb(
   trips: Array<{ truckPlate: string; station: ThaiVehicleStation }>,
   trucksByNormPlate: Map<string, TruckCostInput>,
-  routes: { code: string; sadooMileageKm: number | null }[],
+  routes: ThaiRouteCostRow[],
   fuelPrice: { myrPerLiter: number; thbPerLiter: number },
   exchangeRate: number
 ): {

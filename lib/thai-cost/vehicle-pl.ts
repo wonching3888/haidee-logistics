@@ -15,6 +15,7 @@ import {
 import {
   computeThaiVehicleTripCostThb,
   normalizeTruckPlate,
+  type ThaiRouteCostRow,
   type ThaiVehicleStation,
   type TruckCostInput,
 } from "@/lib/thai-cost/vehicle-trip-cost";
@@ -37,7 +38,7 @@ export interface VehicleTripPlRow {
 
 export interface VehiclePlContext {
   segmentRates: ThaiSegmentRates;
-  routes: { code: string; sadooMileageKm: number | null }[];
+  routes: ThaiRouteCostRow[];
   fuelPrice: { myrPerLiter: number; thbPerLiter: number };
   exchangeRate: number;
   trucksByNormPlate: Map<string, TruckCostInput>;
@@ -62,7 +63,12 @@ export async function loadVehiclePlContext(
     await Promise.all([
       listGlobalCostSettings(),
       prisma.routeMaster.findMany({
-        select: { code: true, sadooMileageKm: true },
+        select: {
+          code: true,
+          sadooMileageKm: true,
+          tollFee: true,
+          parkingFee: true,
+        },
       }),
       prisma.truck.findMany({
         select: {
@@ -118,6 +124,8 @@ export async function loadVehiclePlContext(
     routes: routes.map((r) => ({
       code: r.code,
       sadooMileageKm: decimalToNumber(r.sadooMileageKm),
+      tollFee: decimalToNumber(r.tollFee),
+      parkingFee: decimalToNumber(r.parkingFee),
     })),
     fuelPrice: {
       myrPerLiter: decimalToNumber(fuelRow?.myrPerLiter) ?? 2.15,

@@ -57,8 +57,7 @@ export function ThaiRoutesSettingsSection({
         泰国路线 Thai Routes（THB 车辆成本参数）
       </h3>
       <p className="mt-1 text-xs text-haidee-muted">
-        公里数用于泰国车辆趟次油费+保养计算（vehicle-trip-cost）。过路费/停车费已可编辑保存，
-        尚未计入当前车辆成本公式，后续可接入。
+        公里数用于泰国车辆趟次油费+保养计算；过路费/停车费按每趟固定 THB 计入车辆成本（vehicle-trip-cost）。
       </p>
 
       {error && (

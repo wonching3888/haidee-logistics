@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   computeThaiVehicleTripCostThb,
   normalizeTruckPlate,
+  resolveThaiRouteFixedFeesThb,
   resolveThaiRouteMileageKm,
 } from "@/lib/thai-cost/vehicle-trip-cost";
 
 const ROUTES = [
-  { code: "SONGKHLA", sadooMileageKm: 180 },
-  { code: "PATTANI", sadooMileageKm: 280 },
+  { code: "SONGKHLA", sadooMileageKm: 180, tollFee: 50, parkingFee: 20 },
+  { code: "PATTANI", sadooMileageKm: 280, tollFee: 80, parkingFee: 30 },
 ];
 
 const FUEL = { myrPerLiter: 2.15, thbPerLiter: 40 };
@@ -24,6 +25,19 @@ describe("resolveThaiRouteMileageKm", () => {
   it("returns route mileage", () => {
     expect(resolveThaiRouteMileageKm("SONGKHLA", ROUTES)).toBe(180);
     expect(resolveThaiRouteMileageKm("PATTANI", ROUTES)).toBe(280);
+  });
+});
+
+describe("resolveThaiRouteFixedFeesThb", () => {
+  it("returns per-trip THB fees for the station route", () => {
+    expect(resolveThaiRouteFixedFeesThb("SONGKHLA", ROUTES)).toEqual({
+      tollFeeThb: 50,
+      parkingFeeThb: 20,
+    });
+    expect(resolveThaiRouteFixedFeesThb("PATTANI", ROUTES)).toEqual({
+      tollFeeThb: 80,
+      parkingFeeThb: 30,
+    });
   });
 });
 
@@ -54,7 +68,10 @@ describe("computeThaiVehicleTripCostThb", () => {
     expect(r.distanceKm).toBe(180);
     // 1.4243 * 8.2 ≈ 11.67926 THB/km * 180 ≈ 2102.27
     expect(r.costPerKmThb).toBeCloseTo(1.4243 * 8.2, 3);
-    expect(r.tripCostThb).toBeCloseTo(1.4243 * 8.2 * 180, 1);
+    expect(r.variableCostThb).toBeCloseTo(1.4243 * 8.2 * 180, 1);
+    expect(r.tollFeeThb).toBe(50);
+    expect(r.parkingFeeThb).toBe(20);
+    expect(r.tripCostThb).toBeCloseTo(1.4243 * 8.2 * 180 + 50 + 20, 1);
   });
 
   it("marks TH truck without params as needs_review cost 0", () => {

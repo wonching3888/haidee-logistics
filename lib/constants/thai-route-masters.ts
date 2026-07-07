@@ -1,5 +1,5 @@
 /**
- * route_masters rows used for Thai-segment vehicle cost (mileage, future toll/parking).
+ * route_masters rows used for Thai-segment vehicle cost (mileage, toll, parking).
  * Distinct from MY payroll route allowances (KL/BM/A…).
  * No DB `region` column — these codes are stable and seeded explicitly.
  */
