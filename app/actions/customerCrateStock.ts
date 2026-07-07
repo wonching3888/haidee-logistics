@@ -317,8 +317,10 @@ export async function updateCustomerCrateStock(
     });
   });
 
-  revalidatePath("/crate/customer-stock");
-  revalidatePath("/history");
+  if (process.env.BACKFILL_SKIP_REVALIDATE !== "1") {
+    revalidatePath("/crate/customer-stock");
+    revalidatePath("/history");
+  }
 }
 
 export async function getCustomerCrateLedger(

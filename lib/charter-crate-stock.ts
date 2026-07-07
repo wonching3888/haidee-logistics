@@ -35,6 +35,43 @@ async function loadRentalByCode() {
   return new Map(rates.map((row) => [row.crateType, row.isRental]));
 }
 
+/** Notes written by applyCharterCrateDeduction: `包车扣减 Charter ${charterNo}`. */
+export function charterNoInCharterDeductionNotes(charterNo: string): string {
+  return `Charter ${charterNo.trim()}`;
+}
+
+/**
+ * Reverse path: use latest actual charter deduction ledger location (not trip field).
+ * Falls back to resolveCharterStockContext when no charter ledger exists yet.
+ */
+export async function resolveCharterReverseStockContext(input: {
+  charterNo: string | null | undefined;
+  shipperId: string;
+  customerOriginLocation?: string | null;
+}): Promise<{ shipperId: string; stockLocation: string }> {
+  const trimmed = input.charterNo?.trim();
+  if (trimmed) {
+    const ledger = await prisma.customerCrateLedger.findFirst({
+      where: {
+        changeType: "charter",
+        shipperId: input.shipperId,
+        notes: { contains: charterNoInCharterDeductionNotes(trimmed) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { shipperId: true, location: true },
+    });
+    if (ledger) {
+      return { shipperId: ledger.shipperId, stockLocation: ledger.location };
+    }
+  }
+
+  const { stockLocation } = await resolveCharterStockContext(
+    input.shipperId,
+    input.customerOriginLocation
+  );
+  return { shipperId: input.shipperId, stockLocation };
+}
+
 export async function resolveCharterCrateStockAccount(
   shipperId: string,
   customerOriginLocation?: string | null

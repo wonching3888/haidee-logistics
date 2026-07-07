@@ -26,6 +26,7 @@ import {
 import {
   applyCharterCrateDeduction,
   charterLinesToStockLines,
+  resolveCharterReverseStockContext,
   resolveCharterStockContext,
   reverseCharterCrateDeduction,
 } from "@/lib/charter-crate-stock";
@@ -489,13 +490,14 @@ async function syncCharterCrateStock(input: {
     input.before.shipperId &&
     input.before.lines.length > 0
   ) {
-    const { stockLocation } = await resolveCharterStockContext(
-      input.before.shipperId,
-      input.before.customerOriginLocation
-    );
+    const { stockLocation, shipperId } = await resolveCharterReverseStockContext({
+      charterNo: input.before.charterNo,
+      shipperId: input.before.shipperId,
+      customerOriginLocation: input.before.customerOriginLocation,
+    });
     const stockLines = await charterLinesToStockLines(input.before.lines);
     await reverseCharterCrateDeduction({
-      shipperId: input.before.shipperId,
+      shipperId,
       stockLocation,
       lines: stockLines,
       charterNo: input.before.charterNo,

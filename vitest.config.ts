@@ -71,6 +71,7 @@ export default defineConfig({
       "lib/constants/socso-brackets.test.ts",
       "lib/constants/epf-brackets.test.ts",
       "lib/charter-payroll-salary.test.ts",
+      "lib/charter-crate-stock.test.ts",
       "lib/operations-payroll-warnings.test.ts",
       "lib/payroll-audit.test.ts",
       "lib/dispatch-audit.test.ts",
