@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { editCrateExport, getAgentCrateReturnPrefill, getLiveCrateExportOwedByCode } from "@/app/actions/crateExport";
 import { getMultiOriginConfig } from "@/app/actions/multi-origin-customer";
@@ -23,6 +23,10 @@ import { toDateInputValue } from "@/lib/inbound-utils";
 import type { CrateExportPrefillTarget } from "@/lib/crate-export-due-today";
 import { isAgentCrateExportPrefill } from "@/lib/crate-export-due-today";
 import { shouldUseLiveCrateExportOwed } from "@/lib/crate-export-live-owed";
+import {
+  resolveStandalonePrefillOriginAfterConfig,
+  standalonePrefillOriginLocation,
+} from "@/lib/crate-export-prefill-location";
 
 interface ShipperOption {
   id: string;
@@ -95,6 +99,10 @@ export function TongExportForm({
     null
   );
   const isAgentMode = isAgentCrateExportPrefill(agentPrefill);
+  const standalonePrefillOriginRef = useRef<{
+    token: number;
+    location: string;
+  } | null>(null);
 
   const shipperOptions =
     extraShipper && !shippers.some((s) => s.id === extraShipper.id)
@@ -122,8 +130,19 @@ export function TongExportForm({
     setAreaNote(prefill.areaNote);
     if (isAgentCrateExportPrefill(prefill)) {
       setAgentPrefill(prefill);
+      standalonePrefillOriginRef.current = null;
     } else {
       setAgentPrefill(null);
+      const standaloneOrigin = standalonePrefillOriginLocation(prefill);
+      if (standaloneOrigin) {
+        standalonePrefillOriginRef.current = {
+          token: prefillToken,
+          location: standaloneOrigin,
+        };
+        setLocation(standaloneOrigin);
+      } else {
+        standalonePrefillOriginRef.current = null;
+      }
     }
   }, [prefill, prefillToken, isEdit]);
 
@@ -155,7 +174,19 @@ export function TongExportForm({
       if (cancelled) return;
       setIsMultiOriginCustomer(config.isMultiOrigin);
       setMultiOriginLocations(config.locations);
-      if (!config.isMultiOrigin && !isLocationPoolShipper && !isEdit) {
+      const pending = standalonePrefillOriginRef.current;
+      const reapplied =
+        pending?.token === prefillToken
+          ? resolveStandalonePrefillOriginAfterConfig({
+              pendingOrigin: pending.location,
+              isMultiOriginCustomer: config.isMultiOrigin,
+              locations: config.locations,
+            })
+          : null;
+      if (reapplied) {
+        setLocation(reapplied);
+        standalonePrefillOriginRef.current = null;
+      } else if (!config.isMultiOrigin && !isLocationPoolShipper && !isEdit) {
         setLocation("");
       }
     });
@@ -163,16 +194,20 @@ export function TongExportForm({
     return () => {
       cancelled = true;
     };
-  }, [shipperId, isLocationPoolShipper, isEdit]);
+  }, [shipperId, isLocationPoolShipper, isEdit, prefillToken]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!shipperId || !selectedShipper) {
       if (!isEdit) {
         setLines([]);
         setVehicleSuggestions([]);
         setLocation("");
       }
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (!isEdit && poolStockLocation) {
@@ -192,6 +227,7 @@ export function TongExportForm({
 
       Promise.all([owedPromise, getSadaoStock(), vehiclePromise]).then(
         ([owedMap, stock, vehicles]) => {
+          if (cancelled) return;
         setVehicleSuggestions(vehicles.map((v) => v.plate));
 
         const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
@@ -220,11 +256,14 @@ export function TongExportForm({
           })
         );
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (isAgentCrateExportPrefill(agentPrefill)) {
       Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
+        if (cancelled) return;
         setVehicleSuggestions(vehicles.map((v) => v.plate));
         const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
         const owedMap = agentPrefill.owedByCode;
@@ -248,7 +287,9 @@ export function TongExportForm({
           })
         );
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     const effectiveLocation = poolStockLocation ?? location;
@@ -260,6 +301,7 @@ export function TongExportForm({
 
     Promise.all([owedPromise, getSadaoStock(), vehiclePromise]).then(
       ([owedMap, stock, vehicles]) => {
+        if (cancelled) return;
         setVehicleSuggestions(vehicles.map((v) => v.plate));
 
         const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
@@ -284,6 +326,10 @@ export function TongExportForm({
         );
       }
     );
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     shipperId,
     date,
@@ -393,6 +439,7 @@ export function TongExportForm({
                 setShipperId(e.target.value);
                 setLocation("");
                 setAgentPrefill(null);
+                standalonePrefillOriginRef.current = null;
               }}
               className="min-h-[44px] w-full rounded-lg border border-haidee-border px-3 text-sm"
             >
