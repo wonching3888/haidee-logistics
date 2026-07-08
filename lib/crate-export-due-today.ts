@@ -653,6 +653,53 @@ export function aggregateInboundDueBuckets(
   return { standaloneDue, multiOriginDue, memberInbounds };
 }
 
+/**
+ * Agent receipt member inbound rows for one agent — same bucketing as
+ * `aggregateInboundDueBuckets` / due-today agent member rows (incl. sub-channels).
+ */
+export function agentMemberInboundBreakdownForAgent(
+  input: BuildCrateExportDueTodayInput,
+  agentShipperId: string
+): CrateExportPrefillMember[] {
+  const agent = input.agents.get(agentShipperId);
+  if (!agent || agent.isPool) return [];
+
+  const { memberInbounds } = aggregateInboundDueBuckets(input);
+  const byLabel = new Map<string, CrateExportPrefillMember>();
+
+  for (const m of memberInbounds) {
+    if (m.agentId !== agentShipperId) continue;
+    if (m.poolPickup) continue;
+
+    const label =
+      m.isMultiOrigin && m.origin
+        ? `${m.memberName} — ${m.origin}`
+        : m.memberName;
+
+    if (totalOf(m.due) <= 0) continue;
+
+    const due = qtyMapToRecord(m.due);
+    const existing = byLabel.get(label);
+    if (!existing) {
+      byLabel.set(label, {
+        memberId: m.memberId,
+        memberCode: m.memberCode,
+        memberName: m.memberName,
+        label,
+        due: { ...due },
+      });
+      continue;
+    }
+    for (const [code, qty] of Object.entries(due)) {
+      existing.due[code] = (existing.due[code] ?? 0) + qty;
+    }
+  }
+
+  return Array.from(byLabel.values()).sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
+}
+
 export function buildCrateExportDueToday(
   input: BuildCrateExportDueTodayInput
 ): CrateExportDueTodayData {

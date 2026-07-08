@@ -11,12 +11,11 @@ import { parseDateInput, toDateInputValue } from "@/lib/inbound-utils";
 import { generateExportNo, getSadaoStockByTongType } from "@/lib/tong";
 import { formatDisplayDate, getBangkokTodayDateInput } from "@/lib/date-utils";
 import {
+  agentMemberInboundBreakdownForAgent,
   buildCrateExportDueToday,
   type CrateExportDueTodayData,
-  isReturnableCrateTypeCode,
   type CrateExportPrefillMember,
   type CrateExportPrefillTarget,
-  qtyMapToRecord,
 } from "@/lib/crate-export-due-today";
 import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
 import { appendCrateChangeLogs } from "@/lib/crate-audit";
@@ -96,72 +95,13 @@ export interface CrateExportEditData {
 
 export type { CrateExportListRow, CrateExportDueTodayData };
 
-/** Live member inbound breakdown for agent receipt print (same day, same source as due-today). */
+/** Live member inbound breakdown for agent receipt print (same day, same bucketing as due-today). */
 export async function loadAgentMemberInboundBreakdown(
   agentShipperId: string,
   dateInput: string
 ): Promise<CrateExportPrefillMember[]> {
-  const sessionDate = parseDateInput(dateInput);
-  const memberships = await prisma.crateStockAgentMember.findMany({
-    where: { agentShipperId },
-    include: {
-      memberShipper: { select: { id: true, code: true, name: true } },
-    },
-    orderBy: { memberShipper: { name: "asc" } },
-  });
-
-  if (memberships.length === 0) return [];
-
-  const memberIds = memberships.map((m) => m.memberShipperId);
-  const sessions = await prisma.inboundSession.findMany({
-    where: {
-      date: sessionDate,
-      status: "confirmed",
-      shipperId: { in: memberIds },
-    },
-    include: {
-      shipper: { select: { id: true, code: true, name: true } },
-      lines: {
-        include: {
-          tongType: {
-            select: { code: true, trackInventory: true, isBox: true },
-          },
-        },
-      },
-    },
-  });
-
-  const dueByMemberId = new Map<string, Map<string, number>>();
-  for (const session of sessions) {
-    const map = dueByMemberId.get(session.shipperId) ?? new Map<string, number>();
-    for (const line of session.lines) {
-      if (!line.tongType.trackInventory || line.tongType.isBox) continue;
-      if (!isReturnableCrateTypeCode(line.tongType.code)) continue;
-      map.set(
-        line.tongType.code,
-        (map.get(line.tongType.code) ?? 0) + line.quantity
-      );
-    }
-    dueByMemberId.set(session.shipperId, map);
-  }
-
-  const members: CrateExportPrefillMember[] = [];
-  for (const membership of memberships) {
-    const qtyMap = dueByMemberId.get(membership.memberShipperId);
-    if (!qtyMap || qtyMap.size === 0) continue;
-    const due = qtyMapToRecord(qtyMap);
-    const total = Object.values(due).reduce((s, n) => s + n, 0);
-    if (total <= 0) continue;
-    members.push({
-      memberId: membership.memberShipper.id,
-      memberCode: membership.memberShipper.code,
-      memberName: membership.memberShipper.name,
-      label: membership.memberShipper.name,
-      due,
-    });
-  }
-
-  return members.sort((a, b) => a.label.localeCompare(b.label));
+  const dayInput = await loadCrateExportDayInput(dateInput);
+  return agentMemberInboundBreakdownForAgent(dayInput, agentShipperId);
 }
 
 /** Agent/pool owed prefill when user changes date on the export form. */

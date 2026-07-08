@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseDateInput } from "@/lib/date-utils";
 import {
+  agentMemberInboundBreakdownForAgent,
   buildCrateExportDueToday,
   RETURNABLE_CRATE_TYPE_CODES,
   isAgentCrateExportPrefill,
@@ -527,5 +528,120 @@ describe("buildCrateExportDueToday", () => {
         "CH FISHERY — CH RANONG"
       );
     }
+  });
+});
+
+describe("agentMemberInboundBreakdownForAgent", () => {
+  it("includes sub-channel and formal member inbounds with due-today labels", () => {
+    const input = baseInput();
+    input.agents.set("agent-veer", {
+      code: "AGENT-VEERAKORN",
+      name: "VEERAKORN",
+      isPool: false,
+    });
+    input.membershipByMemberId.set("member-jit", "agent-veer");
+    input.shippers.set("parent-ch", { code: "3001-C003", name: "CH FISHERY" });
+    input.shippers.set("parent-ct", { code: "3001-C005", name: "CT - SONGKHLA" });
+    input.shippers.set("member-jit", { code: "3001-0004", name: "JIT RANONG" });
+    input.subChannelsByKey.set("parent-ch:ranong", {
+      id: "sc-ch",
+      parentShipperId: "parent-ch",
+      channelKey: "ranong",
+      label: "CH RANONG",
+      ownerType: "agent",
+      ownerShipperId: "agent-veer",
+      ownerShipperCode: "AGENT-VEERAKORN",
+      allowMultiOrigin: false,
+      sortOrder: 1,
+    });
+    input.subChannelsByKey.set("parent-ct:RANONG", {
+      id: "sc-ct",
+      parentShipperId: "parent-ct",
+      channelKey: "RANONG",
+      label: "CT RANONG",
+      ownerType: "agent",
+      ownerShipperId: "agent-veer",
+      ownerShipperCode: "AGENT-VEERAKORN",
+      allowMultiOrigin: false,
+      sortOrder: 1,
+    });
+    input.inboundSessions.push(
+      {
+        shipperId: "parent-ch",
+        subChannelKey: "ranong",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 19, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "parent-ct",
+        subChannelKey: "RANONG",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 6, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "member-jit",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 5, trackInventory: true, isBox: false }],
+      }
+    );
+
+    const rows = agentMemberInboundBreakdownForAgent(input, "agent-veer");
+    expect(rows.map((r) => r.label)).toEqual([
+      "CH FISHERY — CH RANONG",
+      "CT - SONGKHLA — CT RANONG",
+      "JIT RANONG",
+    ]);
+    expect(rows.find((r) => r.label === "CH FISHERY — CH RANONG")?.due).toEqual({
+      ABB: 19,
+    });
+    expect(rows.find((r) => r.label === "CT - SONGKHLA — CT RANONG")?.due).toEqual({
+      ABB: 6,
+    });
+    const abbTotal = rows.reduce((s, r) => s + (r.due.ABB ?? 0), 0);
+    expect(abbTotal).toBe(30);
+  });
+
+  it("matches due-today member labels for agent without sub-channels", () => {
+    const input = baseInput();
+    input.inboundSessions.push({
+      shipperId: "member-kwan",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [{ tongCode: "ABB", quantity: 4, trackInventory: true, isBox: false }],
+    });
+
+    const due = buildCrateExportDueToday(input);
+    const agentItem = due.items.find((i) => i.kind === "agent");
+    expect(agentItem?.kind).toBe("agent");
+    if (agentItem?.kind !== "agent") return;
+
+    const breakdown = agentMemberInboundBreakdownForAgent(input, "agent-421");
+    expect(breakdown).toEqual([
+      {
+        memberId: "member-kwan",
+        memberCode: "3001-K001",
+        memberName: "KWAN",
+        label: "KWAN",
+        due: { ABB: 4 },
+      },
+    ]);
+    expect(breakdown.map((r) => r.label)).toEqual(
+      agentItem.group.members.map((m) => m.label)
+    );
   });
 });
