@@ -14,47 +14,33 @@ describe("crate-export-line-math", () => {
   it("create path uses form suggested", () => {
     expect(
       resolveCrateExportQuantitySuggested({
-        isEdit: false,
-        tongTypeId: "t1",
         formQuantitySuggested: 42,
       })
     ).toBe(42);
   });
 
-  it("edit path ignores form and uses preserved DB suggested", () => {
-    const preserved = { t1: 50, t2: 12 };
+  it("edit save path uses server live suggested when provided", () => {
     expect(
       resolveCrateExportQuantitySuggested({
-        isEdit: true,
-        tongTypeId: "t1",
-        formQuantitySuggested: 0,
-        preservedByTongTypeId: preserved,
+        formQuantitySuggested: 5,
+        liveQuantitySuggested: 35,
       })
-    ).toBe(50);
+    ).toBe(35);
     expect(
       resolveCrateExportQuantitySuggested({
-        isEdit: true,
-        tongTypeId: "t2",
         formQuantitySuggested: 99,
-        preservedByTongTypeId: preserved,
+        liveQuantitySuggested: 0,
       })
-    ).toBe(12);
+    ).toBe(0);
   });
 
-  it("today edit: suggested stays 50 after live owed drops to 0, shortage reflects edit", () => {
-    const preserved = { abb: 50 };
+  it("edit save: live suggested reflects current owed; shortage uses that value", () => {
     const suggested = resolveCrateExportQuantitySuggested({
-      isEdit: true,
-      tongTypeId: "abb",
-      formQuantitySuggested: 0,
-      preservedByTongTypeId: preserved,
+      formQuantitySuggested: 5,
+      liveQuantitySuggested: 35,
     });
-    expect(suggested).toBe(50);
-
-    const shortageAfterFullReturn = crateExportLineShortage(suggested, 50);
-    expect(shortageAfterFullReturn).toBe(0);
-
-    const shortageAfterPartialEdit = crateExportLineShortage(suggested, 30);
-    expect(shortageAfterPartialEdit).toBe(20);
+    expect(suggested).toBe(35);
+    expect(crateExportLineShortage(suggested, 35)).toBe(0);
+    expect(crateExportLineShortage(suggested, 30)).toBe(5);
   });
 });

@@ -184,7 +184,14 @@ export function TongExportForm({
       : getThVehiclesForShipper(shipperId);
 
     if (isEdit && initialData) {
-      Promise.all([getSadaoStock(), vehiclePromise]).then(([stock, vehicles]) => {
+      const effectiveLocation =
+        poolStockLocation ?? initialData.location ?? location;
+      const owedPromise = shouldUseLiveCrateExportOwed(date)
+        ? getLiveCrateExportOwedByCode(date, shipperId, effectiveLocation)
+        : Promise.resolve({} as Record<string, number>);
+
+      Promise.all([owedPromise, getSadaoStock(), vehiclePromise]).then(
+        ([owedMap, stock, vehicles]) => {
         setVehicleSuggestions(vehicles.map((v) => v.plate));
 
         const stockMap = Object.fromEntries(stock.map((s) => [s.code, s.stock]));
@@ -195,7 +202,7 @@ export function TongExportForm({
         setLines(
           tongTypes.map((t) => {
             const existing = existingByTong.get(t.id);
-            const suggested = existing?.quantitySuggested ?? 0;
+            const suggested = owedMap[t.code] ?? existing?.quantitySuggested ?? 0;
             const currentSadao = stockMap[t.code] ?? 0;
             const oldActual = existing?.quantityActual ?? 0;
             const stockQty = currentSadao + oldActual;

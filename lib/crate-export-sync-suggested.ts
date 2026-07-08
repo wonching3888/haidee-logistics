@@ -9,6 +9,7 @@ import {
 import { crateExportLineShortage } from "@/lib/crate-export-line-math";
 import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
+import type { BuildCrateExportDueTodayInput } from "@/lib/crate-export-due-today";
 import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
 import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
 
@@ -28,6 +29,58 @@ export function mergeCrateExportSyncContexts(
     byKey.set(`${dateInput}|${shipperId}`, { dateInput, shipperId });
   }
   return Array.from(byKey.values());
+}
+
+/** Pure helper: member inbound context → agent (+ pool parent) sync targets. */
+export function agentParentSyncContextsForMember(
+  ctx: CrateExportSyncContext,
+  membershipByMemberId: Map<string, string>,
+  dayInput: BuildCrateExportDueTodayInput
+): CrateExportSyncContext[] {
+  const agentId = membershipByMemberId.get(ctx.shipperId);
+  if (!agentId) return [];
+
+  const extra: CrateExportSyncContext[] = [
+    { dateInput: ctx.dateInput, shipperId: agentId },
+  ];
+
+  const agent = dayInput.agents.get(agentId);
+  if (agent?.isPool && agent.pickup) {
+    const poolShipperId = dayInput.poolIds[agent.pickup];
+    if (poolShipperId) {
+      extra.push({ dateInput: ctx.dateInput, shipperId: poolShipperId });
+    }
+  }
+
+  return extra;
+}
+
+/**
+ * When a member's inbound is confirmed, also sync agent / pool-parent exports on that date.
+ * Member-level contexts are kept as-is.
+ */
+export async function expandCrateExportSyncContextsWithAgentParents(
+  contexts: CrateExportSyncContext[]
+): Promise<CrateExportSyncContext[]> {
+  const merged = mergeCrateExportSyncContexts(contexts);
+  if (merged.length === 0) return merged;
+
+  const membershipByMemberId = await loadCrateStockAgentMembershipByMemberId();
+  const dayInputCache = new Map<string, BuildCrateExportDueTodayInput>();
+  const extra: CrateExportSyncContext[] = [];
+
+  for (const ctx of merged) {
+    let dayInput = dayInputCache.get(ctx.dateInput);
+    if (!dayInput) {
+      dayInput = await loadCrateExportDayInput(ctx.dateInput);
+      dayInputCache.set(ctx.dateInput, dayInput);
+    }
+    extra.push(
+      ...agentParentSyncContextsForMember(ctx, membershipByMemberId, dayInput)
+    );
+  }
+
+  return mergeCrateExportSyncContexts([...merged, ...extra]);
 }
 
 async function resolveExportStockLocation(
@@ -62,7 +115,7 @@ export async function syncCrateExportSuggestedForContexts(
   contexts: CrateExportSyncContext[],
   tx: Prisma.TransactionClient = prisma
 ): Promise<{ updatedExportNos: string[] }> {
-  const merged = mergeCrateExportSyncContexts(contexts);
+  const merged = await expandCrateExportSyncContextsWithAgentParents(contexts);
   const updatedExportNos: string[] = [];
 
   const dueIndexCache = new Map<string, ReturnType<typeof buildInboundDueIndexFromDayInput>>();

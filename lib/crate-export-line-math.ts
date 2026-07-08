@@ -7,16 +7,15 @@ export function crateExportLineShortage(
 }
 
 /**
- * Create: use form/live suggested. Edit: freeze DB values captured before reverse.
+ * Create: use form/live suggested from the client.
+ * Edit save: pass liveQuantitySuggested from server-side owed lookup at save time.
  */
 export function resolveCrateExportQuantitySuggested(params: {
-  isEdit: boolean;
-  tongTypeId: string;
   formQuantitySuggested: number;
-  preservedByTongTypeId?: Record<string, number>;
+  liveQuantitySuggested?: number;
 }): number {
-  if (params.isEdit) {
-    return params.preservedByTongTypeId?.[params.tongTypeId] ?? 0;
+  if (params.liveQuantitySuggested !== undefined) {
+    return params.liveQuantitySuggested;
   }
   return params.formQuantitySuggested;
 }

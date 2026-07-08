@@ -77,8 +77,6 @@ export interface CrateExportSaveInput {
   location?: string;
   lines: CrateExportLineInput[];
   forceExportNo?: string;
-  /** Captured before edit reverse; keeps original quantitySuggested per tong type. */
-  preservedSuggestedByTongTypeId?: Record<string, number>;
 }
 
 export interface CrateExportEditData {
@@ -420,6 +418,14 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   }
 
   const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
+  const liveOwedByCode = isEdit
+    ? await getLiveCrateExportOwedByCode(
+        input.date,
+        input.shipperId,
+        customerStockLocation
+      )
+    : null;
+
   const exportRows: Prisma.TongExportCreateManyInput[] = [];
   const crateAdditions: { crateTypeId: string; quantity: number }[] = [];
   const receiptLines: {
@@ -436,10 +442,10 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     const available = stock[tongType.code]?.stock ?? 0;
     const actual = Math.min(line.quantityActual, available);
     const quantitySuggested = resolveCrateExportQuantitySuggested({
-      isEdit,
-      tongTypeId: line.tongTypeId,
       formQuantitySuggested: line.quantitySuggested,
-      preservedByTongTypeId: input.preservedSuggestedByTongTypeId,
+      liveQuantitySuggested: isEdit
+        ? (liveOwedByCode?.[tongType.code] ?? 0)
+        : undefined,
     });
     const shortage = crateExportLineShortage(quantitySuggested, actual);
 
@@ -732,20 +738,11 @@ export async function editCrateExport(
 
   await assertCrateExportHasActiveLines(input.lines, locale);
 
-  const existingRows = await prisma.tongExport.findMany({
-    where: { exportNo: trimmed },
-    select: { tongTypeId: true, quantitySuggested: true },
-  });
-  const preservedSuggestedByTongTypeId = Object.fromEntries(
-    existingRows.map((row) => [row.tongTypeId, row.quantitySuggested ?? 0])
-  );
-
   await reverseCrateExportInternal(trimmed, locale);
 
   return saveCrateExport({
     ...input,
     forceExportNo: trimmed,
-    preservedSuggestedByTongTypeId,
   });
 }
 

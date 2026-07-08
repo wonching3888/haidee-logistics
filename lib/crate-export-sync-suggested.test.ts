@@ -14,6 +14,7 @@ import {
   resolveCrateExportListMismatch,
 } from "@/lib/crate-export-list";
 import {
+  agentParentSyncContextsForMember,
   collectInboundSaveSyncContexts,
   mergeCrateExportSyncContexts,
 } from "@/lib/crate-export-sync-suggested";
@@ -190,5 +191,54 @@ describe("crate-export-sync-suggested contexts", () => {
         { dateInput: "2026-07-04", shipperId: "s1" },
       ])
     ).toEqual([{ dateInput: "2026-07-04", shipperId: "s1" }]);
+  });
+
+  it("member inbound context expands to agent parent", () => {
+    const dayInput = emptyDayInput({
+      agents: new Map([
+        [
+          "agent-vk",
+          { code: "AGENT-VEERAKORN", name: "VEERAKORN", isPool: false },
+        ],
+      ]),
+      membershipByMemberId: new Map([["member-1", "agent-vk"]]),
+    });
+
+    expect(
+      agentParentSyncContextsForMember(
+        { dateInput: "2026-07-08", shipperId: "member-1" },
+        new Map([["member-1", "agent-vk"]]),
+        dayInput
+      )
+    ).toEqual([{ dateInput: "2026-07-08", shipperId: "agent-vk" }]);
+  });
+
+  it("pool agent member also expands to pool shipper id", () => {
+    const dayInput = emptyDayInput({
+      poolIds: { PATTANI: "pool-ptn" },
+      agents: new Map([
+        [
+          "agent-pool",
+          {
+            code: "LOC-PATTANI",
+            name: "PATTANI",
+            isPool: true,
+            pickup: "PATTANI",
+          },
+        ],
+      ]),
+      membershipByMemberId: new Map([["member-jiab", "agent-pool"]]),
+    });
+
+    expect(
+      agentParentSyncContextsForMember(
+        { dateInput: "2026-07-06", shipperId: "member-jiab" },
+        new Map([["member-jiab", "agent-pool"]]),
+        dayInput
+      )
+    ).toEqual([
+      { dateInput: "2026-07-06", shipperId: "agent-pool" },
+      { dateInput: "2026-07-06", shipperId: "pool-ptn" },
+    ]);
   });
 });
