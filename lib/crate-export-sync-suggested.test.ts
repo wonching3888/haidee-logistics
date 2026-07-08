@@ -7,7 +7,6 @@ import {
   type InboundDueIndex,
 } from "@/lib/crate-export-inbound-due";
 import {
-  buildCrateExportDueToday,
   type BuildCrateExportDueTodayInput,
   type CrateExportDueItem,
 } from "@/lib/crate-export-due-today";
