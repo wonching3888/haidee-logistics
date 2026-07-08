@@ -529,6 +529,119 @@ describe("buildCrateExportDueToday", () => {
       );
     }
   });
+
+  it("agent owed ignores unrelated parent-shipper exports for sub-channel inbounds", () => {
+    const input = baseInput();
+    input.agents.set("agent-veer", {
+      code: "AGENT-VEERAKORN",
+      name: "VEERAKORN",
+      isPool: false,
+    });
+    input.membershipByMemberId.set("member-jit", "agent-veer");
+    input.membershipByMemberId.set("member-soon", "agent-veer");
+    input.shippers.set("parent-ch", { code: "3001-C003", name: "CH FISHERY" });
+    input.shippers.set("parent-ct", { code: "3001-C005", name: "CT - SONGKHLA" });
+    input.shippers.set("member-jit", { code: "3001-0004", name: "JIT RANONG" });
+    input.shippers.set("member-soon", { code: "3001-S004", name: "SOON HENG" });
+    input.subChannelsByKey.set("parent-ch:ranong", {
+      id: "sc-ch",
+      parentShipperId: "parent-ch",
+      channelKey: "ranong",
+      label: "CH RANONG",
+      ownerType: "agent",
+      ownerShipperId: "agent-veer",
+      ownerShipperCode: "AGENT-VEERAKORN",
+      allowMultiOrigin: false,
+      sortOrder: 1,
+    });
+    input.subChannelsByKey.set("parent-ct:RANONG", {
+      id: "sc-ct",
+      parentShipperId: "parent-ct",
+      channelKey: "RANONG",
+      label: "CT RANONG",
+      ownerType: "agent",
+      ownerShipperId: "agent-veer",
+      ownerShipperCode: "AGENT-VEERAKORN",
+      allowMultiOrigin: false,
+      sortOrder: 1,
+    });
+    input.inboundSessions.push(
+      {
+        shipperId: "parent-ch",
+        subChannelKey: "ranong",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 19, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "parent-ct",
+        subChannelKey: "RANONG",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 6, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "member-jit",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 5, trackInventory: true, isBox: false }],
+      },
+      {
+        shipperId: "member-soon",
+        sessionDate,
+        pickupLocation: "SADAO",
+        shipperPickupLocation: "SADAO",
+        customerOriginLocation: null,
+        areaNote: null,
+        lines: [{ tongCode: "ABB", quantity: 5, trackInventory: true, isBox: false }],
+      }
+    );
+    input.exportsByShipperId.set("parent-ch", new Map([["ABB", 13]]));
+    input.exportsByShipperId.set("parent-ct", new Map([["ABB", 7]]));
+
+    const result = buildCrateExportDueToday(input);
+    const agentItem = result.items.find((i) => i.kind === "agent");
+    expect(agentItem?.kind).toBe("agent");
+    if (agentItem?.kind === "agent") {
+      expect(agentItem.group.due).toEqual({ ABB: 35 });
+      expect(agentItem.group.returned).toEqual({});
+      expect(agentItem.group.owed).toEqual({ ABB: 35 });
+      expect(agentItem.group.prefill.owedByCode).toEqual({ ABB: 35 });
+    }
+  });
+
+  it("agent owed still subtracts formal member and agent-shipper returns", () => {
+    const input = baseInput();
+    input.inboundSessions.push({
+      shipperId: "member-kwan",
+      sessionDate,
+      pickupLocation: "SADAO",
+      shipperPickupLocation: "SADAO",
+      customerOriginLocation: null,
+      areaNote: null,
+      lines: [{ tongCode: "ABB", quantity: 20, trackInventory: true, isBox: false }],
+    });
+    input.exportsByShipperId.set("member-kwan", new Map([["ABB", 5]]));
+    input.exportsByShipperId.set("agent-421", new Map([["ABB", 3]]));
+
+    const result = buildCrateExportDueToday(input);
+    const agentItem = result.items.find((i) => i.kind === "agent");
+    expect(agentItem?.kind).toBe("agent");
+    if (agentItem?.kind === "agent") {
+      expect(agentItem.group.due).toEqual({ ABB: 20 });
+      expect(agentItem.group.returned).toEqual({ ABB: 8 });
+      expect(agentItem.group.owed).toEqual({ ABB: 12 });
+    }
+  });
 });
 
 describe("agentMemberInboundBreakdownForAgent", () => {

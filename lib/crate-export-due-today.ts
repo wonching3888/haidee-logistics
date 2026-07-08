@@ -480,7 +480,31 @@ type InboundMemberDue = {
   areaNote: string;
   isMultiOrigin: boolean;
   origin?: string;
+  /** Inbound via sub_customer_channels on a parent shipper — not formal agent member. */
+  isSubChannelInbound?: boolean;
 };
+
+/** Returns booked against this member row when computing agent/pool owed. */
+export function resolveMemberInboundReturned(
+  m: InboundMemberDue,
+  input: BuildCrateExportDueTodayInput
+): QtyMap {
+  if (m.isSubChannelInbound) {
+    return emptyQty();
+  }
+
+  if (m.isMultiOrigin && m.origin) {
+    return filterQtyMapToReturnable(
+      input.exportsByShipperLocation.get(`${m.memberId}|${m.origin}`) ??
+        input.exportsByShipperId.get(m.memberId) ??
+        emptyQty()
+    );
+  }
+
+  return filterQtyMapToReturnable(
+    input.exportsByShipperId.get(m.memberId) ?? emptyQty()
+  );
+}
 
 export type InboundDueBuckets = {
   standaloneDue: Map<string, QtyMap>;
@@ -527,6 +551,7 @@ export function aggregateInboundDueBuckets(
           location: "",
           areaNote: session.areaNote?.trim() ?? "",
           isMultiOrigin: false,
+          isSubChannelInbound: true,
         });
         continue;
       }
@@ -546,6 +571,7 @@ export function aggregateInboundDueBuckets(
           location: poolPickup,
           areaNote: session.areaNote?.trim() ?? "",
           isMultiOrigin: false,
+          isSubChannelInbound: true,
         });
         continue;
       }
@@ -770,9 +796,7 @@ export function buildCrateExportDueToday(
       const memberDueMaps: QtyMap[] = [];
 
       for (const m of mergeMemberInboundsByMemberId(members)) {
-        const returned = filterQtyMapToReturnable(
-          input.exportsByShipperId.get(m.memberId) ?? emptyQty()
-        );
+        const returned = resolveMemberInboundReturned(m, input);
         memberDueMaps.push(m.due);
         const row = buildRow(
           `pool-member:${agentId}:${m.memberId}`,
@@ -849,16 +873,7 @@ export function buildCrateExportDueToday(
 
     for (const m of members) {
       exportShipperIds.add(m.memberId);
-      let returned = filterQtyMapToReturnable(
-        input.exportsByShipperId.get(m.memberId) ?? emptyQty()
-      );
-      if (m.isMultiOrigin && m.origin) {
-        returned = filterQtyMapToReturnable(
-          input.exportsByShipperLocation.get(`${m.memberId}|${m.origin}`) ??
-            input.exportsByShipperId.get(m.memberId) ??
-            emptyQty()
-        );
-      }
+      const returned = resolveMemberInboundReturned(m, input);
       memberReturnedMaps.push(returned);
       memberDueMaps.push(m.due);
 

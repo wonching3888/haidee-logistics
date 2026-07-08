@@ -1,11 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/inbound-utils";
-import { loadCrateExportDayInput } from "@/lib/crate-export-day-context";
-import {
-  buildInboundDueIndexFromDayInput,
-  lookupInboundDue,
-} from "@/lib/crate-export-inbound-due";
+import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
+import { lookupLiveOwed } from "@/lib/crate-export-live-owed";
 import { crateExportLineShortage } from "@/lib/crate-export-line-math";
 import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shippers";
 import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
@@ -118,14 +115,16 @@ export async function syncCrateExportSuggestedForContexts(
   const merged = await expandCrateExportSyncContextsWithAgentParents(contexts);
   const updatedExportNos: string[] = [];
 
-  const dueIndexCache = new Map<string, ReturnType<typeof buildInboundDueIndexFromDayInput>>();
+  const owedIndexCache = new Map<
+    string,
+    Awaited<ReturnType<typeof loadLiveOwedIndex>>
+  >();
 
   for (const { dateInput, shipperId } of merged) {
-    let dueIndex = dueIndexCache.get(dateInput);
-    if (!dueIndex) {
-      const dayInput = await loadCrateExportDayInput(dateInput);
-      dueIndex = buildInboundDueIndexFromDayInput(dayInput);
-      dueIndexCache.set(dateInput, dueIndex);
+    let owedIndex = owedIndexCache.get(dateInput);
+    if (!owedIndex) {
+      owedIndex = await loadLiveOwedIndex(dateInput);
+      owedIndexCache.set(dateInput, owedIndex);
     }
 
     const date = new Date(`${dateInput}T00:00:00.000Z`);
@@ -157,14 +156,14 @@ export async function syncCrateExportSuggestedForContexts(
       const isAgentReceipt =
         isCrateStockAgentShipper(first.shipper) ||
         isLocationPoolShipperCode(first.shipper.code);
-      const dueByCode = lookupInboundDue(dueIndex, {
+      const suggestedByCode = lookupLiveOwed(owedIndex, {
         shipperId: first.shipperId,
         location,
         isAgentReceipt,
       });
 
       const codes = new Set<string>([
-        ...Object.keys(dueByCode),
+        ...Object.keys(suggestedByCode),
         ...rows
           .filter((r) => r.quantityActual > 0 || (r.quantitySuggested ?? 0) > 0)
           .map((r) => r.tongType.code),
@@ -173,7 +172,7 @@ export async function syncCrateExportSuggestedForContexts(
       let touched = false;
       for (const code of Array.from(codes)) {
         const existing = rows.find((r) => r.tongType.code === code);
-        const suggested = dueByCode[code] ?? 0;
+        const suggested = suggestedByCode[code] ?? 0;
         const actual = existing?.quantityActual ?? 0;
         const shortage = crateExportLineShortage(suggested, actual);
 
