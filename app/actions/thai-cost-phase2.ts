@@ -7,10 +7,8 @@ import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
-import {
-  computeSadaoHandlingCommission,
-  SadaoHandlingValidationError,
-} from "@/lib/thai-cost/sadao-cost";
+import { SadaoHandlingValidationError } from "@/lib/thai-cost/sadao-cost";
+import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
 import {
   computePattaniDayCosts,
   loadCurrentThaiCostRates,
@@ -199,8 +197,9 @@ export interface SongkhlaHandlingRow {
   smallCrateTotalQty: number;
   largeCrateTotalQty: number;
   boxTotalQty: number;
-  smallCommissionThb: number;
-  largeCommissionThb: number;
+  crateBillableQty: number;
+  boxBillableQty: number;
+  crateCommissionThb: number;
   boxCommissionThb: number;
   commissionThb: number;
   notes: string | null;
@@ -219,18 +218,15 @@ export async function listSongkhlaHandling(input: {
     }),
     resolveThaiCostRatesForMonth(input.year, input.month),
   ]);
-  // Songkhla: no holiday/OT rates — always weekday.
+  // Songkhla: unified crate/box rates (legacy Sadao split when monthly snapshot predates fields).
   return rows.map((row) => {
-    const c = computeSadaoHandlingCommission(
+    const c = computeSongkhlaHandlingCommission(
       {
         smallCrateTotalQty: row.smallCrateTotalQty,
         largeCrateTotalQty: row.largeCrateTotalQty,
         boxTotalQty: row.boxTotalQty,
-        smallCrateNoCheckQty: 0,
-        largeCrateNoCheckQty: 0,
-        boxNoCheckQty: 0,
       },
-      { holidayRate: false, rateConfig: rates }
+      { rateConfig: rates }
     );
     return {
       id: row.id,
@@ -238,8 +234,9 @@ export async function listSongkhlaHandling(input: {
       smallCrateTotalQty: row.smallCrateTotalQty,
       largeCrateTotalQty: row.largeCrateTotalQty,
       boxTotalQty: row.boxTotalQty,
-      smallCommissionThb: c.smallCommissionThb,
-      largeCommissionThb: c.largeCommissionThb,
+      crateBillableQty: c.crateBillableQty,
+      boxBillableQty: c.boxBillableQty,
+      crateCommissionThb: c.crateCommissionThb,
       boxCommissionThb: c.boxCommissionThb,
       commissionThb: c.totalCommissionThb,
       notes: row.notes,
@@ -257,16 +254,16 @@ export async function saveSongkhlaHandling(input: {
   const totals = await fetchStationHandlingTotals(date, "SONGKHLA");
 
   try {
-    computeSadaoHandlingCommission(
+    computeSongkhlaHandlingCommission(
       {
         smallCrateTotalQty: totals.small,
         largeCrateTotalQty: totals.large,
         boxTotalQty: totals.box,
-        smallCrateNoCheckQty: 0,
-        largeCrateNoCheckQty: 0,
-        boxNoCheckQty: 0,
       },
-      { holidayRate: false }
+      { rateConfig: await resolveThaiCostRatesForMonth(
+        date.getUTCFullYear(),
+        date.getUTCMonth() + 1
+      ) }
     );
   } catch (e) {
     if (e instanceof SadaoHandlingValidationError) throw e;

@@ -227,7 +227,10 @@ export function SongkhlaHandlingView({
                 {r.smallCrateTotalQty}/{r.largeCrateTotalQty}/{r.boxTotalQty}
               </TableCell>
               <TableCell className="text-right font-mono">
-                {r.commissionThb.toFixed(2)}
+                <div>{r.commissionThb.toFixed(2)}</div>
+                <div className="text-xs text-haidee-muted">
+                  {r.crateCommissionThb.toFixed(2)}+{r.boxCommissionThb.toFixed(2)}
+                </div>
               </TableCell>
               {canWrite && (
                 <TableCell>

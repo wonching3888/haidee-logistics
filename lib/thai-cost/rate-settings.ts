@@ -3,6 +3,8 @@ import {
   SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB,
   SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB,
   SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB,
+  SONGKHLA_HANDLING_BOX_RATE_THB,
+  SONGKHLA_HANDLING_CRATE_RATE_THB,
   yearMonthKey,
   type SadaoHandlingRates,
 } from "@/lib/constants/thai-cost";
@@ -26,6 +28,8 @@ export const THAI_COST_RATE_KEYS = [
   "pattani_contractor_crate",
   "pattani_contractor_box",
   "pattani_sakri_crate",
+  "songkhla_crate_rate",
+  "songkhla_box_rate",
 ] as const;
 
 export type ThaiCostRateKey = (typeof THAI_COST_RATE_KEYS)[number];
@@ -40,6 +44,8 @@ export const DEFAULT_THAI_COST_RATES: Record<ThaiCostRateKey, number> = {
   pattani_contractor_crate: 20,
   pattani_contractor_box: 5,
   pattani_sakri_crate: 2.2,
+  songkhla_crate_rate: SONGKHLA_HANDLING_CRATE_RATE_THB,
+  songkhla_box_rate: SONGKHLA_HANDLING_BOX_RATE_THB,
 };
 
 export interface ThaiCostRates {
@@ -52,6 +58,8 @@ export interface ThaiCostRates {
   pattaniContractorCrate: number;
   pattaniContractorBox: number;
   pattaniSakriCrate: number;
+  songkhlaCrateRate: number;
+  songkhlaBoxRate: number;
   /** Thai-cost only; independent of MY unloading LARGE_CRATE_CODES. */
   largeTongTypeCodes: string[];
 }
@@ -60,6 +68,8 @@ export interface ResolvedThaiCostRates extends ThaiCostRates {
   source: "monthly_snapshot" | "current_settings";
   yearMonth: string | null;
   locked: boolean;
+  /** Locked snapshot predates Songkhla unified rates — use legacy Sadao split for Songkhla only. */
+  songkhlaHandlingLegacy?: boolean;
 }
 
 export function ratesToHandlingPair(
@@ -141,6 +151,12 @@ function ratesFromMap(
     pattaniSakriCrate:
       byKey.get("pattani_sakri_crate") ??
       DEFAULT_THAI_COST_RATES.pattani_sakri_crate,
+    songkhlaCrateRate:
+      byKey.get("songkhla_crate_rate") ??
+      DEFAULT_THAI_COST_RATES.songkhla_crate_rate,
+    songkhlaBoxRate:
+      byKey.get("songkhla_box_rate") ??
+      DEFAULT_THAI_COST_RATES.songkhla_box_rate,
     largeTongTypeCodes,
   });
 }
@@ -207,6 +223,8 @@ export async function saveCurrentThaiCostRates(
     ["pattani_contractor_crate", rates.pattaniContractorCrate],
     ["pattani_contractor_box", rates.pattaniContractorBox],
     ["pattani_sakri_crate", rates.pattaniSakriCrate],
+    ["songkhla_crate_rate", rates.songkhlaCrateRate],
+    ["songkhla_box_rate", rates.songkhlaBoxRate],
   ];
   for (const [key, value] of entries) {
     if (!Number.isFinite(value) || value < 0) {
@@ -241,6 +259,10 @@ export async function resolveThaiCostRatesForMonth(
     where: { yearMonth: ym },
   });
   if (snap) {
+    const songkhlaCrateSnap = decimalToNumber(snap.songkhlaCrateRate);
+    const songkhlaBoxSnap = decimalToNumber(snap.songkhlaBoxRate);
+    const songkhlaHandlingLegacy =
+      songkhlaCrateSnap == null || songkhlaBoxSnap == null;
     return {
       ...mapRates({
         handlingSmallWeekday: decimalToNumber(snap.handlingSmallWeekday) ?? 0,
@@ -258,11 +280,16 @@ export async function resolveThaiCostRatesForMonth(
         pattaniSakriCrate:
           decimalToNumber(snap.pattaniSakriCrate) ??
           DEFAULT_THAI_COST_RATES.pattani_sakri_crate,
+        songkhlaCrateRate:
+          songkhlaCrateSnap ?? DEFAULT_THAI_COST_RATES.songkhla_crate_rate,
+        songkhlaBoxRate:
+          songkhlaBoxSnap ?? DEFAULT_THAI_COST_RATES.songkhla_box_rate,
         largeTongTypeCodes: parseLargeTongTypeCodes(snap.largeTongTypeCodes),
       }),
       source: "monthly_snapshot",
       yearMonth: ym,
       locked: true,
+      songkhlaHandlingLegacy,
     };
   }
   const current = await loadCurrentThaiCostRates();
@@ -299,6 +326,8 @@ export async function lockThaiCostRatesForMonth(input: {
     pattaniContractorCrate: rates.pattaniContractorCrate,
     pattaniContractorBox: rates.pattaniContractorBox,
     pattaniSakriCrate: rates.pattaniSakriCrate,
+    songkhlaCrateRate: rates.songkhlaCrateRate,
+    songkhlaBoxRate: rates.songkhlaBoxRate,
     largeTongTypeCodes: serializeLargeTongTypeCodes(rates.largeTongTypeCodes),
     snapshotAt: new Date(),
     createdBy: input.createdBy,

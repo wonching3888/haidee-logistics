@@ -5,10 +5,10 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import {
   computeDailyLaborDayCost,
   computeMonthlyWorkerTotal,
-  computeSadaoHandlingCommission,
   sumSadaoMonthlyCost,
   type SadaoMonthlyCostSummary,
 } from "@/lib/thai-cost/sadao-cost";
+import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
 import {
   resolveThaiCostRatesForMonth,
   type ResolvedThaiCostRates,
@@ -143,23 +143,18 @@ export async function getSongkhlaMonthlyRealCost(
   const dailyLaborLunchTotalThb = 0;
 
   let handlingSmallCommissionThb = 0;
-  let handlingLargeCommissionThb = 0;
   let handlingBoxCommissionThb = 0;
-  // Songkhla has no holiday/OT rates — always weekday (small 3 / large 4).
+  const handlingLargeCommissionThb = 0;
   for (const row of handlingRows) {
-    const commission = computeSadaoHandlingCommission(
+    const commission = computeSongkhlaHandlingCommission(
       {
         smallCrateTotalQty: row.smallCrateTotalQty,
         largeCrateTotalQty: row.largeCrateTotalQty,
         boxTotalQty: row.boxTotalQty,
-        smallCrateNoCheckQty: 0,
-        largeCrateNoCheckQty: 0,
-        boxNoCheckQty: 0,
       },
-      { holidayRate: false, rateConfig: rates }
+      { rateConfig: rates }
     );
-    handlingSmallCommissionThb += commission.smallCommissionThb;
-    handlingLargeCommissionThb += commission.largeCommissionThb;
+    handlingSmallCommissionThb += commission.crateCommissionThb;
     handlingBoxCommissionThb += commission.boxCommissionThb;
   }
 

@@ -82,8 +82,14 @@ export function DailyOverviewView({
                 {tLocal("thaiCost.dailyOverview.dayCommission")}
               </p>
               <p className="font-mono text-lg font-semibold">
-                {money(overview.sadao.commissionThb)} THB
+                {money(overview.sadao.dayTotalThb)} THB
               </p>
+              {overview.sadao.otherExpensesThb > 0 && (
+                <p className="text-xs text-haidee-muted">
+                  {money(overview.sadao.commissionThb)} +{" "}
+                  {money(overview.sadao.otherExpensesThb)}
+                </p>
+              )}
             </div>
           </div>
         ) : (

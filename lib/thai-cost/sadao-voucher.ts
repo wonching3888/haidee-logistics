@@ -17,12 +17,17 @@ import {
 } from "@/lib/thai-cost/sadao-cost";
 import { resolveThaiCostRatesForMonth } from "@/lib/thai-cost/rate-settings";
 import { aggregateSadaoDispatchTotalsForDate } from "@/lib/thai-cost/dispatch-crate-aggregate";
+import {
+  computeSadaoHandlingDayTotalThb,
+  sumSadaoHandlingOtherExpensesThb,
+} from "@/lib/thai-cost/sadao-handling-expenses";
+import { decimalToNumber } from "@/lib/freight-rates";
 
 export interface SadaoVoucherLine {
-  bucket: "small" | "large" | "box";
+  bucket: "small" | "large" | "box" | "other";
   label: string;
-  billableQty: number;
-  unitRateThb: number;
+  billableQty: number | null;
+  unitRateThb: number | null;
   amountThb: number;
 }
 
@@ -42,12 +47,14 @@ export interface SadaoVoucherDetail {
   };
   billable: SadaoBillableCrates;
   lines: SadaoVoucherLine[];
+  commissionTotalThb: number;
+  otherExpensesTotalThb: number;
   totalThb: number;
   notes: string | null;
   fromDispatch: boolean;
 }
 
-const BUCKET_LABELS: Record<SadaoVoucherLine["bucket"], string> = {
+const BUCKET_LABELS: Record<"small" | "large" | "box", string> = {
   small: "ถังเล็ก / Small crate",
   large: "ถังใหญ่ / Large crate",
   box: "กล่อง / Box",
@@ -80,7 +87,19 @@ function buildVoucherLines(
       amountThb: billable.boxBillableQty * rates.box,
     },
   ];
-  return lines.filter((l) => l.billableQty > 0 || l.amountThb > 0);
+  return lines.filter((l) => (l.billableQty ?? 0) > 0 || l.amountThb > 0);
+}
+
+function buildOtherExpenseVoucherLines(
+  expenses: Array<{ description: string; amountThb: unknown }>
+): SadaoVoucherLine[] {
+  return expenses.map((row) => ({
+    bucket: "other" as const,
+    label: row.description,
+    billableQty: null,
+    unitRateThb: null,
+    amountThb: decimalToNumber(row.amountThb as never) ?? 0,
+  }));
 }
 
 export async function getSadaoVoucherForDate(
@@ -91,7 +110,10 @@ export async function getSadaoVoucherForDate(
   const month = date.getUTCMonth() + 1;
 
   const [stored, holiday, rates] = await Promise.all([
-    prisma.sadaoCrateHandlingDaily.findUnique({ where: { date } }),
+    prisma.sadaoCrateHandlingDaily.findUnique({
+      where: { date },
+      include: { otherExpenses: { orderBy: { createdAt: "asc" } } },
+    }),
     prisma.thaiPublicHoliday.findUnique({
       where: { date },
       select: { date: true },
@@ -107,7 +129,15 @@ export async function getSadaoVoucherForDate(
       holidayRate,
       rateConfig: rates,
     });
-    const lines = buildVoucherLines(commission, commission.rates);
+    const lines = [
+      ...buildVoucherLines(commission, commission.rates),
+      ...buildOtherExpenseVoucherLines(stored.otherExpenses),
+    ];
+    const otherExpensesTotalThb = sumSadaoHandlingOtherExpensesThb(
+      stored.otherExpenses.map((row) => ({
+        amountThb: decimalToNumber(row.amountThb) ?? 0,
+      }))
+    );
     return {
       date: toDateInputValue(date),
       holidayRate,
@@ -128,7 +158,12 @@ export async function getSadaoVoucherForDate(
         boxBillableQty: commission.boxBillableQty,
       },
       lines,
-      totalThb: commission.totalCommissionThb,
+      commissionTotalThb: commission.totalCommissionThb,
+      otherExpensesTotalThb,
+      totalThb: computeSadaoHandlingDayTotalThb(
+        commission.totalCommissionThb,
+        otherExpensesTotalThb
+      ),
       notes: stored.notes,
       fromDispatch: false,
     };
@@ -177,6 +212,8 @@ export async function getSadaoVoucherForDate(
       boxBillableQty: commission.boxBillableQty,
     },
     lines,
+    commissionTotalThb: commission.totalCommissionThb,
+    otherExpensesTotalThb: 0,
     totalThb: commission.totalCommissionThb,
     notes: null,
     fromDispatch: true,

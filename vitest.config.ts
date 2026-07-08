@@ -96,6 +96,8 @@ export default defineConfig({
       "lib/invoice-amount-words.test.ts",
       "lib/monthly-invoice-listing-by-shipper.test.ts",
       "lib/thai-cost/sadao-cost.test.ts",
+      "lib/thai-cost/songkhla-handling-cost.test.ts",
+      "lib/thai-cost/sadao-handling-expenses.test.ts",
       "lib/thai-cost/holiday.test.ts",
       "lib/thai-cost/crate-classify.test.ts",
       "lib/thai-cost/vehicle-trip-cost.test.ts",

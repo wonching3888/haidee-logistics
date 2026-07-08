@@ -33,6 +33,14 @@ import {
   resolveThaiCostRatesForMonth,
   type ThaiCostRates,
 } from "@/lib/thai-cost/rate-settings";
+import {
+  computeSadaoHandlingDayTotalThb,
+  normalizeSadaoHandlingOtherExpenses,
+  SadaoHandlingExpenseValidationError,
+  sumSadaoHandlingOtherExpensesThb,
+  type SadaoHandlingOtherExpenseInput,
+  type SadaoHandlingOtherExpenseRow,
+} from "@/lib/thai-cost/sadao-handling-expenses";
 import { aggregateSadaoDispatchTotalsForDate } from "@/lib/thai-cost/dispatch-crate-aggregate";
 import { getSadaoVoucherForDate } from "@/lib/thai-cost/sadao-voucher";
 import { getDailyOverview } from "@/lib/thai-cost/daily-overview";
@@ -40,6 +48,7 @@ import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { randomUUID } from "crypto";
 
 export async function revalidateThaiCost() {
+  if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
   revalidatePath("/thai-cost/workers");
   revalidatePath("/thai-cost/attendance");
   revalidatePath("/thai-cost/sadao-handling");
@@ -441,7 +450,20 @@ export interface SadaoHandlingRow {
   largeCommissionThb: number;
   boxCommissionThb: number;
   commissionThb: number;
+  otherExpenses: SadaoHandlingOtherExpenseRow[];
+  otherExpensesThb: number;
+  dayTotalThb: number;
   notes: string | null;
+}
+
+function mapOtherExpenseRows(
+  rows: Array<{ id: string; description: string; amountThb: unknown }>
+): SadaoHandlingOtherExpenseRow[] {
+  return rows.map((row) => ({
+    id: row.id,
+    description: row.description,
+    amountThb: decimalToNumber(row.amountThb as never) ?? 0,
+  }));
 }
 
 function toHandlingRow(
@@ -455,6 +477,11 @@ function toHandlingRow(
     largeCrateNoCheckQty: number;
     boxNoCheckQty: number;
     notes: string | null;
+    otherExpenses?: Array<{
+      id: string;
+      description: string;
+      amountThb: unknown;
+    }>;
   },
   holidayKeys: ReadonlySet<string>,
   rateConfig: ThaiCostRates
@@ -464,6 +491,8 @@ function toHandlingRow(
     holidayRate,
     rateConfig,
   });
+  const otherExpenses = mapOtherExpenseRows(row.otherExpenses ?? []);
+  const otherExpensesThb = sumSadaoHandlingOtherExpensesThb(otherExpenses);
   return {
     id: row.id,
     date: toDateInputValue(row.date),
@@ -481,6 +510,12 @@ function toHandlingRow(
     largeCommissionThb: commission.largeCommissionThb,
     boxCommissionThb: commission.boxCommissionThb,
     commissionThb: commission.totalCommissionThb,
+    otherExpenses,
+    otherExpensesThb,
+    dayTotalThb: computeSadaoHandlingDayTotalThb(
+      commission.totalCommissionThb,
+      otherExpensesThb
+    ),
     notes: row.notes,
   };
 }
@@ -502,6 +537,9 @@ export async function listSadaoHandling(input: {
   const [rows, holidayKeys, rates] = await Promise.all([
     prisma.sadaoCrateHandlingDaily.findMany({
       where: { date: { gte: start, lte: end } },
+      include: {
+        otherExpenses: { orderBy: { createdAt: "asc" } },
+      },
       orderBy: { date: "asc" },
     }),
     loadHolidayKeysForRange(start, end),
@@ -537,6 +575,7 @@ export async function saveSadaoHandling(input: {
   largeCrateNoCheckQty: number;
   boxNoCheckQty: number;
   notes?: string | null;
+  otherExpenses?: SadaoHandlingOtherExpenseInput[];
 }): Promise<SadaoHandlingRow> {
   const user = await requireThaiCostWrite();
   const date = parseDateInput(input.date);
@@ -561,10 +600,13 @@ export async function saveSadaoHandling(input: {
     boxNoCheckQty: input.boxNoCheckQty,
   };
 
+  let normalizedExpenses: SadaoHandlingOtherExpenseInput[];
   try {
     computeSadaoHandlingCommission(qtyInput, { holidayRate, rateConfig: rates });
+    normalizedExpenses = normalizeSadaoHandlingOtherExpenses(input.otherExpenses);
   } catch (e) {
     if (e instanceof SadaoHandlingValidationError) throw e;
+    if (e instanceof SadaoHandlingExpenseValidationError) throw e;
     throw e;
   }
 
@@ -581,36 +623,59 @@ export async function saveSadaoHandling(input: {
     createdBy: user.id,
   };
 
-  let row;
-  if (input.id) {
-    row = await prisma.sadaoCrateHandlingDaily.update({
-      where: { id: input.id },
-      data: {
-        date: data.date,
-        smallCrateTotalQty: data.smallCrateTotalQty,
-        largeCrateTotalQty: data.largeCrateTotalQty,
-        boxTotalQty: data.boxTotalQty,
-        smallCrateNoCheckQty: data.smallCrateNoCheckQty,
-        largeCrateNoCheckQty: data.largeCrateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
-        notes: data.notes,
+  const row = await prisma.$transaction(async (tx) => {
+    let saved;
+    if (input.id) {
+      saved = await tx.sadaoCrateHandlingDaily.update({
+        where: { id: input.id },
+        data: {
+          date: data.date,
+          smallCrateTotalQty: data.smallCrateTotalQty,
+          largeCrateTotalQty: data.largeCrateTotalQty,
+          boxTotalQty: data.boxTotalQty,
+          smallCrateNoCheckQty: data.smallCrateNoCheckQty,
+          largeCrateNoCheckQty: data.largeCrateNoCheckQty,
+          boxNoCheckQty: data.boxNoCheckQty,
+          notes: data.notes,
+        },
+      });
+    } else {
+      saved = await tx.sadaoCrateHandlingDaily.upsert({
+        where: { date },
+        create: data,
+        update: {
+          smallCrateTotalQty: data.smallCrateTotalQty,
+          largeCrateTotalQty: data.largeCrateTotalQty,
+          boxTotalQty: data.boxTotalQty,
+          smallCrateNoCheckQty: data.smallCrateNoCheckQty,
+          largeCrateNoCheckQty: data.largeCrateNoCheckQty,
+          boxNoCheckQty: data.boxNoCheckQty,
+          notes: data.notes,
+        },
+      });
+    }
+
+    await tx.sadaoHandlingOtherExpense.deleteMany({
+      where: { handlingDailyId: saved.id },
+    });
+    if (normalizedExpenses.length > 0) {
+      await tx.sadaoHandlingOtherExpense.createMany({
+        data: normalizedExpenses.map((item) => ({
+          id: randomUUID(),
+          handlingDailyId: saved.id,
+          description: item.description,
+          amountThb: item.amountThb,
+        })),
+      });
+    }
+
+    return tx.sadaoCrateHandlingDaily.findUniqueOrThrow({
+      where: { id: saved.id },
+      include: {
+        otherExpenses: { orderBy: { createdAt: "asc" } },
       },
     });
-  } else {
-    row = await prisma.sadaoCrateHandlingDaily.upsert({
-      where: { date },
-      create: data,
-      update: {
-        smallCrateTotalQty: data.smallCrateTotalQty,
-        largeCrateTotalQty: data.largeCrateTotalQty,
-        boxTotalQty: data.boxTotalQty,
-        smallCrateNoCheckQty: data.smallCrateNoCheckQty,
-        largeCrateNoCheckQty: data.largeCrateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
-        notes: data.notes,
-      },
-    });
-  }
+  });
 
   revalidateThaiCost();
   return toHandlingRow(row, holidayKeys, rates);

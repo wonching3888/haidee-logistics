@@ -17,6 +17,7 @@ import {
   sumSadaoMonthlyCost,
   type SadaoMonthlyCostSummary,
 } from "@/lib/thai-cost/sadao-cost";
+import { sumSadaoHandlingOtherExpensesThb } from "@/lib/thai-cost/sadao-handling-expenses";
 import {
   resolveThaiCostRatesForMonth,
   type ResolvedThaiCostRates,
@@ -73,6 +74,7 @@ export async function getSadaoMonthlyCost(
       }),
       prisma.sadaoCrateHandlingDaily.findMany({
         where: { date: { gte: start, lte: end } },
+        include: { otherExpenses: true },
         orderBy: { date: "asc" },
       }),
       prisma.thaiDailyLaborMonthlyRoster.findUnique({
@@ -145,6 +147,7 @@ export async function getSadaoMonthlyCost(
   let handlingSmallCommissionThb = 0;
   let handlingLargeCommissionThb = 0;
   let handlingBoxCommissionThb = 0;
+  let handlingOtherExpensesThb = 0;
   for (const row of handlingRows) {
     const commission = computeSadaoHandlingCommission(
       {
@@ -163,6 +166,11 @@ export async function getSadaoMonthlyCost(
     handlingSmallCommissionThb += commission.smallCommissionThb;
     handlingLargeCommissionThb += commission.largeCommissionThb;
     handlingBoxCommissionThb += commission.boxCommissionThb;
+    handlingOtherExpensesThb += sumSadaoHandlingOtherExpensesThb(
+      row.otherExpenses.map((expense) => ({
+        amountThb: decimalToNumber(expense.amountThb) ?? 0,
+      }))
+    );
   }
 
   const summary = sumSadaoMonthlyCost({
@@ -175,6 +183,7 @@ export async function getSadaoMonthlyCost(
     handlingSmallCommissionThb,
     handlingLargeCommissionThb,
     handlingBoxCommissionThb,
+    handlingOtherExpensesThb,
   });
 
   return {

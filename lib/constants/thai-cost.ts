@@ -37,6 +37,10 @@ export const SADAO_HANDLING_BOX_WEEKDAY_RATE_THB =
 export const SADAO_HANDLING_BOX_HOLIDAY_RATE_THB =
   SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB;
 
+/** Songkhla handling commission (THB per billable unit); independent of Sadao small/large split. */
+export const SONGKHLA_HANDLING_CRATE_RATE_THB = 3;
+export const SONGKHLA_HANDLING_BOX_RATE_THB = 3;
+
 export interface SadaoHandlingRates {
   small: number;
   large: number;

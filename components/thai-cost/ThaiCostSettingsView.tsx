@@ -80,14 +80,23 @@ export function ThaiCostSettingsView({
       <ThaiRoutesSettingsSection routes={thaiRoutes} canWrite={canWrite} />
 
       <div className="rounded-lg border border-haidee-border p-4">
-        <h3 className="text-sm font-medium">
-          Sadao / 宋卡 搬运费率（THB，盒子=小桶）
-        </h3>
+        <h3 className="text-sm font-medium">Sadao 搬运费率（THB，盒子=小桶）</h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {field("handlingSmallWeekday", "小桶/盒子 平日")}
           {field("handlingSmallHoliday", "小桶/盒子 假日")}
           {field("handlingLargeWeekday", "大桶 平日")}
           {field("handlingLargeHoliday", "大桶 假日")}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-haidee-border p-4">
+        <h3 className="text-sm font-medium">宋卡搬运费率（THB，不分大小桶）</h3>
+        <p className="mt-1 text-xs text-haidee-muted">
+          计费：(小桶+大桶)×桶费率 + 盒子×盒子费率。派车回填仍按桶型分小/大/盒存储。
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {field("songkhlaCrateRate", "桶（小+大合计）")}
+          {field("songkhlaBoxRate", "盒子")}
         </div>
       </div>
 

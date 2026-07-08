@@ -222,6 +222,7 @@ export interface SadaoMonthlyCostParts {
   handlingSmallCommissionThb: number;
   handlingLargeCommissionThb: number;
   handlingBoxCommissionThb: number;
+  handlingOtherExpensesThb?: number;
 }
 
 export interface SadaoMonthlyCostSummary extends SadaoMonthlyCostParts {
@@ -250,6 +251,8 @@ export function sumSadaoMonthlyCost(
     Number(parts.handlingLargeCommissionThb) || 0;
   const handlingBoxCommissionThb =
     Number(parts.handlingBoxCommissionThb) || 0;
+  const handlingOtherExpensesThb =
+    Number(parts.handlingOtherExpensesThb) || 0;
 
   const monthlyWorkerTotalThb =
     monthlyWageTotalThb +
@@ -260,7 +263,8 @@ export function sumSadaoMonthlyCost(
   const handlingCommissionTotalThb =
     handlingSmallCommissionThb +
     handlingLargeCommissionThb +
-    handlingBoxCommissionThb;
+    handlingBoxCommissionThb +
+    handlingOtherExpensesThb;
 
   return {
     monthlyWageTotalThb,
@@ -272,6 +276,7 @@ export function sumSadaoMonthlyCost(
     handlingSmallCommissionThb,
     handlingLargeCommissionThb,
     handlingBoxCommissionThb,
+    handlingOtherExpensesThb,
     monthlyWorkerTotalThb,
     dailyLaborTotalThb,
     handlingCommissionTotalThb,

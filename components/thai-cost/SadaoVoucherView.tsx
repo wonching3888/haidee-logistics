@@ -85,14 +85,17 @@ export function SadaoVoucherView({
                 </td>
               </tr>
             ) : (
-              voucher.lines.map((line) => (
-                <tr key={line.bucket} className="border-b border-gray-300">
+              voucher.lines.map((line, index) => (
+                <tr
+                  key={`${line.bucket}-${index}`}
+                  className="border-b border-gray-300"
+                >
                   <td className="py-2">{line.label}</td>
                   <td className="py-2 text-right font-mono">
-                    {line.billableQty}
+                    {line.billableQty == null ? "—" : line.billableQty}
                   </td>
                   <td className="py-2 text-right font-mono">
-                    {money(line.unitRateThb)}
+                    {line.unitRateThb == null ? "—" : money(line.unitRateThb)}
                   </td>
                   <td className="py-2 text-right font-mono">
                     {money(line.amountThb)}

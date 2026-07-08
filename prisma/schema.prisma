@@ -1475,6 +1475,9 @@ model ThaiCostMonthlyRateSnapshot {
   pattaniContractorCrate  Decimal  @default(20) @map("pattani_contractor_crate") @db.Decimal(12, 4)
   pattaniContractorBox    Decimal  @default(5) @map("pattani_contractor_box") @db.Decimal(12, 4)
   pattaniSakriCrate       Decimal  @default(2.2) @map("pattani_sakri_crate") @db.Decimal(12, 4)
+  /// Songkhla handling: unified crate/box rates (null = legacy Sadao split on locked months).
+  songkhlaCrateRate       Decimal? @map("songkhla_crate_rate") @db.Decimal(12, 4)
+  songkhlaBoxRate         Decimal? @map("songkhla_box_rate") @db.Decimal(12, 4)
   /// JSON array of tong type codes treated as large for Thai cost only.
   largeTongTypeCodes      String   @default("[\"VIO\",\"BS\",\"GKS\"]") @map("large_tong_type_codes")
   snapshotAt              DateTime @map("snapshot_at")
@@ -1540,7 +1543,22 @@ model SadaoCrateHandlingDaily {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
+  otherExpenses SadaoHandlingOtherExpense[]
+
   @@map("sadao_crate_handling_daily")
+}
+
+/// Free-form other expenses on a Sadao handling day (clerk-entered).
+model SadaoHandlingOtherExpense {
+  id              String   @id @default(uuid()) @db.Uuid
+  handlingDailyId String   @map("handling_daily_id") @db.Uuid
+  handlingDaily   SadaoCrateHandlingDaily @relation(fields: [handlingDailyId], references: [id], onDelete: Cascade)
+  description     String
+  amountThb       Decimal  @map("amount_thb") @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([handlingDailyId])
+  @@map("sadao_handling_other_expenses")
 }
 
 /// Songkhla daily crate handling (no no-check exclusion; billable = total).

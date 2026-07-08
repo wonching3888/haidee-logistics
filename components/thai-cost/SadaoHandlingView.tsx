@@ -31,6 +31,7 @@ import {
 } from "@/lib/constants/thai-cost";
 import { formatDisplay } from "@/lib/date-utils";
 import type { HolidayRateInfo } from "@/lib/thai-cost/holiday";
+import type { SadaoHandlingOtherExpenseInput } from "@/lib/thai-cost/sadao-handling-expenses";
 
 interface SadaoHandlingViewProps {
   year: number;
@@ -41,6 +42,42 @@ interface SadaoHandlingViewProps {
 
 function money(n: number) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+}
+
+type OtherExpenseFormRow = {
+  key: string;
+  description: string;
+  amountThb: string;
+};
+
+function emptyOtherExpenseRow(): OtherExpenseFormRow {
+  return {
+    key: `exp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    description: "",
+    amountThb: "",
+  };
+}
+
+function otherExpensesFromRow(
+  row: SadaoHandlingRow
+): OtherExpenseFormRow[] {
+  if (row.otherExpenses.length === 0) return [];
+  return row.otherExpenses.map((item) => ({
+    key: item.id,
+    description: item.description,
+    amountThb: String(item.amountThb),
+  }));
+}
+
+function otherExpensesToInput(
+  rows: OtherExpenseFormRow[]
+): SadaoHandlingOtherExpenseInput[] {
+  return rows
+    .filter((row) => row.description.trim() || row.amountThb.trim())
+    .map((row) => ({
+      description: row.description,
+      amountThb: Number(row.amountThb) || 0,
+    }));
 }
 
 export function SadaoHandlingView({
@@ -70,6 +107,7 @@ export function SadaoHandlingView({
     notes: "",
   });
   const [holidayInfo, setHolidayInfo] = useState<HolidayRateInfo | null>(null);
+  const [otherExpenses, setOtherExpenses] = useState<OtherExpenseFormRow[]>([]);
 
   useEffect(() => {
     if (!showForm || !form.date) {
@@ -124,6 +162,7 @@ export function SadaoHandlingView({
       boxNoCheckQty: "0",
       notes: "",
     });
+    setOtherExpenses([]);
     setShowForm(true);
     setError(null);
   }
@@ -142,6 +181,7 @@ export function SadaoHandlingView({
       boxNoCheckQty: String(row.boxNoCheckQty),
       notes: row.notes ?? "",
     });
+    setOtherExpenses(otherExpensesFromRow(row));
     setShowForm(true);
     setError(null);
   }
@@ -167,10 +207,12 @@ export function SadaoHandlingView({
     );
   }
 
-  const monthTotal = rows.reduce((s, r) => s + r.commissionThb, 0);
+  const monthTotal = rows.reduce((s, r) => s + r.dayTotalThb, 0);
   const smallTotal = rows.reduce((s, r) => s + r.smallCommissionThb, 0);
   const largeTotal = rows.reduce((s, r) => s + r.largeCommissionThb, 0);
   const boxTotal = rows.reduce((s, r) => s + r.boxCommissionThb, 0);
+  const otherTotal = rows.reduce((s, r) => s + r.otherExpensesThb, 0);
+  const commissionTotal = rows.reduce((s, r) => s + r.commissionThb, 0);
 
   const billablePreview = {
     small:
@@ -246,6 +288,7 @@ export function SadaoHandlingView({
                 largeCrateNoCheckQty: Number(form.largeCrateNoCheckQty),
                 boxNoCheckQty: Number(form.boxNoCheckQty),
                 notes: form.notes || null,
+                otherExpenses: otherExpensesToInput(otherExpenses),
               });
             });
           }}
@@ -399,6 +442,95 @@ export function SadaoHandlingView({
             )}
           </div>
 
+          <div className="rounded-md border border-dashed border-haidee-border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                {tLocal("thaiCost.sadaoHandling.otherExpenses")}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() =>
+                  setOtherExpenses((rows) => [...rows, emptyOtherExpenseRow()])
+                }
+              >
+                <Plus className="h-4 w-4" />
+                {tLocal("thaiCost.sadaoHandling.addOtherExpense")}
+              </Button>
+            </div>
+            {otherExpenses.length === 0 ? (
+              <p className="mt-2 text-xs text-haidee-muted">
+                {tLocal("thaiCost.sadaoHandling.otherExpensesEmpty")}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {otherExpenses.map((row) => (
+                  <div
+                    key={row.key}
+                    className="grid gap-2 sm:grid-cols-[1fr_8rem_auto]"
+                  >
+                    <label className="space-y-1 text-sm">
+                      <span>
+                        {tLocal("thaiCost.sadaoHandling.otherExpenseDescription")}
+                      </span>
+                      <Input
+                        value={row.description}
+                        onChange={(e) =>
+                          setOtherExpenses((rows) =>
+                            rows.map((item) =>
+                              item.key === row.key
+                                ? { ...item, description: e.target.value }
+                                : item
+                            )
+                          )
+                        }
+                        placeholder={tLocal(
+                          "thaiCost.sadaoHandling.otherExpenseDescription"
+                        )}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm">
+                      <span>
+                        {tLocal("thaiCost.sadaoHandling.otherExpenseAmount")}
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={row.amountThb}
+                        onChange={(e) =>
+                          setOtherExpenses((rows) =>
+                            rows.map((item) =>
+                              item.key === row.key
+                                ? { ...item, amountThb: e.target.value }
+                                : item
+                            )
+                          )
+                        }
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setOtherExpenses((rows) =>
+                            rows.filter((item) => item.key !== row.key)
+                          )
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-haidee-red" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <label className="block space-y-1 text-sm">
             <span>{tLocal("thaiCost.common.notes")}</span>
             <Input
@@ -444,7 +576,7 @@ export function SadaoHandlingView({
                 {tLocal("thaiCost.sadaoHandling.colBoxTotals")}
               </TableHead>
               <TableHead className="text-right">
-                {tLocal("thaiCost.sadaoHandling.colCommission")}
+                {tLocal("thaiCost.sadaoHandling.colDayTotal")}
               </TableHead>
               <TableHead>{tLocal("thaiCost.common.notes")}</TableHead>
               <TableHead className="text-right">
@@ -480,7 +612,12 @@ export function SadaoHandlingView({
                     {r.boxTotalQty} / {r.boxNoCheckQty} / {r.boxBillableQty}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {money(r.commissionThb)}
+                    <div>{money(r.dayTotalThb)}</div>
+                    {r.otherExpensesThb > 0 && (
+                      <div className="text-xs text-haidee-muted">
+                        {money(r.commissionThb)}+{money(r.otherExpensesThb)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-[12rem] truncate">
                     {r.notes ?? "—"}
@@ -559,9 +696,27 @@ export function SadaoHandlingView({
                   </TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
-                <TableRow className="bg-haidee-surface/50 font-medium">
+                <TableRow className="bg-haidee-surface/30 text-sm">
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.subtotalOther")}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {money(otherTotal)}
+                  </TableCell>
+                  <TableCell colSpan={2} />
+                </TableRow>
+                <TableRow className="bg-haidee-surface/30 text-sm">
                   <TableCell colSpan={5}>
                     {tLocal("thaiCost.sadaoHandling.monthTotal")}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {money(commissionTotal)}
+                  </TableCell>
+                  <TableCell colSpan={2} />
+                </TableRow>
+                <TableRow className="bg-haidee-surface/50 font-medium">
+                  <TableCell colSpan={5}>
+                    {tLocal("thaiCost.sadaoHandling.monthDayTotal")}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {money(monthTotal)}

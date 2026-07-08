@@ -13,6 +13,11 @@ import {
   computeDailyLaborDayCost,
   computeSadaoHandlingCommission,
 } from "@/lib/thai-cost/sadao-cost";
+import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
+import {
+  computeSadaoHandlingDayTotalThb,
+  sumSadaoHandlingOtherExpensesThb,
+} from "@/lib/thai-cost/sadao-handling-expenses";
 import {
   resolveThaiCostRatesForMonth,
   computePattaniDayCosts,
@@ -29,6 +34,8 @@ export interface DailyOverviewSadaoSection {
   billableLarge: number;
   billableBox: number;
   commissionThb: number;
+  otherExpensesThb: number;
+  dayTotalThb: number;
   holidayRate: boolean;
 }
 
@@ -83,7 +90,10 @@ export async function getDailyOverview(
     rates,
     plCtx,
   ] = await Promise.all([
-    prisma.sadaoCrateHandlingDaily.findUnique({ where: { date } }),
+    prisma.sadaoCrateHandlingDaily.findUnique({
+      where: { date },
+      include: { otherExpenses: true },
+    }),
     prisma.songkhlaCrateHandlingDaily.findUnique({ where: { date } }),
     prisma.pattaniCrateHandlingDaily.findUnique({ where: { date } }),
     prisma.thaiDailyLaborAttendance.findUnique({
@@ -118,11 +128,21 @@ export async function getDailyOverview(
       holidayRate: sadaoHolidayRate,
       rateConfig: rates,
     });
+    const otherExpensesThb = sumSadaoHandlingOtherExpensesThb(
+      sadaoHandling.otherExpenses.map((row) => ({
+        amountThb: decimalToNumber(row.amountThb) ?? 0,
+      }))
+    );
     sadao = {
       billableSmall: c.smallBillableQty,
       billableLarge: c.largeBillableQty,
       billableBox: c.boxBillableQty,
       commissionThb: c.totalCommissionThb,
+      otherExpensesThb,
+      dayTotalThb: computeSadaoHandlingDayTotalThb(
+        c.totalCommissionThb,
+        otherExpensesThb
+      ),
       holidayRate: sadaoHolidayRate,
     };
   }
@@ -154,16 +174,13 @@ export async function getDailyOverview(
     let sakriCommissionThb: number | undefined;
 
     if (station === "SONGKHLA" && songkhlaHandling) {
-      const c = computeSadaoHandlingCommission(
+      const c = computeSongkhlaHandlingCommission(
         {
           smallCrateTotalQty: songkhlaHandling.smallCrateTotalQty,
           largeCrateTotalQty: songkhlaHandling.largeCrateTotalQty,
           boxTotalQty: songkhlaHandling.boxTotalQty,
-          smallCrateNoCheckQty: 0,
-          largeCrateNoCheckQty: 0,
-          boxNoCheckQty: 0,
         },
-        { holidayRate: false, rateConfig: rates }
+        { rateConfig: rates }
       );
       handlingCommissionThb = c.totalCommissionThb;
     } else if (station === "PATTANI" && pattaniHandling) {

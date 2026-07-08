@@ -336,6 +336,46 @@ export const THAI_COST_MESSAGES = {
   "thaiCost.sadaoHandling.subtotalLarge": { zh: "大桶提成小计", en: "Large crate subtotal", th: "รวมถังใหญ่" },
   "thaiCost.sadaoHandling.subtotalBox": { zh: "盒子提成小计", en: "Box subtotal", th: "รวมกล่อง" },
   "thaiCost.sadaoHandling.monthTotal": { zh: "当月提成合计", en: "Monthly commission total", th: "รวมคอมมิชชั่นเดือนนี้" },
+  "thaiCost.sadaoHandling.otherExpenses": {
+    zh: "其他开销",
+    en: "Other expenses",
+    th: "ค่าใช้จ่ายอื่น",
+  },
+  "thaiCost.sadaoHandling.addOtherExpense": {
+    zh: "加行",
+    en: "Add line",
+    th: "เพิ่มรายการ",
+  },
+  "thaiCost.sadaoHandling.otherExpensesEmpty": {
+    zh: "暂无其他开销，点「加行」添加。",
+    en: "No other expenses yet. Click Add line.",
+    th: "ยังไม่มีรายการอื่น กดเพิ่มรายการ",
+  },
+  "thaiCost.sadaoHandling.otherExpenseDescription": {
+    zh: "说明",
+    en: "Description",
+    th: "รายละเอียด",
+  },
+  "thaiCost.sadaoHandling.otherExpenseAmount": {
+    zh: "金额 (THB)",
+    en: "Amount (THB)",
+    th: "จำนวน (THB)",
+  },
+  "thaiCost.sadaoHandling.colDayTotal": {
+    zh: "当日总成本 (THB)",
+    en: "Day total (THB)",
+    th: "รวมวันนี้ (THB)",
+  },
+  "thaiCost.sadaoHandling.subtotalOther": {
+    zh: "其他开销小计",
+    en: "Other expenses subtotal",
+    th: "รวมค่าใช้จ่ายอื่น",
+  },
+  "thaiCost.sadaoHandling.monthDayTotal": {
+    zh: "当月总成本合计",
+    en: "Monthly day-total sum",
+    th: "รวมต้นทุนวันเดือนนี้",
+  },
 
   // ── Songkhla handling ───────────────────────────────────────────────────
   "thaiCost.songkhlaHandling.intro": {
