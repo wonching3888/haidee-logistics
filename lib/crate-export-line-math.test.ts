@@ -11,7 +11,7 @@ describe("crate-export-line-math", () => {
     expect(crateExportLineShortage(0, 10)).toBe(0);
   });
 
-  it("create path uses form suggested", () => {
+  it("uses form suggested when server live is not provided", () => {
     expect(
       resolveCrateExportQuantitySuggested({
         formQuantitySuggested: 42,
@@ -19,7 +19,13 @@ describe("crate-export-line-math", () => {
     ).toBe(42);
   });
 
-  it("edit save path uses server live suggested when provided", () => {
+  it("save path uses server live suggested when provided (create and edit)", () => {
+    expect(
+      resolveCrateExportQuantitySuggested({
+        formQuantitySuggested: 0,
+        liveQuantitySuggested: 124,
+      })
+    ).toBe(124);
     expect(
       resolveCrateExportQuantitySuggested({
         formQuantitySuggested: 5,

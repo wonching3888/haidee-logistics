@@ -51,6 +51,7 @@ import {
   crateExportLineShortage,
   resolveCrateExportQuantitySuggested,
 } from "@/lib/crate-export-line-math";
+import { resolveCrateExportSaveSuggestedByCode } from "@/lib/crate-export-save-suggested";
 
 function revalidateCrateExportRelatedPaths() {
   if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
@@ -384,7 +385,12 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     exportNoPromise,
     prisma.shipper.findUnique({
       where: { id: input.shipperId },
-      select: { name: true, code: true, isMultiOriginCustomer: true },
+      select: {
+        name: true,
+        code: true,
+        shipperKind: true,
+        isMultiOriginCustomer: true,
+      },
     }),
     prisma.tongType.findMany({
       where: { id: { in: tongTypeIds } },
@@ -418,12 +424,17 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
   }
 
   const tongTypeMap = new Map(tongTypes.map((t) => [t.id, t]));
-  const liveOwedByCode = isEdit
-    ? await getLiveCrateExportOwedByCode(
-        input.date,
-        input.shipperId,
-        customerStockLocation
-      )
+  const liveOwedByCode = shouldUseLiveCrateExportOwed(input.date)
+    ? await resolveCrateExportSaveSuggestedByCode({
+        dateInput: input.date,
+        shipperId: input.shipperId,
+        shipper: {
+          code: shipper.code,
+          shipperKind: shipper.shipperKind,
+        },
+        location: customerStockLocation,
+        areaNote: input.areaNote,
+      })
     : null;
 
   const exportRows: Prisma.TongExportCreateManyInput[] = [];
@@ -443,9 +454,10 @@ export async function saveCrateExport(input: CrateExportSaveInput) {
     const actual = Math.min(line.quantityActual, available);
     const quantitySuggested = resolveCrateExportQuantitySuggested({
       formQuantitySuggested: line.quantitySuggested,
-      liveQuantitySuggested: isEdit
-        ? (liveOwedByCode?.[tongType.code] ?? 0)
-        : undefined,
+      liveQuantitySuggested:
+        liveOwedByCode !== null
+          ? (liveOwedByCode[tongType.code] ?? 0)
+          : undefined,
     });
     const shortage = crateExportLineShortage(quantitySuggested, actual);
 

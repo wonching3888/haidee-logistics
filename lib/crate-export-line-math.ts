@@ -7,8 +7,8 @@ export function crateExportLineShortage(
 }
 
 /**
- * Create: use form/live suggested from the client.
- * Edit save: pass liveQuantitySuggested from server-side owed lookup at save time.
+ * When liveQuantitySuggested is provided (server save for today), use it.
+ * Otherwise fall back to the form value (historical dates or UI display).
  */
 export function resolveCrateExportQuantitySuggested(params: {
   formQuantitySuggested: number;

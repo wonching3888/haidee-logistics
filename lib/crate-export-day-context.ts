@@ -16,6 +16,7 @@ import {
   subCustomerChannelMapKey,
   toSubCustomerChannelRecord,
 } from "@/lib/sub-customer-channel";
+import { aggregateLedgerExportReturnsByShipperLocation } from "@/lib/crate-export-ledger-returns";
 
 /** Load due-today input for a calendar day (shared by due-today list and live owed). */
 export async function loadCrateExportDayInput(
@@ -67,7 +68,7 @@ export async function loadCrateExportDayInput(
     }),
     prisma.customerCrateLedger.findMany({
       where: {
-        changeType: "export",
+        changeType: { in: ["export", "export_void"] },
         createdAt: { gte: ledgerStart, lt: ledgerEnd },
       },
       include: { crateType: { select: { code: true } } },
@@ -136,15 +137,15 @@ export async function loadCrateExportDayInput(
     exportsByShipperId.set(row.shipperId, map);
   }
 
-  const exportsByShipperLocation = new Map<string, Map<string, number>>();
-  for (const row of ledgerExports) {
-    if (row.quantity <= 0) continue;
-    const loc = row.location?.trim() ?? "";
-    const key = `${row.shipperId}|${loc}`;
-    const map = exportsByShipperLocation.get(key) ?? new Map();
-    map.set(row.crateType.code, (map.get(row.crateType.code) ?? 0) + row.quantity);
-    exportsByShipperLocation.set(key, map);
-  }
+  const exportsByShipperLocation = aggregateLedgerExportReturnsByShipperLocation(
+    ledgerExports.map((row) => ({
+      changeType: row.changeType as "export" | "export_void",
+      shipperId: row.shipperId,
+      location: row.location,
+      crateCode: row.crateType.code,
+      quantity: row.quantity,
+    }))
+  );
 
   return {
     date: dateInput,

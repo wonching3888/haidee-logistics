@@ -53,6 +53,7 @@ export default defineConfig({
       "lib/pnl-cache-invalidation.test.ts",
       "lib/crate-import-rows.test.ts",
       "lib/crate-export-due-today.test.ts",
+      "lib/crate-export-ledger-returns.test.ts",
       "lib/crate-export-line-math.test.ts",
       "lib/crate-export-live-owed.test.ts",
       "lib/crate-export-prefill-location.test.ts",
