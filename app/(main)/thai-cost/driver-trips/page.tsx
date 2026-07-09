@@ -5,12 +5,13 @@ import {
   seedThaiDriversPhase2,
 } from "@/app/actions/thai-cost-phase2";
 import { DriverTripDailyView } from "@/components/thai-cost/DriverTripDailyView";
+import { DriverTripsEntryBanner } from "@/components/thai-cost/handling/DriverTripsEntryBanner";
 import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { ThaiCostSectionTitle } from "@/components/thai-cost/ThaiCostPageHeader";
 import { VehiclePlTable } from "@/components/thai-cost/VehiclePlTable";
 import { PageError } from "@/components/shared/PageError";
-import { getCurrentUser, requirePageUser } from "@/lib/auth";
-import { canAccessThaiCost, canWriteThaiCost } from "@/lib/auth-roles";
+import { requirePageUser } from "@/lib/auth";
+import { canAccessThaiCost } from "@/lib/auth-roles";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -28,9 +29,7 @@ export default async function DriverTripsPage({ searchParams }: PageProps) {
 
   try {
     let drivers = await listThaiDrivers();
-    const current = await getCurrentUser();
-    const canWrite = current ? canWriteThaiCost(current.role) : false;
-    if (drivers.length === 0 && canWrite) {
+    if (drivers.length === 0) {
       drivers = await seedThaiDriversPhase2();
     }
     const [trips, vehiclePl] = await Promise.all([
@@ -44,16 +43,20 @@ export default async function DriverTripsPage({ searchParams }: PageProps) {
         titleKey="thaiCost.driverTrips.pageTitle"
         subtitleKey="thaiCost.driverTrips.pageSubtitle"
       >
-        <DriverTripDailyView
+        <div className="space-y-6">
+          <DriverTripsEntryBanner />
+          <DriverTripDailyView
           year={year}
           month={month}
           drivers={drivers}
           trips={trips}
-          canWrite={canWrite}
+          canWrite={false}
+          viewOnly
         />
         <div className="space-y-2">
           <ThaiCostSectionTitle titleKey="thaiCost.driverTrips.vehiclePlTitle" />
           <VehiclePlTable rows={vehiclePl} />
+        </div>
         </div>
       </ThaiCostEntryShell>
     );

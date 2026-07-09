@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -27,11 +28,13 @@ export function SongkhlaHandlingView({
   month,
   rows,
   canWrite,
+  historyOnly = false,
 }: {
   year: number;
   month: number;
   rows: SongkhlaHandlingRow[];
   canWrite: boolean;
+  historyOnly?: boolean;
 }) {
   const router = useRouter();
   const { tLocal } = useT();
@@ -82,9 +85,11 @@ export function SongkhlaHandlingView({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-haidee-muted">
+      {!historyOnly && (
+        <p className="text-sm text-haidee-muted">
         {tLocal("thaiCost.songkhlaHandling.intro")}
       </p>
+      )}
       <div className="flex flex-wrap gap-3">
         <Input
           type="number"
@@ -114,7 +119,7 @@ export function SongkhlaHandlingView({
           {error}
         </p>
       )}
-      {canWrite && !showForm && (
+      {canWrite && !historyOnly && !showForm && (
         <Button
           type="button"
           className="gap-1 bg-haidee-blue text-white"
@@ -124,7 +129,7 @@ export function SongkhlaHandlingView({
           {tLocal("thaiCost.songkhlaHandling.addRecord")}
         </Button>
       )}
-      {canWrite && showForm && (
+      {canWrite && !historyOnly && showForm && (
         <form
           className="space-y-3 rounded-lg border p-4"
           onSubmit={(e) => {
@@ -234,6 +239,14 @@ export function SongkhlaHandlingView({
               </TableCell>
               {canWrite && (
                 <TableCell>
+                  {historyOnly && (
+                    <Link
+                      href={`/thai-cost/handling?date=${r.date}`}
+                      className="mr-2 text-sm text-haidee-blue underline"
+                    >
+                      {tLocal("thaiCost.handling.historyBannerLink")}
+                    </Link>
+                  )}
                   <Button
                     type="button"
                     variant="ghost"

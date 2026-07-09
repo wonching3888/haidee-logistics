@@ -1,5 +1,6 @@
 import { listSongkhlaHandling } from "@/app/actions/thai-cost-phase2";
 import { SongkhlaHandlingView } from "@/components/thai-cost/SongkhlaHandlingView";
+import { HandlingEntryBanner } from "@/components/thai-cost/handling/HandlingEntryBanner";
 import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
@@ -26,15 +27,17 @@ export default async function SongkhlaHandlingPage({ searchParams }: PageProps) 
     ]);
     return (
       <ThaiCostEntryShell
-        activeTab="songkhla"
-        titleKey="thaiCost.songkhlaHandling.pageTitle"
+        activeTab="handling"
+        titleKey="thaiCost.songkhlaHandling.historyTitle"
         subtitleKey="thaiCost.songkhlaHandling.pageSubtitle"
       >
+        <HandlingEntryBanner />
         <SongkhlaHandlingView
           year={year}
           month={month}
           rows={rows}
           canWrite={current ? canWriteThaiCost(current.role) : false}
+          historyOnly
         />
       </ThaiCostEntryShell>
     );

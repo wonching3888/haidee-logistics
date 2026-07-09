@@ -10,9 +10,7 @@ import {
 
 type EntryTab =
   | "attendance"
-  | "sadao"
-  | "songkhla"
-  | "pattani"
+  | "handling"
   | "driver-trips"
   | "rented";
 

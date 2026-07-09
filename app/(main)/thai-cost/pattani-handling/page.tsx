@@ -1,5 +1,6 @@
 import { listPattaniHandling } from "@/app/actions/thai-cost-phase2";
 import { PattaniHandlingView } from "@/components/thai-cost/PattaniHandlingView";
+import { HandlingEntryBanner } from "@/components/thai-cost/handling/HandlingEntryBanner";
 import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
@@ -26,15 +27,17 @@ export default async function PattaniHandlingPage({ searchParams }: PageProps) {
     ]);
     return (
       <ThaiCostEntryShell
-        activeTab="pattani"
-        titleKey="thaiCost.pattaniHandling.pageTitle"
+        activeTab="handling"
+        titleKey="thaiCost.pattaniHandling.historyTitle"
         subtitleKey="thaiCost.pattaniHandling.pageSubtitle"
       >
+        <HandlingEntryBanner />
         <PattaniHandlingView
           year={year}
           month={month}
           rows={rows}
           canWrite={current ? canWriteThaiCost(current.role) : false}
+          historyOnly
         />
       </ThaiCostEntryShell>
     );

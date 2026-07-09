@@ -65,6 +65,8 @@ export async function revalidateThaiCost() {
   revalidatePath("/thai-cost/monthly-summary");
   revalidatePath("/thai-cost/daily-overview");
   revalidatePath("/thai-cost/sadao-voucher");
+  revalidatePath("/thai-cost/handling");
+  revalidatePath("/thai-cost/pattani-contractor-monthly");
 }
 
 async function requireThaiCostRead() {
@@ -526,6 +528,28 @@ async function loadHolidayKeysForRange(start: Date, end: Date) {
     select: { date: true },
   });
   return buildPublicHolidayKeySet(holidays);
+}
+
+export async function getSadaoHandlingForDate(
+  dateInput: string
+): Promise<SadaoHandlingRow | null> {
+  await requireThaiCostRead();
+  const date = parseDateInput(dateInput);
+  const row = await prisma.sadaoCrateHandlingDaily.findUnique({
+    where: { date },
+    include: {
+      otherExpenses: { orderBy: { createdAt: "asc" } },
+    },
+  });
+  if (!row) return null;
+  const [holidayKeys, rates] = await Promise.all([
+    loadHolidayKeysForRange(date, date),
+    resolveThaiCostRatesForMonth(
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1
+    ),
+  ]);
+  return toHandlingRow(row, holidayKeys, rates);
 }
 
 export async function listSadaoHandling(input: {

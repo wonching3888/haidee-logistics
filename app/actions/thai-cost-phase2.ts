@@ -205,6 +205,42 @@ export interface SongkhlaHandlingRow {
   notes: string | null;
 }
 
+export async function getSongkhlaHandlingForDate(
+  dateInput: string
+): Promise<SongkhlaHandlingRow | null> {
+  await requireRead();
+  const date = parseDateInput(dateInput);
+  const row = await prisma.songkhlaCrateHandlingDaily.findUnique({
+    where: { date },
+  });
+  if (!row) return null;
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
+  const c = computeSongkhlaHandlingCommission(
+    {
+      smallCrateTotalQty: row.smallCrateTotalQty,
+      largeCrateTotalQty: row.largeCrateTotalQty,
+      boxTotalQty: row.boxTotalQty,
+    },
+    { rateConfig: rates }
+  );
+  return {
+    id: row.id,
+    date: toDateInputValue(row.date),
+    smallCrateTotalQty: row.smallCrateTotalQty,
+    largeCrateTotalQty: row.largeCrateTotalQty,
+    boxTotalQty: row.boxTotalQty,
+    crateBillableQty: c.crateBillableQty,
+    boxBillableQty: c.boxBillableQty,
+    crateCommissionThb: c.crateCommissionThb,
+    boxCommissionThb: c.boxCommissionThb,
+    commissionThb: c.totalCommissionThb,
+    notes: row.notes,
+  };
+}
+
 export async function listSongkhlaHandling(input: {
   year: number;
   month: number;
@@ -481,6 +517,31 @@ function parseRentedFromNotes(notes: string | null): string | null {
   return m ? m[1].trim() : null;
 }
 
+export async function listThaiVehicleTripsForDate(input: {
+  date: string;
+  station: "SONGKHLA" | "PATTANI";
+}): Promise<ThaiVehicleTripRow[]> {
+  await requireRead();
+  const date = parseDateInput(input.date);
+  const rows = await prisma.thaiVehicleTripDaily.findMany({
+    where: { date, station: input.station },
+    include: { driver: { select: { name: true } } },
+    orderBy: [{ truckPlate: "asc" }, { createdAt: "asc" }],
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    date: toDateInputValue(r.date),
+    truckPlate: r.truckPlate,
+    driverId: r.driverId,
+    driverName: r.driver?.name ?? null,
+    rentedDriverName: parseRentedFromNotes(r.notes),
+    station: r.station as "SONGKHLA" | "PATTANI",
+    tongQty: r.tongQty,
+    boxQty: r.boxQty,
+    notes: r.notes,
+  }));
+}
+
 export async function listThaiVehicleTrips(input: {
   year: number;
   month: number;
@@ -749,6 +810,32 @@ export interface PattaniHandlingRow {
   notes: string | null;
 }
 
+export async function getPattaniHandlingForDate(
+  dateInput: string
+): Promise<PattaniHandlingRow | null> {
+  await requireRead();
+  const date = parseDateInput(dateInput);
+  const row = await prisma.pattaniCrateHandlingDaily.findUnique({
+    where: { date },
+  });
+  if (!row) return null;
+  const rates = await resolveThaiCostRatesForMonth(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1
+  );
+  const day = computePattaniDayCosts(row.crateQty, row.boxQty, rates);
+  return {
+    id: row.id,
+    date: toDateInputValue(row.date),
+    crateQty: row.crateQty,
+    boxQty: row.boxQty,
+    contractorThb: day.contractorThb,
+    sakriCommissionThb: day.sakriCommissionThb,
+    dayTotalThb: day.dayTotalThb,
+    notes: row.notes,
+  };
+}
+
 export async function listPattaniHandling(input: {
   year: number;
   month: number;
@@ -956,6 +1043,29 @@ export async function seedPattaniSakriWorker(): Promise<{
   });
   revalidateThaiCost();
   return { inserted: true };
+}
+
+export async function getPattaniContractorMonthly(input: {
+  year: number;
+  month: number;
+}) {
+  await requireRead();
+  const rows = await listPattaniHandling(input);
+  const rates = await resolveThaiCostRatesForMonth(input.year, input.month);
+  const { computePattaniContractorMonthlySummary } = await import(
+    "@/lib/thai-cost/pattani-contractor-monthly"
+  );
+  return computePattaniContractorMonthlySummary({
+    year: input.year,
+    month: input.month,
+    crateRate: rates.pattaniContractorCrate,
+    boxRate: rates.pattaniContractorBox,
+    days: rows.map((r) => ({
+      date: r.date,
+      crateQty: r.crateQty,
+      boxQty: r.boxQty,
+    })),
+  });
 }
 
 export { yearMonthKey };

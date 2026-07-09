@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Printer, Trash2 } from "lucide-react";
 import {
   deleteSadaoHandling,
   getSadaoDispatchTotalsForDate,
@@ -15,35 +15,15 @@ import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   getSadaoHandlingRates,
   SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB,
   SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB,
   SADAO_HANDLING_SMALL_CRATE_HOLIDAY_RATE_THB,
   SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB,
 } from "@/lib/constants/thai-cost";
-import { formatDisplay } from "@/lib/date-utils";
 import type { HolidayRateInfo } from "@/lib/thai-cost/holiday";
 import type { SadaoHandlingOtherExpenseInput } from "@/lib/thai-cost/sadao-handling-expenses";
-
-interface SadaoHandlingViewProps {
-  year: number;
-  month: number;
-  rows: SadaoHandlingRow[];
-  canWrite: boolean;
-  historyOnly?: boolean;
-}
-
-function money(n: number) {
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2 });
-}
+import { HandlingHistoryLink } from "@/components/thai-cost/handling/HandlingHistoryLink";
 
 type OtherExpenseFormRow = {
   key: string;
@@ -59,9 +39,7 @@ function emptyOtherExpenseRow(): OtherExpenseFormRow {
   };
 }
 
-function otherExpensesFromRow(
-  row: SadaoHandlingRow
-): OtherExpenseFormRow[] {
+function otherExpensesFromRow(row: SadaoHandlingRow): OtherExpenseFormRow[] {
   if (row.otherExpenses.length === 0) return [];
   return row.otherExpenses.map((item) => ({
     key: item.id,
@@ -81,19 +59,37 @@ function otherExpensesToInput(
     }));
 }
 
-export function SadaoHandlingView({
-  year,
-  month,
-  rows,
+function formFromRow(row: SadaoHandlingRow | null) {
+  if (!row) {
+    return {
+      smallCrateNoCheckQty: "0",
+      largeCrateNoCheckQty: "0",
+      boxNoCheckQty: "0",
+      notes: "",
+    };
+  }
+  return {
+    smallCrateNoCheckQty: String(row.smallCrateNoCheckQty),
+    largeCrateNoCheckQty: String(row.largeCrateNoCheckQty),
+    boxNoCheckQty: String(row.boxNoCheckQty),
+    notes: row.notes ?? "",
+  };
+}
+
+export function SadaoHandlingDayPanel({
+  date,
+  existingRow,
   canWrite,
-  historyOnly = false,
-}: SadaoHandlingViewProps) {
+}: {
+  date: string;
+  existingRow: SadaoHandlingRow | null;
+  canWrite: boolean;
+}) {
   const router = useRouter();
-  const { t, tLocal } = useT();
+  const { tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | undefined>();
-  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | undefined>(existingRow?.id);
   const [showDirect, setShowDirect] = useState(false);
   const [dispatchTotals, setDispatchTotals] = useState({
     smallCrateTotalQty: 0,
@@ -101,23 +97,34 @@ export function SadaoHandlingView({
     boxTotalQty: 0,
   });
   const [loadingDispatch, setLoadingDispatch] = useState(false);
-  const [form, setForm] = useState({
-    date: `${year}-${String(month).padStart(2, "0")}-01`,
-    smallCrateNoCheckQty: "0",
-    largeCrateNoCheckQty: "0",
-    boxNoCheckQty: "0",
-    notes: "",
-  });
+  const [form, setForm] = useState(formFromRow(existingRow));
   const [holidayInfo, setHolidayInfo] = useState<HolidayRateInfo | null>(null);
-  const [otherExpenses, setOtherExpenses] = useState<OtherExpenseFormRow[]>([]);
+  const [otherExpenses, setOtherExpenses] = useState<OtherExpenseFormRow[]>(
+    existingRow ? otherExpensesFromRow(existingRow) : []
+  );
 
   useEffect(() => {
-    if (!showForm || !form.date) {
+    setEditId(existingRow?.id);
+    setForm(formFromRow(existingRow));
+    setOtherExpenses(
+      existingRow ? otherExpensesFromRow(existingRow) : []
+    );
+    const hasDirect = existingRow
+      ? existingRow.smallCrateNoCheckQty > 0 ||
+        existingRow.largeCrateNoCheckQty > 0 ||
+        existingRow.boxNoCheckQty > 0
+      : false;
+    setShowDirect(hasDirect);
+    setError(null);
+  }, [date, existingRow]);
+
+  useEffect(() => {
+    if (!date) {
       setHolidayInfo(null);
       return;
     }
     let cancelled = false;
-    getThaiHolidayRateInfo(form.date)
+    getThaiHolidayRateInfo(date)
       .then((info) => {
         if (!cancelled) setHolidayInfo(info);
       })
@@ -127,13 +134,13 @@ export function SadaoHandlingView({
     return () => {
       cancelled = true;
     };
-  }, [showForm, form.date]);
+  }, [date]);
 
   useEffect(() => {
-    if (!showForm || !form.date) return;
+    if (!date) return;
     let cancelled = false;
     setLoadingDispatch(true);
-    getSadaoDispatchTotalsForDate(form.date)
+    getSadaoDispatchTotalsForDate(date)
       .then((totals) => {
         if (!cancelled) setDispatchTotals(totals);
       })
@@ -152,48 +159,13 @@ export function SadaoHandlingView({
     return () => {
       cancelled = true;
     };
-  }, [showForm, form.date]);
-
-  function openCreate() {
-    setEditId(undefined);
-    setShowDirect(false);
-    setForm({
-      date: `${year}-${String(month).padStart(2, "0")}-01`,
-      smallCrateNoCheckQty: "0",
-      largeCrateNoCheckQty: "0",
-      boxNoCheckQty: "0",
-      notes: "",
-    });
-    setOtherExpenses([]);
-    setShowForm(true);
-    setError(null);
-  }
-
-  function openEdit(row: SadaoHandlingRow) {
-    setEditId(row.id);
-    const hasDirect =
-      row.smallCrateNoCheckQty > 0 ||
-      row.largeCrateNoCheckQty > 0 ||
-      row.boxNoCheckQty > 0;
-    setShowDirect(hasDirect);
-    setForm({
-      date: row.date,
-      smallCrateNoCheckQty: String(row.smallCrateNoCheckQty),
-      largeCrateNoCheckQty: String(row.largeCrateNoCheckQty),
-      boxNoCheckQty: String(row.boxNoCheckQty),
-      notes: row.notes ?? "",
-    });
-    setOtherExpenses(otherExpensesFromRow(row));
-    setShowForm(true);
-    setError(null);
-  }
+  }, [date]);
 
   function run(fn: () => Promise<void>) {
     setError(null);
     startTransition(async () => {
       try {
         await fn();
-        setShowForm(false);
         router.refresh();
       } catch (e) {
         setError(
@@ -203,19 +175,6 @@ export function SadaoHandlingView({
     });
   }
 
-  function changeMonth(nextYear: number, nextMonth: number) {
-    router.push(
-      `/thai-cost/sadao-handling?year=${nextYear}&month=${nextMonth}`
-    );
-  }
-
-  const monthTotal = rows.reduce((s, r) => s + r.dayTotalThb, 0);
-  const smallTotal = rows.reduce((s, r) => s + r.smallCommissionThb, 0);
-  const largeTotal = rows.reduce((s, r) => s + r.largeCommissionThb, 0);
-  const boxTotal = rows.reduce((s, r) => s + r.boxCommissionThb, 0);
-  const otherTotal = rows.reduce((s, r) => s + r.otherExpensesThb, 0);
-  const commissionTotal = rows.reduce((s, r) => s + r.commissionThb, 0);
-
   const billablePreview = {
     small:
       dispatchTotals.smallCrateTotalQty -
@@ -223,14 +182,26 @@ export function SadaoHandlingView({
     large:
       dispatchTotals.largeCrateTotalQty -
       (Number(form.largeCrateNoCheckQty) || 0),
-    box:
-      dispatchTotals.boxTotalQty - (Number(form.boxNoCheckQty) || 0),
+    box: dispatchTotals.boxTotalQty - (Number(form.boxNoCheckQty) || 0),
   };
 
   return (
-    <div className="space-y-4">
-      {!historyOnly && (
-        <p className="text-sm text-haidee-muted">
+    <section className="space-y-3 rounded-lg border border-haidee-border p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">
+          {tLocal("thaiCost.dailyOverview.sadaoTitle")}
+        </h3>
+        {existingRow && (
+          <Link
+            href={`/thai-cost/sadao-voucher?date=${date}`}
+            className="inline-flex items-center gap-1 text-sm text-haidee-blue underline"
+          >
+            <Printer className="h-4 w-4" />
+            {tLocal("thaiCost.sadaoHandling.printVoucher")}
+          </Link>
+        )}
+      </div>
+      <p className="text-sm text-haidee-muted">
         {tLocal("thaiCost.sadaoHandling.intro", {
           smallW: String(SADAO_HANDLING_SMALL_CRATE_WEEKDAY_RATE_THB),
           largeW: String(SADAO_HANDLING_LARGE_CRATE_WEEKDAY_RATE_THB),
@@ -238,40 +209,6 @@ export function SadaoHandlingView({
           largeH: String(SADAO_HANDLING_LARGE_CRATE_HOLIDAY_RATE_THB),
         })}
       </p>
-      )}
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="space-y-1 text-sm">
-          <span>{tLocal("thaiCost.common.year")}</span>
-          <Input
-            type="number"
-            className="w-24"
-            value={year}
-            onChange={(e) => changeMonth(Number(e.target.value) || year, month)}
-          />
-        </label>
-        <label className="space-y-1 text-sm">
-          <span>{tLocal("thaiCost.common.month")}</span>
-          <Input
-            type="number"
-            min={1}
-            max={12}
-            className="w-20"
-            value={month}
-            onChange={(e) => changeMonth(year, Number(e.target.value) || month)}
-          />
-        </label>
-        {canWrite && !historyOnly && (
-          <Button
-            type="button"
-            className="gap-2 bg-haidee-blue text-white"
-            onClick={openCreate}
-          >
-            <Plus className="h-4 w-4" />
-            {tLocal("thaiCost.sadaoHandling.addRecord")}
-          </Button>
-        )}
-      </div>
 
       {error && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
@@ -279,7 +216,18 @@ export function SadaoHandlingView({
         </p>
       )}
 
-      {!historyOnly && showForm && canWrite && (
+      {existingRow && !canWrite && (
+        <div className="rounded-md bg-haidee-surface/60 p-3 text-sm">
+          <p>
+            {tLocal("thaiCost.handling.savedDayTotal")}:{" "}
+            <span className="font-mono font-medium">
+              {existingRow.dayTotalThb.toFixed(2)}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {canWrite && (
         <form
           className="space-y-3 rounded-lg border border-haidee-border bg-haidee-surface/50 p-4"
           onSubmit={(e) => {
@@ -287,7 +235,7 @@ export function SadaoHandlingView({
             run(async () => {
               await saveSadaoHandling({
                 id: editId,
-                date: form.date,
+                date,
                 smallCrateNoCheckQty: Number(form.smallCrateNoCheckQty),
                 largeCrateNoCheckQty: Number(form.largeCrateNoCheckQty),
                 boxNoCheckQty: Number(form.boxNoCheckQty),
@@ -297,20 +245,6 @@ export function SadaoHandlingView({
             });
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="space-y-1 text-sm">
-              <span>{t("thaiCost.common.date")}</span>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, date: e.target.value }))
-                }
-                required
-              />
-            </label>
-          </div>
-
           {holidayInfo?.isHolidayRate && (
             <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {tLocal("thaiCost.sadaoHandling.todayHoliday")}
@@ -490,9 +424,6 @@ export function SadaoHandlingView({
                             )
                           )
                         }
-                        placeholder={tLocal(
-                          "thaiCost.sadaoHandling.otherExpenseDescription"
-                        )}
                       />
                     </label>
                     <label className="space-y-1 text-sm">
@@ -544,7 +475,7 @@ export function SadaoHandlingView({
             />
           </label>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="submit"
               disabled={isPending}
@@ -552,196 +483,31 @@ export function SadaoHandlingView({
             >
               {tLocal("thaiCost.common.save")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => setShowForm(false)}
-            >
-              {tLocal("thaiCost.common.cancel")}
-            </Button>
+            {existingRow && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isPending}
+                onClick={() => {
+                  if (
+                    !confirm(
+                      tLocal("thaiCost.sadaoHandling.deleteConfirm", { date })
+                    )
+                  )
+                    return;
+                  run(async () => {
+                    await deleteSadaoHandling(existingRow.id);
+                  });
+                }}
+              >
+                {tLocal("thaiCost.common.delete")}
+              </Button>
+            )}
           </div>
         </form>
       )}
 
-      <div className="rounded-lg border border-haidee-border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-haidee-surface hover:bg-haidee-surface">
-              <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
-              <TableHead>{tLocal("thaiCost.sadaoHandling.colRate")}</TableHead>
-              <TableHead className="text-right">
-                {tLocal("thaiCost.sadaoHandling.colSmallTotals")}
-              </TableHead>
-              <TableHead className="text-right">
-                {tLocal("thaiCost.sadaoHandling.colLargeTotals")}
-              </TableHead>
-              <TableHead className="text-right">
-                {tLocal("thaiCost.sadaoHandling.colBoxTotals")}
-              </TableHead>
-              <TableHead className="text-right">
-                {tLocal("thaiCost.sadaoHandling.colDayTotal")}
-              </TableHead>
-              <TableHead>{tLocal("thaiCost.common.notes")}</TableHead>
-              <TableHead className="text-right">
-                {tLocal("thaiCost.common.actions")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-haidee-muted">
-                  {tLocal("thaiCost.sadaoHandling.noRecords")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatDisplay(r.date)}</TableCell>
-                  <TableCell className="text-sm">
-                    {r.holidayRate
-                      ? tLocal("thaiCost.common.holiday")
-                      : tLocal("thaiCost.common.weekday")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {r.smallCrateTotalQty} / {r.smallCrateNoCheckQty} /{" "}
-                    {r.smallBillableQty}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {r.largeCrateTotalQty} / {r.largeCrateNoCheckQty} /{" "}
-                    {r.largeBillableQty}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {r.boxTotalQty} / {r.boxNoCheckQty} / {r.boxBillableQty}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    <div>{money(r.dayTotalThb)}</div>
-                    {r.otherExpensesThb > 0 && (
-                      <div className="text-xs text-haidee-muted">
-                        {money(r.commissionThb)}+{money(r.otherExpensesThb)}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-[12rem] truncate">
-                    {r.notes ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link
-                      href={`/thai-cost/sadao-voucher?date=${r.date}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-haidee-surface"
-                      title={tLocal("thaiCost.sadaoHandling.printVoucher")}
-                    >
-                      <Printer className="h-4 w-4" />
-                    </Link>
-                    {canWrite && (
-                      <>
-                        {historyOnly ? (
-                          <Link
-                            href={`/thai-cost/handling?date=${r.date}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-haidee-surface"
-                            title={tLocal("thaiCost.common.save")}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEdit(r)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={isPending}
-                          onClick={() => {
-                            if (
-                              !confirm(
-                                tLocal("thaiCost.sadaoHandling.deleteConfirm", {
-                                  date: formatDisplay(r.date),
-                                })
-                              )
-                            )
-                              return;
-                            run(async () => {
-                              await deleteSadaoHandling(r.id);
-                            });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-haidee-red" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-            {rows.length > 0 && (
-              <>
-                <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.subtotalSmall")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(smallTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-                <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.subtotalLarge")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(largeTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-                <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.subtotalBox")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(boxTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-                <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.subtotalOther")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(otherTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-                <TableRow className="bg-haidee-surface/30 text-sm">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.monthTotal")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(commissionTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-                <TableRow className="bg-haidee-surface/50 font-medium">
-                  <TableCell colSpan={5}>
-                    {tLocal("thaiCost.sadaoHandling.monthDayTotal")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {money(monthTotal)}
-                  </TableCell>
-                  <TableCell colSpan={2} />
-                </TableRow>
-              </>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+      <HandlingHistoryLink station="sadao" date={date} />
+    </section>
   );
 }

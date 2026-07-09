@@ -6,6 +6,12 @@ export const THAI_COST_MESSAGES = {
   "thaiCost.common.date": { zh: "日期", en: "Date", th: "วันที่" },
   "thaiCost.common.notes": { zh: "备注", en: "Notes", th: "หมายเหตุ" },
   "thaiCost.common.save": { zh: "保存", en: "Save", th: "บันทึก" },
+  "thaiCost.common.delete": { zh: "删除", en: "Delete", th: "ลบ" },
+  "thaiCost.common.deleteConfirm": {
+    zh: "确认删除这条记录？",
+    en: "Delete this record?",
+    th: "ลบรายการนี้?",
+  },
   "thaiCost.common.cancel": { zh: "取消", en: "Cancel", th: "ยกเลิก" },
   "thaiCost.common.loading": { zh: "加载中…", en: "Loading…", th: "กำลังโหลด…" },
   "thaiCost.common.operationFailed": {
@@ -57,6 +63,11 @@ export const THAI_COST_MESSAGES = {
 
   // ── Tabs ────────────────────────────────────────────────────────────────
   "thaiCost.tab.attendance": { zh: "日薪出勤", en: "Daily Attendance", th: "เข้างานรายวัน" },
+  "thaiCost.tab.stationHandling": {
+    zh: "搬运录入",
+    en: "Handling Entry",
+    th: "บันทึกขนย้าย",
+  },
   "thaiCost.tab.sadaoHandling": { zh: "Sadao搬运", en: "Sadao Handling", th: "ขนย้ายสะเดา" },
   "thaiCost.tab.songkhlaHandling": { zh: "宋卡搬运", en: "Songkhla Handling", th: "ขนย้ายสงขลา" },
   "thaiCost.tab.pattaniHandling": { zh: "北大年搬运", en: "Pattani Handling", th: "ขนย้ายปัตตานี" },
@@ -108,6 +119,116 @@ export const THAI_COST_MESSAGES = {
     zh: "总数从派车自动拉取；桶与盒子分列计费",
     en: "Totals from dispatch; crates and boxes billed separately",
     th: "ยอดรวมจากจัดรถ; ถังและกล่องคิดแยก",
+  },
+  "thaiCost.handling.pageTitle": {
+    zh: "数据录入 · 搬运录入",
+    en: "Data Entry · Handling",
+    th: "บันทึกข้อมูล · ขนย้าย",
+  },
+  "thaiCost.handling.pageSubtitle": {
+    zh: "一次选择日期，录入 SADAO / 宋卡 / 北大年 当天搬运",
+    en: "Pick one date to enter Sadao, Songkhla, and Pattani handling",
+    th: "เลือกวันเดียว บันทึกขนย้ายสะเดา สงขลา ปัตตานี",
+  },
+  "thaiCost.handling.sharedDateHint": {
+    zh: "三个板块共用此日期",
+    en: "All three sections use this date",
+    th: "ทั้งสามส่วนใช้วันนี้",
+  },
+  "thaiCost.handling.viewHistory": {
+    zh: "查看历史记录 →",
+    en: "View history →",
+    th: "ดูประวัติ →",
+  },
+  "thaiCost.handling.historyBanner": {
+    zh: "当天录入已移至「搬运录入」页；此页仅保留历史列表。",
+    en: "Daily entry moved to Handling Entry; this page is history only.",
+    th: "บันทึกรายวันย้ายไปหน้าขนย้าย; หน้านี้เป็นประวัติเท่านั้น",
+  },
+  "thaiCost.handling.historyBannerLink": {
+    zh: "前往当天录入",
+    en: "Go to daily entry",
+    th: "ไปบันทึกรายวัน",
+  },
+  "thaiCost.handling.tripsTitle": {
+    zh: "当日趟次",
+    en: "Trips today",
+    th: "เที่ยววันนี้",
+  },
+  "thaiCost.handling.tripsEntryNote": {
+    zh: "在此录入每趟车牌、司机、桶/盒数；不影响上方派车自动总数与搬运费计算。",
+    en: "Enter plate, driver, crates/boxes per trip here; does not affect dispatch totals or handling fees above.",
+    th: "บันทึกทะเบียน คนขับ ถัง/กล่องต่อเที่ยวที่นี่; ไม่กระทบยอดส่งรถและค่าขนย้ายด้านบน",
+  },
+  "thaiCost.handling.tripsAdd": {
+    zh: "加趟",
+    en: "Add trip",
+    th: "เพิ่มเที่ยว",
+  },
+  "thaiCost.handling.noTrips": {
+    zh: "当日无趟次记录",
+    en: "No trips for this date",
+    th: "ไม่มีเที่ยววันนี้",
+  },
+  "thaiCost.handling.tripPlate": { zh: "车牌", en: "Plate", th: "ทะเบียน" },
+  "thaiCost.handling.tripDriver": { zh: "司机", en: "Driver", th: "คนขับ" },
+  "thaiCost.handling.tripTong": { zh: "桶数", en: "Crates", th: "ถัง" },
+  "thaiCost.handling.tripBox": { zh: "盒数", en: "Boxes", th: "กล่อง" },
+  "thaiCost.handling.rentedDriver": { zh: "租车", en: "Rented", th: "รถเช่า" },
+  "thaiCost.handling.pattaniContractorNote": {
+    zh: "承包商现金应付 · 本月累计进度",
+    en: "Contractor cash payable · monthly progress",
+    th: "เงินสดผู้รับเหมา · สะสมเดือนนี้",
+  },
+  "thaiCost.handling.pattaniSakriNote": {
+    zh: "计入 SAKRI 月薪，非现金支出",
+    en: "Counted in SAKRI monthly wage, not cash",
+    th: "รวมในค่าจ้าง SAKRI ไม่ใช่เงินสด",
+  },
+  "thaiCost.handling.notSavedYet": {
+    zh: "尚未保存",
+    en: "Not saved yet",
+    th: "ยังไม่บันทึก",
+  },
+  "thaiCost.handling.savedDayTotal": {
+    zh: "已保存当日合计",
+    en: "Saved day total",
+    th: "ยอดวันที่บันทึกแล้ว",
+  },
+  "thaiCost.sadaoHandling.historyTitle": {
+    zh: "Sadao 搬运 · 历史记录",
+    en: "Sadao Handling · History",
+    th: "ขนย้ายสะเดา · ประวัติ",
+  },
+  "thaiCost.songkhlaHandling.historyTitle": {
+    zh: "宋卡搬运 · 历史记录",
+    en: "Songkhla Handling · History",
+    th: "ขนย้ายสงขลา · ประวัติ",
+  },
+  "thaiCost.pattaniHandling.historyTitle": {
+    zh: "北大年搬运 · 历史记录",
+    en: "Pattani Handling · History",
+    th: "ขนย้ายปัตตานี · ประวัติ",
+  },
+  "thaiCost.pattaniContractorMonthly.pageTitle": {
+    zh: "北大年承包商月结单",
+    en: "Pattani Contractor Monthly Statement",
+    th: "ใบสรุปผู้รับเหมาปัตตานีรายเดือน",
+  },
+  "thaiCost.pattaniContractorMonthly.link": {
+    zh: "承包商月结单",
+    en: "Contractor monthly statement",
+    th: "ใบสรุปผู้รับเหมารายเดือน",
+  },
+  "thaiCost.pattaniContractorMonthly.totalPayable": {
+    zh: "月度应付总额（承包商）",
+    en: "Monthly payable (contractor)",
+    th: "ยอดจ่ายรายเดือน (ผู้รับเหมา)",
+  },
+  "thaiCost.pattaniContractorMonthly.rateNote": {
+    zh: "费率：桶 {crateRate} THB / 盒 {boxRate} THB",
+    en: "Rates: crate {crateRate} / box {boxRate} THB",
+    th: "อัตรา: ถัง {crateRate} / กล่อง {boxRate} THB",
   },
   "thaiCost.driverTrips.pageTitle": {
     zh: "数据录入 · 司机趟次",
@@ -418,6 +539,21 @@ export const THAI_COST_MESSAGES = {
     zh: "司机趟次日常录入：每条记录对应一次出车（车牌 + 据点 + 桶/盒数）。保存后同步更新司机提成汇总（正式司机）与车辆明细表。租车司机填写姓名即可。",
     en: "Daily driver trips: one record per run (plate + station + crates/boxes). Updates commission summary and vehicle detail.",
     th: "บันทึกเที่ยวคนขับรายวัน: หนึ่งรายการต่อเที่ยว (ทะเบียน + จุด + ถัง/กล่อง). อัปเดตคอมมิชชั่นและรายละเอียดรถ.",
+  },
+  "thaiCost.driverTrips.viewOnlyIntro": {
+    zh: "本页仅供查看车趟明细与当月车辆盈亏汇总；录入/修改请前往「搬运录入」页的宋卡或北大年板块。",
+    en: "View-only trip list and monthly vehicle P&L. Enter or edit trips on Handling entry (Songkhla or Pattani section).",
+    th: "ดูรายการเที่ยวและกำไรขาดทุนรถรายเดือนเท่านั้น; บันทึก/แก้ที่หน้าบันทึกขนย้าย (สงขลาหรือปัตตานี)",
+  },
+  "thaiCost.driverTrips.entryMovedBanner": {
+    zh: "车趟录入已移至「数据录入 → 搬运录入」页的宋卡、北大年板块。本页仅查看明细与盈亏汇总。",
+    en: "Trip entry has moved to Handling entry (Songkhla / Pattani sections). This page is view-only.",
+    th: "บันทึกเที่ยวย้ายไปหน้าบันทึกขนย้าย (สงขลา/ปัตตานี); หน้านี้ดูอย่างเดียว",
+  },
+  "thaiCost.driverTrips.entryMovedBannerLink": {
+    zh: "前往搬运录入",
+    en: "Go to handling entry",
+    th: "ไปบันทึกขนย้าย",
   },
   "thaiCost.driverTrips.plateRequired": {
     zh: "请填写车牌",

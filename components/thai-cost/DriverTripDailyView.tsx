@@ -38,12 +38,15 @@ export function DriverTripDailyView({
   drivers,
   trips,
   canWrite,
+  viewOnly = false,
 }: {
   year: number;
   month: number;
   drivers: ThaiDriverRow[];
   trips: ThaiVehicleTripRow[];
   canWrite: boolean;
+  /** When true, hide entry form and row actions (read-only list). */
+  viewOnly?: boolean;
 }) {
   const router = useRouter();
   const { tLocal, locale } = useT();
@@ -82,7 +85,9 @@ export function DriverTripDailyView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-haidee-muted">
-        {tLocal("thaiCost.driverTrips.intro")}
+        {viewOnly
+          ? tLocal("thaiCost.driverTrips.viewOnlyIntro")
+          : tLocal("thaiCost.driverTrips.intro")}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -114,7 +119,7 @@ export function DriverTripDailyView({
         </p>
       )}
 
-      {canWrite && (
+      {canWrite && !viewOnly && (
         <form
           className="space-y-4 rounded-lg border p-4"
           onSubmit={(e) => {
@@ -335,14 +340,14 @@ export function DriverTripDailyView({
               <TableHead className="text-right">
                 {tLocal("thaiCost.driverTrips.boxCol")}
               </TableHead>
-              {canWrite && <TableHead />}
+              {canWrite && !viewOnly && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {trips.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={canWrite ? 7 : 6}
+                  colSpan={canWrite && !viewOnly ? 7 : 6}
                   className="py-8 text-center text-haidee-muted"
                 >
                   {tLocal("thaiCost.driverTrips.noRecords")}
@@ -362,7 +367,7 @@ export function DriverTripDailyView({
                   <TableCell>{stationLabel(trip.station)}</TableCell>
                   <TableCell className="text-right">{trip.tongQty}</TableCell>
                   <TableCell className="text-right">{trip.boxQty}</TableCell>
-                  {canWrite && (
+                  {canWrite && !viewOnly && (
                     <TableCell>
                       <Button
                         type="button"

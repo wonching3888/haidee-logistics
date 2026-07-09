@@ -8,16 +8,10 @@ import { cn } from "@/lib/utils";
 
 const TABS: { id: string; messageKey: MessageKey; href: string }[] = [
   { id: "attendance", messageKey: "thaiCost.tab.attendance", href: "/thai-cost/attendance" },
-  { id: "sadao", messageKey: "thaiCost.tab.sadaoHandling", href: "/thai-cost/sadao-handling" },
   {
-    id: "songkhla",
-    messageKey: "thaiCost.tab.songkhlaHandling",
-    href: "/thai-cost/songkhla-handling",
-  },
-  {
-    id: "pattani",
-    messageKey: "thaiCost.tab.pattaniHandling",
-    href: "/thai-cost/pattani-handling",
+    id: "handling",
+    messageKey: "thaiCost.tab.stationHandling",
+    href: "/thai-cost/handling",
   },
   { id: "driver-trips", messageKey: "thaiCost.tab.driverTrips", href: "/thai-cost/driver-trips" },
   {
@@ -48,10 +42,16 @@ export function ThaiCostTabNav({
 }) {
   const { tLocal } = useT();
   const searchParams = useSearchParams();
+  const date = searchParams.get("date");
   const year = searchParams.get("year");
   const month = searchParams.get("month");
-  const qs =
-    year && month ? `?year=${year}&month=${month}` : year ? `?year=${year}` : "";
+  const qs = date
+    ? `?date=${date}`
+    : year && month
+      ? `?year=${year}&month=${month}`
+      : year
+        ? `?year=${year}`
+        : "";
 
   return (
     <nav className="no-print flex flex-wrap gap-1 border-b border-haidee-border pb-2">

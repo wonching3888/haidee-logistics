@@ -1,5 +1,6 @@
 import { listSadaoHandling } from "@/app/actions/thai-cost";
 import { SadaoHandlingView } from "@/components/thai-cost/SadaoHandlingView";
+import { HandlingEntryBanner } from "@/components/thai-cost/handling/HandlingEntryBanner";
 import { ThaiCostEntryShell } from "@/components/thai-cost/ThaiCostEntryShell";
 import { PageError } from "@/components/shared/PageError";
 import { getCurrentUser, requirePageUser } from "@/lib/auth";
@@ -30,15 +31,17 @@ export default async function SadaoHandlingPage({ searchParams }: PageProps) {
 
     return (
       <ThaiCostEntryShell
-        activeTab="sadao"
-        titleKey="thaiCost.sadaoHandling.pageTitle"
+        activeTab="handling"
+        titleKey="thaiCost.sadaoHandling.historyTitle"
         subtitleKey="thaiCost.sadaoHandling.pageSubtitle"
       >
+        <HandlingEntryBanner />
         <SadaoHandlingView
           year={year}
           month={month}
           rows={rows}
           canWrite={canWrite}
+          historyOnly
         />
       </ThaiCostEntryShell>
     );
