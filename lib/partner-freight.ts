@@ -146,6 +146,8 @@ async function loadPartnerImportsForMonth(year: number, month: number) {
   >();
 
   for (const row of imports) {
+    if (!row.marketId || !row.market) continue;
+
     const crateType = row.tongType.code;
     const rate = rateByCrateType.get(crateType);
     if (!rate) continue;

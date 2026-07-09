@@ -120,6 +120,7 @@ async function loadCrateReturnImportContextForDate(date: Date) {
     where: {
       date: { gte: start, lte: end },
       quantity: { gt: 0 },
+      marketId: { not: null },
     },
     select: {
       date: true,
@@ -128,7 +129,12 @@ async function loadCrateReturnImportContextForDate(date: Date) {
       market: { select: { code: true } },
     },
   });
-  return buildCrateReturnImportContext(imports);
+  return buildCrateReturnImportContext(
+    imports.filter(
+      (row): row is typeof row & { market: { code: string } } =>
+        row.market != null
+    )
+  );
 }
 
 function crateReturnRatesFromContext(

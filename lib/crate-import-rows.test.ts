@@ -132,7 +132,7 @@ describe("deriveCrateImportRowState", () => {
 });
 
 describe("shouldPersistCrateImportRow", () => {
-  it("persists any row with plate+market; skips empty market", () => {
+  it("persists plate+market rows and no-return without market; skips empty market otherwise", () => {
     const qty = emptyCrateImportQuantities();
     expect(
       shouldPersistCrateImportRow({
@@ -153,7 +153,7 @@ describe("shouldPersistCrateImportRow", () => {
         status: "on_the_way",
         noReturn: true,
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       shouldPersistCrateImportRow({
         truckPlate: "T1",

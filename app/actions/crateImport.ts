@@ -36,6 +36,16 @@ export interface CrateTypeOption {
   name: string;
 }
 
+function revalidateCrateImportRelatedPaths() {
+  if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
+  revalidatePath("/tong/import");
+  revalidatePath("/crate/import");
+  revalidatePath("/tong/stock");
+  revalidatePath("/crate/stock");
+  revalidatePath("/documents/crate-return-invoice");
+  revalidatePath("/driver-payroll");
+}
+
 export async function getCrateTypesForImport(): Promise<CrateTypeOption[]> {
   const defaultCodes = TONG_IMPORT_DEFAULT_COLUMNS.map((c) => c.tongCode);
   return prisma.tongType.findMany({
@@ -84,7 +94,7 @@ type TongImportRecord = {
   notes: string | null;
   otherCols: Prisma.JsonValue | null;
   truck: { plate: string };
-  market: { code: string };
+  market: { code: string } | null;
   tongType: { code: string };
 };
 
@@ -136,12 +146,13 @@ function groupTongImportsToRows(imports: TongImportRecord[]) {
   const dynamicColNames = new Set<string>();
 
   for (const imp of imports) {
-    const key = `${imp.truck.plate}|${imp.market.code}`;
+    const marketCode = imp.market?.code ?? "";
+    const key = `${imp.truck.plate}|${marketCode}`;
     let row = rowMap.get(key);
     if (!row) {
       row = {
         truckPlate: imp.truck.plate,
-        marketCode: imp.market.code,
+        marketCode,
         quantities: emptyCrateImportQuantities(),
         notes: "",
         status: imp.status as "on_the_way" | "arrived",
@@ -296,6 +307,70 @@ export async function markCrateImportRowArrived(
   const locale = user.language;
 
   const date = parseDateInput(dateStr);
+  if (!marketCode.trim()) {
+    const truck = await prisma.truck.findFirst({
+      where: { plate: truckPlate },
+      select: { id: true },
+    });
+    if (!truck) {
+      throw new Error(
+        t("crateImport.error.plateNotFound", locale, { plate: truckPlate })
+      );
+    }
+
+    const pendingImports = await prisma.tongImport.findMany({
+      where: {
+        date,
+        truckId: truck.id,
+        marketId: null,
+        status: "on_the_way",
+      },
+      include: {
+        tongType: { select: { code: true, isBox: true } },
+      },
+    });
+
+    const lines = pendingImports
+      .filter((row) => !row.tongType.isBox && row.quantity > 0)
+      .map((row) => ({
+        crateTypeCode: row.tongType.code,
+        quantity: row.quantity,
+      }));
+
+    const auditLog = buildCrateReturnArrivedAuditLog({
+      truckPlate,
+      marketCode: "",
+      dateStr,
+      lines,
+    });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tongImport.updateMany({
+        where: {
+          date,
+          truckId: truck.id,
+          marketId: null,
+          status: "on_the_way",
+        },
+        data: { status: "arrived", arrivedAt: new Date() },
+      });
+
+      if (auditLog) {
+        await appendCrateChangeLogs(tx, {
+          actor: user,
+          logs: [auditLog],
+        });
+      }
+    });
+
+    revalidatePath("/tong/import");
+    revalidatePath("/crate/import");
+    revalidatePath("/tong/stock");
+    revalidatePath("/crate/stock");
+    revalidatePath("/history");
+    return;
+  }
+
   const [truck, market] = await Promise.all([
     prisma.truck.findFirst({
       where: { plate: truckPlate },
@@ -362,10 +437,7 @@ export async function markCrateImportRowArrived(
     }
   });
 
-  revalidatePath("/tong/import");
-  revalidatePath("/crate/import");
-  revalidatePath("/tong/stock");
-  revalidatePath("/crate/stock");
+  revalidateCrateImportRelatedPaths();
   revalidatePath("/history");
 }
 
@@ -387,7 +459,7 @@ function buildNoReturnRecords(input: {
   date: Date;
   userId: string;
   truckId: string;
-  marketId: string;
+  marketId: string | null;
   fallbackTongTypeId: string | undefined;
   otherTongTypeId: string | undefined;
 }): Prisma.TongImportCreateManyInput[] {
@@ -522,7 +594,7 @@ function buildRecordsForPersistedRow(
   locale: UserLanguage
 ): {
   truckId: string;
-  marketId: string;
+  marketId: string | null;
   records: Prisma.TongImportCreateManyInput[];
 } | null {
   if (!row.truckPlate) return null;
@@ -534,7 +606,23 @@ function buildRecordsForPersistedRow(
       })
     );
   }
-  if (!row.marketCode) return null;
+  if (!row.marketCode?.trim()) {
+    if (!row.noReturn) return null;
+
+    return {
+      truckId,
+      marketId: null,
+      records: buildNoReturnRecords({
+        row,
+        date,
+        userId,
+        truckId,
+        marketId: null,
+        fallbackTongTypeId,
+        otherTongTypeId,
+      }),
+    };
+  }
 
   const marketId = marketMap[row.marketCode];
   if (!marketId) {
@@ -620,7 +708,11 @@ export async function saveCrateImport(
 
   for (const row of rows) {
     if (row.truckPlate.trim()) affectedPlates.add(row.truckPlate.trim());
-    if (row.truckPlate.trim() && !row.marketCode.trim()) {
+    if (
+      row.truckPlate.trim() &&
+      !row.marketCode.trim() &&
+      !row.noReturn
+    ) {
       skippedCount += 1;
     }
   }
@@ -632,10 +724,17 @@ export async function saveCrateImport(
   await prisma.$transaction(async (tx) => {
     for (const key of deletedRowKeys) {
       const { truckPlate, marketCode } = parseCrateImportRowKey(key);
-      if (!truckPlate || !marketCode) continue;
+      if (!truckPlate) continue;
       const truckId = truckMap[truckPlate];
+      if (!truckId) continue;
+      if (!marketCode.trim()) {
+        await tx.tongImport.deleteMany({
+          where: { date, truckId, marketId: null },
+        });
+        continue;
+      }
       const marketId = marketMap[marketCode];
-      if (!truckId || !marketId) continue;
+      if (!marketId) continue;
       await tx.tongImport.deleteMany({
         where: { date, truckId, marketId },
       });
@@ -697,12 +796,7 @@ export async function saveCrateImport(
 
   await syncPayrollTripsAfterCrateImportChange(date, Array.from(affectedPlates));
 
-  revalidatePath("/tong/import");
-  revalidatePath("/crate/import");
-  revalidatePath("/tong/stock");
-  revalidatePath("/crate/stock");
-  revalidatePath("/documents/crate-return-invoice");
-  revalidatePath("/driver-payroll");
+  revalidateCrateImportRelatedPaths();
 
   return { savedCount, skippedCount };
 }
@@ -727,10 +821,10 @@ export async function confirmCrateImportArrived(dateStr: string) {
   >();
   for (const row of pendingImports) {
     if (row.tongType.isBox || row.quantity <= 0) continue;
-    const key = `${row.truck.plate}:${row.market.code}`;
+    const key = `${row.truck.plate}:${row.market?.code ?? ""}`;
     const bucket = grouped.get(key) ?? {
       truckPlate: row.truck.plate,
-      marketCode: row.market.code,
+      marketCode: row.market?.code ?? "",
       lines: [],
     };
     bucket.lines.push({

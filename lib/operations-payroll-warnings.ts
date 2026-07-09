@@ -206,7 +206,7 @@ export function scanOperationsPayrollWarnings(input: {
     truckId: string;
     notes: string | null;
     truck: { plate: string; type: string };
-    market: { code: string };
+    market: { code: string } | null;
   }[];
   assignedInboundLines: {
     paymentMode: string | null;
@@ -246,7 +246,10 @@ export function scanOperationsPayrollWarnings(input: {
   };
 
   const eligibleImports = input.imports.filter(
-    (row) => row.quantity > 0 && row.notes !== CRATE_IMPORT_NO_RETURN_NOTE
+    (row) =>
+      row.quantity > 0 &&
+      row.notes !== CRATE_IMPORT_NO_RETURN_NOTE &&
+      row.market
   );
 
   const importContext = buildCrateReturnImportContext(
@@ -254,7 +257,7 @@ export function scanOperationsPayrollWarnings(input: {
       date: row.date,
       quantity: row.quantity,
       truck: { plate: row.truck.plate },
-      market: { code: row.market.code },
+      market: { code: row.market!.code },
     }))
   );
 
@@ -268,7 +271,7 @@ export function scanOperationsPayrollWarnings(input: {
     );
     const plateKey = `${toDateInputValue(row.date)}|${row.truck.plate.trim().toUpperCase()}`;
     const list = marketsByDatePlate.get(plateKey) ?? [];
-    const code = row.market.code.trim().toUpperCase();
+    const code = row.market!.code.trim().toUpperCase();
     if (!list.includes(code)) list.push(code);
     marketsByDatePlate.set(plateKey, list);
   }

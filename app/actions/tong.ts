@@ -428,7 +428,7 @@ export async function getTongLedger(dateStr?: string) {
       date: i.date,
       type: "IN" as const,
       plate: i.truck.plate,
-      party: i.market.code,
+      party: i.market?.code ?? "—",
       tongCode: i.tongType.code,
       quantity: i.quantity,
       createdAt: i.createdAt,

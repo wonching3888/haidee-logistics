@@ -197,6 +197,8 @@ export function aggregateCrateReturnTrips(
   const tripMap = new Map<string, CrateReturnTripAggregate>();
 
   for (const row of imports) {
+    if (!row.marketId || !row.market) continue;
+
     const tripDateInput = toDateInputValue(row.date);
     const typeCode = row.tongType.code;
     const tripKey = buildCrateReturnTripKey({
@@ -300,6 +302,8 @@ function aggregateMarketQuantities(
   const byMarket = new Map<string, { marketId: string; marketCode: string; quantity: number }>();
 
   for (const row of imports) {
+    if (!row.marketId || !row.market) continue;
+
     const existing = byMarket.get(row.marketId);
     if (existing) {
       existing.quantity += row.quantity;

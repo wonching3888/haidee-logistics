@@ -112,6 +112,6 @@ export function mergeImportRowsWithDispatch(
 
 export function shouldPersistCrateImportRow(row: CrateImportRowShape) {
   if (!row.truckPlate?.trim()) return false;
-  if (!row.marketCode?.trim()) return false;
-  return true;
+  if (row.marketCode?.trim()) return true;
+  return Boolean(row.noReturn);
 }

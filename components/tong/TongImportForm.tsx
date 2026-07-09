@@ -40,6 +40,7 @@ import {
   deriveCrateImportRowState,
   parseCrateImportRowKey,
   type CrateImportRowState,
+  shouldPersistCrateImportRow,
 } from "@/lib/crate-import-rows";
 import { cn } from "@/lib/utils";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -66,6 +67,51 @@ interface ImportRow {
   noReturn: boolean;
   awaitingQty?: boolean;
   persistedKey?: string;
+}
+
+function saveFeedbackClassName(savedCount: number, skippedCount: number) {
+  if (savedCount > 0 && skippedCount === 0) {
+    return "rounded-md bg-green-50 px-4 py-3 text-sm text-haidee-green";
+  }
+  return "rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900";
+}
+
+function SaveFeedback({
+  error,
+  success,
+  saveMessage,
+  savedCount,
+  skippedCount,
+  t,
+}: {
+  error: string | null;
+  success: boolean;
+  saveMessage: string | null;
+  savedCount: number;
+  skippedCount: number;
+  t: (key: MessageKey, vars?: Record<string, string>) => string;
+}) {
+  if (error) {
+    return (
+      <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
+        {error}
+      </p>
+    );
+  }
+  if (!success) return null;
+
+  const message =
+    saveMessage ??
+    (savedCount > 0 || skippedCount > 0
+      ? t("crateImport.saveResult", {
+          saved: String(savedCount),
+          skipped: String(skippedCount),
+        })
+      : t("crateImport.saveSuccess"));
+
+  return (
+    <p className={saveFeedbackClassName(savedCount, skippedCount)}>{message}</p>
+  );
 }
 
 function rowStateLabel(
@@ -120,7 +166,15 @@ function rowFromLoaded(row: CrateImportLoadedRow): ImportRow {
     status: row.status,
     noReturn: row.noReturn ?? false,
     awaitingQty: row.awaitingQty ?? false,
-    persistedKey: row.marketCode
+    persistedKey: shouldPersistCrateImportRow({
+      truckPlate: row.truckPlate,
+      marketCode: row.marketCode,
+      quantities: row.quantities,
+      notes: row.notes,
+      status: row.status,
+      noReturn: row.noReturn,
+      awaitingQty: row.awaitingQty,
+    })
       ? crateImportRowKey(row.truckPlate, row.marketCode)
       : undefined,
   };
@@ -662,6 +716,10 @@ export function TongImportForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [lastSaveCounts, setLastSaveCounts] = useState({
+    savedCount: 0,
+    skippedCount: 0,
+  });
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [selectedColumnCode, setSelectedColumnCode] = useState("");
 
@@ -677,6 +735,7 @@ export function TongImportForm({
     );
     setDeletedRowKeys([]);
     setSaveMessage(null);
+    setLastSaveCounts({ savedCount: 0, skippedCount: 0 });
   }
 
   useEffect(() => {
@@ -884,12 +943,6 @@ export function TongImportForm({
     setSuccess(false);
     startTransition(async () => {
       try {
-        if (
-          rows.some((row) => row.noReturn && !row.marketCode.trim())
-        ) {
-          throw new Error(t("crateImport.error.noReturnNeedsMarket"));
-        }
-
         const result = await saveTongImport(
           selectedDate,
           rows.map((r) => ({
@@ -906,6 +959,10 @@ export function TongImportForm({
         applyLoadedImportData(data);
         await refreshInTransit();
         setSuccess(true);
+        setLastSaveCounts({
+          savedCount: result.savedCount,
+          skippedCount: result.skippedCount,
+        });
         setSaveMessage(
           t("crateImport.saveResult", {
             saved: String(result.savedCount),
@@ -1121,25 +1178,45 @@ export function TongImportForm({
             {t("crateImport.addRow")}
           </Button>
 
-          <Button
-            onClick={handleSaveToday}
-            disabled={isPending}
-            className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
-          >
-            {isPending ? t("common.saving") : t("crateImport.confirmSave")}
-          </Button>
+          <div className="space-y-3">
+            <SaveFeedback
+              error={error}
+              success={success}
+              saveMessage={saveMessage}
+              savedCount={lastSaveCounts.savedCount}
+              skippedCount={lastSaveCounts.skippedCount}
+              t={t}
+            />
+            <Button
+              onClick={handleSaveToday}
+              disabled={isPending}
+              className="min-h-[44px] bg-haidee-blue text-white hover:bg-haidee-blue/90"
+            >
+              {isPending ? t("common.saving") : t("crateImport.confirmSave")}
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Mobile sticky save */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-haidee-border bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.08)] md:hidden">
-        <Button
-          onClick={handleSaveToday}
-          disabled={isPending}
-          className="min-h-[48px] w-full bg-haidee-blue text-base text-white hover:bg-haidee-blue/90"
-        >
-          {isPending ? t("common.saving") : t("crateImport.confirmSave")}
-        </Button>
+        <div className="space-y-3">
+          <SaveFeedback
+            error={error}
+            success={success}
+            saveMessage={saveMessage}
+            savedCount={lastSaveCounts.savedCount}
+            skippedCount={lastSaveCounts.skippedCount}
+            t={t}
+          />
+          <Button
+            onClick={handleSaveToday}
+            disabled={isPending}
+            className="min-h-[48px] w-full bg-haidee-blue text-base text-white hover:bg-haidee-blue/90"
+          >
+            {isPending ? t("common.saving") : t("crateImport.confirmSave")}
+          </Button>
+        </div>
       </div>
 
       {/* In transit section */}
@@ -1264,17 +1341,6 @@ export function TongImportForm({
             </ScrollMatrixTable>
           </div>
         </section>
-      )}
-
-      {error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-haidee-red">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p className="rounded-md bg-green-50 px-4 py-3 text-sm text-haidee-green">
-          {saveMessage ?? t("crateImport.saveSuccess")}
-        </p>
       )}
 
       <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>

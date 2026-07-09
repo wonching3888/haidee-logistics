@@ -803,7 +803,7 @@ model TongImport {
   id         String    @id @default(uuid()) @db.Uuid
   date       DateTime  @db.Date
   truckId    String    @map("truck_id") @db.Uuid
-  marketId   String    @map("market_id") @db.Uuid
+  marketId   String?   @map("market_id") @db.Uuid
   tongTypeId String    @map("tong_type_id") @db.Uuid
   quantity   Int
   status     String    @default("on_the_way") // on_the_way | arrived
@@ -814,7 +814,7 @@ model TongImport {
   createdAt  DateTime  @default(now()) @map("created_at")
 
   truck     Truck    @relation(fields: [truckId], references: [id])
-  market    Market   @relation(fields: [marketId], references: [id])
+  market    Market?  @relation(fields: [marketId], references: [id])
   tongType  TongType @relation(fields: [tongTypeId], references: [id])
   createdBy User?    @relation(fields: [createdById], references: [id])
 

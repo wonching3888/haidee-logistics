@@ -736,7 +736,7 @@ export async function generateCrateLoadingFeesForTrip(tripId: string) {
   });
 
   const markets = imports
-    .map((row) => row.market.code)
+    .map((row) => row.market?.code)
     .filter((code): code is string => Boolean(code));
 
   if (markets.length === 0) return [];
