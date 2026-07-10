@@ -1639,3 +1639,43 @@ model CashBookPaymentVoucherLine {
   @@index([voucherId])
   @@map("cash_book_payment_voucher_lines")
 }
+
+/// Cash Book receipt voucher (single-line inflow; THB or MYR book).
+model CashBookReceiptVoucher {
+  id            String    @id @default(uuid()) @db.Uuid
+  voucherNo     String    @unique @map("voucher_no")
+  book          String // THB | MYR
+  voucherDate   DateTime  @map("voucher_date") @db.Date
+  receivedFrom  String    @map("received_from")
+  accountCode   String    @map("account_code")
+  accountName   String    @map("account_name")
+  amount        Decimal   @db.Decimal(14, 2)
+  notes         String?
+  status        String    @default("draft") // draft | confirmed
+  confirmedAt   DateTime? @map("confirmed_at")
+  confirmedBy   String?   @map("confirmed_by") @db.Uuid
+  preparedBy    String?   @map("prepared_by")
+  approvedBy    String?   @map("approved_by")
+  createdBy     String    @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([voucherDate])
+  @@index([book])
+  @@index([status])
+  @@map("cash_book_receipt_vouchers")
+}
+
+/// Audited opening-balance adjustments for Cash Book ledgers (default 0 until set).
+model CashBookOpeningBalanceAdjustment {
+  id              String   @id @default(uuid()) @db.Uuid
+  book            String // THB | MYR
+  previousAmount  Decimal  @map("previous_amount") @db.Decimal(14, 2)
+  newAmount       Decimal  @map("new_amount") @db.Decimal(14, 2)
+  notes           String
+  createdBy       String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([book, createdAt])
+  @@map("cash_book_opening_balance_adjustments")
+}

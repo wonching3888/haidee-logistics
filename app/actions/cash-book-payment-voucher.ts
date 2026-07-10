@@ -31,6 +31,8 @@ type PaymentVoucherWithLines = Prisma.CashBookPaymentVoucherGetPayload<
 const REVALIDATE_PATHS = [
   "/financial/cash-book/payment-voucher",
   "/financial/cash-book/payment-voucher/new",
+  "/financial/cash-book/ledger/thb",
+  "/financial/cash-book/ledger/myr",
 ];
 
 function revalidatePaymentVoucher(id?: string) {
@@ -204,6 +206,8 @@ export async function savePaymentVoucher(input: {
     });
     if (!existing) throw new Error("凭证不存在");
 
+    const confirmingNow =
+      status === "confirmed" && existing.status !== "confirmed";
     await prisma.$transaction(async (tx) => {
       await tx.cashBookPaymentVoucher.update({
         where: { id: input.id },
@@ -216,8 +220,18 @@ export async function savePaymentVoucher(input: {
           checkDate,
           dueDate,
           status,
-          confirmedAt: status === "confirmed" ? new Date() : null,
-          confirmedBy: status === "confirmed" ? user.id : null,
+          confirmedAt:
+            status === "confirmed"
+              ? confirmingNow
+                ? new Date()
+                : existing.confirmedAt
+              : null,
+          confirmedBy:
+            status === "confirmed"
+              ? confirmingNow
+                ? user.id
+                : existing.confirmedBy
+              : null,
           totalAmount,
           ...signatureData,
         },

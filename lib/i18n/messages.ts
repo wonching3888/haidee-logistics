@@ -222,6 +222,21 @@ export const MESSAGES = {
     en: "Payment Voucher",
     th: "ใบสำคัญจ่าย",
   },
+  "nav.receiptVoucher": {
+    zh: "收款凭证",
+    en: "Receipt Voucher",
+    th: "ใบสำคัญรับ",
+  },
+  "nav.cashBookThb": {
+    zh: "THB账本明细",
+    en: "THB Cash Book",
+    th: "สมุดเงินสด THB",
+  },
+  "nav.cashBookMyr": {
+    zh: "MYR账本明细",
+    en: "MYR Cash Book",
+    th: "สมุดเงินสด MYR",
+  },
   "nav.thaiCost": {
     zh: "泰国成本",
     en: "Thai Cost",

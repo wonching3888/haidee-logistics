@@ -117,6 +117,21 @@ export const MAIN_NAV_FINANCIAL_PAYMENT_VOUCHER: MainNavLink = {
   messageKey: "nav.paymentVoucher",
 };
 
+export const MAIN_NAV_FINANCIAL_RECEIPT_VOUCHER: MainNavLink = {
+  href: "/financial/cash-book/receipt-voucher",
+  messageKey: "nav.receiptVoucher",
+};
+
+export const MAIN_NAV_FINANCIAL_CASH_BOOK_THB: MainNavLink = {
+  href: "/financial/cash-book/ledger/thb",
+  messageKey: "nav.cashBookThb",
+};
+
+export const MAIN_NAV_FINANCIAL_CASH_BOOK_MYR: MainNavLink = {
+  href: "/financial/cash-book/ledger/myr",
+  messageKey: "nav.cashBookMyr",
+};
+
 export const MAIN_NAV_THAI_COST_WORKERS: MainNavLink = {
   href: "/thai-cost/workers",
   messageKey: "nav.thaiCostWorkers",
@@ -213,6 +228,9 @@ export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
     MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS,
     MAIN_NAV_FINANCIAL_BANK_RECONCILIATION,
     MAIN_NAV_FINANCIAL_PAYMENT_VOUCHER,
+    MAIN_NAV_FINANCIAL_RECEIPT_VOUCHER,
+    MAIN_NAV_FINANCIAL_CASH_BOOK_THB,
+    MAIN_NAV_FINANCIAL_CASH_BOOK_MYR,
     MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT,
   ],
 };

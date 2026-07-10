@@ -108,6 +108,7 @@ export default defineConfig({
       "lib/page-access.thai-cost.test.ts",
       "lib/cash-book/payment-voucher-lines.test.ts",
       "lib/thai-baht-text.test.ts",
+      "lib/cash-book/ledger.test.ts",
     ],
   },
   resolve: {
