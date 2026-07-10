@@ -106,9 +106,9 @@ export const THAI_COST_MESSAGES = {
     th: "บันทึกข้อมูล · ขนย้ายสงขลา",
   },
   "thaiCost.songkhlaHandling.pageSubtitle": {
-    zh: "总数从派车自动拉取；无直达扣减",
-    en: "Totals from dispatch; no direct deduction",
-    th: "ยอดรวมจากจัดรถ; ไม่หักตรง",
+    zh: "派车总数可编辑；未改跟随派车，保存后锁定",
+    en: "Editable dispatch totals; follow live until saved, then lock",
+    th: "แก้ยอดจัดรถได้; ยังไม่แก้ตามจัดรถ บันทึกแล้วล็อก",
   },
   "thaiCost.pattaniHandling.pageTitle": {
     zh: "数据录入 · 北大年搬运",
@@ -116,9 +116,9 @@ export const THAI_COST_MESSAGES = {
     th: "บันทึกข้อมูล · ขนย้ายปัตตานี",
   },
   "thaiCost.pattaniHandling.pageSubtitle": {
-    zh: "总数从派车自动拉取；桶与盒子分列计费",
-    en: "Totals from dispatch; crates and boxes billed separately",
-    th: "ยอดรวมจากจัดรถ; ถังและกล่องคิดแยก",
+    zh: "派车总数可编辑；未改跟随派车，保存后锁定",
+    en: "Editable dispatch totals; follow live until saved, then lock",
+    th: "แก้ยอดจัดรถได้; ยังไม่แก้ตามจัดรถ บันทึกแล้วล็อก",
   },
   "thaiCost.handling.pageTitle": {
     zh: "数据录入 · 搬运录入",
@@ -410,6 +410,7 @@ export const THAI_COST_MESSAGES = {
   },
   "thaiCost.sadaoHandling.smallCrate": { zh: "小桶", en: "Small crate", th: "ถังเล็ก" },
   "thaiCost.sadaoHandling.largeCrate": { zh: "大桶", en: "Large crate", th: "ถังใหญ่" },
+  "thaiCost.sadaoHandling.box": { zh: "盒子", en: "Box", th: "กล่อง" },
   "thaiCost.sadaoHandling.billablePreview": {
     zh: "计费预览：小 {small} / 大 {large} / 盒 {box}",
     en: "Billable preview: S {small} / L {large} / Box {box}",
@@ -500,9 +501,9 @@ export const THAI_COST_MESSAGES = {
 
   // ── Songkhla handling ───────────────────────────────────────────────────
   "thaiCost.songkhlaHandling.intro": {
-    zh: "宋卡搬运：总数从派车自动拉取（pickup=SONGKHLA，assigned 行）。计费数 = 总数 − 直达数。一律平日费率。",
-    en: "Songkhla handling: totals from dispatch (pickup=SONGKHLA, assigned). Billable = total − direct. Weekday rates only.",
-    th: "ขนย้ายสงขลา: รวมจากจัดรถ (pickup=SONGKHLA, assigned). คิดค่า=รวม−ตรง. อัตราวันธรรมดาเท่านั้น.",
+    zh: "宋卡搬运：派车总数可点铅笔编辑。未编辑时跟随派车（pickup=SONGKHLA）；保存后锁定；编辑时可恢复自动。一律平日费率。",
+    en: "Songkhla handling: edit dispatch totals with the pencil. Until edited, totals follow Dispatch (pickup=SONGKHLA). After save they lock; restore auto while editing. Weekday rates only.",
+    th: "ขนย้ายสงขลา: แก้ยอดจัดรถด้วยดินสอ. ยังไม่แก้จะตามจัดรถ (pickup=SONGKHLA); บันทึกแล้วล็อก; กู้ยอดอัตโนมัติได้ตอนแก้. อัตราวันธรรมดาเท่านั้น.",
   },
   "thaiCost.songkhlaHandling.addRecord": {
     zh: "登记 / 刷新当日",
@@ -510,9 +511,14 @@ export const THAI_COST_MESSAGES = {
     th: "ลงทะเบียน / รีเฟรชวันนี้",
   },
   "thaiCost.songkhlaHandling.dispatchTotals": {
-    zh: "派车总数（只读，pickup=SONGKHLA）",
-    en: "Dispatch totals (read-only, pickup=SONGKHLA)",
-    th: "ยอดรวมจัดรถ (อ่านอย่างเดียว, pickup=SONGKHLA)",
+    zh: "派车总数（pickup=SONGKHLA）",
+    en: "Dispatch totals (pickup=SONGKHLA)",
+    th: "ยอดรวมจัดรถ (pickup=SONGKHLA)",
+  },
+  "thaiCost.songkhlaHandling.dispatchTotalsEditable": {
+    zh: "派车总数（pickup=SONGKHLA）",
+    en: "Dispatch totals (pickup=SONGKHLA)",
+    th: "ยอดรวมจัดรถ (pickup=SONGKHLA)",
   },
   "thaiCost.songkhlaHandling.colSizes": { zh: "小/大/盒", en: "S/L/Box", th: "เล็ก/ใหญ่/กล่อง" },
   "thaiCost.songkhlaHandling.colCommission": { zh: "提成", en: "Commission", th: "คอมมิชชั่น" },
@@ -522,26 +528,31 @@ export const THAI_COST_MESSAGES = {
     th: "ตัวอย่างคิดค่า: ถัง {crate} / กล่อง {box}",
   },
   "thaiCost.songkhlaHandling.colCrateTotals": {
-    zh: "桶 总/直达/计费",
-    en: "Crate total/direct/billable",
-    th: "ถัง รวม/ตรง/คิดค่า",
+    zh: "桶计费",
+    en: "Crate billable",
+    th: "ถังคิดค่า",
   },
   "thaiCost.songkhlaHandling.colBoxTotals": {
-    zh: "盒 总/直达/计费",
-    en: "Box total/direct/billable",
-    th: "กล่อง รวม/ตรง/คิดค่า",
+    zh: "盒计费",
+    en: "Box billable",
+    th: "กล่องคิดค่า",
   },
 
   // ── Pattani handling ────────────────────────────────────────────────────
   "thaiCost.pattaniHandling.intro": {
-    zh: "北大年搬运：总数从派车自动拉取（pickup=PATTANI，assigned 行）。计费数 = 总数 − 直达数。承包商与 SAKRI 均按扣减后计费数计算。",
-    en: "Pattani handling: totals from dispatch (pickup=PATTANI, assigned). Billable = total − direct. Contractor and SAKRI both use billable qty.",
-    th: "ขนย้ายปัตตานี: รวมจากจัดรถ (pickup=PATTANI, assigned). คิดค่า=รวม−ตรง. ผู้รับเหมาและ SAKRI ใช้จำนวนหลังหักตรง.",
+    zh: "北大年搬运：派车总数可点铅笔编辑。未编辑时跟随派车（pickup=PATTANI）；保存后锁定；编辑时可恢复自动。承包商与 SAKRI 共用同一计费数。",
+    en: "Pattani handling: edit dispatch totals with the pencil. Until edited, totals follow Dispatch (pickup=PATTANI). After save they lock; restore auto while editing. Contractor and SAKRI share the same billable qty.",
+    th: "ขนย้ายปัตตานี: แก้ยอดจัดรถด้วยดินสอ. ยังไม่แก้จะตามจัดรถ (pickup=PATTANI); บันทึกแล้วล็อก; กู้ยอดอัตโนมัติได้ตอนแก้. ผู้รับเหมาและ SAKRI ใช้จำนวนคิดค่าเดียวกัน.",
   },
   "thaiCost.pattaniHandling.dispatchTotals": {
-    zh: "派车总数（只读，pickup=PATTANI）",
-    en: "Dispatch totals (read-only, pickup=PATTANI)",
-    th: "ยอดรวมจัดรถ (อ่านอย่างเดียว, pickup=PATTANI)",
+    zh: "派车总数（pickup=PATTANI）",
+    en: "Dispatch totals (pickup=PATTANI)",
+    th: "ยอดรวมจัดรถ (pickup=PATTANI)",
+  },
+  "thaiCost.pattaniHandling.dispatchTotalsEditable": {
+    zh: "派车总数（pickup=PATTANI）",
+    en: "Dispatch totals (pickup=PATTANI)",
+    th: "ยอดรวมจัดรถ (pickup=PATTANI)",
   },
   "thaiCost.pattaniHandling.colCrates": { zh: "桶数", en: "Crates", th: "ถัง" },
   "thaiCost.pattaniHandling.colBoxes": { zh: "盒子", en: "Boxes", th: "กล่อง" },
@@ -554,19 +565,61 @@ export const THAI_COST_MESSAGES = {
     th: "ตัวอย่างคิดค่า: ถัง {crate} / กล่อง {box}",
   },
   "thaiCost.pattaniHandling.directCrate": {
-    zh: "直达 · 桶",
-    en: "Direct · crate",
-    th: "ตรง · ถัง",
+    zh: "手动覆盖 · 桶",
+    en: "Override · crate",
+    th: "ทับ · ถัง",
   },
   "thaiCost.pattaniHandling.colCrateTotals": {
-    zh: "桶 总/直达/计费",
-    en: "Crate total/direct/billable",
-    th: "ถัง รวม/ตรง/คิดค่า",
+    zh: "桶计费",
+    en: "Crate billable",
+    th: "ถังคิดค่า",
   },
   "thaiCost.pattaniHandling.colBoxTotals": {
-    zh: "盒 总/直达/计费",
-    en: "Box total/direct/billable",
-    th: "กล่อง รวม/ตรง/คิดค่า",
+    zh: "盒计费",
+    en: "Box billable",
+    th: "กล่องคิดค่า",
+  },
+
+  "thaiCost.handling.editDispatchTotals": {
+    zh: "编辑派车总数",
+    en: "Edit dispatch totals",
+    th: "แก้ยอดจัดรถ",
+  },
+  "thaiCost.handling.restoreAutoTotals": {
+    zh: "恢复自动总数",
+    en: "Restore auto totals",
+    th: "กู้ยอดอัตโนมัติ",
+  },
+
+  "thaiCost.handling.billableOverride": {
+    zh: "手动覆盖最终计费数量",
+    en: "Manual billable override",
+    th: "ทับจำนวนคิดค่าด้วยมือ",
+  },
+  "thaiCost.handling.addBillableOverride": {
+    zh: "+ 添加手动覆盖（完整替换，非扣减）",
+    en: "+ Add billable override (full replace, not deduction)",
+    th: "+ เพิ่มทับจำนวน (แทนที่ทั้งก้อน ไม่ใช่หัก)",
+  },
+  "thaiCost.handling.billableOverrideHint": {
+    zh: "留空=继续用派车自动总数；填了数字=该数字就是最终计费数（可以比自动总数更大）。这是替换，不是从总数里扣减。",
+    en: "Leave empty to keep dispatch auto totals. Enter a number to fully replace billable qty (may be larger than auto). Replacement, not deduction.",
+    th: "ว่าง=ใช้ยอดอัตโนมัติ; กรอกตัวเลข=แทนที่จำนวนคิดค่าทั้งก้อน (มากกว่าได้). เป็นการแทนที่ ไม่ใช่หัก.",
+  },
+  "thaiCost.handling.overrideCrate": {
+    zh: "覆盖 · 桶（最终计费）",
+    en: "Override · crates (final billable)",
+    th: "ทับ · ถัง (คิดค่าสุดท้าย)",
+  },
+  "thaiCost.handling.overrideBox": {
+    zh: "覆盖 · 盒子（最终计费）",
+    en: "Override · boxes (final billable)",
+    th: "ทับ · กล่อง (คิดค่าสุดท้าย)",
+  },
+  "thaiCost.handling.overrideEmptyPlaceholder": {
+    zh: "留空=自动总数",
+    en: "Empty = auto total",
+    th: "ว่าง = ยอดอัตโนมัติ",
   },
 
   // ── Driver trips ────────────────────────────────────────────────────────

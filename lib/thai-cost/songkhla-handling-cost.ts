@@ -3,7 +3,6 @@ import {
   SONGKHLA_HANDLING_CRATE_RATE_THB,
 } from "@/lib/constants/thai-cost";
 import {
-  computeSadaoBillableCrates,
   computeSadaoHandlingCommission,
   type SadaoHandlingQtyInput,
 } from "@/lib/thai-cost/sadao-cost";
@@ -12,6 +11,13 @@ import type { ResolvedThaiCostRates, ThaiCostRates } from "@/lib/thai-cost/rate-
 export interface SongkhlaHandlingRates {
   crate: number;
   box: number;
+}
+
+/** Effective totals used for billing (already resolved: live dispatch or locked manual). */
+export interface SongkhlaHandlingQtyInput {
+  smallCrateTotalQty: number;
+  largeCrateTotalQty: number;
+  boxTotalQty: number;
 }
 
 export interface SongkhlaHandlingCommission {
@@ -49,53 +55,47 @@ function usesSongkhlaLegacyBilling(
 function fromLegacySadaoCommission(
   legacy: ReturnType<typeof computeSadaoHandlingCommission>
 ): SongkhlaHandlingCommission {
-  const crateBillableQty =
-    legacy.smallBillableQty + legacy.largeBillableQty;
-  const crateCommissionThb = roundMoney(
-    legacy.smallCommissionThb + legacy.largeCommissionThb
-  );
   return {
-    crateBillableQty,
+    crateBillableQty: legacy.smallBillableQty + legacy.largeBillableQty,
     boxBillableQty: legacy.boxBillableQty,
-    rates: {
-      crate: 0,
-      box: legacy.rates.box,
-    },
-    crateCommissionThb,
+    rates: { crate: 0, box: legacy.rates.box },
+    crateCommissionThb: roundMoney(
+      legacy.smallCommissionThb + legacy.largeCommissionThb
+    ),
     boxCommissionThb: roundMoney(legacy.boxCommissionThb),
     totalCommissionThb: roundMoney(legacy.totalCommissionThb),
   };
 }
 
 /**
- * Songkhla daily handling commission: (small + large) × crate rate + box × box rate.
- * Locked monthly snapshots without Songkhla unified rates fall back to legacy Sadao split.
+ * Songkhla daily handling commission from effective totals.
+ * Billable crates = small + large; billable boxes = box (no separate override).
  */
 export function computeSongkhlaHandlingCommission(
-  input: SadaoHandlingQtyInput,
+  input: SongkhlaHandlingQtyInput,
   options: { rateConfig?: ThaiCostRates | ResolvedThaiCostRates } = {}
 ): SongkhlaHandlingCommission {
-  const qtyInput: SadaoHandlingQtyInput = {
+  const asSadao: SadaoHandlingQtyInput = {
     smallCrateTotalQty: input.smallCrateTotalQty,
     largeCrateTotalQty: input.largeCrateTotalQty,
     boxTotalQty: input.boxTotalQty,
-    smallCrateNoCheckQty: input.smallCrateNoCheckQty ?? 0,
-    largeCrateNoCheckQty: input.largeCrateNoCheckQty ?? 0,
-    boxNoCheckQty: input.boxNoCheckQty ?? 0,
+    smallCrateNoCheckQty: 0,
+    largeCrateNoCheckQty: 0,
+    boxNoCheckQty: 0,
   };
 
   if (usesSongkhlaLegacyBilling(options.rateConfig)) {
     return fromLegacySadaoCommission(
-      computeSadaoHandlingCommission(qtyInput, {
+      computeSadaoHandlingCommission(asSadao, {
         holidayRate: false,
         rateConfig: options.rateConfig,
       })
     );
   }
 
-  const billable = computeSadaoBillableCrates(qtyInput);
   const crateBillableQty =
-    billable.smallBillableQty + billable.largeBillableQty;
+    input.smallCrateTotalQty + input.largeCrateTotalQty;
+  const boxBillableQty = input.boxTotalQty;
   const rates = options.rateConfig
     ? songkhlaHandlingRatesFromConfig(options.rateConfig)
     : {
@@ -103,10 +103,10 @@ export function computeSongkhlaHandlingCommission(
         box: SONGKHLA_HANDLING_BOX_RATE_THB,
       };
   const crateCommissionThb = roundMoney(crateBillableQty * rates.crate);
-  const boxCommissionThb = roundMoney(billable.boxBillableQty * rates.box);
+  const boxCommissionThb = roundMoney(boxBillableQty * rates.box);
   return {
     crateBillableQty,
-    boxBillableQty: billable.boxBillableQty,
+    boxBillableQty,
     rates,
     crateCommissionThb,
     boxCommissionThb,

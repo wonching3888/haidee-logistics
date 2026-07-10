@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { SadaoHandlingValidationError } from "@/lib/thai-cost/sadao-cost";
 import {
   computePattaniBillableCrates,
   computePattaniHandlingCosts,
@@ -12,43 +11,22 @@ const rates = {
 };
 
 describe("computePattaniBillableCrates", () => {
-  it("billable = total − direct per category", () => {
-    const b = computePattaniBillableCrates({
-      crateQty: 82,
-      boxQty: 10,
-      crateNoCheckQty: 12,
-      boxNoCheckQty: 3,
-    });
-    expect(b.crateBillableQty).toBe(70);
-    expect(b.boxBillableQty).toBe(7);
-  });
-
-  it("rejects direct > total", () => {
-    expect(() =>
-      computePattaniBillableCrates({
-        crateQty: 10,
-        boxQty: 5,
-        crateNoCheckQty: 11,
-        boxNoCheckQty: 0,
-      })
-    ).toThrow(SadaoHandlingValidationError);
+  it("uses effective totals as billable", () => {
+    expect(
+      computePattaniBillableCrates({ crateQty: 82, boxQty: 10 })
+    ).toEqual({ crateBillableQty: 82, boxBillableQty: 10 });
   });
 });
 
 describe("computePattaniHandlingCosts", () => {
-  it("contractor and SAKRI both use billable qty", () => {
+  it("contractor and SAKRI share the same effective crate qty", () => {
     const costs = computePattaniHandlingCosts(
-      {
-        crateQty: 100,
-        boxQty: 20,
-        crateNoCheckQty: 30,
-        boxNoCheckQty: 5,
-      },
+      { crateQty: 315, boxQty: 50 },
       rates
     );
-    expect(costs.crateBillableQty).toBe(70);
-    expect(costs.boxBillableQty).toBe(15);
-    expect(costs.contractorThb).toBe(70 * 20 + 15 * 5);
-    expect(costs.sakriCommissionThb).toBe(70 * 2.2);
+    expect(costs.crateBillableQty).toBe(315);
+    expect(costs.boxBillableQty).toBe(50);
+    expect(costs.contractorThb).toBe(315 * 20 + 50 * 5);
+    expect(costs.sakriCommissionThb).toBe(315 * 2.2);
   });
 });

@@ -28,17 +28,26 @@ describe("computeSongkhlaHandlingCommission", () => {
         smallCrateTotalQty: 10,
         largeCrateTotalQty: 5,
         boxTotalQty: 7,
-        smallCrateNoCheckQty: 0,
-        largeCrateNoCheckQty: 0,
-        boxNoCheckQty: 0,
       },
       { rateConfig: baseRates }
     );
     expect(result.crateBillableQty).toBe(15);
     expect(result.boxBillableQty).toBe(7);
-    expect(result.crateCommissionThb).toBe(37.5);
-    expect(result.boxCommissionThb).toBe(12.6);
     expect(result.totalCommissionThb).toBe(50.1);
+  });
+
+  it("accepts totals larger than a typical dispatch auto (manual lock)", () => {
+    const result = computeSongkhlaHandlingCommission(
+      {
+        smallCrateTotalQty: 200,
+        largeCrateTotalQty: 0,
+        boxTotalQty: 80,
+      },
+      { rateConfig: baseRates }
+    );
+    expect(result.crateBillableQty).toBe(200);
+    expect(result.boxBillableQty).toBe(80);
+    expect(result.totalCommissionThb).toBe(200 * 2.5 + 80 * 1.8);
   });
 
   it("uses legacy Sadao split when locked snapshot lacks Songkhla unified rates", () => {
@@ -52,59 +61,14 @@ describe("computeSongkhlaHandlingCommission", () => {
       smallCrateTotalQty: 10,
       largeCrateTotalQty: 5,
       boxTotalQty: 7,
-      smallCrateNoCheckQty: 0,
-      largeCrateNoCheckQty: 0,
-      boxNoCheckQty: 0,
     };
-    const legacy = computeSadaoHandlingCommission(qty, {
-      holidayRate: false,
-      rateConfig: legacyRates,
-    });
+    const legacy = computeSadaoHandlingCommission(
+      { ...qty, smallCrateNoCheckQty: 0, largeCrateNoCheckQty: 0, boxNoCheckQty: 0 },
+      { holidayRate: false, rateConfig: legacyRates }
+    );
     const songkhla = computeSongkhlaHandlingCommission(qty, {
       rateConfig: legacyRates,
     });
     expect(songkhla.totalCommissionThb).toBe(legacy.totalCommissionThb);
-    expect(songkhla.crateCommissionThb).toBe(
-      legacy.smallCommissionThb + legacy.largeCommissionThb
-    );
-    expect(songkhla.boxCommissionThb).toBe(legacy.boxCommissionThb);
-  });
-
-  it("does not change Sadao commission when Songkhla rates differ", () => {
-    const qty = {
-      smallCrateTotalQty: 12,
-      largeCrateTotalQty: 8,
-      boxTotalQty: 3,
-      smallCrateNoCheckQty: 0,
-      largeCrateNoCheckQty: 0,
-      boxNoCheckQty: 0,
-    };
-    const sadao = computeSadaoHandlingCommission(qty, {
-      holidayRate: false,
-      rateConfig: baseRates,
-    });
-    expect(sadao.totalCommissionThb).toBe(12 * 3 + 8 * 4 + 3 * 3);
-    const songkhla = computeSongkhlaHandlingCommission(qty, {
-      rateConfig: baseRates,
-    });
-    expect(songkhla.totalCommissionThb).toBe(20 * 2.5 + 3 * 1.8);
-    expect(songkhla.totalCommissionThb).not.toBe(sadao.totalCommissionThb);
-  });
-
-  it("applies direct deduction before billing", () => {
-    const result = computeSongkhlaHandlingCommission(
-      {
-        smallCrateTotalQty: 10,
-        largeCrateTotalQty: 5,
-        boxTotalQty: 7,
-        smallCrateNoCheckQty: 2,
-        largeCrateNoCheckQty: 1,
-        boxNoCheckQty: 3,
-      },
-      { rateConfig: baseRates }
-    );
-    expect(result.crateBillableQty).toBe(12);
-    expect(result.boxBillableQty).toBe(4);
-    expect(result.totalCommissionThb).toBe(12 * 2.5 + 4 * 1.8);
   });
 });

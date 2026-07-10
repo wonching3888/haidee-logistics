@@ -9,6 +9,7 @@ import {
   type SadaoMonthlyCostSummary,
 } from "@/lib/thai-cost/sadao-cost";
 import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
+import { resolveSongkhlaEffectiveQtyMap } from "@/lib/thai-cost/station-handling-qty";
 import {
   resolveThaiCostRatesForMonth,
   type ResolvedThaiCostRates,
@@ -145,21 +146,15 @@ export async function getSongkhlaMonthlyRealCost(
   let handlingSmallCommissionThb = 0;
   let handlingBoxCommissionThb = 0;
   const handlingLargeCommissionThb = 0;
-  for (const row of handlingRows) {
-    const commission = computeSongkhlaHandlingCommission(
-      {
-        smallCrateTotalQty: row.smallCrateTotalQty,
-        largeCrateTotalQty: row.largeCrateTotalQty,
-        boxTotalQty: row.boxTotalQty,
-        smallCrateNoCheckQty: row.smallCrateNoCheckQty ?? 0,
-        largeCrateNoCheckQty: row.largeCrateNoCheckQty ?? 0,
-        boxNoCheckQty: row.boxNoCheckQty ?? 0,
-      },
-      { rateConfig: rates }
-    );
-    handlingSmallCommissionThb += commission.crateCommissionThb;
-    handlingBoxCommissionThb += commission.boxCommissionThb;
-  }
+    const qtyMap = await resolveSongkhlaEffectiveQtyMap(handlingRows, rates);
+    for (const row of handlingRows) {
+      const qty = qtyMap.get(row.id)!;
+      const commission = computeSongkhlaHandlingCommission(qty, {
+        rateConfig: rates,
+      });
+      handlingSmallCommissionThb += commission.crateCommissionThb;
+      handlingBoxCommissionThb += commission.boxCommissionThb;
+    }
 
   const laborSummary = sumSadaoMonthlyCost({
     monthlyWageTotalThb,

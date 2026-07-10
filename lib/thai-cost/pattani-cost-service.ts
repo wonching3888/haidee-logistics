@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { computeMonthlyWorkerTotal } from "@/lib/thai-cost/sadao-cost";
 import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
+import { resolvePattaniEffectiveQtyMap } from "@/lib/thai-cost/station-handling-qty";
 import {
   resolveThaiCostRatesForMonth,
   type ResolvedThaiCostRates,
@@ -81,16 +82,10 @@ export async function getPattaniMonthlyRealCost(
 
   let contractorThb = 0;
   let sakriCommissionThb = 0;
+  const qtyMap = await resolvePattaniEffectiveQtyMap(handlingRows, rates);
   for (const row of handlingRows) {
-    const day = computePattaniHandlingCosts(
-      {
-        crateQty: row.crateQty,
-        boxQty: row.boxQty,
-        crateNoCheckQty: row.crateNoCheckQty ?? 0,
-        boxNoCheckQty: row.boxNoCheckQty ?? 0,
-      },
-      rates
-    );
+    const qty = qtyMap.get(row.id)!;
+    const day = computePattaniHandlingCosts(qty, rates);
     contractorThb += day.contractorThb;
     sakriCommissionThb += day.sakriCommissionThb;
   }

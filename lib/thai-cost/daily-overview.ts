@@ -20,6 +20,10 @@ import {
 } from "@/lib/thai-cost/sadao-handling-expenses";
 import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
 import {
+  resolvePattaniEffectiveQty,
+  resolveSongkhlaEffectiveQty,
+} from "@/lib/thai-cost/station-handling-qty";
+import {
   resolveThaiCostRatesForMonth,
 } from "@/lib/thai-cost/rate-settings";
 import {
@@ -147,14 +151,14 @@ export async function getDailyOverview(
     };
   }
 
-  function buildStationSection(
+  async function buildStationSection(
     station: "SONGKHLA" | "PATTANI",
     handling:
       | typeof songkhlaHandling
       | typeof pattaniHandling
       | null,
     attendance: typeof songkhlaAttendance | null
-  ): DailyOverviewStationSection | null {
+  ): Promise<DailyOverviewStationSection | null> {
     const stationVehicleTrips = vehicleTrips.filter((v) => v.station === station);
     const hasHandling = handling != null;
     const hasVehicles = stationVehicleTrips.length > 0;
@@ -174,28 +178,12 @@ export async function getDailyOverview(
     let sakriCommissionThb: number | undefined;
 
     if (station === "SONGKHLA" && songkhlaHandling) {
-      const c = computeSongkhlaHandlingCommission(
-        {
-          smallCrateTotalQty: songkhlaHandling.smallCrateTotalQty,
-          largeCrateTotalQty: songkhlaHandling.largeCrateTotalQty,
-          boxTotalQty: songkhlaHandling.boxTotalQty,
-          smallCrateNoCheckQty: songkhlaHandling.smallCrateNoCheckQty ?? 0,
-          largeCrateNoCheckQty: songkhlaHandling.largeCrateNoCheckQty ?? 0,
-          boxNoCheckQty: songkhlaHandling.boxNoCheckQty ?? 0,
-        },
-        { rateConfig: rates }
-      );
+      const qty = await resolveSongkhlaEffectiveQty(songkhlaHandling, rates);
+      const c = computeSongkhlaHandlingCommission(qty, { rateConfig: rates });
       handlingCommissionThb = c.totalCommissionThb;
     } else if (station === "PATTANI" && pattaniHandling) {
-      const day = computePattaniHandlingCosts(
-        {
-          crateQty: pattaniHandling.crateQty,
-          boxQty: pattaniHandling.boxQty,
-          crateNoCheckQty: pattaniHandling.crateNoCheckQty ?? 0,
-          boxNoCheckQty: pattaniHandling.boxNoCheckQty ?? 0,
-        },
-        rates
-      );
+      const qty = await resolvePattaniEffectiveQty(pattaniHandling, rates);
+      const day = computePattaniHandlingCosts(qty, rates);
       contractorThb = day.contractorThb;
       sakriCommissionThb = day.sakriCommissionThb;
       handlingCommissionThb = day.dayTotalThb;
@@ -279,10 +267,15 @@ export async function getDailyOverview(
     };
   }
 
+  const [songkhla, pattani] = await Promise.all([
+    buildStationSection("SONGKHLA", songkhlaHandling, songkhlaAttendance),
+    buildStationSection("PATTANI", pattaniHandling, pattaniAttendance),
+  ]);
+
   return {
     date: dateStr,
     sadao,
-    songkhla: buildStationSection("SONGKHLA", songkhlaHandling, songkhlaAttendance),
-    pattani: buildStationSection("PATTANI", pattaniHandling, pattaniAttendance),
+    songkhla,
+    pattani,
   };
 }

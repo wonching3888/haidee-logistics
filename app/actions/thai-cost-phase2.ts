@@ -7,9 +7,13 @@ import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
-import { SadaoHandlingValidationError } from "@/lib/thai-cost/sadao-cost";
 import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
 import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
+import {
+  fetchLiveStationDispatchTotals,
+  resolvePattaniEffectiveQty,
+  resolveSongkhlaEffectiveQty,
+} from "@/lib/thai-cost/station-handling-qty";
 import {
   loadCurrentThaiCostRates,
   resolveThaiCostRatesForMonth,
@@ -22,9 +26,6 @@ import { getPattaniPnl, type PattaniPnlDetail } from "@/lib/thai-cost/pattani-pn
 import { revalidateThaiCost } from "@/app/actions/thai-cost";
 import { randomUUID } from "crypto";
 import { compareManualVsDispatchCrates } from "@/lib/thai-cost/dispatch-cross-check";
-import {
-  aggregateDispatchCratesForDate,
-} from "@/lib/thai-cost/dispatch-crate-aggregate";
 import {
   isThaiRouteMasterCode,
   THAI_ROUTE_MASTER_CODES,
@@ -163,10 +164,11 @@ export async function getStationDispatchTotalsForDate(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1
   );
-  const totals = await aggregateDispatchCratesForDate(date, {
-    pickupFilter: pickup,
-    largeTongTypeCodes: rates.largeTongTypeCodes,
-  });
+  const totals = await fetchLiveStationDispatchTotals(
+    date,
+    pickup,
+    rates.largeTongTypeCodes
+  );
   return {
     smallCrateTotalQty: totals.small,
     largeCrateTotalQty: totals.large,
@@ -175,55 +177,22 @@ export async function getStationDispatchTotalsForDate(
   };
 }
 
-async function fetchStationHandlingTotals(
-  date: Date,
-  pickup: "SONGKHLA" | "PATTANI"
-) {
-  const rates = await resolveThaiCostRatesForMonth(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1
-  );
-  return aggregateDispatchCratesForDate(date, {
-    pickupFilter: pickup,
-    largeTongTypeCodes: rates.largeTongTypeCodes,
-  });
-}
-
 // ─── Songkhla handling ───────────────────────────────────────────────────────
 
 export interface SongkhlaHandlingRow {
   id: string;
   date: string;
+  /** Effective totals shown/billed (live dispatch or locked manual). */
   smallCrateTotalQty: number;
   largeCrateTotalQty: number;
   boxTotalQty: number;
-  smallCrateNoCheckQty: number;
-  largeCrateNoCheckQty: number;
-  boxNoCheckQty: number;
+  manualQty: boolean;
   crateBillableQty: number;
   boxBillableQty: number;
   crateCommissionThb: number;
   boxCommissionThb: number;
   commissionThb: number;
   notes: string | null;
-}
-
-function songkhlaQtyFromRow(row: {
-  smallCrateTotalQty: number;
-  largeCrateTotalQty: number;
-  boxTotalQty: number;
-  smallCrateNoCheckQty?: number | null;
-  largeCrateNoCheckQty?: number | null;
-  boxNoCheckQty?: number | null;
-}) {
-  return {
-    smallCrateTotalQty: row.smallCrateTotalQty,
-    largeCrateTotalQty: row.largeCrateTotalQty,
-    boxTotalQty: row.boxTotalQty,
-    smallCrateNoCheckQty: row.smallCrateNoCheckQty ?? 0,
-    largeCrateNoCheckQty: row.largeCrateNoCheckQty ?? 0,
-    boxNoCheckQty: row.boxNoCheckQty ?? 0,
-  };
 }
 
 export async function getSongkhlaHandlingForDate(
@@ -239,18 +208,15 @@ export async function getSongkhlaHandlingForDate(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1
   );
-  const c = computeSongkhlaHandlingCommission(songkhlaQtyFromRow(row), {
-    rateConfig: rates,
-  });
+  const qty = await resolveSongkhlaEffectiveQty(row, rates);
+  const c = computeSongkhlaHandlingCommission(qty, { rateConfig: rates });
   return {
     id: row.id,
     date: toDateInputValue(row.date),
-    smallCrateTotalQty: row.smallCrateTotalQty,
-    largeCrateTotalQty: row.largeCrateTotalQty,
-    boxTotalQty: row.boxTotalQty,
-    smallCrateNoCheckQty: row.smallCrateNoCheckQty ?? 0,
-    largeCrateNoCheckQty: row.largeCrateNoCheckQty ?? 0,
-    boxNoCheckQty: row.boxNoCheckQty ?? 0,
+    smallCrateTotalQty: qty.smallCrateTotalQty,
+    largeCrateTotalQty: qty.largeCrateTotalQty,
+    boxTotalQty: qty.boxTotalQty,
+    manualQty: row.manualQty,
     crateBillableQty: c.crateBillableQty,
     boxBillableQty: c.boxBillableQty,
     crateCommissionThb: c.crateCommissionThb,
@@ -273,71 +239,83 @@ export async function listSongkhlaHandling(input: {
     }),
     resolveThaiCostRatesForMonth(input.year, input.month),
   ]);
-  // Songkhla: unified crate/box rates (legacy Sadao split when monthly snapshot predates fields).
-  return rows.map((row) => {
-    const c = computeSongkhlaHandlingCommission(songkhlaQtyFromRow(row), {
-      rateConfig: rates,
-    });
-    return {
-      id: row.id,
-      date: toDateInputValue(row.date),
-      smallCrateTotalQty: row.smallCrateTotalQty,
-      largeCrateTotalQty: row.largeCrateTotalQty,
-      boxTotalQty: row.boxTotalQty,
-      smallCrateNoCheckQty: row.smallCrateNoCheckQty,
-      largeCrateNoCheckQty: row.largeCrateNoCheckQty,
-      boxNoCheckQty: row.boxNoCheckQty,
-      crateBillableQty: c.crateBillableQty,
-      boxBillableQty: c.boxBillableQty,
-      crateCommissionThb: c.crateCommissionThb,
-      boxCommissionThb: c.boxCommissionThb,
-      commissionThb: c.totalCommissionThb,
-      notes: row.notes,
-    };
-  });
+  return Promise.all(
+    rows.map(async (row) => {
+      const qty = await resolveSongkhlaEffectiveQty(row, rates);
+      const c = computeSongkhlaHandlingCommission(qty, { rateConfig: rates });
+      return {
+        id: row.id,
+        date: toDateInputValue(row.date),
+        smallCrateTotalQty: qty.smallCrateTotalQty,
+        largeCrateTotalQty: qty.largeCrateTotalQty,
+        boxTotalQty: qty.boxTotalQty,
+        manualQty: row.manualQty,
+        crateBillableQty: c.crateBillableQty,
+        boxBillableQty: c.boxBillableQty,
+        crateCommissionThb: c.crateCommissionThb,
+        boxCommissionThb: c.boxCommissionThb,
+        commissionThb: c.totalCommissionThb,
+        notes: row.notes,
+      };
+    })
+  );
 }
 
+/**
+ * Save Songkhla handling day.
+ * - manualQty=false (restore auto / first register): store live dispatch, unlocked
+ * - manualQty=true: store provided totals as locked billable qty
+ */
 export async function saveSongkhlaHandling(input: {
   id?: string;
   date: string;
-  smallCrateNoCheckQty?: number;
-  largeCrateNoCheckQty?: number;
-  boxNoCheckQty?: number;
+  manualQty: boolean;
+  smallCrateTotalQty?: number;
+  largeCrateTotalQty?: number;
+  boxTotalQty?: number;
   notes?: string | null;
 }) {
   const user = await requireWrite();
   const date = parseDateInput(input.date);
-  const totals = await fetchStationHandlingTotals(date, "SONGKHLA");
   const rates = await resolveThaiCostRatesForMonth(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1
   );
 
-  const qtyInput = {
-    smallCrateTotalQty: totals.small,
-    largeCrateTotalQty: totals.large,
-    boxTotalQty: totals.box,
-    smallCrateNoCheckQty: input.smallCrateNoCheckQty ?? 0,
-    largeCrateNoCheckQty: input.largeCrateNoCheckQty ?? 0,
-    boxNoCheckQty: input.boxNoCheckQty ?? 0,
-  };
-
-  try {
-    computeSongkhlaHandlingCommission(qtyInput, { rateConfig: rates });
-  } catch (e) {
-    if (e instanceof SadaoHandlingValidationError) throw e;
-    throw e;
+  let small: number;
+  let large: number;
+  let box: number;
+  if (input.manualQty) {
+    small = Math.max(0, Math.floor(Number(input.smallCrateTotalQty) || 0));
+    large = Math.max(0, Math.floor(Number(input.largeCrateTotalQty) || 0));
+    box = Math.max(0, Math.floor(Number(input.boxTotalQty) || 0));
+  } else {
+    const live = await fetchLiveStationDispatchTotals(
+      date,
+      "SONGKHLA",
+      rates.largeTongTypeCodes
+    );
+    small = live.small;
+    large = live.large;
+    box = live.box;
   }
+
+  computeSongkhlaHandlingCommission(
+    {
+      smallCrateTotalQty: small,
+      largeCrateTotalQty: large,
+      boxTotalQty: box,
+    },
+    { rateConfig: rates }
+  );
 
   const notes = input.notes?.trim() || null;
   const data = {
     date,
-    smallCrateTotalQty: totals.small,
-    largeCrateTotalQty: totals.large,
-    boxTotalQty: totals.box,
-    smallCrateNoCheckQty: qtyInput.smallCrateNoCheckQty,
-    largeCrateNoCheckQty: qtyInput.largeCrateNoCheckQty,
-    boxNoCheckQty: qtyInput.boxNoCheckQty,
+    smallCrateTotalQty: small,
+    largeCrateTotalQty: large,
+    boxTotalQty: box,
+    manualQty: input.manualQty,
     notes,
     createdBy: user.id,
   };
@@ -350,9 +328,7 @@ export async function saveSongkhlaHandling(input: {
         smallCrateTotalQty: data.smallCrateTotalQty,
         largeCrateTotalQty: data.largeCrateTotalQty,
         boxTotalQty: data.boxTotalQty,
-        smallCrateNoCheckQty: data.smallCrateNoCheckQty,
-        largeCrateNoCheckQty: data.largeCrateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
+        manualQty: data.manualQty,
         notes: data.notes,
       },
     });
@@ -364,9 +340,7 @@ export async function saveSongkhlaHandling(input: {
         smallCrateTotalQty: data.smallCrateTotalQty,
         largeCrateTotalQty: data.largeCrateTotalQty,
         boxTotalQty: data.boxTotalQty,
-        smallCrateNoCheckQty: data.smallCrateNoCheckQty,
-        largeCrateNoCheckQty: data.largeCrateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
+        manualQty: data.manualQty,
         notes: data.notes,
       },
     });
@@ -836,28 +810,13 @@ export interface PattaniHandlingRow {
   date: string;
   crateQty: number;
   boxQty: number;
-  crateNoCheckQty: number;
-  boxNoCheckQty: number;
+  manualQty: boolean;
   crateBillableQty: number;
   boxBillableQty: number;
   contractorThb: number;
   sakriCommissionThb: number;
   dayTotalThb: number;
   notes: string | null;
-}
-
-function pattaniQtyFromRow(row: {
-  crateQty: number;
-  boxQty: number;
-  crateNoCheckQty?: number | null;
-  boxNoCheckQty?: number | null;
-}) {
-  return {
-    crateQty: row.crateQty,
-    boxQty: row.boxQty,
-    crateNoCheckQty: row.crateNoCheckQty ?? 0,
-    boxNoCheckQty: row.boxNoCheckQty ?? 0,
-  };
 }
 
 export async function getPattaniHandlingForDate(
@@ -873,14 +832,14 @@ export async function getPattaniHandlingForDate(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1
   );
-  const day = computePattaniHandlingCosts(pattaniQtyFromRow(row), rates);
+  const qty = await resolvePattaniEffectiveQty(row, rates);
+  const day = computePattaniHandlingCosts(qty, rates);
   return {
     id: row.id,
     date: toDateInputValue(row.date),
-    crateQty: row.crateQty,
-    boxQty: row.boxQty,
-    crateNoCheckQty: row.crateNoCheckQty ?? 0,
-    boxNoCheckQty: row.boxNoCheckQty ?? 0,
+    crateQty: qty.crateQty,
+    boxQty: qty.boxQty,
+    manualQty: row.manualQty,
     crateBillableQty: day.crateBillableQty,
     boxBillableQty: day.boxBillableQty,
     contractorThb: day.contractorThb,
@@ -903,63 +862,65 @@ export async function listPattaniHandling(input: {
     }),
     resolveThaiCostRatesForMonth(input.year, input.month),
   ]);
-  return rows.map((row) => {
-    const day = computePattaniHandlingCosts(pattaniQtyFromRow(row), rates);
-    return {
-      id: row.id,
-      date: toDateInputValue(row.date),
-      crateQty: row.crateQty,
-      boxQty: row.boxQty,
-      crateNoCheckQty: row.crateNoCheckQty,
-      boxNoCheckQty: row.boxNoCheckQty,
-      crateBillableQty: day.crateBillableQty,
-      boxBillableQty: day.boxBillableQty,
-      contractorThb: day.contractorThb,
-      sakriCommissionThb: day.sakriCommissionThb,
-      dayTotalThb: day.dayTotalThb,
-      notes: row.notes,
-    };
-  });
+  return Promise.all(
+    rows.map(async (row) => {
+      const qty = await resolvePattaniEffectiveQty(row, rates);
+      const day = computePattaniHandlingCosts(qty, rates);
+      return {
+        id: row.id,
+        date: toDateInputValue(row.date),
+        crateQty: qty.crateQty,
+        boxQty: qty.boxQty,
+        manualQty: row.manualQty,
+        crateBillableQty: day.crateBillableQty,
+        boxBillableQty: day.boxBillableQty,
+        contractorThb: day.contractorThb,
+        sakriCommissionThb: day.sakriCommissionThb,
+        dayTotalThb: day.dayTotalThb,
+        notes: row.notes,
+      };
+    })
+  );
 }
 
 export async function savePattaniHandling(input: {
   id?: string;
   date: string;
-  crateNoCheckQty?: number;
-  boxNoCheckQty?: number;
+  manualQty: boolean;
+  crateQty?: number;
+  boxQty?: number;
   notes?: string | null;
 }) {
   const user = await requireWrite();
   const date = parseDateInput(input.date);
-  const totals = await fetchStationHandlingTotals(date, "PATTANI");
-  const crateQty = totals.small + totals.large;
-  const boxQty = totals.box;
   const rates = await resolveThaiCostRatesForMonth(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1
   );
 
-  const qtyInput = {
-    crateQty,
-    boxQty,
-    crateNoCheckQty: input.crateNoCheckQty ?? 0,
-    boxNoCheckQty: input.boxNoCheckQty ?? 0,
-  };
-
-  try {
-    computePattaniHandlingCosts(qtyInput, rates);
-  } catch (e) {
-    if (e instanceof SadaoHandlingValidationError) throw e;
-    throw e;
+  let crateQty: number;
+  let boxQty: number;
+  if (input.manualQty) {
+    crateQty = Math.max(0, Math.floor(Number(input.crateQty) || 0));
+    boxQty = Math.max(0, Math.floor(Number(input.boxQty) || 0));
+  } else {
+    const live = await fetchLiveStationDispatchTotals(
+      date,
+      "PATTANI",
+      rates.largeTongTypeCodes
+    );
+    crateQty = live.small + live.large;
+    boxQty = live.box;
   }
+
+  computePattaniHandlingCosts({ crateQty, boxQty }, rates);
 
   const notes = input.notes?.trim() || null;
   const data = {
     date,
     crateQty,
     boxQty,
-    crateNoCheckQty: qtyInput.crateNoCheckQty,
-    boxNoCheckQty: qtyInput.boxNoCheckQty,
+    manualQty: input.manualQty,
     notes,
     createdBy: user.id,
   };
@@ -970,8 +931,7 @@ export async function savePattaniHandling(input: {
         date: data.date,
         crateQty: data.crateQty,
         boxQty: data.boxQty,
-        crateNoCheckQty: data.crateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
+        manualQty: data.manualQty,
         notes: data.notes,
       },
     });
@@ -982,8 +942,7 @@ export async function savePattaniHandling(input: {
       update: {
         crateQty: data.crateQty,
         boxQty: data.boxQty,
-        crateNoCheckQty: data.crateNoCheckQty,
-        boxNoCheckQty: data.boxNoCheckQty,
+        manualQty: data.manualQty,
         notes: data.notes,
       },
     });

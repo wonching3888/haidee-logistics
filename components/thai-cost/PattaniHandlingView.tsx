@@ -21,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HandlingDirectEntrySection } from "@/components/thai-cost/handling/HandlingDirectEntrySection";
 import { formatDisplay } from "@/lib/date-utils";
 
 export function PattaniHandlingView({
@@ -49,11 +48,8 @@ export function PattaniHandlingView({
   const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
-    crateNoCheckQty: "0",
-    boxNoCheckQty: "0",
     notes: "",
   });
-  const [showDirect, setShowDirect] = useState(false);
 
   useEffect(() => {
     if (!showForm || !form.date) return;
@@ -83,8 +79,8 @@ export function PattaniHandlingView({
     <div className="space-y-4">
       {!historyOnly && (
         <p className="text-sm text-haidee-muted">
-        {tLocal("thaiCost.pattaniHandling.intro")}
-      </p>
+          {tLocal("thaiCost.pattaniHandling.intro")}
+        </p>
       )}
       <div className="flex flex-wrap gap-3">
         <Input
@@ -135,8 +131,7 @@ export function PattaniHandlingView({
               try {
                 await savePattaniHandling({
                   date: form.date,
-                  crateNoCheckQty: Number(form.crateNoCheckQty),
-                  boxNoCheckQty: Number(form.boxNoCheckQty),
+                  manualQty: false,
                   notes: form.notes || null,
                 });
                 setShowForm(false);
@@ -190,24 +185,6 @@ export function PattaniHandlingView({
               </p>
             )}
           </div>
-          <HandlingDirectEntrySection
-            showDirect={showDirect}
-            onToggle={() => setShowDirect((v) => !v)}
-            fields={[
-              {
-                id: "crate",
-                label: tLocal("thaiCost.pattaniHandling.directCrate"),
-                value: form.crateNoCheckQty,
-                onChange: (v) => setForm((f) => ({ ...f, crateNoCheckQty: v })),
-              },
-              {
-                id: "box",
-                label: tLocal("thaiCost.sadaoHandling.directBox"),
-                value: form.boxNoCheckQty,
-                onChange: (v) => setForm((f) => ({ ...f, boxNoCheckQty: v })),
-              },
-            ]}
-          />
           <div className="flex gap-2">
             <Button
               type="submit"
@@ -253,10 +230,10 @@ export function PattaniHandlingView({
             <TableRow key={r.id}>
               <TableCell>{formatDisplay(r.date)}</TableCell>
               <TableCell className="text-right font-mono text-sm">
-                {r.crateQty} / {r.crateNoCheckQty} / {r.crateBillableQty}
+                {r.crateBillableQty}
               </TableCell>
               <TableCell className="text-right font-mono text-sm">
-                {r.boxQty} / {r.boxNoCheckQty} / {r.boxBillableQty}
+                {r.boxBillableQty}
               </TableCell>
               <TableCell className="text-right font-mono">
                 {r.contractorThb.toFixed(2)}

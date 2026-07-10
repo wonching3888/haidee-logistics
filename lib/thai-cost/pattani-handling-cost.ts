@@ -1,8 +1,3 @@
-import {
-  computeSadaoBillableCrates,
-  type SadaoHandlingQtyInput,
-} from "@/lib/thai-cost/sadao-cost";
-
 export interface PattaniDayCostRates {
   pattaniContractorCrate: number;
   pattaniContractorBox: number;
@@ -31,11 +26,10 @@ export function computePattaniDayCosts(
   };
 }
 
+/** Effective totals (already resolved: live dispatch or locked manual). */
 export interface PattaniHandlingQtyInput {
   crateQty: number;
   boxQty: number;
-  crateNoCheckQty: number;
-  boxNoCheckQty: number;
 }
 
 export interface PattaniBillableCrates {
@@ -43,26 +37,16 @@ export interface PattaniBillableCrates {
   boxBillableQty: number;
 }
 
-/** Billable crate/box = total − direct; reuses Sadao per-category validation. */
 export function computePattaniBillableCrates(
   input: PattaniHandlingQtyInput
 ): PattaniBillableCrates {
-  const asSadao: SadaoHandlingQtyInput = {
-    smallCrateTotalQty: 0,
-    largeCrateTotalQty: input.crateQty,
-    boxTotalQty: input.boxQty,
-    smallCrateNoCheckQty: 0,
-    largeCrateNoCheckQty: input.crateNoCheckQty,
-    boxNoCheckQty: input.boxNoCheckQty,
-  };
-  const billable = computeSadaoBillableCrates(asSadao);
   return {
-    crateBillableQty: billable.largeBillableQty,
-    boxBillableQty: billable.boxBillableQty,
+    crateBillableQty: input.crateQty,
+    boxBillableQty: input.boxQty,
   };
 }
 
-/** Contractor + SAKRI costs from billable qty (computePattaniDayCosts unchanged). */
+/** Contractor + SAKRI both use the same effective crate/box totals. */
 export function computePattaniHandlingCosts(
   input: PattaniHandlingQtyInput,
   rates: PattaniDayCostRates
