@@ -1561,14 +1561,17 @@ model SadaoHandlingOtherExpense {
   @@map("sadao_handling_other_expenses")
 }
 
-/// Songkhla daily crate handling (no no-check exclusion; billable = total).
+/// Songkhla daily crate handling (billable = total − direct per category).
 model SongkhlaCrateHandlingDaily {
-  id                 String   @id @default(uuid()) @db.Uuid
-  date               DateTime @unique @db.Date
-  smallCrateTotalQty Int      @map("small_crate_total_qty")
-  largeCrateTotalQty Int      @map("large_crate_total_qty")
-  boxTotalQty        Int      @default(0) @map("box_total_qty")
-  notes              String?
+  id                   String   @id @default(uuid()) @db.Uuid
+  date                 DateTime @unique @db.Date
+  smallCrateTotalQty   Int      @map("small_crate_total_qty")
+  largeCrateTotalQty   Int      @map("large_crate_total_qty")
+  boxTotalQty          Int      @default(0) @map("box_total_qty")
+  smallCrateNoCheckQty Int      @default(0) @map("small_crate_no_check_qty")
+  largeCrateNoCheckQty Int      @default(0) @map("large_crate_no_check_qty")
+  boxNoCheckQty        Int      @default(0) @map("box_no_check_qty")
+  notes                String?
   createdBy          String   @map("created_by") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
@@ -1578,11 +1581,13 @@ model SongkhlaCrateHandlingDaily {
 
 /// Pattani daily handling: one entry drives contractor fee + SAKRI commission.
 model PattaniCrateHandlingDaily {
-  id        String   @id @default(uuid()) @db.Uuid
-  date      DateTime @unique @db.Date
-  crateQty  Int      @map("crate_qty")
-  boxQty    Int      @default(0) @map("box_qty")
-  notes     String?
+  id               String   @id @default(uuid()) @db.Uuid
+  date             DateTime @unique @db.Date
+  crateQty         Int      @map("crate_qty")
+  boxQty           Int      @default(0) @map("box_qty")
+  crateNoCheckQty  Int      @default(0) @map("crate_no_check_qty")
+  boxNoCheckQty    Int      @default(0) @map("box_no_check_qty")
+  notes            String?
   createdBy String   @map("created_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

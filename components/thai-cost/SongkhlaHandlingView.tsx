@@ -10,6 +10,7 @@ import {
   saveSongkhlaHandling,
   type SongkhlaHandlingRow,
 } from "@/app/actions/thai-cost-phase2";
+import { HandlingDirectEntrySection } from "@/components/thai-cost/handling/HandlingDirectEntrySection";
 import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,8 +50,12 @@ export function SongkhlaHandlingView({
   const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
+    smallCrateNoCheckQty: "0",
+    largeCrateNoCheckQty: "0",
+    boxNoCheckQty: "0",
     notes: "",
   });
+  const [showDirect, setShowDirect] = useState(false);
 
   useEffect(() => {
     if (!showForm || !form.date) return;
@@ -139,6 +144,9 @@ export function SongkhlaHandlingView({
               try {
                 await saveSongkhlaHandling({
                   date: form.date,
+                  smallCrateNoCheckQty: Number(form.smallCrateNoCheckQty),
+                  largeCrateNoCheckQty: Number(form.largeCrateNoCheckQty),
+                  boxNoCheckQty: Number(form.boxNoCheckQty),
                   notes: form.notes || null,
                 });
                 setShowForm(false);
@@ -193,6 +201,32 @@ export function SongkhlaHandlingView({
               </p>
             )}
           </div>
+          <HandlingDirectEntrySection
+            showDirect={showDirect}
+            onToggle={() => setShowDirect((v) => !v)}
+            fields={[
+              {
+                id: "small",
+                label: tLocal("thaiCost.sadaoHandling.directSmall"),
+                value: form.smallCrateNoCheckQty,
+                onChange: (v) =>
+                  setForm((f) => ({ ...f, smallCrateNoCheckQty: v })),
+              },
+              {
+                id: "large",
+                label: tLocal("thaiCost.sadaoHandling.directLarge"),
+                value: form.largeCrateNoCheckQty,
+                onChange: (v) =>
+                  setForm((f) => ({ ...f, largeCrateNoCheckQty: v })),
+              },
+              {
+                id: "box",
+                label: tLocal("thaiCost.sadaoHandling.directBox"),
+                value: form.boxNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, boxNoCheckQty: v })),
+              },
+            ]}
+          />
           <div className="flex gap-2">
             <Button
               type="submit"
@@ -216,7 +250,10 @@ export function SongkhlaHandlingView({
           <TableRow>
             <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
             <TableHead className="text-right">
-              {tLocal("thaiCost.songkhlaHandling.colSizes")}
+              {tLocal("thaiCost.songkhlaHandling.colCrateTotals")}
+            </TableHead>
+            <TableHead className="text-right">
+              {tLocal("thaiCost.songkhlaHandling.colBoxTotals")}
             </TableHead>
             <TableHead className="text-right">
               {tLocal("thaiCost.songkhlaHandling.colCommission")}
@@ -229,7 +266,12 @@ export function SongkhlaHandlingView({
             <TableRow key={r.id}>
               <TableCell>{formatDisplay(r.date)}</TableCell>
               <TableCell className="text-right font-mono text-sm">
-                {r.smallCrateTotalQty}/{r.largeCrateTotalQty}/{r.boxTotalQty}
+                {r.smallCrateTotalQty + r.largeCrateTotalQty} /{" "}
+                {r.smallCrateNoCheckQty + r.largeCrateNoCheckQty} /{" "}
+                {r.crateBillableQty}
+              </TableCell>
+              <TableCell className="text-right font-mono text-sm">
+                {r.boxTotalQty} / {r.boxNoCheckQty} / {r.boxBillableQty}
               </TableCell>
               <TableCell className="text-right font-mono">
                 <div>{r.commissionThb.toFixed(2)}</div>

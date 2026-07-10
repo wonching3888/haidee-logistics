@@ -2,8 +2,8 @@ import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
 import { computeMonthlyWorkerTotal } from "@/lib/thai-cost/sadao-cost";
+import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
 import {
-  computePattaniDayCosts,
   resolveThaiCostRatesForMonth,
   type ResolvedThaiCostRates,
 } from "@/lib/thai-cost/rate-settings";
@@ -82,7 +82,15 @@ export async function getPattaniMonthlyRealCost(
   let contractorThb = 0;
   let sakriCommissionThb = 0;
   for (const row of handlingRows) {
-    const day = computePattaniDayCosts(row.crateQty, row.boxQty, rates);
+    const day = computePattaniHandlingCosts(
+      {
+        crateQty: row.crateQty,
+        boxQty: row.boxQty,
+        crateNoCheckQty: row.crateNoCheckQty ?? 0,
+        boxNoCheckQty: row.boxNoCheckQty ?? 0,
+      },
+      rates
+    );
     contractorThb += day.contractorThb;
     sakriCommissionThb += day.sakriCommissionThb;
   }

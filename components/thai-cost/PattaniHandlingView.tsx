@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { HandlingDirectEntrySection } from "@/components/thai-cost/handling/HandlingDirectEntrySection";
 import { formatDisplay } from "@/lib/date-utils";
 
 export function PattaniHandlingView({
@@ -48,8 +49,11 @@ export function PattaniHandlingView({
   const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [form, setForm] = useState({
     date: `${year}-${String(month).padStart(2, "0")}-01`,
+    crateNoCheckQty: "0",
+    boxNoCheckQty: "0",
     notes: "",
   });
+  const [showDirect, setShowDirect] = useState(false);
 
   useEffect(() => {
     if (!showForm || !form.date) return;
@@ -131,6 +135,8 @@ export function PattaniHandlingView({
               try {
                 await savePattaniHandling({
                   date: form.date,
+                  crateNoCheckQty: Number(form.crateNoCheckQty),
+                  boxNoCheckQty: Number(form.boxNoCheckQty),
                   notes: form.notes || null,
                 });
                 setShowForm(false);
@@ -184,6 +190,24 @@ export function PattaniHandlingView({
               </p>
             )}
           </div>
+          <HandlingDirectEntrySection
+            showDirect={showDirect}
+            onToggle={() => setShowDirect((v) => !v)}
+            fields={[
+              {
+                id: "crate",
+                label: tLocal("thaiCost.pattaniHandling.directCrate"),
+                value: form.crateNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, crateNoCheckQty: v })),
+              },
+              {
+                id: "box",
+                label: tLocal("thaiCost.sadaoHandling.directBox"),
+                value: form.boxNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, boxNoCheckQty: v })),
+              },
+            ]}
+          />
           <div className="flex gap-2">
             <Button
               type="submit"
@@ -207,10 +231,10 @@ export function PattaniHandlingView({
           <TableRow>
             <TableHead>{tLocal("thaiCost.common.date")}</TableHead>
             <TableHead className="text-right">
-              {tLocal("thaiCost.pattaniHandling.colCrates")}
+              {tLocal("thaiCost.pattaniHandling.colCrateTotals")}
             </TableHead>
             <TableHead className="text-right">
-              {tLocal("thaiCost.pattaniHandling.colBoxes")}
+              {tLocal("thaiCost.pattaniHandling.colBoxTotals")}
             </TableHead>
             <TableHead className="text-right">
               {tLocal("thaiCost.pattaniHandling.colContractor")}
@@ -228,8 +252,12 @@ export function PattaniHandlingView({
           {rows.map((r) => (
             <TableRow key={r.id}>
               <TableCell>{formatDisplay(r.date)}</TableCell>
-              <TableCell className="text-right">{r.crateQty}</TableCell>
-              <TableCell className="text-right">{r.boxQty}</TableCell>
+              <TableCell className="text-right font-mono text-sm">
+                {r.crateQty} / {r.crateNoCheckQty} / {r.crateBillableQty}
+              </TableCell>
+              <TableCell className="text-right font-mono text-sm">
+                {r.boxQty} / {r.boxNoCheckQty} / {r.boxBillableQty}
+              </TableCell>
               <TableCell className="text-right font-mono">
                 {r.contractorThb.toFixed(2)}
               </TableCell>

@@ -151,6 +151,9 @@ export async function getSongkhlaMonthlyRealCost(
         smallCrateTotalQty: row.smallCrateTotalQty,
         largeCrateTotalQty: row.largeCrateTotalQty,
         boxTotalQty: row.boxTotalQty,
+        smallCrateNoCheckQty: row.smallCrateNoCheckQty ?? 0,
+        largeCrateNoCheckQty: row.largeCrateNoCheckQty ?? 0,
+        boxNoCheckQty: row.boxNoCheckQty ?? 0,
       },
       { rateConfig: rates }
     );

@@ -72,19 +72,16 @@ function fromLegacySadaoCommission(
  * Locked monthly snapshots without Songkhla unified rates fall back to legacy Sadao split.
  */
 export function computeSongkhlaHandlingCommission(
-  input: Pick<
-    SadaoHandlingQtyInput,
-    "smallCrateTotalQty" | "largeCrateTotalQty" | "boxTotalQty"
-  >,
+  input: SadaoHandlingQtyInput,
   options: { rateConfig?: ThaiCostRates | ResolvedThaiCostRates } = {}
 ): SongkhlaHandlingCommission {
   const qtyInput: SadaoHandlingQtyInput = {
     smallCrateTotalQty: input.smallCrateTotalQty,
     largeCrateTotalQty: input.largeCrateTotalQty,
     boxTotalQty: input.boxTotalQty,
-    smallCrateNoCheckQty: 0,
-    largeCrateNoCheckQty: 0,
-    boxNoCheckQty: 0,
+    smallCrateNoCheckQty: input.smallCrateNoCheckQty ?? 0,
+    largeCrateNoCheckQty: input.largeCrateNoCheckQty ?? 0,
+    boxNoCheckQty: input.boxNoCheckQty ?? 0,
   };
 
   if (usesSongkhlaLegacyBilling(options.rateConfig)) {

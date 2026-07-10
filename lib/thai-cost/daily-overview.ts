@@ -18,9 +18,9 @@ import {
   computeSadaoHandlingDayTotalThb,
   sumSadaoHandlingOtherExpensesThb,
 } from "@/lib/thai-cost/sadao-handling-expenses";
+import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
 import {
   resolveThaiCostRatesForMonth,
-  computePattaniDayCosts,
 } from "@/lib/thai-cost/rate-settings";
 import {
   computeVehicleTripPl,
@@ -179,14 +179,21 @@ export async function getDailyOverview(
           smallCrateTotalQty: songkhlaHandling.smallCrateTotalQty,
           largeCrateTotalQty: songkhlaHandling.largeCrateTotalQty,
           boxTotalQty: songkhlaHandling.boxTotalQty,
+          smallCrateNoCheckQty: songkhlaHandling.smallCrateNoCheckQty ?? 0,
+          largeCrateNoCheckQty: songkhlaHandling.largeCrateNoCheckQty ?? 0,
+          boxNoCheckQty: songkhlaHandling.boxNoCheckQty ?? 0,
         },
         { rateConfig: rates }
       );
       handlingCommissionThb = c.totalCommissionThb;
     } else if (station === "PATTANI" && pattaniHandling) {
-      const day = computePattaniDayCosts(
-        pattaniHandling.crateQty,
-        pattaniHandling.boxQty,
+      const day = computePattaniHandlingCosts(
+        {
+          crateQty: pattaniHandling.crateQty,
+          boxQty: pattaniHandling.boxQty,
+          crateNoCheckQty: pattaniHandling.crateNoCheckQty ?? 0,
+          boxNoCheckQty: pattaniHandling.boxNoCheckQty ?? 0,
+        },
         rates
       );
       contractorThb = day.contractorThb;

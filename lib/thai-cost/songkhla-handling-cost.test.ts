@@ -24,7 +24,14 @@ const baseRates: ResolvedThaiCostRates = {
 describe("computeSongkhlaHandlingCommission", () => {
   it("bills (small+large)×crateRate + box×boxRate", () => {
     const result = computeSongkhlaHandlingCommission(
-      { smallCrateTotalQty: 10, largeCrateTotalQty: 5, boxTotalQty: 7 },
+      {
+        smallCrateTotalQty: 10,
+        largeCrateTotalQty: 5,
+        boxTotalQty: 7,
+        smallCrateNoCheckQty: 0,
+        largeCrateNoCheckQty: 0,
+        boxNoCheckQty: 0,
+      },
       { rateConfig: baseRates }
     );
     expect(result.crateBillableQty).toBe(15);
@@ -45,16 +52,14 @@ describe("computeSongkhlaHandlingCommission", () => {
       smallCrateTotalQty: 10,
       largeCrateTotalQty: 5,
       boxTotalQty: 7,
+      smallCrateNoCheckQty: 0,
+      largeCrateNoCheckQty: 0,
+      boxNoCheckQty: 0,
     };
-    const legacy = computeSadaoHandlingCommission(
-      {
-        ...qty,
-        smallCrateNoCheckQty: 0,
-        largeCrateNoCheckQty: 0,
-        boxNoCheckQty: 0,
-      },
-      { holidayRate: false, rateConfig: legacyRates }
-    );
+    const legacy = computeSadaoHandlingCommission(qty, {
+      holidayRate: false,
+      rateConfig: legacyRates,
+    });
     const songkhla = computeSongkhlaHandlingCommission(qty, {
       rateConfig: legacyRates,
     });
@@ -84,5 +89,22 @@ describe("computeSongkhlaHandlingCommission", () => {
     });
     expect(songkhla.totalCommissionThb).toBe(20 * 2.5 + 3 * 1.8);
     expect(songkhla.totalCommissionThb).not.toBe(sadao.totalCommissionThb);
+  });
+
+  it("applies direct deduction before billing", () => {
+    const result = computeSongkhlaHandlingCommission(
+      {
+        smallCrateTotalQty: 10,
+        largeCrateTotalQty: 5,
+        boxTotalQty: 7,
+        smallCrateNoCheckQty: 2,
+        largeCrateNoCheckQty: 1,
+        boxNoCheckQty: 3,
+      },
+      { rateConfig: baseRates }
+    );
+    expect(result.crateBillableQty).toBe(12);
+    expect(result.boxBillableQty).toBe(4);
+    expect(result.totalCommissionThb).toBe(12 * 2.5 + 4 * 1.8);
   });
 });

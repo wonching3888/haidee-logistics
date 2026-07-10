@@ -91,29 +91,7 @@ export function ratesToHandlingPair(
   return { small, large, box: small };
 }
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-export function computePattaniDayCosts(
-  crateQty: number,
-  boxQty: number,
-  rates: Pick<
-    ThaiCostRates,
-    "pattaniContractorCrate" | "pattaniContractorBox" | "pattaniSakriCrate"
-  >
-) {
-  const contractorThb = roundMoney(
-    crateQty * rates.pattaniContractorCrate +
-      boxQty * rates.pattaniContractorBox
-  );
-  const sakriCommissionThb = roundMoney(crateQty * rates.pattaniSakriCrate);
-  return {
-    contractorThb,
-    sakriCommissionThb,
-    dayTotalThb: roundMoney(contractorThb + sakriCommissionThb),
-  };
-}
+export { computePattaniDayCosts } from "@/lib/thai-cost/pattani-handling-cost";
 
 function mapRates(r: ThaiCostRates): ThaiCostRates {
   return { ...r };

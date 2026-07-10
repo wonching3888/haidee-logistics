@@ -7,13 +7,13 @@ import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: string; messageKey: MessageKey; href: string }[] = [
-  { id: "attendance", messageKey: "thaiCost.tab.attendance", href: "/thai-cost/attendance" },
   {
     id: "handling",
     messageKey: "thaiCost.tab.stationHandling",
     href: "/thai-cost/handling",
   },
   { id: "driver-trips", messageKey: "thaiCost.tab.driverTrips", href: "/thai-cost/driver-trips" },
+  { id: "attendance", messageKey: "thaiCost.tab.attendance", href: "/thai-cost/attendance" },
   {
     id: "rented",
     messageKey: "thaiCost.tab.rentedVehicles",

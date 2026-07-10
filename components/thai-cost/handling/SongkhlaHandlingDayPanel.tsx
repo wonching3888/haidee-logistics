@@ -12,8 +12,21 @@ import {
 import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  HandlingDirectEntrySection,
+  hasDirectQty,
+} from "@/components/thai-cost/handling/HandlingDirectEntrySection";
 import { HandlingHistoryLink } from "@/components/thai-cost/handling/HandlingHistoryLink";
 import { StationTripsDisplay } from "@/components/thai-cost/handling/StationTripsDisplay";
+
+function directFormFromRow(row: SongkhlaHandlingRow | null) {
+  return {
+    smallCrateNoCheckQty: String(row?.smallCrateNoCheckQty ?? 0),
+    largeCrateNoCheckQty: String(row?.largeCrateNoCheckQty ?? 0),
+    boxNoCheckQty: String(row?.boxNoCheckQty ?? 0),
+    notes: row?.notes ?? "",
+  };
+}
 
 export function SongkhlaHandlingDayPanel({
   date,
@@ -30,16 +43,34 @@ export function SongkhlaHandlingDayPanel({
   const { tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showDirect, setShowDirect] = useState(
+    existingRow
+      ? hasDirectQty([
+          existingRow.smallCrateNoCheckQty,
+          existingRow.largeCrateNoCheckQty,
+          existingRow.boxNoCheckQty,
+        ])
+      : false
+  );
   const [dispatchTotals, setDispatchTotals] = useState({
     smallCrateTotalQty: 0,
     largeCrateTotalQty: 0,
     boxTotalQty: 0,
   });
   const [loadingDispatch, setLoadingDispatch] = useState(false);
-  const [notes, setNotes] = useState(existingRow?.notes ?? "");
+  const [form, setForm] = useState(directFormFromRow(existingRow));
 
   useEffect(() => {
-    setNotes(existingRow?.notes ?? "");
+    setForm(directFormFromRow(existingRow));
+    setShowDirect(
+      existingRow
+        ? hasDirectQty([
+            existingRow.smallCrateNoCheckQty,
+            existingRow.largeCrateNoCheckQty,
+            existingRow.boxNoCheckQty,
+          ])
+        : false
+    );
     setError(null);
   }, [date, existingRow]);
 
@@ -74,6 +105,16 @@ export function SongkhlaHandlingDayPanel({
     };
   }, [date]);
 
+  const billablePreview = {
+    crate:
+      dispatchTotals.smallCrateTotalQty +
+      dispatchTotals.largeCrateTotalQty -
+      (Number(form.smallCrateNoCheckQty) || 0) -
+      (Number(form.largeCrateNoCheckQty) || 0),
+    box:
+      dispatchTotals.boxTotalQty - (Number(form.boxNoCheckQty) || 0),
+  };
+
   function save() {
     setError(null);
     startTransition(async () => {
@@ -81,7 +122,10 @@ export function SongkhlaHandlingDayPanel({
         await saveSongkhlaHandling({
           id: existingRow?.id,
           date,
-          notes: notes || null,
+          smallCrateNoCheckQty: Number(form.smallCrateNoCheckQty),
+          largeCrateNoCheckQty: Number(form.largeCrateNoCheckQty),
+          boxNoCheckQty: Number(form.boxNoCheckQty),
+          notes: form.notes || null,
         });
         router.refresh();
       } catch (err) {
@@ -114,13 +158,21 @@ export function SongkhlaHandlingDayPanel({
         {loadingDispatch ? (
           <p className="text-haidee-muted">{tLocal("thaiCost.common.loading")}</p>
         ) : (
-          <p className="font-mono text-sm">
-            {tLocal("thaiCost.dailyOverview.billableBreakdown", {
-              small: String(dispatchTotals.smallCrateTotalQty),
-              large: String(dispatchTotals.largeCrateTotalQty),
-              box: String(dispatchTotals.boxTotalQty),
-            })}
-          </p>
+          <>
+            <p className="mt-2 font-mono text-sm">
+              {tLocal("thaiCost.dailyOverview.billableBreakdown", {
+                small: String(dispatchTotals.smallCrateTotalQty),
+                large: String(dispatchTotals.largeCrateTotalQty),
+                box: String(dispatchTotals.boxTotalQty),
+              })}
+            </p>
+            <p className="mt-2 text-xs text-haidee-muted">
+              {tLocal("thaiCost.songkhlaHandling.billablePreview", {
+                crate: String(billablePreview.crate),
+                box: String(billablePreview.box),
+              })}
+            </p>
+          </>
         )}
       </div>
 
@@ -154,11 +206,39 @@ export function SongkhlaHandlingDayPanel({
             save();
           }}
         >
+          <HandlingDirectEntrySection
+            showDirect={showDirect}
+            onToggle={() => setShowDirect((v) => !v)}
+            fields={[
+              {
+                id: "small",
+                label: tLocal("thaiCost.sadaoHandling.directSmall"),
+                value: form.smallCrateNoCheckQty,
+                onChange: (v) =>
+                  setForm((f) => ({ ...f, smallCrateNoCheckQty: v })),
+              },
+              {
+                id: "large",
+                label: tLocal("thaiCost.sadaoHandling.directLarge"),
+                value: form.largeCrateNoCheckQty,
+                onChange: (v) =>
+                  setForm((f) => ({ ...f, largeCrateNoCheckQty: v })),
+              },
+              {
+                id: "box",
+                label: tLocal("thaiCost.sadaoHandling.directBox"),
+                value: form.boxNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, boxNoCheckQty: v })),
+              },
+            ]}
+          />
+
           <label className="block space-y-1 text-sm">
             <span>{tLocal("thaiCost.common.notes")}</span>
             <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder={tLocal("thaiCost.sadaoHandling.notesPlaceholder")}
             />
           </label>
           <div className="flex flex-wrap gap-2">

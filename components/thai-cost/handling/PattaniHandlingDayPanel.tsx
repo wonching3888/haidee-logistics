@@ -13,30 +13,64 @@ import {
 import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  HandlingDirectEntrySection,
+  hasDirectQty,
+} from "@/components/thai-cost/handling/HandlingDirectEntrySection";
 import { HandlingHistoryLink } from "@/components/thai-cost/handling/HandlingHistoryLink";
 import { StationTripsDisplay } from "@/components/thai-cost/handling/StationTripsDisplay";
+
+function directFormFromRow(row: PattaniHandlingRow | null) {
+  return {
+    crateNoCheckQty: String(row?.crateNoCheckQty ?? 0),
+    boxNoCheckQty: String(row?.boxNoCheckQty ?? 0),
+    notes: row?.notes ?? "",
+  };
+}
 
 export function PattaniHandlingDayPanel({
   date,
   existingRow,
   drivers,
   canWrite,
+  rates,
 }: {
   date: string;
   existingRow: PattaniHandlingRow | null;
   drivers: ThaiDriverRow[];
   canWrite: boolean;
+  rates?: {
+    pattaniContractorCrate: number;
+    pattaniContractorBox: number;
+    pattaniSakriCrate: number;
+  };
 }) {
   const router = useRouter();
   const { tLocal } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showDirect, setShowDirect] = useState(
+    existingRow
+      ? hasDirectQty([existingRow.crateNoCheckQty, existingRow.boxNoCheckQty])
+      : false
+  );
   const [dispatchTotals, setDispatchTotals] = useState({ crateQty: 0, boxQty: 0 });
   const [loadingDispatch, setLoadingDispatch] = useState(false);
-  const [notes, setNotes] = useState(existingRow?.notes ?? "");
+  const [form, setForm] = useState(directFormFromRow(existingRow));
+
+  const previewRates = rates ?? {
+    pattaniContractorCrate: 20,
+    pattaniContractorBox: 5,
+    pattaniSakriCrate: 2.2,
+  };
 
   useEffect(() => {
-    setNotes(existingRow?.notes ?? "");
+    setForm(directFormFromRow(existingRow));
+    setShowDirect(
+      existingRow
+        ? hasDirectQty([existingRow.crateNoCheckQty, existingRow.boxNoCheckQty])
+        : false
+    );
     setError(null);
   }, [date, existingRow]);
 
@@ -64,6 +98,37 @@ export function PattaniHandlingDayPanel({
     };
   }, [date]);
 
+  const crateNoCheck = Number(form.crateNoCheckQty) || 0;
+  const boxNoCheck = Number(form.boxNoCheckQty) || 0;
+  const billablePreview = {
+    crate: dispatchTotals.crateQty - crateNoCheck,
+    box: dispatchTotals.boxQty - boxNoCheck,
+  };
+
+  let previewCosts: {
+    contractorThb: number;
+    sakriCommissionThb: number;
+  } | null = null;
+  if (
+    !loadingDispatch &&
+    billablePreview.crate >= 0 &&
+    billablePreview.box >= 0 &&
+    dispatchTotals.crateQty >= crateNoCheck &&
+    dispatchTotals.boxQty >= boxNoCheck
+  ) {
+    previewCosts = {
+      contractorThb:
+        Math.round(
+          (billablePreview.crate * previewRates.pattaniContractorCrate +
+            billablePreview.box * previewRates.pattaniContractorBox) *
+            100
+        ) / 100,
+      sakriCommissionThb:
+        Math.round(billablePreview.crate * previewRates.pattaniSakriCrate * 100) /
+        100,
+    };
+  }
+
   function save() {
     setError(null);
     startTransition(async () => {
@@ -71,7 +136,9 @@ export function PattaniHandlingDayPanel({
         await savePattaniHandling({
           id: existingRow?.id,
           date,
-          notes: notes || null,
+          crateNoCheckQty: Number(form.crateNoCheckQty),
+          boxNoCheckQty: Number(form.boxNoCheckQty),
+          notes: form.notes || null,
         });
         router.refresh();
       } catch (err) {
@@ -115,44 +182,54 @@ export function PattaniHandlingDayPanel({
         {loadingDispatch ? (
           <p className="text-haidee-muted">{tLocal("thaiCost.common.loading")}</p>
         ) : (
-          <p className="font-mono text-sm">
-            {tLocal("thaiCost.pattaniHandling.colCrates")} {dispatchTotals.crateQty}{" "}
-            / {tLocal("thaiCost.pattaniHandling.colBoxes")}{" "}
-            {dispatchTotals.boxQty}
-          </p>
+          <>
+            <p className="mt-2 font-mono text-sm">
+              {tLocal("thaiCost.pattaniHandling.colCrates")} {dispatchTotals.crateQty}{" "}
+              / {tLocal("thaiCost.pattaniHandling.colBoxes")}{" "}
+              {dispatchTotals.boxQty}
+            </p>
+            <p className="mt-2 text-xs text-haidee-muted">
+              {tLocal("thaiCost.pattaniHandling.billablePreview", {
+                crate: String(billablePreview.crate),
+                box: String(billablePreview.box),
+              })}
+            </p>
+          </>
         )}
       </div>
 
-      {(existingRow || !loadingDispatch) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3">
-            <p className="text-sm font-medium">
-              {tLocal("thaiCost.pattaniHandling.colContractor")}
-            </p>
-            <p className="text-xs text-haidee-muted">
-              {tLocal("thaiCost.handling.pattaniContractorNote")}
-            </p>
-            <p className="mt-2 font-mono text-lg font-semibold">
-              {existingRow
-                ? existingRow.contractorThb.toFixed(2)
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3">
+          <p className="text-sm font-medium">
+            {tLocal("thaiCost.pattaniHandling.colContractor")}
+          </p>
+          <p className="text-xs text-haidee-muted">
+            {tLocal("thaiCost.handling.pattaniContractorNote")}
+          </p>
+          <p className="mt-2 font-mono text-lg font-semibold">
+            {existingRow
+              ? existingRow.contractorThb.toFixed(2)
+              : previewCosts
+                ? previewCosts.contractorThb.toFixed(2)
                 : tLocal("thaiCost.handling.notSavedYet")}
-            </p>
-          </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50/80 p-3">
-            <p className="text-sm font-medium">
-              {tLocal("thaiCost.pattaniHandling.colSakri")}
-            </p>
-            <p className="text-xs text-haidee-muted">
-              {tLocal("thaiCost.handling.pattaniSakriNote")}
-            </p>
-            <p className="mt-2 font-mono text-lg font-semibold">
-              {existingRow
-                ? existingRow.sakriCommissionThb.toFixed(2)
-                : tLocal("thaiCost.handling.notSavedYet")}
-            </p>
-          </div>
+          </p>
         </div>
-      )}
+        <div className="rounded-md border border-slate-200 bg-slate-50/80 p-3">
+          <p className="text-sm font-medium">
+            {tLocal("thaiCost.pattaniHandling.colSakri")}
+          </p>
+          <p className="text-xs text-haidee-muted">
+            {tLocal("thaiCost.handling.pattaniSakriNote")}
+          </p>
+          <p className="mt-2 font-mono text-lg font-semibold">
+            {existingRow
+              ? existingRow.sakriCommissionThb.toFixed(2)
+              : previewCosts
+                ? previewCosts.sakriCommissionThb.toFixed(2)
+                : tLocal("thaiCost.handling.notSavedYet")}
+          </p>
+        </div>
+      </div>
 
       <StationTripsDisplay
         date={date}
@@ -169,11 +246,31 @@ export function PattaniHandlingDayPanel({
             save();
           }}
         >
+          <HandlingDirectEntrySection
+            showDirect={showDirect}
+            onToggle={() => setShowDirect((v) => !v)}
+            fields={[
+              {
+                id: "crate",
+                label: tLocal("thaiCost.pattaniHandling.directCrate"),
+                value: form.crateNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, crateNoCheckQty: v })),
+              },
+              {
+                id: "box",
+                label: tLocal("thaiCost.sadaoHandling.directBox"),
+                value: form.boxNoCheckQty,
+                onChange: (v) => setForm((f) => ({ ...f, boxNoCheckQty: v })),
+              },
+            ]}
+          />
+
           <label className="block space-y-1 text-sm">
             <span>{tLocal("thaiCost.common.notes")}</span>
             <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder={tLocal("thaiCost.sadaoHandling.notesPlaceholder")}
             />
           </label>
           <div className="flex flex-wrap gap-2">
