@@ -217,6 +217,11 @@ export const MESSAGES = {
     en: "AutoCount Export",
     th: "ส่งออก AutoCount",
   },
+  "nav.paymentVoucher": {
+    zh: "付款凭证",
+    en: "Payment Voucher",
+    th: "ใบสำคัญจ่าย",
+  },
   "nav.thaiCost": {
     zh: "泰国成本",
     en: "Thai Cost",

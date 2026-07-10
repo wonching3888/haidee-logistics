@@ -1594,3 +1594,48 @@ model PattaniCrateHandlingDaily {
 
   @@map("pattani_crate_handling_daily")
 }
+
+/// Cash Book payment voucher header (THB or MYR book).
+model CashBookPaymentVoucher {
+  id             String    @id @default(uuid()) @db.Uuid
+  voucherNo      String    @unique @map("voucher_no")
+  book           String // THB | MYR
+  voucherDate    DateTime  @map("voucher_date") @db.Date
+  paidTo         String    @map("paid_to")
+  paymentMethod  String    @map("payment_method") // CASH | TRANSFER | CHEQUE
+  checkNo        String?   @map("check_no")
+  checkDate      DateTime? @map("check_date") @db.Date
+  dueDate        DateTime? @map("due_date") @db.Date
+  status         String    @default("draft") // draft | confirmed
+  confirmedAt    DateTime? @map("confirmed_at")
+  confirmedBy    String?   @map("confirmed_by") @db.Uuid
+  payeeSignature String?   @map("payee_signature")
+  preparedBy     String?   @map("prepared_by")
+  approvedBy     String?   @map("approved_by")
+  totalAmount    Decimal   @map("total_amount") @db.Decimal(14, 2)
+  createdBy      String    @map("created_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  lines CashBookPaymentVoucherLine[]
+
+  @@index([voucherDate])
+  @@index([book])
+  @@index([status])
+  @@map("cash_book_payment_vouchers")
+}
+
+model CashBookPaymentVoucherLine {
+  id          String  @id @default(uuid()) @db.Uuid
+  voucherId   String  @map("voucher_id") @db.Uuid
+  lineOrder   Int     @map("line_order")
+  accountCode String  @map("account_code")
+  accountName String  @map("account_name")
+  particulars String?
+  amount      Decimal @db.Decimal(14, 2)
+
+  voucher CashBookPaymentVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+  @@map("cash_book_payment_voucher_lines")
+}

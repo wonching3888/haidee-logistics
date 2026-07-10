@@ -112,6 +112,11 @@ export const MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT: MainNavLink = {
   messageKey: "nav.autocountExport",
 };
 
+export const MAIN_NAV_FINANCIAL_PAYMENT_VOUCHER: MainNavLink = {
+  href: "/financial/cash-book/payment-voucher",
+  messageKey: "nav.paymentVoucher",
+};
+
 export const MAIN_NAV_THAI_COST_WORKERS: MainNavLink = {
   href: "/thai-cost/workers",
   messageKey: "nav.thaiCostWorkers",
@@ -207,6 +212,7 @@ export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
     MAIN_NAV_FINANCIAL_DRIVER_PAYROLL,
     MAIN_NAV_FINANCIAL_INVOICE_COLLECTIONS,
     MAIN_NAV_FINANCIAL_BANK_RECONCILIATION,
+    MAIN_NAV_FINANCIAL_PAYMENT_VOUCHER,
     MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT,
   ],
 };

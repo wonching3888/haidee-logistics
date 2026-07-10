@@ -1,5 +1,6 @@
 import {
   canAccessAutocountExport,
+  canAccessCashBook,
   canAccessDriverExpenses,
   canAccessSettings,
   canAccessThaiCost,
@@ -35,7 +36,8 @@ export type PageAccessGate =
   | "driver-expenses"
   | "invoice-collections"
   | "autocount-export"
-  | "thai-cost";
+  | "thai-cost"
+  | "cash-book";
 
 function normalizePathname(pathname: string): string {
   const path = pathname.split("?")[0].replace(/\/$/, "") || "/";
@@ -89,6 +91,12 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
   }
   if (path === "/thai-cost" || path.startsWith("/thai-cost/")) {
     return "thai-cost";
+  }
+  if (
+    path === "/financial/cash-book" ||
+    path.startsWith("/financial/cash-book/")
+  ) {
+    return "cash-book";
   }
 
   if (
@@ -188,6 +196,8 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
         return canAccessThaiCostMonthlySummary(role);
       }
       return canAccessThaiCost(role);
+    case "cash-book":
+      return canAccessCashBook(role);
     case "settings":
       return canAccessSettings(role);
     case "history":

@@ -249,6 +249,33 @@ export function canAccessThaiCostMonthlySummary(role: StoredUserRole): boolean {
   }
 }
 
+/** Cash Book (Payment Voucher etc.): all roles except clerk */
+export function canAccessCashBook(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "thai_accounting":
+    case "my_accounting":
+    case "accounting":
+    case "viewer":
+    case "owner":
+      return true;
+    case "clerk":
+    default:
+      return false;
+  }
+}
+
+/** Cash Book writes: admin / thai_accounting */
+export function canWriteCashBook(role: StoredUserRole): boolean {
+  switch (role) {
+    case "admin":
+    case "thai_accounting":
+      return true;
+    default:
+      return false;
+  }
+}
+
 /** Thai cost writes: admin / thai_acct / clerk (attendance entry) */
 export function canWriteThaiCost(role: StoredUserRole): boolean {
   switch (role) {

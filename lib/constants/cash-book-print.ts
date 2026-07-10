@@ -1,0 +1,23 @@
+/** Bilingual labels for Payment Voucher print layout. */
+export const PAYMENT_VOUCHER_PRINT = {
+  title: "ใบสำคัญจ่าย / Payment Voucher",
+  voucherNo: "เลขที่ / Voucher No.",
+  date: "วันที่ / Date",
+  paidTo: "จ่ายให้ / Paid To",
+  paymentMethod: "วิธีชำระ / Payment Method",
+  checkNo: "เลขที่เช็ค / Cheque No.",
+  checkDate: "วันที่เช็ค / Cheque Date",
+  dueDate: "วันครบกำหนด / Due Date",
+  book: "สมุด / Book",
+  status: "สถานะ / Status",
+  colAccount: "บัญชี / Account",
+  colParticulars: "รายละเอียด / Particulars",
+  colAmount: "จำนวนเงิน / Amount",
+  total: "รวม / Total",
+  amountInWords: "จำนวนเงิน (ตัวอักษร) / Amount in words",
+  payeeSignature: "ผู้รับเงิน / Payee",
+  preparedBy: "ผู้จัดทำ / Prepared by",
+  approvedBy: "ผู้อนุมัติ / Approved by",
+  footer:
+    "เอกสารนี้เป็นหลักฐานการจ่ายเงินสด / This voucher records a cash payment (no ledger posting yet).",
+} as const;
