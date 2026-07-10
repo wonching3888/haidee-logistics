@@ -1,14 +1,8 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { toDateInputValue } from "@/lib/inbound-utils";
-import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
-import { lookupLiveOwed } from "@/lib/crate-export-live-owed";
-import { crateExportLineShortage } from "@/lib/crate-export-line-math";
-import { isLocationPoolShipperCode } from "@/lib/constants/location-pool-shippers";
-import { isCrateStockAgentShipper } from "@/lib/constants/shipper-kind";
+import { loadCrateExportDayInput } from "@/lib/crate-export-day-context";
 import type { BuildCrateExportDueTodayInput } from "@/lib/crate-export-due-today";
 import { loadCrateStockAgentMembershipByMemberId } from "@/lib/crate-stock-agent-membership-service";
-import { resolveCustomerCrateStockAccount } from "@/lib/customer-crate-stock-account";
 
 export interface CrateExportSyncContext {
   dateInput: string;
@@ -53,8 +47,9 @@ export function agentParentSyncContextsForMember(
 }
 
 /**
- * When a member's inbound is confirmed, also sync agent / pool-parent exports on that date.
- * Member-level contexts are kept as-is.
+ * When a member's inbound is confirmed, also include agent / pool-parent contexts.
+ * Kept for callers/tests that expand membership → parent shipper ids.
+ * Does not by itself mutate tong_exports (see syncCrateExportSuggestedForContexts).
  */
 export async function expandCrateExportSyncContextsWithAgentParents(
   contexts: CrateExportSyncContext[]
@@ -80,153 +75,27 @@ export async function expandCrateExportSyncContextsWithAgentParents(
   return mergeCrateExportSyncContexts([...merged, ...extra]);
 }
 
-async function resolveExportStockLocation(
-  exportNo: string,
-  shipperId: string,
-  areaNote: string | null
-): Promise<string> {
-  const agentMembership = await loadCrateStockAgentMembershipByMemberId();
-  const shipper = await prisma.shipper.findUnique({
-    where: { id: shipperId },
-    select: { isMultiOriginCustomer: true },
-  });
-  const account = resolveCustomerCrateStockAccount({
-    operationalShipperId: shipperId,
-    location: areaNote?.trim() ?? "",
-    isMultiOriginCustomer: shipper?.isMultiOriginCustomer ?? false,
-    agentMembershipByMemberId: agentMembership,
-  });
-  const ledger = await prisma.customerCrateLedger.findFirst({
-    where: {
-      changeType: "export",
-      notes: { contains: exportNo },
-      shipperId: account.shipperId,
-    },
-    select: { location: true },
-    orderBy: { createdAt: "asc" },
-  });
-  return ledger?.location?.trim() ?? areaNote?.trim() ?? "";
-}
-
+/**
+ * Inbound confirm/edit used to call this to rewrite `quantitySuggested` on every
+ * same-day saved return for the shipper (and agent/pool parents) using *current*
+ * remaining owed — including unrelated inbound edits (e.g. BEST BROTHER TE-002
+ * wiped to 0 after a later PHUKET inbound edit).
+ *
+ * Display policy (current): list / edit / print always recompute suggested live
+ * via `resolveDisplaySuggestedForExport` (Dispatch due − other returns, excluding
+ * the document being viewed). DB `quantitySuggested` remains a create/edit
+ * snapshot for audit only — not used for on-screen "系统建议".
+ *
+ * Therefore this sync write-back is intentionally a no-op. Call sites in
+ * `inbound.ts` stay so we do not churn those paths; they no longer mutate exports.
+ */
 export async function syncCrateExportSuggestedForContexts(
   contexts: CrateExportSyncContext[],
-  tx: Prisma.TransactionClient = prisma
+  _tx?: Prisma.TransactionClient
 ): Promise<{ updatedExportNos: string[] }> {
-  const merged = await expandCrateExportSyncContextsWithAgentParents(contexts);
-  const updatedExportNos: string[] = [];
-
-  const owedIndexCache = new Map<
-    string,
-    Awaited<ReturnType<typeof loadLiveOwedIndex>>
-  >();
-
-  for (const { dateInput, shipperId } of merged) {
-    let owedIndex = owedIndexCache.get(dateInput);
-    if (!owedIndex) {
-      owedIndex = await loadLiveOwedIndex(dateInput);
-      owedIndexCache.set(dateInput, owedIndex);
-    }
-
-    const date = new Date(`${dateInput}T00:00:00.000Z`);
-    const exportRows = await tx.tongExport.findMany({
-      where: { date, shipperId },
-      include: {
-        shipper: { select: { code: true, shipperKind: true } },
-        tongType: { select: { id: true, code: true, isBox: true } },
-      },
-      orderBy: [{ exportNo: "asc" }, { tongType: { displayOrder: "asc" } }],
-    });
-
-    const byExportNo = new Map<string, typeof exportRows>();
-    for (const row of exportRows) {
-      const exportNo = row.exportNo?.trim();
-      if (!exportNo) continue;
-      const list = byExportNo.get(exportNo) ?? [];
-      list.push(row);
-      byExportNo.set(exportNo, list);
-    }
-
-    for (const [exportNo, rows] of Array.from(byExportNo.entries())) {
-      const first = rows[0];
-      const location = await resolveExportStockLocation(
-        exportNo,
-        first.shipperId,
-        first.areaNote
-      );
-      const isAgentReceipt =
-        isCrateStockAgentShipper(first.shipper) ||
-        isLocationPoolShipperCode(first.shipper.code);
-      const suggestedByCode = lookupLiveOwed(owedIndex, {
-        shipperId: first.shipperId,
-        location,
-        isAgentReceipt,
-      });
-
-      const codes = new Set<string>([
-        ...Object.keys(suggestedByCode),
-        ...rows
-          .filter((r) => r.quantityActual > 0 || (r.quantitySuggested ?? 0) > 0)
-          .map((r) => r.tongType.code),
-      ]);
-
-      let touched = false;
-      for (const code of Array.from(codes)) {
-        const existing = rows.find((r) => r.tongType.code === code);
-        const suggested = suggestedByCode[code] ?? 0;
-        const actual = existing?.quantityActual ?? 0;
-        const shortage = crateExportLineShortage(suggested, actual);
-
-        if (existing) {
-          if (suggested === 0 && actual === 0 && shortage === 0) {
-            await tx.tongExport.delete({ where: { id: existing.id } });
-            touched = true;
-            continue;
-          }
-          if (
-            (existing.quantitySuggested ?? 0) !== suggested ||
-            existing.shortage !== shortage
-          ) {
-            await tx.tongExport.update({
-              where: { id: existing.id },
-              data: { quantitySuggested: suggested, shortage },
-            });
-            touched = true;
-          }
-          continue;
-        }
-
-        if (suggested <= 0) continue;
-
-        const tongType = await tx.tongType.findFirst({
-          where: { code, active: true, isBox: false },
-          select: { id: true },
-        });
-        if (!tongType) continue;
-
-        await tx.tongExport.create({
-          data: {
-            exportNo,
-            date: first.date,
-            thVehiclePlate: first.thVehiclePlate,
-            areaNote: first.areaNote,
-            shipperId: first.shipperId,
-            tongTypeId: tongType.id,
-            quantitySuggested: suggested,
-            quantityActual: 0,
-            shortage,
-            createdById: first.createdById,
-          },
-        });
-        touched = true;
-      }
-
-      if (touched) {
-        updatedExportNos.push(exportNo);
-      }
-    }
-  }
-
-  return { updatedExportNos };
+  void contexts;
+  void _tx;
+  return { updatedExportNos: [] };
 }
 
 export function collectInboundSaveSyncContexts(input: {

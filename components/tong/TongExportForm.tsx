@@ -222,7 +222,10 @@ export function TongExportForm({
       const effectiveLocation =
         poolStockLocation ?? initialData.location ?? location;
       const owedPromise = shouldUseLiveCrateExportOwed(date)
-        ? getLiveCrateExportOwedByCode(date, shipperId, effectiveLocation)
+        ? getLiveCrateExportOwedByCode(date, shipperId, effectiveLocation, {
+            excludeExportNo: initialData.exportNo,
+            areaNote: initialData.areaNote,
+          })
         : Promise.resolve({} as Record<string, number>);
 
       Promise.all([owedPromise, getSadaoStock(), vehiclePromise]).then(
@@ -238,7 +241,12 @@ export function TongExportForm({
         setLines(
           tongTypes.map((t) => {
             const existing = existingByTong.get(t.id);
-            const suggested = owedMap[t.code] ?? existing?.quantitySuggested ?? 0;
+            // Prefer live display suggested (excludes this export); fall back to
+            // server-provided display suggested from getCrateExportForEdit.
+            const suggested =
+              Object.keys(owedMap).length > 0
+                ? (owedMap[t.code] ?? 0)
+                : (existing?.quantitySuggested ?? 0);
             const currentSadao = stockMap[t.code] ?? 0;
             const oldActual = existing?.quantityActual ?? 0;
             const stockQty = currentSadao + oldActual;

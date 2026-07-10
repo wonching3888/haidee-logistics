@@ -56,6 +56,7 @@ export default defineConfig({
       "lib/thai-cost/pattani-contractor-monthly.test.ts",
       "lib/crate-export-line-math.test.ts",
       "lib/crate-export-live-owed.test.ts",
+      "lib/crate-export-display-suggested.test.ts",
       "lib/crate-export-prefill-location.test.ts",
       "lib/crate-export-sync-suggested.test.ts",
       "lib/crate-export-receipt-routing.test.ts",

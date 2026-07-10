@@ -17,12 +17,10 @@ import {
   type CrateExportPrefillMember,
   type CrateExportPrefillTarget,
 } from "@/lib/crate-export-due-today";
-import { loadCrateExportDayInput, loadLiveOwedIndex } from "@/lib/crate-export-day-context";
+import { loadCrateExportDayInput } from "@/lib/crate-export-day-context";
 import { appendCrateChangeLogs } from "@/lib/crate-audit";
 import {
-  lookupLiveOwed,
   shouldUseLiveCrateExportOwed,
-  totalLiveShortageForLines,
 } from "@/lib/crate-export-live-owed";
 import {
   isLocationPoolShipperCode,
@@ -52,6 +50,12 @@ import {
   resolveCrateExportQuantitySuggested,
 } from "@/lib/crate-export-line-math";
 import { resolveCrateExportSaveSuggestedByCode } from "@/lib/crate-export-save-suggested";
+import {
+  actualsByCodeFromLines,
+  applyDisplaySuggestedToLines,
+  resolveDisplaySuggestedForExport,
+  resolveSuggestedByCodeFromDayInput,
+} from "@/lib/crate-export-display-suggested";
 
 function revalidateCrateExportRelatedPaths() {
   if (process.env.BACKFILL_SKIP_REVALIDATE === "1") return;
@@ -146,7 +150,8 @@ export async function getCrateExportDueToday(): Promise<CrateExportDueTodayData>
 export async function getLiveCrateExportOwedByCode(
   dateInput: string,
   shipperId: string,
-  location: string
+  location: string,
+  options?: { excludeExportNo?: string | null; areaNote?: string | null }
 ): Promise<Record<string, number>> {
   if (!shouldUseLiveCrateExportOwed(dateInput)) {
     return {};
@@ -158,13 +163,35 @@ export async function getLiveCrateExportOwedByCode(
   });
   if (!shipper) return {};
 
-  const isAgentReceipt =
-    isCrateStockAgentShipper(shipper) || isLocationPoolShipperCode(shipper.code);
-  const index = await loadLiveOwedIndex(dateInput);
-  return lookupLiveOwed(index, {
+  const dayInput = await loadCrateExportDayInput(dateInput);
+  const excludeExportNo = options?.excludeExportNo?.trim() || "";
+
+  if (!excludeExportNo) {
+    return resolveSuggestedByCodeFromDayInput(dayInput, {
+      shipperId,
+      shipper,
+      location,
+      areaNote: options?.areaNote,
+    });
+  }
+
+  const excludeRows = await prisma.tongExport.findMany({
+    where: { exportNo: excludeExportNo, shipperId },
+    include: { tongType: { select: { code: true } } },
+  });
+  const actualsByCode = actualsByCodeFromLines(
+    excludeRows.map((row) => ({
+      tongCode: row.tongType.code,
+      quantityActual: row.quantityActual,
+    }))
+  );
+
+  return resolveDisplaySuggestedForExport(dayInput, {
     shipperId,
+    shipper,
     location,
-    isAgentReceipt,
+    areaNote: options?.areaNote,
+    actualsByCode,
   });
 }
 
@@ -239,7 +266,7 @@ async function assertCrateExportHasActiveLines(
   return activeLines;
 }
 
-/** Live owed by crate code (inbound − returned); only meaningful for today's date. */
+/** List exports for a date. Suggested qty is always live (Dispatch − other returns). */
 export async function listCrateExportsForDate(
   dateInput: string
 ): Promise<CrateExportListRow[]> {
@@ -247,7 +274,6 @@ export async function listCrateExportsForDate(
   if (!user) return [];
 
   const date = parseDateInput(dateInput);
-  const useLive = shouldUseLiveCrateExportOwed(dateInput);
   const rows = await prisma.tongExport.findMany({
     where: { date },
     include: {
@@ -258,13 +284,11 @@ export async function listCrateExportsForDate(
     take: CRATE_EXPORT_LIST_LIMIT * 20,
   });
 
-  const owedIndex = useLive ? await loadLiveOwedIndex(dateInput) : null;
+  const dayInput = await loadCrateExportDayInput(dateInput);
   const whitelistShipperIds = await loadCrateExportMismatchWhitelistShipperIds();
-  const locationByExportNo = useLive
-    ? await resolveExportStockLocations(
-        rows.map((row) => row.exportNo?.trim() || row.id)
-      )
-    : new Map<string, string>();
+  const locationByExportNo = await resolveExportStockLocations(
+    rows.map((row) => row.exportNo?.trim() || row.id)
+  );
 
   const grouped = new Map<
     string,
@@ -274,12 +298,12 @@ export async function listCrateExportsForDate(
       shipperName: string;
       thVehiclePlate: string;
       totalActual: number;
-      totalShortage: number;
       lineCount: number;
       sortCreatedAt: number;
       shipperId: string;
       shipperCode: string;
       shipperKind: string | null;
+      areaNote: string | null;
       lineDetails: CrateExportListLineDetail[];
     }
   >();
@@ -288,13 +312,12 @@ export async function listCrateExportsForDate(
     const exportNo = row.exportNo?.trim() || row.id;
     const lineDetail: CrateExportListLineDetail = {
       tongCode: row.tongType.code,
-      quantitySuggested: row.quantitySuggested ?? 0,
+      quantitySuggested: row.quantitySuggested ?? 0, // placeholder; replaced below
       quantityActual: row.quantityActual,
     };
     const existing = grouped.get(exportNo);
     if (existing) {
       existing.totalActual += row.quantityActual;
-      existing.totalShortage += row.shortage;
       existing.lineCount += 1;
       existing.lineDetails.push(lineDetail);
       continue;
@@ -306,12 +329,12 @@ export async function listCrateExportsForDate(
       shipperName: row.shipper.name,
       thVehiclePlate: row.thVehiclePlate,
       totalActual: row.quantityActual,
-      totalShortage: row.shortage,
       lineCount: 1,
       sortCreatedAt: row.createdAt.getTime(),
       shipperId: row.shipperId,
       shipperCode: row.shipper.code,
       shipperKind: row.shipper.shipperKind,
+      areaNote: row.areaNote,
       lineDetails: [lineDetail],
     });
   }
@@ -320,27 +343,25 @@ export async function listCrateExportsForDate(
     .sort((a, b) => b.sortCreatedAt - a.sortCreatedAt)
     .slice(0, CRATE_EXPORT_LIST_LIMIT)
     .map((row) => {
-      let totalShortage = row.totalShortage;
-      if (useLive && owedIndex) {
-        const isAgentReceipt =
-          isCrateStockAgentShipper({ shipperKind: row.shipperKind }) ||
-          isLocationPoolShipperCode(row.shipperCode);
-        const owed = lookupLiveOwed(owedIndex, {
-          shipperId: row.shipperId,
-          location: locationByExportNo.get(row.exportNo) ?? "",
-          isAgentReceipt,
-        });
-        totalShortage = totalLiveShortageForLines(
-          owed,
-          row.lineDetails.map((line) => ({
-            tongCode: line.tongCode,
-            quantityActual: line.quantityActual,
-          }))
-        );
-      }
+      const location = locationByExportNo.get(row.exportNo) ?? "";
+      const actualsByCode = actualsByCodeFromLines(row.lineDetails);
+      const suggestedByCode = resolveDisplaySuggestedForExport(dayInput, {
+        shipperId: row.shipperId,
+        shipper: { code: row.shipperCode, shipperKind: row.shipperKind },
+        location,
+        areaNote: row.areaNote,
+        actualsByCode,
+      });
 
-      const lines = [...row.lineDetails].sort((a, b) =>
-        a.tongCode.localeCompare(b.tongCode)
+      const lines = applyDisplaySuggestedToLines(
+        [...row.lineDetails].sort((a, b) => a.tongCode.localeCompare(b.tongCode)),
+        suggestedByCode
+      );
+
+      const totalShortage = lines.reduce(
+        (sum, line) =>
+          sum + crateExportLineShortage(line.quantitySuggested, line.quantityActual),
+        0
       );
 
       return {
@@ -708,8 +729,10 @@ export async function getCrateExportForEdit(
   const rows = await prisma.tongExport.findMany({
     where: { exportNo: trimmed },
     include: {
-      shipper: { select: { id: true, code: true, name: true } },
-      tongType: { select: { displayOrder: true } },
+      shipper: {
+        select: { id: true, code: true, name: true, shipperKind: true },
+      },
+      tongType: { select: { code: true, displayOrder: true } },
     },
     orderBy: { tongType: { displayOrder: "asc" } },
   });
@@ -718,10 +741,28 @@ export async function getCrateExportForEdit(
 
   const first = rows[0];
   const location = await resolveCrateExportStockLocation(trimmed, first.shipperId);
+  const dateInput = toDateInputValue(first.date);
+  const dayInput = await loadCrateExportDayInput(dateInput);
+  const actualsByCode = actualsByCodeFromLines(
+    rows.map((row) => ({
+      tongCode: row.tongType.code,
+      quantityActual: row.quantityActual,
+    }))
+  );
+  const suggestedByCode = resolveDisplaySuggestedForExport(dayInput, {
+    shipperId: first.shipperId,
+    shipper: {
+      code: first.shipper.code,
+      shipperKind: first.shipper.shipperKind,
+    },
+    location,
+    areaNote: first.areaNote,
+    actualsByCode,
+  });
 
   return {
     exportNo: trimmed,
-    date: toDateInputValue(first.date),
+    date: dateInput,
     shipperId: first.shipperId,
     shipperCode: first.shipper.code,
     shipperName: first.shipper.name,
@@ -730,7 +771,7 @@ export async function getCrateExportForEdit(
     location,
     lines: rows.map((row) => ({
       tongTypeId: row.tongTypeId,
-      quantitySuggested: row.quantitySuggested ?? 0,
+      quantitySuggested: suggestedByCode[row.tongType.code] ?? 0,
       quantityActual: row.quantityActual,
     })),
   };
@@ -783,6 +824,26 @@ export async function getCrateExportReceiptData(
   const isPoolReceipt = isLocationPoolShipperCode(first.shipper.code);
   const isAgentReceipt =
     isCrateStockAgentShipper(first.shipper) && !isPoolReceipt;
+
+  const dateInput = toDateInputValue(first.date);
+  const location = await resolveCrateExportStockLocation(trimmed, first.shipperId);
+  const dayInput = await loadCrateExportDayInput(dateInput);
+  const actualsByCode = actualsByCodeFromLines(
+    rows.map((row) => ({
+      tongCode: row.tongType.code,
+      quantityActual: row.quantityActual,
+    }))
+  );
+  const suggestedByCode = resolveDisplaySuggestedForExport(dayInput, {
+    shipperId: first.shipperId,
+    shipper: {
+      code: first.shipper.code,
+      shipperKind: first.shipper.shipperKind,
+    },
+    location,
+    areaNote: first.areaNote,
+    actualsByCode,
+  });
 
   if (isPoolReceipt) {
     const linesByCode = new Map<
@@ -868,13 +929,17 @@ export async function getCrateExportReceiptData(
 
   const lines = rows
     .filter((row) => row.quantityActual > 0 || row.shortage > 0)
-    .map((row) => ({
-      tongName: row.tongType.name,
-      tongCode: row.tongType.code,
-      quantity: row.quantitySuggested ?? 0,
-      quantityActual: row.quantityActual,
-      shortage: row.shortage,
-    }));
+    .map((row) => {
+      const quantitySuggested = suggestedByCode[row.tongType.code] ?? 0;
+      const quantityActual = row.quantityActual;
+      return {
+        tongName: row.tongType.name,
+        tongCode: row.tongType.code,
+        quantity: quantitySuggested,
+        quantityActual,
+        shortage: crateExportLineShortage(quantitySuggested, quantityActual),
+      };
+    });
 
   return {
     kind: "standard",

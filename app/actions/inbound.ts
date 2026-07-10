@@ -1398,6 +1398,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
     }
 
     if (status === "confirmed") {
+      // Display suggested is live on list/edit/print; sync stays a no-op and
+      // must not rewrite saved export quantitySuggested on inbound changes.
       await syncCrateExportSuggestedForContexts(
         collectInboundSaveSyncContexts({
           before: {
@@ -1516,6 +1518,8 @@ export async function saveInboundSession(input: SaveInboundInput) {
   }
 
   if (status === "confirmed") {
+    // Display suggested is live on list/edit/print; sync stays a no-op and
+    // must not rewrite saved export quantitySuggested on inbound changes.
     await syncCrateExportSuggestedForContexts(
       collectInboundSaveSyncContexts({
         after: { date, shipperId: input.shipperId },

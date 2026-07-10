@@ -1,6 +1,10 @@
 /**
  * Apply migration, seed whitelist, bulk-write July suggested, final verification.
  * Run: npx tsx --env-file=.env.local scripts/_apply-july-suggested-bulk.ts
+ *
+ * NOTE (2026-07-11): syncCrateExportSuggestedForContexts is a no-op under the
+ * quantitySuggested snapshot policy. This script's bulk sync step will no longer
+ * rewrite saved exports — re-save via editCrateExport if a one-off fix is needed.
  */
 import "dotenv/config";
 import fs from "node:fs";
