@@ -102,6 +102,14 @@ export interface OperationsDashboardData {
     assignedLineCount: number;
     exchangeRate: number;
   };
+  sadaoStationCost: {
+    totalAmountMyr: number;
+    handlingMyr: number;
+    monthlyWorkersMyr: number;
+    exchangeRate: number;
+    handlingDays: number;
+    monthlyWorkerCount: number;
+  };
   /** Attached by getOperationsDashboard action (not buildOperationsDashboardMetrics). */
   payrollWarning?: OperationsPayrollWarningResult | null;
 }
@@ -216,6 +224,15 @@ export function buildOperationsDashboardMetrics(input: {
     assignedLineCount: number;
     exchangeRate: number;
   };
+  /** Optional for older scripts; defaults to zero when omitted. */
+  sadaoStationCost?: {
+    totalAmountMyr: number;
+    handlingMyr: number;
+    monthlyWorkersMyr: number;
+    exchangeRate: number;
+    handlingDays: number;
+    monthlyWorkerCount: number;
+  };
   charter: {
     income: CharterOperationsIncomeTotals;
     costs: CharterOperationsCostTotals;
@@ -229,6 +246,14 @@ export function buildOperationsDashboardMetrics(input: {
     lkimPerBox: number;
   };
 }): OperationsDashboardData {
+  const sadaoStationCost = input.sadaoStationCost ?? {
+    totalAmountMyr: 0,
+    handlingMyr: 0,
+    monthlyWorkersMyr: 0,
+    exchangeRate: input.exchangeRate,
+    handlingDays: 0,
+    monthlyWorkerCount: 0,
+  };
   const mode1aMyr =
     input.income.mode1aMyr != null
       ? roundMoney(input.income.mode1aMyr)
@@ -450,6 +475,22 @@ export function buildOperationsDashboardMetrics(input: {
       detail: `${input.thaiSegmentFreight.assignedLineCount.toLocaleString("en-MY")} 行 · 汇率 ${input.thaiSegmentFreight.exchangeRate.toFixed(4)} · 内部成本分拆`,
     },
     {
+      key: "sadaoHandling",
+      label: "SADAO搬运费",
+      labelEn: "SADAO Handling",
+      amountMyr: sadaoStationCost.handlingMyr,
+      source: "actual",
+      detail: `${sadaoStationCost.handlingDays} 天 · THB÷${sadaoStationCost.exchangeRate.toFixed(4)}`,
+    },
+    {
+      key: "sadaoMonthlyWorkers",
+      label: "SADAO月薪工",
+      labelEn: "SADAO Monthly Workers",
+      amountMyr: sadaoStationCost.monthlyWorkersMyr,
+      source: "actual",
+      detail: `${sadaoStationCost.monthlyWorkerCount} 人 · THB÷${sadaoStationCost.exchangeRate.toFixed(4)}`,
+    },
+    {
       key: "mcThirdParty",
       label: "MC第三方费用",
       labelEn: "MC Third Party",
@@ -653,6 +694,7 @@ export function buildOperationsDashboardMetrics(input: {
     tripCosts: input.tripCosts,
     lkimMaqis: input.lkimMaqis,
     thaiSegmentFreight: input.thaiSegmentFreight,
+    sadaoStationCost,
   };
 }
 

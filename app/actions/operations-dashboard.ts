@@ -12,6 +12,7 @@ import { aggregateOperationsCosts } from "@/lib/operations-cost";
 import { aggregateOperationsIncome } from "@/lib/operations-income";
 import { aggregateLkimMaqisCost } from "@/lib/operations-lkim-maqis";
 import { aggregateThaiSegmentFreightCost } from "@/lib/operations-thai-segment";
+import { aggregateSadaoStationCostMyr } from "@/lib/operations-sadao-cost";
 import { fetchOperationsAssignedInboundLines } from "@/lib/operations-inbound-lines";
 import { listGlobalCostSettings } from "@/lib/global-cost-settings-service";
 import {
@@ -142,6 +143,7 @@ export async function getOperationsDashboard(input: {
     tripCosts,
     lkimMaqis,
     thaiSegmentFreight,
+    sadaoStationCost,
     exchangeRateRow,
     globalCostRates,
     charterCosts,
@@ -153,6 +155,7 @@ export async function getOperationsDashboard(input: {
     aggregateOperationsCosts(input.year, input.month),
     aggregateLkimMaqisCost(input.year, input.month, inboundLines),
     aggregateThaiSegmentFreightCost(input.year, input.month, inboundLines),
+    aggregateSadaoStationCostMyr(input.year, input.month),
     prisma.exchangeRate.findUnique({ where: { yearMonth } }),
     loadGlobalCostRates(),
     aggregateCharterOperationsCosts(input.year, input.month),
@@ -175,6 +178,7 @@ export async function getOperationsDashboard(input: {
       tripCosts,
       lkimMaqis,
       thaiSegmentFreight,
+      sadaoStationCost,
       globalCostRates,
       charter: {
         income: income.charterIncome,
