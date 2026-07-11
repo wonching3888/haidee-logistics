@@ -24,16 +24,11 @@ export function PattaniSummaryView({
 }) {
   const router = useRouter();
   const { tLocal } = useT();
-  const r = pnl.real;
-
-  const ratesSource = r.rates.locked
-    ? tLocal("thaiCost.common.lockedSnapshot")
-    : tLocal("thaiCost.common.defaultRates");
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-haidee-muted">
-        {tLocal("thaiCost.pattaniSummary.intro", { ratesSource })}
+        {tLocal("thaiCost.pattaniSummary.introVehiclePnl")}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -72,26 +67,18 @@ export function PattaniSummaryView({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border p-4">
           <p className="text-sm text-haidee-muted">
-            {tLocal("thaiCost.common.internalFixedCost")}
+            {tLocal("thaiCost.vehiclePnl.income")}
           </p>
           <p className="mt-2 font-mono text-2xl font-semibold">
-            {pnl.internalCostMyr == null
-              ? tLocal("thaiCost.pattaniSummary.notLockedLabel")
-              : money(pnl.internalCostMyr)}
+            {money(pnl.incomeThb)} THB
           </p>
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-sm text-haidee-muted">
-            {tLocal("thaiCost.common.realCost")}
+            {tLocal("thaiCost.vehiclePnl.cost")}
           </p>
           <p className="mt-2 font-mono text-2xl font-semibold">
-            {money(pnl.realCostThb)} THB
-          </p>
-          <p className="mt-1 text-xs text-haidee-muted">
-            {tLocal("thaiCost.songkhlaSummary.realCostApprox", {
-              amount: money(pnl.realCostMyr),
-              rate: String(pnl.exchangeRate),
-            })}
+            {money(pnl.costThb)} THB
           </p>
         </div>
         <div className="rounded-lg border-2 border-haidee-blue bg-haidee-blue/5 p-4">
@@ -99,7 +86,7 @@ export function PattaniSummaryView({
             {tLocal("thaiCost.pattaniSummary.pnlTitle")}
           </p>
           <p className="mt-2 font-mono text-2xl font-bold text-haidee-blue">
-            {pnl.pnlMyr == null ? "—" : money(pnl.pnlMyr)}
+            {money(pnl.profitThb)} THB
           </p>
         </div>
       </div>
@@ -108,86 +95,103 @@ export function PattaniSummaryView({
 
       <div className="rounded-lg border p-4 text-sm">
         <h3 className="font-medium">
-          {tLocal("thaiCost.pattaniSummary.realCostBreakdown")}
+          {tLocal("thaiCost.vehiclePnl.costBreakdown")}
         </h3>
         <ul className="mt-3 space-y-2">
           <li className="flex justify-between">
-            <span>{tLocal("thaiCost.pattaniSummary.sakriMonthly")}</span>
-            <span className="font-mono">{money(r.sakriMonthlyWageThb)}</span>
+            <span>{tLocal("thaiCost.vehiclePnl.vehicleCost")}</span>
+            <span className="font-mono">{money(pnl.vehicleCostThb)}</span>
           </li>
           <li className="flex justify-between">
-            <span>{tLocal("thaiCost.pattaniSummary.sakriCommission")}</span>
-            <span className="font-mono">{money(r.sakriCommissionThb)}</span>
-          </li>
-          <li className="flex justify-between">
-            <span>{tLocal("thaiCost.pattaniSummary.contractorFee")}</span>
-            <span className="font-mono">{money(r.contractorThb)}</span>
+            <span>{tLocal("thaiCost.vehiclePnl.driverTripBudget")}</span>
+            <span className="font-mono">{money(pnl.driverTripBudgetThb)}</span>
           </li>
           <li className="flex justify-between">
             <span>{tLocal("thaiCost.pattaniSummary.driverBaseAllocated")}</span>
             <span className="font-mono">
-              {money(r.driverBaseWageAllocatedThb)}
+              {money(pnl.driverBaseWageAllocatedThb)}
             </span>
           </li>
           <li className="flex justify-between">
-            <span>{tLocal("thaiCost.pattaniSummary.driverTripCommission")}</span>
+            <span>{tLocal("thaiCost.vehiclePnl.handlingFee")}</span>
+            <span className="font-mono">{money(pnl.handlingFeeThb)}</span>
+          </li>
+          <li className="flex justify-between">
+            <span>{tLocal("thaiCost.vehiclePnl.monthlyWorkers")}</span>
             <span className="font-mono">
-              {money(r.driverTripCommissionThb)}
+              {money(pnl.monthlyWorkerAllocatedThb)}
             </span>
-          </li>
-          <li className="flex justify-between">
-            <span>{tLocal("thaiCost.songkhlaSummary.rentedCost")}</span>
-            <span className="font-mono">{money(r.rentedVehicleCostThb)}</span>
           </li>
           <li className="flex justify-between border-t pt-2 font-medium">
-            <span>{tLocal("thaiCost.songkhlaSummary.realCostTotal")}</span>
-            <span className="font-mono">{money(r.realCostTotalThb)}</span>
+            <span>{tLocal("thaiCost.vehiclePnl.cost")}</span>
+            <span className="font-mono">{money(pnl.costThb)}</span>
           </li>
         </ul>
       </div>
 
-      {r.workers.length > 0 && (
-        <div className="rounded-lg border p-4 text-sm">
-          <h3 className="font-medium">
-            {tLocal("thaiCost.pattaniSummary.monthlyWorkers")}
-          </h3>
-          <ul className="mt-2 space-y-1">
-            {r.workers.map((w) => (
-              <li key={w.id} className="flex justify-between">
-                <span>{w.name}</span>
-                <span className="font-mono">{money(w.totalThb)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {r.drivers.length > 0 && (
-        <div className="rounded-lg border p-4 text-sm">
-          <h3 className="font-medium">
-            {tLocal("thaiCost.songkhlaSummary.driverDetail")}
-          </h3>
-          <ul className="mt-2 space-y-2">
-            {r.drivers.map((d) => (
-              <li key={d.driverId}>
-                <div className="flex justify-between font-medium">
-                  <span>{d.name}</span>
-                  <span className="font-mono">
-                    {money(d.baseWageAllocatedThb + d.tripCommissionThb)}
-                  </span>
-                </div>
-                <div className="text-xs text-haidee-muted">
-                  {tLocal("thaiCost.pattaniSummary.driverLine", {
-                    pt: String(d.pattaniTrips),
-                    base: money(d.baseWageAllocatedThb),
-                    comm: money(d.tripCommissionThb),
-                  })}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="min-w-full text-sm">
+          <thead className="bg-haidee-surface/60 text-left">
+            <tr>
+              <th className="px-3 py-2">{tLocal("thaiCost.common.date")}</th>
+              <th className="px-3 py-2">{tLocal("thaiCost.driverTrips.plate")}</th>
+              <th className="px-3 py-2">{tLocal("thaiCost.driverTrips.driver")}</th>
+              <th className="px-3 py-2 text-right">
+                {tLocal("thaiCost.vehiclePnl.crateBox")}
+              </th>
+              <th className="px-3 py-2 text-right">
+                {tLocal("thaiCost.vehiclePnl.income")}
+              </th>
+              <th className="px-3 py-2 text-right">
+                {tLocal("thaiCost.vehiclePnl.cost")}
+              </th>
+              <th className="px-3 py-2 text-right">
+                {tLocal("thaiCost.pattaniSummary.pnlTitle")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {pnl.trips.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-4 text-haidee-muted">
+                  {tLocal("thaiCost.songkhlaSummary.noTrips")}
+                </td>
+              </tr>
+            ) : (
+              pnl.trips.map((t) => (
+                <tr key={t.id} className="border-t">
+                  <td className="px-3 py-2 font-mono">{t.date}</td>
+                  <td className="px-3 py-2 font-mono">{t.truckPlate}</td>
+                  <td className="px-3 py-2">
+                    {t.isRented
+                      ? `${t.rentedDriverName ?? "—"} (${tLocal("thaiCost.driverTrips.rentedShort")})`
+                      : t.isOtherDriver
+                        ? tLocal("thaiCost.driverTrips.otherDriver")
+                        : (t.driverName ?? "—")}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">
+                    {t.crateQty}/{t.boxQty}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">
+                    {money(t.incomeThb)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">
+                    {money(t.costThb)}
+                    {t.needsReview ? " *" : ""}
+                  </td>
+                  <td
+                    className={`px-3 py-2 text-right font-mono ${
+                      t.profitThb >= 0 ? "text-green-700" : "text-haidee-red"
+                    }`}
+                  >
+                    {money(t.profitThb)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

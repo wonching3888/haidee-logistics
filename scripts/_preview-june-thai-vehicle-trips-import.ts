@@ -475,6 +475,8 @@ async function main() {
       routes: routes.map((r) => ({
         code: r.code,
         sadooMileageKm: decimalToNumber(r.sadooMileageKm),
+        tollFee: decimalToNumber(r.tollFee),
+        parkingFee: decimalToNumber(r.parkingFee),
       })),
       fuelPrice,
       exchangeRateMyrPerThbUnit: exchangeRate,

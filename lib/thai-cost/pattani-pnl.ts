@@ -1,70 +1,18 @@
-import { DEFAULT_EXCHANGE_RATE } from "@/lib/constants/freight-settings";
-import { yearMonthKey } from "@/lib/constants/thai-cost";
-import { decimalToNumber } from "@/lib/freight-rates";
-import { prisma } from "@/lib/prisma";
 import {
-  detectThaiPnlCompleteness,
-  type PnlCompleteness,
-} from "@/lib/thai-cost/pnl-completeness";
-import {
-  getPattaniMonthlyRealCost,
-  type PattaniMonthlyCostDetail,
-} from "@/lib/thai-cost/pattani-cost-service";
-import { getSegmentInternalCostSnapshot } from "@/lib/thai-cost/segment-internal-cost";
+  computeThaiVehiclePnlForStation,
+  type ThaiVehiclePnlDetail,
+} from "@/lib/thai-cost/thai-vehicle-pnl";
 
-export interface PattaniPnlDetail {
-  year: number;
-  month: number;
-  internalCostMyr: number | null;
-  internalCostLocked: boolean;
-  exchangeRate: number;
-  realCostThb: number;
-  realCostMyr: number;
-  pnlMyr: number | null;
-  real: PattaniMonthlyCostDetail;
-  completeness: PnlCompleteness;
-}
+/** @deprecated Prefer ThaiVehiclePnlDetail — alias kept for summary page imports. */
+export type PattaniPnlDetail = ThaiVehiclePnlDetail;
 
+/**
+ * Pattani Thai-vehicle PNL (THB).
+ * Replaces prior internalCostMyr − realCostMyr snapshot comparison.
+ */
 export async function getPattaniPnl(
   year: number,
   month: number
 ): Promise<PattaniPnlDetail> {
-  const ym = yearMonthKey(year, month);
-  const [real, segmentSnap, exchangeRateRow, completeness] =
-    await Promise.all([
-      getPattaniMonthlyRealCost(year, month),
-      getSegmentInternalCostSnapshot(year, month, "PATTANI"),
-      prisma.exchangeRate.findUnique({ where: { yearMonth: ym } }),
-      detectThaiPnlCompleteness("PATTANI", year, month),
-    ]);
-
-  const exchangeRate =
-    decimalToNumber(exchangeRateRow?.rate) ?? DEFAULT_EXCHANGE_RATE;
-  const realCostThb = real.realCostTotalThb;
-  const realCostMyr =
-    exchangeRate > 0
-      ? Math.round((realCostThb / exchangeRate) * 100) / 100
-      : 0;
-
-  const internalCostMyr = segmentSnap
-    ? (decimalToNumber(segmentSnap.totalAmountMyr) ?? 0)
-    : null;
-
-  const pnlMyr =
-    internalCostMyr != null
-      ? Math.round((internalCostMyr - realCostMyr) * 100) / 100
-      : null;
-
-  return {
-    year,
-    month,
-    internalCostMyr,
-    internalCostLocked: !!segmentSnap,
-    exchangeRate,
-    realCostThb,
-    realCostMyr,
-    pnlMyr,
-    real,
-    completeness,
-  };
+  return computeThaiVehiclePnlForStation("PATTANI", year, month);
 }

@@ -106,6 +106,7 @@ export default defineConfig({
       "lib/thai-cost/holiday.test.ts",
       "lib/thai-cost/crate-classify.test.ts",
       "lib/thai-cost/vehicle-trip-cost.test.ts",
+      "lib/thai-cost/thai-vehicle-pnl-calc.test.ts",
       "lib/page-access.thai-cost.test.ts",
       "lib/cash-book/payment-voucher-lines.test.ts",
       "lib/thai-baht-text.test.ts",

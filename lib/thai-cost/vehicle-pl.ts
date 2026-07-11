@@ -19,6 +19,10 @@ import {
   type ThaiVehicleStation,
   type TruckCostInput,
 } from "@/lib/thai-cost/vehicle-trip-cost";
+import {
+  thaiVehiclePnlIsRentedTrip,
+  thaiVehiclePnlParseRentedName,
+} from "@/lib/thai-cost/thai-vehicle-pnl-calc";
 
 export interface VehicleTripPlRow {
   id: string;
@@ -160,28 +164,35 @@ export function computeVehicleTripPl(
     ctx.segmentRates
   );
 
-  const isRented =
-    trip.notes?.includes("RENTED:") ||
-    trip.driverName?.startsWith("RENTED:") ||
-    false;
+  const isRented = thaiVehiclePnlIsRentedTrip(trip.notes);
+  const rentedName =
+    thaiVehiclePnlParseRentedName(trip.notes) ??
+    (trip.driverName?.startsWith("RENTED:")
+      ? trip.driverName.replace(/^RENTED:/, "")
+      : null);
 
   let costThb = 0;
   let needsReview = false;
   let costReason: string | null = null;
 
-  if (isRented && trip.driverName) {
-    const key = rentedTripKey(
-      trip.date,
-      trip.truckPlate,
-      trip.station,
-      trip.driverName.replace(/^RENTED:/, "")
-    );
-    const rentedCost = ctx.rentedCostByKey.get(key);
-    if (rentedCost != null) {
-      costThb = rentedCost;
-    } else {
+  if (isRented) {
+    if (!rentedName) {
       needsReview = true;
       costReason = "rented_cost_missing";
+    } else {
+      const key = rentedTripKey(
+        trip.date,
+        trip.truckPlate,
+        trip.station,
+        rentedName
+      );
+      const rentedCost = ctx.rentedCostByKey.get(key);
+      if (rentedCost != null) {
+        costThb = rentedCost;
+      } else {
+        needsReview = true;
+        costReason = "rented_cost_missing";
+      }
     }
   } else {
     const norm = normalizeTruckPlate(trip.truckPlate);

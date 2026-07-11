@@ -1,7 +1,7 @@
-import { yearMonthKey } from "@/lib/constants/thai-cost";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
 import { getMonthDateRange } from "@/lib/reports/period-report-shared";
+import { THAI_VEHICLE_RENTED_NOTES_PREFIX } from "@/lib/thai-cost/thai-vehicle-pnl-constants";
 
 export type ThaiPnlStation = "SONGKHLA" | "PATTANI";
 
@@ -24,69 +24,63 @@ export function formatPnlIncompleteWarning(
 }
 
 /**
- * Generic P&L completeness checks for Songkhla / Pattani.
- * Warnings auto-clear when the underlying records are filled in.
+ * Completeness for Thai-vehicle PNL (THB).
+ * Warns when station monthly workers missing, or RENTED trips lack matching trip_cost.
  */
 export async function detectThaiPnlCompleteness(
   station: ThaiPnlStation,
   year: number,
   month: number
 ): Promise<PnlCompleteness> {
-  const ym = yearMonthKey(year, month);
   const { start, end } = getMonthDateRange(year, month);
 
-  const [workerCount, attendanceCount, roster, rentedTrips] =
-    await Promise.all([
-      prisma.thaiMonthlyWorker.count({
-        where: { station, active: true },
-      }),
-      prisma.thaiDailyLaborAttendance.count({
-        where: { station, date: { gte: start, lte: end } },
-      }),
-      prisma.thaiDailyLaborMonthlyRoster.findUnique({
-        where: { yearMonth_station: { yearMonth: ym, station } },
-      }),
-      prisma.thaiRentedVehicleTrip.findMany({
-        where: { station, date: { gte: start, lte: end } },
-        select: { tripCost: true },
-      }),
-    ]);
-
-  const rentedCostThb = rentedTrips.reduce(
-    (sum, row) => sum + (decimalToNumber(row.tripCost) ?? 0),
-    0
-  );
-  const hasRoster =
-    roster != null && Number.isFinite(roster.rosterCount) && roster.rosterCount > 0;
+  const [workerCount, rentedVehicleTrips, rentedCostRows] = await Promise.all([
+    prisma.thaiMonthlyWorker.count({
+      where: { station, active: true },
+    }),
+    prisma.thaiVehicleTripDaily.findMany({
+      where: {
+        station,
+        date: { gte: start, lte: end },
+        notes: { startsWith: THAI_VEHICLE_RENTED_NOTES_PREFIX },
+      },
+      select: { notes: true, truckPlate: true, date: true },
+    }),
+    prisma.thaiRentedVehicleTrip.findMany({
+      where: { station, date: { gte: start, lte: end } },
+      select: { tripCost: true, driverName: true, truckPlate: true, date: true },
+    }),
+  ]);
 
   const missing: string[] = [];
 
-  if (station === "SONGKHLA") {
-    const missingMonthly = workerCount === 0;
-    const missingDailyWage = attendanceCount === 0;
-    const missingDailyLunch = !hasRoster;
-
-    if (missingMonthly && missingDailyWage) {
-      // Lunch is also absent when there is no daily-labor setup.
-      missing.push("搬运工月薪/日薪成本");
-    } else {
-      if (missingMonthly) missing.push("搬运工月薪成本");
-      if (missingDailyWage) {
-        missing.push("日薪成本");
-      } else if (missingDailyLunch) {
-        missing.push("日薪LUNCH成本");
-      }
-    }
-  } else {
-    // Pattani: SAKRI monthly wage only (no daily-labor cost line).
-    if (workerCount === 0) {
-      missing.push("SAKRI月薪成本");
-    }
+  if (workerCount === 0) {
+    missing.push(
+      station === "PATTANI" ? "SAKRI/搬运工月薪" : "搬运工月薪成本"
+    );
   }
 
-  // External rented vehicles: warn until at least one cost row exists.
-  if (rentedTrips.length === 0 || rentedCostThb <= 0) {
-    missing.push("外部租车成本");
+  if (rentedVehicleTrips.length > 0) {
+    const costKeys = new Set(
+      rentedCostRows.map((r) => {
+        const d = r.date.toISOString().slice(0, 10);
+        const plate = (r.truckPlate ?? "").replace(/[\s-]/g, "").toUpperCase();
+        return `${d}|${plate}|${r.driverName.trim().toUpperCase()}`;
+      })
+    );
+    const unmatched = rentedVehicleTrips.some((t) => {
+      const m = t.notes?.match(/^RENTED:([^;]+)/);
+      const name = m?.[1]?.trim().toUpperCase() ?? "";
+      const d = t.date.toISOString().slice(0, 10);
+      const plate = t.truckPlate.replace(/[\s-]/g, "").toUpperCase();
+      return !costKeys.has(`${d}|${plate}|${name}`);
+    });
+    const anyPositive = rentedCostRows.some(
+      (r) => (decimalToNumber(r.tripCost) ?? 0) > 0
+    );
+    if (unmatched || !anyPositive) {
+      missing.push("外部租车成本");
+    }
   }
 
   return {
