@@ -577,6 +577,8 @@ export async function listThaiVehicleTrips(input: {
   }));
 }
 
+import { ensureThaiOtherDriver } from "@/lib/thai-cost/thai-driver-other";
+
 /** Upsert one vehicle trip row and sync thai_driver_trip_daily for formal drivers. */
 export async function saveThaiVehicleTripDaily(input: {
   id?: string;
@@ -585,7 +587,13 @@ export async function saveThaiVehicleTripDaily(input: {
   station: "SONGKHLA" | "PATTANI";
   tongQty: number;
   boxQty: number;
-  /** Formal driver id; omit when rentalDriverName is set. */
+  /**
+   * formal = company driver id;
+   * other = sentinel thai_drivers「其他」(baseWage 0), NOT null+notes;
+   * rental = driverId null + notes RENTED:name.
+   */
+  driverMode?: "formal" | "other" | "rental";
+  /** Formal driver id; omit when rental / other. */
   driverId?: string | null;
   /** Rental driver name (free text); stored as RENTED:name in notes. */
   rentalDriverName?: string | null;
@@ -609,17 +617,26 @@ export async function saveThaiVehicleTripDaily(input: {
     throw new Error("桶数与盒数不能同时为 0");
   }
 
-  const rentalName = input.rentalDriverName?.trim() || null;
-  const driverId = rentalName ? null : input.driverId ?? null;
-  if (!rentalName && !driverId) {
-    throw new Error("请选择正式司机或填写租车司机姓名");
-  }
-  if (rentalName && driverId) {
-    throw new Error("正式司机与租车司机不能同时填写");
+  const mode =
+    input.driverMode ??
+    (input.rentalDriverName?.trim() ? "rental" : "formal");
+  const rentalName =
+    mode === "rental" ? input.rentalDriverName?.trim() || null : null;
+
+  let driverId: string | null = null;
+  if (mode === "rental") {
+    if (!rentalName) throw new Error("请填写租车司机姓名");
+    driverId = null;
+  } else if (mode === "other") {
+    driverId = await ensureThaiOtherDriver();
+  } else {
+    driverId = input.driverId ?? null;
+    if (!driverId) throw new Error("请选择司机");
   }
 
   const date = parseDateInput(input.date);
   const extraNotes = input.notes?.trim() || null;
+  // Rented ONLY uses RENTED: prefix. "其他" uses real driverId — never null+notes marker.
   const notes = rentalName
     ? `RENTED:${rentalName}${extraNotes ? `;${extraNotes}` : ""}`
     : extraNotes;

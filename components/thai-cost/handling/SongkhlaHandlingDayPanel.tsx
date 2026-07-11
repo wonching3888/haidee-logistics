@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import {
@@ -14,7 +14,10 @@ import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HandlingHistoryLink } from "@/components/thai-cost/handling/HandlingHistoryLink";
-import { StationTripsDisplay } from "@/components/thai-cost/handling/StationTripsDisplay";
+import {
+  StationTripsDisplay,
+  type TripVsDispatchMismatch,
+} from "@/components/thai-cost/handling/StationTripsDisplay";
 
 export function SongkhlaHandlingDayPanel({
   date,
@@ -39,29 +42,34 @@ export function SongkhlaHandlingDayPanel({
   });
   const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [qtyForm, setQtyForm] = useState({
-    small: "0",
-    large: "0",
+    crate: "0",
     box: "0",
   });
   const [notes, setNotes] = useState(existingRow?.notes ?? "");
+  const [mismatch, setMismatch] = useState<TripVsDispatchMismatch>({
+    crateMismatch: false,
+    boxMismatch: false,
+    tripCrateTotal: 0,
+    tripBoxTotal: 0,
+  });
 
-  // Effective display: locked row uses its totals; else live dispatch
+  // Same effective qty as resolveSongkhlaEffectiveQty (manual lock vs live dispatch).
   const display = existingRow?.manualQty
     ? {
-        small: existingRow.smallCrateTotalQty,
-        large: existingRow.largeCrateTotalQty,
+        crate:
+          existingRow.smallCrateTotalQty + existingRow.largeCrateTotalQty,
         box: existingRow.boxTotalQty,
       }
     : {
-        small: dispatchTotals.smallCrateTotalQty,
-        large: dispatchTotals.largeCrateTotalQty,
+        crate:
+          dispatchTotals.smallCrateTotalQty +
+          dispatchTotals.largeCrateTotalQty,
         box: dispatchTotals.boxTotalQty,
       };
 
-  const billablePreview = {
-    crate: display.small + display.large,
-    box: display.box,
-  };
+  const onMismatchChange = useCallback((m: TripVsDispatchMismatch) => {
+    setMismatch(m);
+  }, []);
 
   useEffect(() => {
     setNotes(existingRow?.notes ?? "");
@@ -102,8 +110,7 @@ export function SongkhlaHandlingDayPanel({
 
   function startEditQty() {
     setQtyForm({
-      small: String(display.small),
-      large: String(display.large),
+      crate: String(display.crate),
       box: String(display.box),
     });
     setEditingQty(true);
@@ -113,12 +120,14 @@ export function SongkhlaHandlingDayPanel({
     setError(null);
     startTransition(async () => {
       try {
+        const crate = Number(qtyForm.crate);
         await saveSongkhlaHandling({
           id: existingRow?.id,
           date,
           manualQty: true,
-          smallCrateTotalQty: Number(qtyForm.small),
-          largeCrateTotalQty: Number(qtyForm.large),
+          // Merge policy: store total in small, large fixed 0
+          smallCrateTotalQty: crate,
+          largeCrateTotalQty: 0,
           boxTotalQty: Number(qtyForm.box),
           notes: notes || null,
         });
@@ -160,8 +169,8 @@ export function SongkhlaHandlingDayPanel({
           id: existingRow?.id,
           date,
           manualQty: existingRow?.manualQty ?? false,
-          smallCrateTotalQty: display.small,
-          largeCrateTotalQty: display.large,
+          smallCrateTotalQty: display.crate,
+          largeCrateTotalQty: 0,
           boxTotalQty: display.box,
           notes: notes || null,
         });
@@ -211,28 +220,16 @@ export function SongkhlaHandlingDayPanel({
           <p className="text-haidee-muted">{tLocal("thaiCost.common.loading")}</p>
         ) : editingQty ? (
           <div className="mt-2 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-sm">
-                <span>{tLocal("thaiCost.sadaoHandling.smallCrate")}</span>
+                <span>{tLocal("thaiCost.songkhlaHandling.colCrate")}</span>
                 <Input
                   type="number"
                   min={0}
                   step={1}
-                  value={qtyForm.small}
+                  value={qtyForm.crate}
                   onChange={(e) =>
-                    setQtyForm((f) => ({ ...f, small: e.target.value }))
-                  }
-                />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span>{tLocal("thaiCost.sadaoHandling.largeCrate")}</span>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={qtyForm.large}
-                  onChange={(e) =>
-                    setQtyForm((f) => ({ ...f, large: e.target.value }))
+                    setQtyForm((f) => ({ ...f, crate: e.target.value }))
                   }
                 />
               </label>
@@ -279,17 +276,35 @@ export function SongkhlaHandlingDayPanel({
         ) : (
           <>
             <p className="mt-2 font-mono text-sm">
-              {tLocal("thaiCost.dailyOverview.billableBreakdown", {
-                small: String(display.small),
-                large: String(display.large),
-                box: String(display.box),
-              })}
-            </p>
-            <p className="mt-2 text-xs text-haidee-muted">
-              {tLocal("thaiCost.songkhlaHandling.billablePreview", {
-                crate: String(billablePreview.crate),
-                box: String(billablePreview.box),
-              })}
+              <span
+                className={
+                  mismatch.crateMismatch
+                    ? "font-semibold text-haidee-red"
+                    : undefined
+                }
+              >
+                {tLocal("thaiCost.songkhlaHandling.colCrate")} {display.crate}
+                {mismatch.crateMismatch ? (
+                  <span className="ml-1 text-xs font-normal">
+                    ({tLocal("thaiCost.handling.qtyMismatch")})
+                  </span>
+                ) : null}
+              </span>
+              <span className="text-haidee-muted"> / </span>
+              <span
+                className={
+                  mismatch.boxMismatch
+                    ? "font-semibold text-haidee-red"
+                    : undefined
+                }
+              >
+                {tLocal("thaiCost.sadaoHandling.box")} {display.box}
+                {mismatch.boxMismatch ? (
+                  <span className="ml-1 text-xs font-normal">
+                    ({tLocal("thaiCost.handling.qtyMismatch")})
+                  </span>
+                ) : null}
+              </span>
             </p>
           </>
         )}
@@ -315,6 +330,9 @@ export function SongkhlaHandlingDayPanel({
         station="SONGKHLA"
         drivers={drivers}
         canWrite={canWrite}
+        effectiveCrateQty={display.crate}
+        effectiveBoxQty={display.box}
+        onMismatchChange={onMismatchChange}
       />
 
       {canWrite && (

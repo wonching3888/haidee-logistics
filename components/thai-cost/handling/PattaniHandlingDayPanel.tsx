@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
@@ -15,7 +15,10 @@ import { useT } from "@/components/shared/locale-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HandlingHistoryLink } from "@/components/thai-cost/handling/HandlingHistoryLink";
-import { StationTripsDisplay } from "@/components/thai-cost/handling/StationTripsDisplay";
+import {
+  StationTripsDisplay,
+  type TripVsDispatchMismatch,
+} from "@/components/thai-cost/handling/StationTripsDisplay";
 
 export function PattaniHandlingDayPanel({
   date,
@@ -43,6 +46,12 @@ export function PattaniHandlingDayPanel({
   const [loadingDispatch, setLoadingDispatch] = useState(false);
   const [qtyForm, setQtyForm] = useState({ crate: "0", box: "0" });
   const [notes, setNotes] = useState(existingRow?.notes ?? "");
+  const [mismatch, setMismatch] = useState<TripVsDispatchMismatch>({
+    crateMismatch: false,
+    boxMismatch: false,
+    tripCrateTotal: 0,
+    tripBoxTotal: 0,
+  });
 
   const previewRates = rates ?? {
     pattaniContractorCrate: 20,
@@ -50,9 +59,14 @@ export function PattaniHandlingDayPanel({
     pattaniSakriCrate: 2.2,
   };
 
+  // Same effective qty as resolvePattaniEffectiveQty (manual lock vs live dispatch).
   const display = existingRow?.manualQty
     ? { crate: existingRow.crateQty, box: existingRow.boxQty }
     : { crate: dispatchTotals.crateQty, box: dispatchTotals.boxQty };
+
+  const onMismatchChange = useCallback((m: TripVsDispatchMismatch) => {
+    setMismatch(m);
+  }, []);
 
   const previewCosts = {
     contractorThb:
@@ -267,14 +281,35 @@ export function PattaniHandlingDayPanel({
         ) : (
           <>
             <p className="mt-2 font-mono text-sm">
-              {tLocal("thaiCost.pattaniHandling.colCrates")} {display.crate} /{" "}
-              {tLocal("thaiCost.pattaniHandling.colBoxes")} {display.box}
-            </p>
-            <p className="mt-2 text-xs text-haidee-muted">
-              {tLocal("thaiCost.pattaniHandling.billablePreview", {
-                crate: String(display.crate),
-                box: String(display.box),
-              })}
+              <span
+                className={
+                  mismatch.crateMismatch
+                    ? "font-semibold text-haidee-red"
+                    : undefined
+                }
+              >
+                {tLocal("thaiCost.pattaniHandling.colCrates")} {display.crate}
+                {mismatch.crateMismatch ? (
+                  <span className="ml-1 text-xs font-normal">
+                    ({tLocal("thaiCost.handling.qtyMismatch")})
+                  </span>
+                ) : null}
+              </span>
+              <span className="text-haidee-muted"> / </span>
+              <span
+                className={
+                  mismatch.boxMismatch
+                    ? "font-semibold text-haidee-red"
+                    : undefined
+                }
+              >
+                {tLocal("thaiCost.pattaniHandling.colBoxes")} {display.box}
+                {mismatch.boxMismatch ? (
+                  <span className="ml-1 text-xs font-normal">
+                    ({tLocal("thaiCost.handling.qtyMismatch")})
+                  </span>
+                ) : null}
+              </span>
             </p>
           </>
         )}
@@ -314,6 +349,9 @@ export function PattaniHandlingDayPanel({
         station="PATTANI"
         drivers={drivers}
         canWrite={canWrite}
+        effectiveCrateQty={display.crate}
+        effectiveBoxQty={display.box}
+        onMismatchChange={onMismatchChange}
       />
 
       {canWrite && (
@@ -333,9 +371,7 @@ export function PattaniHandlingDayPanel({
               className="bg-haidee-blue text-white"
               onClick={saveNotesOnly}
             >
-              {existingRow
-                ? tLocal("thaiCost.common.save")
-                : tLocal("thaiCost.songkhlaHandling.addRecord")}
+              {tLocal("thaiCost.common.save")}
             </Button>
             {existingRow && (
               <Button
