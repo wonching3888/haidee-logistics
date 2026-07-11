@@ -25,8 +25,8 @@ const YEAR = 2026;
 const MONTH = 6;
 
 const ROUTES = [
-  { code: "SONGKHLA", sadooMileageKm: 180 },
-  { code: "PATTANI", sadooMileageKm: 280 },
+  { code: "SONGKHLA", sadooMileageKm: 180, tollFee: 0, parkingFee: 0 },
+  { code: "PATTANI", sadooMileageKm: 280, tollFee: 0, parkingFee: 0 },
 ];
 const FUEL = { myrPerLiter: 2.15, thbPerLiter: 40 };
 const FX = 8.2;

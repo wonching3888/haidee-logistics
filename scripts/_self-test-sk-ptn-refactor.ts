@@ -81,6 +81,8 @@ async function main() {
   const routeRows = routes.map((r) => ({
     code: r.code,
     sadooMileageKm: decimalToNumber(r.sadooMileageKm),
+    tollFee: decimalToNumber(r.tollFee),
+    parkingFee: decimalToNumber(r.parkingFee),
   }));
   const truck = await prisma.truck.findFirst({
     where: { plate: { contains: "9389", mode: "insensitive" } },
@@ -119,14 +121,18 @@ async function main() {
   console.log(
     `  PKM9389 SONGKHLA: distance=${skCost.distanceKm} cost=${skCost.tripCostThb} review=${skCost.needsReview}`
   );
+  const skRoute = routes.find((r) => r.code === "SONGKHLA")!;
+  const skToll = decimalToNumber(skRoute.tollFee) ?? 0;
+  const skPark = decimalToNumber(skRoute.parkingFee) ?? 0;
+  const expectedSk =
+    Math.round((2102.27 + skToll + skPark) * 100) / 100;
   assert(skCost.distanceKm === 180, "PKM9389 uses 180km SONGKHLA");
   assert(
-    Math.abs(skCost.tripCostThb - 2102.27) < 0.02,
-    `PKM9389 trip cost ≈2102.27 (got ${skCost.tripCostThb})`
+    Math.abs(skCost.tripCostThb - expectedSk) < 0.02,
+    `PKM9389 trip cost ≈${expectedSk} (got ${skCost.tripCostThb}, toll=${skToll} parking=${skPark})`
   );
 
   console.log("\n=== 5. Thai route toll/parking fields readable ===");
-  const skRoute = routes.find((r) => r.code === "SONGKHLA")!;
   assert(
     decimalToNumber(skRoute.tollFee) === 0 || skRoute.tollFee != null,
     `SONGKHLA tollFee readable (${decimalToNumber(skRoute.tollFee)})`

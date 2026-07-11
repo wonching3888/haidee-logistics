@@ -1,289 +1,210 @@
 /**
- * Phase 2 self-test: rate settings, monthly lock, Songkhla P&L, drivers.
+ * Formal acceptance self-test for Songkhla Thai-vehicle PNL (THB).
+ * Marker: SELFTEST_THAI_VEHICLE_PNL_SK
+ * Cleans up all rows it creates.
+ *
  * Run: npx tsx --env-file=.env.local scripts/_selftest-thai-cost-phase2-songkhla.ts
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma";
-import { calendarDateUTC } from "../lib/reports/period-report-shared";
-import {
-  ensureThaiCostRateSettings,
-  loadCurrentThaiCostRates,
-  resolveThaiCostRatesForMonth,
-  saveCurrentThaiCostRates,
-} from "../lib/thai-cost/rate-settings";
-import { lockThaiMonthSnapshots } from "../lib/thai-cost/segment-internal-cost";
 import { getSongkhlaPnl } from "../lib/thai-cost/songkhla-pnl";
-import { getSadaoMonthlyCost } from "../lib/thai-cost/sadao-cost-service";
+import {
+  thaiVehiclePnlHandlingFeeThb,
+  thaiVehiclePnlIncomeThb,
+} from "../lib/thai-cost/thai-vehicle-pnl-calc";
+import {
+  THAI_DRIVER_OTHER_NAME,
+  THAI_VEHICLE_RENTED_NOTES_PREFIX,
+} from "../lib/thai-cost/thai-vehicle-pnl-constants";
+import { ensureThaiOtherDriver } from "../lib/thai-cost/thai-driver-other";
 
-const MARKER = "SELFTEST_PHASE2";
-const YEAR = 2026;
-const MONTH = 7; // use July to avoid clobbering June production backfill
+const MARK = "SELFTEST_THAI_VEHICLE_PNL_SK";
+const YEAR = 2099;
+const MONTH = 1;
+const DATE = new Date("2099-01-15T00:00:00.000Z");
 
-type Check = { name: string; ok: boolean; detail: string };
-const checks: Check[] = [];
-
-function pass(name: string, detail: string) {
-  checks.push({ name, ok: true, detail });
-  console.log(`  PASS  ${name}: ${detail}`);
-}
-function fail(name: string, detail: string) {
-  checks.push({ name, ok: false, detail });
-  console.error(`  FAIL  ${name}: ${detail}`);
+function assert(cond: boolean, msg: string) {
+  if (!cond) throw new Error(`FAIL: ${msg}`);
+  console.log(`PASS: ${msg}`);
 }
 
 async function cleanup() {
-  const { start, end } = {
-    start: calendarDateUTC(YEAR, MONTH, 1),
-    end: calendarDateUTC(YEAR, MONTH, 31),
-  };
-  await prisma.songkhlaCrateHandlingDaily.deleteMany({
-    where: { notes: { contains: MARKER } },
+  await prisma.thaiVehicleTripDaily.deleteMany({
+    where: { notes: { contains: MARK } },
   });
-  await prisma.thaiDailyLaborAttendance.deleteMany({
-    where: { notes: { contains: MARKER } },
-  });
-  await prisma.thaiDriverTripDaily.deleteMany({
-    where: { notes: { contains: MARKER } },
+  await prisma.thaiRentedVehicleTrip.deleteMany({
+    where: { notes: { contains: MARK } },
   });
   await prisma.thaiMonthlyWorker.deleteMany({
-    where: { name: { startsWith: `${MARKER}_` } },
+    where: { name: { contains: MARK } },
   });
-  await prisma.thaiCostMonthlyRateSnapshot.deleteMany({
-    where: { yearMonth: "2026-07" },
-  });
-  await prisma.thaiSegmentInternalCostSnapshot.deleteMany({
-    where: { yearMonth: "2026-07" },
-  });
-  await prisma.thaiDailyLaborMonthlyRoster.deleteMany({
-    where: {
-      yearMonth: "2026-07",
-      station: "SONGKHLA",
-      notes: { contains: MARKER },
-    },
-  });
-  void start;
-  void end;
+  // Do not delete sentinel 其他 driver (shared).
 }
 
 async function main() {
-  console.log("=== Thai cost Phase 2 self-test (Songkhla) ===\n");
-
-  const actor =
-    (await prisma.user.findFirst({
-      where: { active: true, role: "admin" },
-      select: { id: true },
-    })) ??
-    (await prisma.user.findFirst({ where: { active: true }, select: { id: true } }));
-  if (!actor) throw new Error("No user");
-
+  console.log(`=== ${MARK} ===`);
   await cleanup();
-  await ensureThaiCostRateSettings();
 
-  const defaults = await loadCurrentThaiCostRates();
-  if (defaults.handlingSmallWeekday === 3 && defaults.driverTripSongkhla === 700) {
-    pass("default rates seeded", JSON.stringify(defaults));
-  } else {
-    fail("default rates seeded", JSON.stringify(defaults));
-  }
-
-  // Seed drivers
-  const driverSeeds = [
-    { name: "THONGDANG", baseWage: 8000 },
-    { name: "P.NARONG", baseWage: 8000 },
-    { name: "P.PHONG", baseWage: 7000 },
-    { name: "P.CHAIRAT", baseWage: 6000 },
-  ];
-  for (const s of driverSeeds) {
-    await prisma.thaiDriver.upsert({
-      where: { name: s.name },
-      create: s,
-      update: { baseWage: s.baseWage, active: true },
-    });
-  }
-  const drivers = await prisma.thaiDriver.findMany({
-    where: { name: { in: driverSeeds.map((d) => d.name) } },
+  const createdBy = randomUUID();
+  const otherId = await ensureThaiOtherDriver();
+  const formal = await prisma.thaiDriver.upsert({
+    where: { name: "THONGDANG" },
+    create: { name: "THONGDANG", baseWage: 8000, active: true },
+    update: { active: true },
   });
-  if (drivers.length === 4) pass("drivers seeded", "4 drivers");
-  else fail("drivers seeded", `count=${drivers.length}`);
 
-  // Songkhla monthly worker placeholder (no PDF detail)
   await prisma.thaiMonthlyWorker.create({
     data: {
-      name: `${MARKER}_SONGKHLA_CLERK`,
+      name: `${MARK}-SK-WORKER`,
       station: "SONGKHLA",
-      monthlyWage: 8000,
-      lunchAllowance: 1000,
+      monthlyWage: 1000,
+      lunchAllowance: 0,
       fuelAllowance: 0,
       rentRoomAllowance: 0,
       active: true,
     },
   });
-  pass("songkhla worker placeholder", "PENDING_PDF — 8000+1000 lunch");
-
-  await prisma.thaiDailyLaborMonthlyRoster.upsert({
-    where: {
-      yearMonth_station: { yearMonth: "2026-07", station: "SONGKHLA" },
+  // SADAO worker must NOT enter Songkhla PNL
+  await prisma.thaiMonthlyWorker.create({
+    data: {
+      name: `${MARK}-SADAO-WORKER`,
+      station: "SADAO",
+      monthlyWage: 99999,
+      lunchAllowance: 0,
+      fuelAllowance: 0,
+      rentRoomAllowance: 0,
+      active: true,
     },
-    create: {
-      yearMonth: "2026-07",
+  });
+
+  const truck = await prisma.truck.findFirst({
+    where: { plate: { contains: "9389" } },
+    include: { costItems: true },
+  });
+
+  // Formal trip
+  await prisma.thaiVehicleTripDaily.create({
+    data: {
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: truck?.plate ?? "PKM 9389",
+      driverId: formal.id,
       station: "SONGKHLA",
-      rosterCount: 5,
-      notes: MARKER,
+      tongQty: 10,
+      boxQty: 4,
+      notes: MARK,
+      createdBy,
     },
-    update: { rosterCount: 5, notes: MARKER },
   });
 
-  await prisma.thaiDailyLaborAttendance.create({
+  // Other driver trip — own-fleet cost, budget 700, no base wage
+  await prisma.thaiVehicleTripDaily.create({
     data: {
-      date: calendarDateUTC(YEAR, MONTH, 1),
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: truck?.plate ?? "PKM 9389",
+      driverId: otherId,
       station: "SONGKHLA",
-      attendanceCount: 5,
-      dailyWage: 300,
-      notes: MARKER,
-      createdBy: actor.id,
+      tongQty: 2,
+      boxQty: 0,
+      notes: MARK,
+      createdBy,
     },
   });
 
-  await prisma.songkhlaCrateHandlingDaily.create({
+  // Rented trip
+  await prisma.thaiRentedVehicleTrip.create({
     data: {
-      date: calendarDateUTC(YEAR, MONTH, 1),
-      smallCrateTotalQty: 100,
-      largeCrateTotalQty: 20,
-      boxTotalQty: 10,
-      notes: MARKER,
-      createdBy: actor.id,
+      id: randomUUID(),
+      date: DATE,
+      station: "SONGKHLA",
+      driverName: "BANHENG",
+      truckPlate: "RENT-SK",
+      tripCost: 1500,
+      notes: MARK,
+      createdBy,
     },
   });
-
-  const thongdang = drivers.find((d) => d.name === "THONGDANG")!;
-  await prisma.thaiDriverTripDaily.create({
+  await prisma.thaiVehicleTripDaily.create({
     data: {
-      date: calendarDateUTC(YEAR, MONTH, 1),
-      driverId: thongdang.id,
-      songkhlaTripCount: 2,
-      pattaniTripCount: 1,
-      notes: MARKER,
-      createdBy: actor.id,
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: "RENT-SK",
+      driverId: null,
+      station: "SONGKHLA",
+      tongQty: 5,
+      boxQty: 1,
+      notes: `${THAI_VEHICLE_RENTED_NOTES_PREFIX}BANHENG;${MARK}`,
+      createdBy,
     },
   });
-
-  // Lock month snapshots
-  const lock = await lockThaiMonthSnapshots({
-    year: YEAR,
-    month: MONTH,
-    createdBy: actor.id,
-    force: true,
-    pickups: ["SONGKHLA", "PATTANI"],
-  });
-  pass(
-    "month lock",
-    `rates locked, segments=${lock.segmentSnapshots.map((s) => `${s.pickupLocation}:${s.totalAmountMyr}`).join(",")}`
-  );
-
-  const ratesBefore = await resolveThaiCostRatesForMonth(YEAR, MONTH);
-  if (ratesBefore.locked && ratesBefore.handlingSmallWeekday === 3) {
-    pass("rates locked at 3", "snapshot");
-  } else {
-    fail("rates locked at 3", JSON.stringify(ratesBefore));
-  }
-
-  // Change current settings — locked month must not drift
-  await saveCurrentThaiCostRates(
-    {
-      ...ratesBefore,
-      handlingSmallWeekday: 99,
-      driverTripSongkhla: 999,
-    },
-    actor.id
-  );
-  const ratesAfterChange = await resolveThaiCostRatesForMonth(YEAR, MONTH);
-  if (ratesAfterChange.handlingSmallWeekday === 3) {
-    pass("locked month ignores setting change", "still 3");
-  } else {
-    fail(
-      "locked month ignores setting change",
-      `got ${ratesAfterChange.handlingSmallWeekday}`
-    );
-  }
-
-  const current = await loadCurrentThaiCostRates();
-  if (current.handlingSmallWeekday === 99) {
-    pass("current settings updated", "99");
-  } else {
-    fail("current settings updated", String(current.handlingSmallWeekday));
-  }
-
-  // Restore defaults for other months
-  await saveCurrentThaiCostRates(
-    {
-      handlingSmallWeekday: 3,
-      handlingSmallHoliday: 5,
-      handlingLargeWeekday: 4,
-      handlingLargeHoliday: 6,
-      driverTripSongkhla: 700,
-      driverTripPattani: 1200,
-      pattaniContractorCrate: 20,
-      pattaniContractorBox: 5,
-      pattaniSakriCrate: 2.2,
-      largeTongTypeCodes: ["VIO", "BS", "GKS"],
-    },
-    actor.id
-  );
 
   const pnl = await getSongkhlaPnl(YEAR, MONTH);
-  // Marker worker 9000 + production SAMRAN 20000 + PRATHUENG 15000
-  // daily 5*300=1500, Songkhla daily LUNCH=0 (no roster lunch)
-  // Handling weekday: 100*3+20*4+10*3 = 300+80+30 = 410
-  // Driver: base 8000 * (2/3) = 5333.33, trips 2*700 = 1400
-  const expectedLabor = 9000 + 20000 + 15000 + 1500 + 0 + 410;
-  const expectedDriverBase = Math.round((8000 * 2) / 3 * 100) / 100;
-  const expectedDriverTrip = 1400;
-  const expectedReal =
-    expectedLabor + expectedDriverBase + expectedDriverTrip;
 
-  if (Math.abs(pnl.realCostThb - expectedReal) < 0.02) {
-    pass("songkhla real cost", `${pnl.realCostThb} ≈ ${expectedReal}`);
-  } else {
-    fail("songkhla real cost", `got ${pnl.realCostThb} expected ${expectedReal}`);
-  }
+  const expectedIncome =
+    thaiVehiclePnlIncomeThb("SONGKHLA", 10, 4) +
+    thaiVehiclePnlIncomeThb("SONGKHLA", 2, 0) +
+    thaiVehiclePnlIncomeThb("SONGKHLA", 5, 1);
+  assert(
+    Math.abs(pnl.incomeThb - expectedIncome) < 0.02,
+    `income ${pnl.incomeThb} ≈ ${expectedIncome}`
+  );
 
-  if (pnl.internalCostLocked) {
-    pass("internal cost locked", `MYR=${pnl.internalCostMyr}`);
-  } else {
-    fail("internal cost locked", "missing snapshot");
-  }
+  const expectedHandling =
+    thaiVehiclePnlHandlingFeeThb("SONGKHLA", 10, 4) +
+    thaiVehiclePnlHandlingFeeThb("SONGKHLA", 2, 0) +
+    thaiVehiclePnlHandlingFeeThb("SONGKHLA", 5, 1);
+  assert(
+    Math.abs(pnl.handlingFeeThb - expectedHandling) < 0.02,
+    `handling ${pnl.handlingFeeThb} ≈ ${expectedHandling}`
+  );
 
-  if (pnl.pnlMyr != null) {
-    pass("pnl computed", `pnlMyr=${pnl.pnlMyr}`);
-  } else {
-    fail("pnl computed", "null");
-  }
+  assert(pnl.driverTripBudgetThb === 700 * 3, `driver budget ${pnl.driverTripBudgetThb}`);
 
-  // Sadao June still uses rates (may be unlocked) — smoke
-  const sadao = await getSadaoMonthlyCost(2026, 6);
-  if (sadao.rates) {
-    pass("sadao rates attached", `source=${sadao.rates.source}`);
-  } else {
-    fail("sadao rates attached", "missing");
-  }
+  const otherTrip = pnl.trips.find((t) => t.isOtherDriver);
+  assert(!!otherTrip, "other driver trip present");
+  assert(otherTrip!.driverTripBudgetThb === 700, "other driver still gets 700");
+  assert(otherTrip!.driverBaseWageAllocatedThb === 0, "other driver no base wage");
+  assert(!otherTrip!.isRented, "other is not rented");
+
+  const rentedTrip = pnl.trips.find((t) => t.isRented);
+  assert(!!rentedTrip, "rented trip present");
+  assert(rentedTrip!.vehicleCostThb === 1500, `rented cost ${rentedTrip!.vehicleCostThb}`);
+
+  assert(
+    pnl.monthlyWorkerStationTotalThb < 90000,
+    `SADAO worker excluded (station total ${pnl.monthlyWorkerStationTotalThb})`
+  );
+  assert(
+    pnl.monthlyWorkerStationTotalThb >= 1000,
+    `includes SK workers (got ${pnl.monthlyWorkerStationTotalThb})`
+  );
+  assert(
+    Math.abs(pnl.monthlyWorkerAllocatedThb - pnl.monthlyWorkerStationTotalThb) <
+      0.02,
+    `worker alloc sums to station total ${pnl.monthlyWorkerAllocatedThb}`
+  );
+
+  // Merge small+large check via pure helper already unit-tested; income uses trip tongQty.
+  assert(pnl.station === "SONGKHLA", "station SONGKHLA");
+  assert(typeof pnl.profitThb === "number", "profitThb present");
 
   await cleanup();
-  // restore defaults already done
-  console.log("\nCleanup done (July self-test rows).");
-
-  const failed = checks.filter((c) => !c.ok);
-  console.log(
-    `\n=== Result: ${checks.length - failed.length}/${checks.length} passed ===`
-  );
-  if (failed.length) process.exitCode = 1;
+  // remove SADAO marker worker
+  await prisma.thaiMonthlyWorker.deleteMany({
+    where: { name: { contains: MARK } },
+  });
+  console.log("CLEANED");
+  console.log("ALL PASS");
 }
 
 main()
-  .catch((e) => {
+  .catch(async (e) => {
     console.error(e);
+    await cleanup().catch(() => undefined);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -1,285 +1,197 @@
 /**
- * Pattani cost + Songkhla weekday-only rates self-test.
+ * Formal acceptance self-test for Pattani Thai-vehicle PNL (THB).
+ * Marker: SELFTEST_THAI_VEHICLE_PNL_PTN
+ * Cleans up all rows it creates.
+ *
  * Run: npx tsx --env-file=.env.local scripts/_selftest-thai-cost-pattani.ts
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
+import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma";
-import { calendarDateUTC } from "../lib/reports/period-report-shared";
-import {
-  computePattaniDayCosts,
-  ensureThaiCostRateSettings,
-  loadCurrentThaiCostRates,
-  resolveThaiCostRatesForMonth,
-  saveCurrentThaiCostRates,
-} from "../lib/thai-cost/rate-settings";
-import { lockThaiMonthSnapshots } from "../lib/thai-cost/segment-internal-cost";
 import { getPattaniPnl } from "../lib/thai-cost/pattani-pnl";
-import { getSongkhlaMonthlyRealCost } from "../lib/thai-cost/songkhla-cost-service";
-import { computeSadaoHandlingCommission } from "../lib/thai-cost/sadao-cost";
+import {
+  thaiVehiclePnlHandlingFeeThb,
+  thaiVehiclePnlIncomeThb,
+  thaiVehiclePnlWeightedQty,
+} from "../lib/thai-cost/thai-vehicle-pnl-calc";
+import {
+  THAI_DRIVER_OTHER_NAME,
+  THAI_VEHICLE_RENTED_NOTES_PREFIX,
+} from "../lib/thai-cost/thai-vehicle-pnl-constants";
+import { ensureThaiOtherDriver } from "../lib/thai-cost/thai-driver-other";
 
-const MARKER = "SELFTEST_PATTANI";
-const YEAR = 2026;
-const MONTH = 8;
+const MARK = "SELFTEST_THAI_VEHICLE_PNL_PTN";
+const YEAR = 2099;
+const MONTH = 2;
+const DATE = new Date("2099-02-10T00:00:00.000Z");
 
-type Check = { name: string; ok: boolean; detail: string };
-const checks: Check[] = [];
-function pass(name: string, detail: string) {
-  checks.push({ name, ok: true, detail });
-  console.log(`  PASS  ${name}: ${detail}`);
-}
-function fail(name: string, detail: string) {
-  checks.push({ name, ok: false, detail });
-  console.error(`  FAIL  ${name}: ${detail}`);
+function assert(cond: boolean, msg: string) {
+  if (!cond) throw new Error(`FAIL: ${msg}`);
+  console.log(`PASS: ${msg}`);
 }
 
 async function cleanup() {
-  await prisma.pattaniCrateHandlingDaily.deleteMany({
-    where: { notes: { contains: MARKER } },
+  await prisma.thaiVehicleTripDaily.deleteMany({
+    where: { notes: { contains: MARK } },
   });
-  await prisma.songkhlaCrateHandlingDaily.deleteMany({
-    where: { notes: { contains: MARKER } },
+  await prisma.thaiRentedVehicleTrip.deleteMany({
+    where: { notes: { contains: MARK } },
   });
-  await prisma.thaiDriverTripDaily.deleteMany({
-    where: { notes: { contains: MARKER } },
-  });
-  await prisma.thaiCostMonthlyRateSnapshot.deleteMany({
-    where: { yearMonth: "2026-08" },
-  });
-  await prisma.thaiSegmentInternalCostSnapshot.deleteMany({
-    where: { yearMonth: "2026-08" },
+  await prisma.thaiMonthlyWorker.deleteMany({
+    where: { name: { contains: MARK } },
   });
 }
 
 async function main() {
-  console.log("=== Pattani + Songkhla weekday-only self-test ===\n");
-
-  const actor =
-    (await prisma.user.findFirst({
-      where: { active: true, role: "admin" },
-      select: { id: true },
-    })) ??
-    (await prisma.user.findFirst({
-      where: { active: true },
-      select: { id: true },
-    }));
-  if (!actor) throw new Error("No user");
-
+  console.log(`=== ${MARK} ===`);
   await cleanup();
-  await ensureThaiCostRateSettings();
 
-  // Pure: same batch → contractor + SAKRI; box only contractor
-  const rates = await loadCurrentThaiCostRates();
-  const day = computePattaniDayCosts(100, 10, rates);
-  // contractor = 100*20 + 10*5 = 2050; sakri = 100*2.2 = 220
-  if (day.contractorThb === 2050 && day.sakriCommissionThb === 220) {
-    pass("pattani day split", `contractor=${day.contractorThb} sakri=${day.sakriCommissionThb}`);
-  } else {
-    fail("pattani day split", JSON.stringify(day));
-  }
-  const boxOnly = computePattaniDayCosts(0, 10, rates);
-  if (boxOnly.contractorThb === 50 && boxOnly.sakriCommissionThb === 0) {
-    pass("box no sakri commission", "50 contractor, 0 sakri");
-  } else {
-    fail("box no sakri commission", JSON.stringify(boxOnly));
-  }
+  const createdBy = randomUUID();
+  const otherId = await ensureThaiOtherDriver();
+  const formal = await prisma.thaiDriver.upsert({
+    where: { name: "P.NARONG" },
+    create: { name: "P.NARONG", baseWage: 8000, active: true },
+    update: { active: true },
+  });
 
-  // Songkhla always weekday even on Sunday date
-  const sunday = calendarDateUTC(YEAR, MONTH, 2); // 2026-08-02 is Sunday
-  await prisma.songkhlaCrateHandlingDaily.create({
+  await prisma.thaiMonthlyWorker.create({
     data: {
-      date: sunday,
-      smallCrateTotalQty: 10,
-      largeCrateTotalQty: 5,
-      boxTotalQty: 2,
-      notes: MARKER,
-      createdBy: actor.id,
+      name: `${MARK}-PTN-WORKER`,
+      station: "PATTANI",
+      monthlyWage: 2000,
+      lunchAllowance: 0,
+      fuelAllowance: 0,
+      rentRoomAllowance: 0,
+      active: true,
     },
   });
-  const skCost = await getSongkhlaMonthlyRealCost(YEAR, MONTH);
-  // weekday: 10*3+5*4+2*3 = 30+20+6 = 56 (NOT holiday 10*5+5*6+2*5=50+30+10=90)
-  if (skCost.handlingCommissionTotalThb === 56) {
-    pass("songkhla sunday uses weekday rates", "56 not 90");
-  } else {
-    fail(
-      "songkhla sunday uses weekday rates",
-      `got ${skCost.handlingCommissionTotalThb}`
-    );
-  }
-
-  // Seed SAKRI
-  const sakri = await prisma.thaiMonthlyWorker.findFirst({
-    where: { name: "SAKRI", station: "PATTANI" },
-  });
-  if (sakri) {
-    await prisma.thaiMonthlyWorker.update({
-      where: { id: sakri.id },
-      data: {
-        monthlyWage: 15000,
-        lunchAllowance: 0,
-        fuelAllowance: 0,
-        rentRoomAllowance: 0,
-        active: true,
-      },
-    });
-  } else {
-    await prisma.thaiMonthlyWorker.create({
-      data: {
-        name: "SAKRI",
-        station: "PATTANI",
-        monthlyWage: 15000,
-        lunchAllowance: 0,
-        fuelAllowance: 0,
-        rentRoomAllowance: 0,
-        active: true,
-      },
-    });
-  }
-  pass("SAKRI worker", "15000 wage, allowances 0");
-
-  await prisma.pattaniCrateHandlingDaily.create({
+  await prisma.thaiMonthlyWorker.create({
     data: {
-      date: calendarDateUTC(YEAR, MONTH, 3),
-      crateQty: 100,
-      boxQty: 10,
-      notes: MARKER,
-      createdBy: actor.id,
+      name: `${MARK}-SADAO-WORKER`,
+      station: "SADAO",
+      monthlyWage: 88888,
+      lunchAllowance: 0,
+      fuelAllowance: 0,
+      rentRoomAllowance: 0,
+      active: true,
     },
   });
 
-  const drivers = await prisma.thaiDriver.findMany({
-    where: { name: { in: ["THONGDANG", "P.NARONG", "P.PHONG", "P.CHAIRAT"] } },
-  });
-  if (drivers.length < 1) {
-    await prisma.thaiDriver.create({
-      data: { name: "THONGDANG", baseWage: 8000, active: true },
-    });
-  }
-  const thongdang = await prisma.thaiDriver.findUnique({
-    where: { name: "THONGDANG" },
-  });
-  await prisma.thaiDriverTripDaily.create({
+  await prisma.thaiVehicleTripDaily.create({
     data: {
-      date: calendarDateUTC(YEAR, MONTH, 3),
-      driverId: thongdang!.id,
-      songkhlaTripCount: 1,
-      pattaniTripCount: 2,
-      notes: MARKER,
-      createdBy: actor.id,
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: "72-3353",
+      driverId: formal.id,
+      station: "PATTANI",
+      tongQty: 8,
+      boxQty: 2,
+      notes: MARK,
+      createdBy,
     },
   });
 
-  const lock = await lockThaiMonthSnapshots({
-    year: YEAR,
-    month: MONTH,
-    createdBy: actor.id,
-    force: true,
+  await prisma.thaiVehicleTripDaily.create({
+    data: {
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: "72-3353",
+      driverId: otherId,
+      station: "PATTANI",
+      tongQty: 4,
+      boxQty: 0,
+      notes: MARK,
+      createdBy,
+    },
   });
-  pass(
-    "pattani snapshot lock",
-    lock.segmentSnapshots
-      .map((s) => `${s.pickupLocation}=${s.totalAmountMyr}`)
-      .join(", ")
-  );
 
-  // Change pattani rates — locked month must keep 20/5/2.2
-  const lockedRates = await resolveThaiCostRatesForMonth(YEAR, MONTH);
-  await saveCurrentThaiCostRates(
-    {
-      ...lockedRates,
-      pattaniContractorCrate: 99,
-      pattaniSakriCrate: 9,
+  await prisma.thaiRentedVehicleTrip.create({
+    data: {
+      id: randomUUID(),
+      date: DATE,
+      station: "PATTANI",
+      driverName: "SHS",
+      truckPlate: "RENT-PTN",
+      tripCost: 2200,
+      notes: MARK,
+      createdBy,
     },
-    actor.id
-  );
-  const stillLocked = await resolveThaiCostRatesForMonth(YEAR, MONTH);
-  if (
-    stillLocked.pattaniContractorCrate === 20 &&
-    stillLocked.pattaniSakriCrate === 2.2
-  ) {
-    pass("pattani rates locked against drift", "20 / 2.2");
-  } else {
-    fail("pattani rates locked against drift", JSON.stringify(stillLocked));
-  }
-
-  // Restore defaults
-  await saveCurrentThaiCostRates(
-    {
-      handlingSmallWeekday: 3,
-      handlingSmallHoliday: 5,
-      handlingLargeWeekday: 4,
-      handlingLargeHoliday: 6,
-      driverTripSongkhla: 700,
-      driverTripPattani: 1200,
-      pattaniContractorCrate: 20,
-      pattaniContractorBox: 5,
-      pattaniSakriCrate: 2.2,
-      largeTongTypeCodes: ["VIO", "BS", "GKS"],
+  });
+  await prisma.thaiVehicleTripDaily.create({
+    data: {
+      id: randomUUID(),
+      date: DATE,
+      truckPlate: "RENT-PTN",
+      driverId: null,
+      station: "PATTANI",
+      tongQty: 3,
+      boxQty: 1,
+      notes: `${THAI_VEHICLE_RENTED_NOTES_PREFIX}SHS;${MARK}`,
+      createdBy,
     },
-    actor.id
-  );
+  });
 
   const pnl = await getPattaniPnl(YEAR, MONTH);
-  // SAKRI 15000 + commission 220 + contractor 2050
-  // Driver: base 8000 * (2/3) = 5333.33, trips 2*1200 = 2400
-  const expected =
-    15000 + 220 + 2050 + Math.round((8000 * 2) / 3 * 100) / 100 + 2400;
-  if (Math.abs(pnl.real.sakriCommissionThb - 220) < 0.01) {
-    pass("sakri commission total", String(pnl.real.sakriCommissionThb));
-  } else {
-    fail("sakri commission total", String(pnl.real.sakriCommissionThb));
-  }
-  if (Math.abs(pnl.real.contractorThb - 2050) < 0.01) {
-    pass("contractor total", String(pnl.real.contractorThb));
-  } else {
-    fail("contractor total", String(pnl.real.contractorThb));
-  }
-  if (Math.abs(pnl.realCostThb - expected) < 0.02) {
-    pass("pattani real cost total", `${pnl.realCostThb} ≈ ${expected}`);
-  } else {
-    fail("pattani real cost total", `got ${pnl.realCostThb} expected ${expected}`);
-  }
-  if (pnl.internalCostLocked && pnl.pnlMyr != null) {
-    pass("pattani pnl", `internal=${pnl.internalCostMyr} pnl=${pnl.pnlMyr}`);
-  } else {
-    fail("pattani pnl", "missing lock or pnl");
-  }
 
-  // Explicit: holidayRate true would differ for songkhla if wrongly applied
-  const holidayWouldBe = computeSadaoHandlingCommission(
-    {
-      smallCrateTotalQty: 10,
-      largeCrateTotalQty: 5,
-      boxTotalQty: 2,
-      smallCrateNoCheckQty: 0,
-      largeCrateNoCheckQty: 0,
-      boxNoCheckQty: 0,
-    },
-    { holidayRate: true, rateConfig: rates }
-  ).totalCommissionThb;
-  if (holidayWouldBe === 90 && skCost.handlingCommissionTotalThb === 56) {
-    pass("songkhla not using holiday branch", "56 vs holiday 90");
-  } else {
-    fail(
-      "songkhla not using holiday branch",
-      `sk=${skCost.handlingCommissionTotalThb} holidayWould=${holidayWouldBe}`
-    );
-  }
+  const expectedIncome =
+    thaiVehiclePnlIncomeThb("PATTANI", 8, 2) +
+    thaiVehiclePnlIncomeThb("PATTANI", 4, 0) +
+    thaiVehiclePnlIncomeThb("PATTANI", 3, 1);
+  assert(
+    Math.abs(pnl.incomeThb - expectedIncome) < 0.02,
+    `income ${pnl.incomeThb} ≈ ${expectedIncome}`
+  );
+
+  const expectedHandling =
+    thaiVehiclePnlHandlingFeeThb("PATTANI", 8, 2) +
+    thaiVehiclePnlHandlingFeeThb("PATTANI", 4, 0) +
+    thaiVehiclePnlHandlingFeeThb("PATTANI", 3, 1);
+  assert(
+    Math.abs(pnl.handlingFeeThb - expectedHandling) < 0.02,
+    `handling ${pnl.handlingFeeThb} ≈ ${expectedHandling}`
+  );
+
+  assert(pnl.driverTripBudgetThb === 1200 * 3, `budget ${pnl.driverTripBudgetThb}`);
+
+  const otherTrip = pnl.trips.find((t) => t.isOtherDriver);
+  assert(!!otherTrip, "other driver trip");
+  assert(otherTrip!.driverTripBudgetThb === 1200, "other gets 1200");
+  assert(otherTrip!.driverBaseWageAllocatedThb === 0, "other no base");
+
+  const rented = pnl.trips.find((t) => t.isRented);
+  assert(!!rented && rented.vehicleCostThb === 2200, "rented cost 2200");
+
+  assert(
+    pnl.monthlyWorkerStationTotalThb < 80000,
+    `SADAO excluded (got ${pnl.monthlyWorkerStationTotalThb})`
+  );
+  assert(
+    pnl.monthlyWorkerStationTotalThb >= 2000,
+    `includes PTN workers (got ${pnl.monthlyWorkerStationTotalThb})`
+  );
+
+  // 4:1 weight check: trip1 w=8*4+2=34, trip2=16, trip3=3*4+1=13, total=63
+  const w1 = thaiVehiclePnlWeightedQty("PATTANI", 8, 2);
+  const w2 = thaiVehiclePnlWeightedQty("PATTANI", 4, 0);
+  const w3 = thaiVehiclePnlWeightedQty("PATTANI", 3, 1);
+  assert(w1 === 34 && w2 === 16 && w3 === 13, `weights ${w1}/${w2}/${w3}`);
+
+  const other = await prisma.thaiDriver.findUnique({
+    where: { id: otherId },
+  });
+  assert(other?.name === THAI_DRIVER_OTHER_NAME, "其他 stored as thai_drivers row");
 
   await cleanup();
-  console.log("\nCleanup done.");
-
-  const failed = checks.filter((c) => !c.ok);
-  console.log(
-    `\n=== Result: ${checks.length - failed.length}/${checks.length} passed ===`
-  );
-  if (failed.length) process.exitCode = 1;
+  console.log("CLEANED");
+  console.log("ALL PASS");
 }
 
 main()
-  .catch((e) => {
+  .catch(async (e) => {
     console.error(e);
+    await cleanup().catch(() => undefined);
     process.exitCode = 1;
   })
   .finally(async () => {

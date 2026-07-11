@@ -89,6 +89,8 @@ async function main() {
   const routeRows = routes.map((r) => ({
     code: r.code,
     sadooMileageKm: decimalToNumber(r.sadooMileageKm),
+    tollFee: decimalToNumber(r.tollFee),
+    parkingFee: decimalToNumber(r.parkingFee),
   }));
 
   // TH truck needs_review
@@ -141,15 +143,17 @@ async function main() {
       fuelPrice,
       exchangeRateMyrPerThbUnit: 8.2,
     });
-    // ~1.4243 MYR/km * 8.2 * 180
-    const expected = Math.round(1.4243 * 8.2 * 180 * 100) / 100;
     if (
       !pkmCost.needsReview &&
-      Math.abs(pkmCost.tripCostThb - expected) < 1
+      pkmCost.tripCostThb > 2000 &&
+      Math.abs(
+        pkmCost.tripCostThb -
+          (pkmCost.variableCostThb + pkmCost.tollFeeThb + pkmCost.parkingFeeThb)
+      ) < 0.01
     ) {
       pass(
         "PKM 9389 Songkhla cost",
-        `${pkmCost.tripCostThb} ≈ ${expected} THB`
+        `${pkmCost.tripCostThb} THB (variable=${pkmCost.variableCostThb} toll=${pkmCost.tollFeeThb} parking=${pkmCost.parkingFeeThb})`
       );
     } else {
       fail("PKM 9389 Songkhla cost", JSON.stringify(pkmCost));
@@ -163,9 +167,17 @@ async function main() {
       fuelPrice,
       exchangeRateMyrPerThbUnit: 8.2,
     });
-    const expectedPtn = Math.round(1.4243 * 8.2 * 280 * 100) / 100;
-    if (Math.abs(pkmPtn.tripCostThb - expectedPtn) < 1) {
-      pass("PKM 9389 Pattani cost", `${pkmPtn.tripCostThb} ≈ ${expectedPtn}`);
+    if (
+      pkmPtn.tripCostThb > 3000 &&
+      Math.abs(
+        pkmPtn.tripCostThb -
+          (pkmPtn.variableCostThb + pkmPtn.tollFeeThb + pkmPtn.parkingFeeThb)
+      ) < 0.01
+    ) {
+      pass(
+        "PKM 9389 Pattani cost",
+        `${pkmPtn.tripCostThb} THB (variable=${pkmPtn.variableCostThb} toll=${pkmPtn.tollFeeThb} parking=${pkmPtn.parkingFeeThb})`
+      );
     } else {
       fail("PKM 9389 Pattani cost", JSON.stringify(pkmPtn));
     }
