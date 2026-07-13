@@ -31,6 +31,7 @@ import type {
   ThaiVehicleStation,
   TruckCostInput,
 } from "@/lib/thai-cost/vehicle-trip-cost";
+import type { VehicleTripPlRow } from "@/lib/thai-cost/vehicle-pl";
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
@@ -57,6 +58,28 @@ export interface ThaiVehiclePnlTripRow {
   profitThb: number;
   needsReview: boolean;
   costReason: string | null;
+}
+
+/** Map full-PNL trip row → legacy VehicleTripPlRow shape for shared tables. */
+export function mapThaiVehiclePnlTripToPlRow(
+  trip: ThaiVehiclePnlTripRow,
+  station: ThaiVehicleStation
+): VehicleTripPlRow {
+  return {
+    id: trip.id,
+    date: trip.date,
+    truckPlate: trip.truckPlate,
+    driverName: trip.driverName,
+    station,
+    tongQty: trip.crateQty,
+    boxQty: trip.boxQty,
+    incomeThb: trip.incomeThb,
+    costThb: trip.costThb,
+    profitThb: trip.profitThb,
+    needsReview: trip.needsReview,
+    costReason: trip.costReason,
+    isRented: trip.isRented,
+  };
 }
 
 export interface ThaiVehiclePnlDetail {

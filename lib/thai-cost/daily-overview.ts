@@ -27,6 +27,10 @@ import {
   resolveThaiCostRatesForMonth,
 } from "@/lib/thai-cost/rate-settings";
 import {
+  computeThaiVehiclePnlForStation,
+  mapThaiVehiclePnlTripToPlRow,
+} from "@/lib/thai-cost/thai-vehicle-pnl";
+import {
   computeVehicleTripPl,
   loadVehiclePlContext,
   sumVehiclePlRows,
@@ -93,6 +97,8 @@ export async function getDailyOverview(
     holiday,
     rates,
     plCtx,
+    songkhlaPnl,
+    pattaniPnl,
   ] = await Promise.all([
     prisma.sadaoCrateHandlingDaily.findUnique({
       where: { date },
@@ -120,7 +126,11 @@ export async function getDailyOverview(
       select: { date: true },
     }),
     resolveThaiCostRatesForMonth(year, month),
+    // Narrow vehicle cost only — still feeds「当日真实成本」, not the vehicle table.
     loadVehiclePlContext(year, month),
+    // Full month PNL (same stack as monthly summary); filter to this date for display.
+    computeThaiVehiclePnlForStation("SONGKHLA", year, month),
+    computeThaiVehiclePnlForStation("PATTANI", year, month),
   ]);
 
   const holidayKeys = buildPublicHolidayKeySet(holiday ? [holiday] : []);
@@ -189,26 +199,34 @@ export async function getDailyOverview(
       handlingCommissionThb = day.dayTotalThb;
     }
 
-    const plRows: VehicleTripPlRow[] = stationVehicleTrips.map((v) => {
-      const rentedName = parseRentedDriverName(v.notes);
-      const driverName =
-        v.driver?.name ?? (rentedName ? `RENTED:${rentedName}` : null);
-      return computeVehicleTripPl(
-        {
-          id: v.id,
-          date: dateStr,
-          truckPlate: v.truckPlate,
-          driverName,
-          station,
-          tongQty: v.tongQty,
-          boxQty: v.boxQty,
-          notes: v.notes,
-        },
-        plCtx
-      );
-    });
-
+    // Display rows: reuse monthly-summary full PNL (filter this date).
+    const monthPnl = station === "SONGKHLA" ? songkhlaPnl : pattaniPnl;
+    const plRows: VehicleTripPlRow[] = monthPnl.trips
+      .filter((t) => t.date === dateStr)
+      .map((t) => mapThaiVehiclePnlTripToPlRow(t, station));
     const vehiclePlTotals = sumVehiclePlRows(plRows);
+
+    // Narrow vehicle-only cost for「当日真实成本」— intentionally NOT full PNL.
+    const narrowVehicleRows: VehicleTripPlRow[] = stationVehicleTrips.map(
+      (v) => {
+        const rentedName = parseRentedDriverName(v.notes);
+        const driverName =
+          v.driver?.name ?? (rentedName ? `RENTED:${rentedName}` : null);
+        return computeVehicleTripPl(
+          {
+            id: v.id,
+            date: dateStr,
+            truckPlate: v.truckPlate,
+            driverName,
+            station,
+            tongQty: v.tongQty,
+            boxQty: v.boxQty,
+            notes: v.notes,
+          },
+          plCtx
+        );
+      }
+    );
 
     const driverTripList: DailyOverviewStationSection["driverTrips"] = [];
     let driverTripCommissionThb = 0;
@@ -237,10 +255,10 @@ export async function getDailyOverview(
         })
       : 0;
 
-    const rentedVehicleCostThb = plRows
+    const rentedVehicleCostThb = narrowVehicleRows
       .filter((r) => r.isRented)
       .reduce((s, r) => s + r.costThb, 0);
-    const ownedVehicleCostThb = plRows
+    const ownedVehicleCostThb = narrowVehicleRows
       .filter((r) => !r.isRented)
       .reduce((s, r) => s + r.costThb, 0);
 

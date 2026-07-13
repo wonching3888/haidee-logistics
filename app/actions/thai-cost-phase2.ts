@@ -756,39 +756,32 @@ export async function getVehicleTripPlForMonth(input: {
   station?: "SONGKHLA" | "PATTANI";
 }) {
   await requireRead();
-  const { loadVehiclePlContext, computeVehicleTripPl } = await import(
-    "@/lib/thai-cost/vehicle-pl"
-  );
-  const { start, end } = getMonthDateRange(input.year, input.month);
-  const [rows, ctx] = await Promise.all([
-    prisma.thaiVehicleTripDaily.findMany({
-      where: {
-        date: { gte: start, lte: end },
-        ...(input.station ? { station: input.station } : {}),
-      },
-      include: { driver: { select: { name: true } } },
-      orderBy: [{ date: "asc" }, { truckPlate: "asc" }],
-    }),
-    loadVehiclePlContext(input.year, input.month),
-  ]);
+  const {
+    computeThaiVehiclePnlForStation,
+    mapThaiVehiclePnlTripToPlRow,
+  } = await import("@/lib/thai-cost/thai-vehicle-pnl");
 
-  return rows.map((v) => {
-    const rented = parseRentedFromNotes(v.notes);
-    return computeVehicleTripPl(
-      {
-        id: v.id,
-        date: toDateInputValue(v.date),
-        truckPlate: v.truckPlate,
-        driverName:
-          v.driver?.name ?? (rented ? `RENTED:${rented}` : null),
-        station: v.station as "SONGKHLA" | "PATTANI",
-        tongQty: v.tongQty,
-        boxQty: v.boxQty,
-        notes: v.notes,
-      },
-      ctx
-    );
-  });
+  const stations: Array<"SONGKHLA" | "PATTANI"> = input.station
+    ? [input.station]
+    : ["SONGKHLA", "PATTANI"];
+
+  const details = await Promise.all(
+    stations.map((station) =>
+      computeThaiVehiclePnlForStation(station, input.year, input.month)
+    )
+  );
+
+  return details
+    .flatMap((d) =>
+      d.trips.map((t) => mapThaiVehiclePnlTripToPlRow(t, d.station))
+    )
+    .sort((a, b) => {
+      const byDate = a.date.localeCompare(b.date);
+      if (byDate !== 0) return byDate;
+      const byStation = a.station.localeCompare(b.station);
+      if (byStation !== 0) return byStation;
+      return a.truckPlate.localeCompare(b.truckPlate);
+    });
 }
 
 // ─── Songkhla P&L ────────────────────────────────────────────────────────────
