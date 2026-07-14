@@ -6,6 +6,7 @@ import {
   findCashBookAccount,
 } from "@/lib/constants/cash-book-accounts";
 import {
+  filterBlankPaymentVoucherLines,
   normalizePaymentVoucherLines,
   PaymentVoucherValidationError,
   sumPaymentVoucherLines,
@@ -13,9 +14,12 @@ import {
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 
 describe("cash-book-accounts", () => {
-  it("has 24 THB and 13 MYR accounts", () => {
+  it("has 24 THB and 14 MYR accounts (incl. 3500 driver advance)", () => {
     expect(CASH_BOOK_THB_ACCOUNTS).toHaveLength(24);
-    expect(CASH_BOOK_MYR_ACCOUNTS).toHaveLength(13);
+    expect(CASH_BOOK_MYR_ACCOUNTS).toHaveLength(14);
+    expect(findCashBookAccount("MYR", "3500-0000")?.name).toContain(
+      "DRIVER DUIT JALAN"
+    );
   });
 
   it("returns ledger-specific account lists", () => {
@@ -32,6 +36,43 @@ describe("payment-voucher-lines", () => {
     expect(
       sumPaymentVoucherLines([{ amount: 100.5 }, { amount: 200.25 }])
     ).toBe(300.75);
+  });
+
+  it("filters fully blank lines before normalize", () => {
+    const filtered = filterBlankPaymentVoucherLines([
+      { accountCode: "6500-0000", particulars: "SK TRIP WAGES", amount: 700 },
+      { accountCode: "", particulars: "", amount: Number("") },
+      { accountCode: "  ", particulars: "x", amount: 0 },
+    ]);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]?.accountCode).toBe("6500-0000");
+    expect(() => normalizePaymentVoucherLines("THB", filtered)).not.toThrow();
+  });
+
+  it("keeps partial rows so normalize can report field errors", () => {
+    const filtered = filterBlankPaymentVoucherLines([
+      { accountCode: "6500-0000", particulars: "x", amount: 0 },
+      { accountCode: "", particulars: "y", amount: 50 },
+    ]);
+    expect(filtered).toHaveLength(2);
+  });
+
+  it("reports at least one line after blank filter empties input", () => {
+    expect(
+      filterBlankPaymentVoucherLines([
+        { accountCode: "", particulars: "", amount: 0 },
+        { accountCode: "", particulars: "", amount: Number("") },
+      ])
+    ).toHaveLength(0);
+    expect(() =>
+      normalizePaymentVoucherLines(
+        "THB",
+        filterBlankPaymentVoucherLines([
+          { accountCode: "", amount: 0 },
+          { accountCode: "", amount: 0 },
+        ])
+      )
+    ).toThrow(/至少需要一行/);
   });
 
   it("requires account on every line", () => {

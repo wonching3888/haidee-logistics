@@ -19,6 +19,7 @@ const mockApplyCharterVoucherCostActuals = vi.fn();
 const mockClearCharterVoucherCostActuals = vi.fn();
 const mockIsVoucherCostEnforced = vi.fn();
 const mockInvalidatePnlTripsCache = vi.fn();
+const mockSyncDriverVoucherSettlementCashBook = vi.fn();
 
 vi.mock("@/lib/trip-cost-engine/config", () => ({
   isVoucherCostEnforced: () => mockIsVoucherCostEnforced(),
@@ -26,6 +27,12 @@ vi.mock("@/lib/trip-cost-engine/config", () => ({
 
 vi.mock("@/lib/pnl-cache-invalidation", () => ({
   invalidatePnlTripsCache: () => mockInvalidatePnlTripsCache(),
+}));
+
+vi.mock("@/lib/cash-book/driver-voucher-cash-book", () => ({
+  syncDriverVoucherSettlementCashBook: (...args: unknown[]) =>
+    mockSyncDriverVoucherSettlementCashBook(...args),
+  syncDriverVoucherAdvanceCashBook: vi.fn(),
 }));
 
 vi.mock("@/lib/driver-expense/voucher-cost-apply", () => ({
@@ -194,9 +201,10 @@ describe("transitionVoucherStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsVoucherCostEnforced.mockReturnValue(false);
+    mockSyncDriverVoucherSettlementCashBook.mockResolvedValue("pv-1");
     mockFindUniqueOrThrow.mockImplementation(async ({ where }: { where: { id: string } }) => ({
       id: where.id,
-      status: "approved",
+      status: "confirmed",
     }));
     mockTransaction.mockImplementation(async (fn) =>
       fn({
@@ -279,6 +287,7 @@ describe("transitionVoucherStatus", () => {
         costAppliedAt: expect.any(Date),
       }),
     });
+    expect(mockSyncDriverVoucherSettlementCashBook).not.toHaveBeenCalled();
   });
 
   it("requires note when flagging pending_review", async () => {
@@ -308,6 +317,7 @@ describe("transitionVoucherStatus", () => {
   it("legacy mode does not call apply/clear on confirm", async () => {
     mockFindUnique.mockResolvedValue({ id: "v1", status: "clerk_entered" });
     mockUpdate.mockResolvedValue({ id: "v1", status: "confirmed" });
+    mockFindUniqueOrThrow.mockResolvedValue({ id: "v1", status: "confirmed" });
     mockIsVoucherCostEnforced.mockReturnValue(false);
 
     await transitionVoucherStatus({
@@ -319,12 +329,18 @@ describe("transitionVoucherStatus", () => {
 
     expect(mockApplyVoucherCostActuals).not.toHaveBeenCalled();
     expect(mockClearVoucherCostActuals).not.toHaveBeenCalled();
+    expect(mockSyncDriverVoucherSettlementCashBook).toHaveBeenCalledWith({
+      driverVoucherId: "v1",
+      actorUserId: "clerk-1",
+      tx: expect.any(Object),
+    });
     expect(mockFindUniqueOrThrow).toHaveBeenCalled();
   });
 
   it("enforced mode calls apply on confirm", async () => {
     mockFindUnique.mockResolvedValue({ id: "v1", status: "clerk_entered" });
     mockUpdate.mockResolvedValue({ id: "v1", status: "confirmed" });
+    mockFindUniqueOrThrow.mockResolvedValue({ id: "v1", status: "confirmed" });
     mockIsVoucherCostEnforced.mockReturnValue(true);
     mockApplyVoucherCostActuals.mockResolvedValue({
       id: "v1",
@@ -344,6 +360,11 @@ describe("transitionVoucherStatus", () => {
         driverVoucher: expect.any(Object),
       })
     );
+    expect(mockSyncDriverVoucherSettlementCashBook).toHaveBeenCalledWith({
+      driverVoucherId: "v1",
+      actorUserId: "clerk-1",
+      tx: expect.any(Object),
+    });
     expect(result.status).toBe("confirmed");
   });
 
@@ -369,6 +390,7 @@ describe("transitionVoucherStatus", () => {
       expect.any(Object)
     );
     expect(mockApplyVoucherCostActuals).not.toHaveBeenCalled();
+    expect(mockSyncDriverVoucherSettlementCashBook).not.toHaveBeenCalled();
     expect(result.costAppliedAt).toBeNull();
   });
 });

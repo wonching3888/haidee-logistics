@@ -224,18 +224,59 @@ export function sumCharterActualBelanja(v: {
   return roundMoney(total);
 }
 
+export type VoucherSettlementActualFields = {
+  chopBorderActual: number | null;
+  parkingActual: number | null;
+  kpbActual: number | null;
+  fishCheckActual: number | null;
+  upahTurunActual: number | null;
+  upahNaikTongActual: number | null;
+  minyakMotoEnabled: boolean;
+  minyakMotoActual: number | null;
+  otherActual: number | null;
+};
+
+/** True when any settlement Actual field is present (belanja would be from these). */
+export function hasVoucherSettlementActuals(
+  v: VoucherSettlementActualFields,
+  options?: { tripSource?: "dispatch" | "charter" }
+): boolean {
+  if (options?.tripSource === "charter") {
+    return (
+      v.chopBorderActual != null ||
+      v.upahTurunActual != null ||
+      v.upahNaikTongActual != null ||
+      v.otherActual != null ||
+      (v.minyakMotoEnabled && v.minyakMotoActual != null)
+    );
+  }
+  return (
+    v.chopBorderActual != null ||
+    v.parkingActual != null ||
+    v.kpbActual != null ||
+    v.fishCheckActual != null ||
+    v.upahTurunActual != null ||
+    v.upahNaikTongActual != null ||
+    v.otherActual != null ||
+    (v.minyakMotoEnabled && v.minyakMotoActual != null)
+  );
+}
+
+/**
+ * draft + Duit Jalan recorded + no Actuals → "已预支待结算".
+ * Other draft rows (legacy estimate-only / empty shells) keep the generic draft label.
+ */
+export function isAdvancePendingSettlement(v: {
+  status: string;
+  duitJalan: number | null;
+} & VoucherSettlementActualFields): boolean {
+  if (v.status !== "draft") return false;
+  if (v.duitJalan == null || !(v.duitJalan > 0)) return false;
+  return !hasVoucherSettlementActuals(v);
+}
+
 export function sumActualBelanja(
-  v: {
-    chopBorderActual: number | null;
-    parkingActual: number | null;
-    kpbActual: number | null;
-    fishCheckActual: number | null;
-    upahTurunActual: number | null;
-    upahNaikTongActual: number | null;
-    minyakMotoEnabled: boolean;
-    minyakMotoActual: number | null;
-    otherActual: number | null;
-  },
+  v: VoucherSettlementActualFields,
   options?: { tripSource?: "dispatch" | "charter" }
 ) {
   if (options?.tripSource === "charter") {

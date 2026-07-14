@@ -35,10 +35,11 @@ export const CASH_BOOK_THB_ACCOUNTS: readonly CashBookAccount[] = [
   { code: "9307-0000", name: "DONATION/ENT/GIFT/REWARD" },
 ] as const;
 
-/** RM Cash Book (account 3202-0000) — 13 accounts per accounting chart (2026-07-09). */
+/** RM Cash Book (account 3202-0000) — chart 2026-07-09 + 3500 driver advance. */
 export const CASH_BOOK_MYR_ACCOUNTS: readonly CashBookAccount[] = [
   { code: "3050-W001", name: "OTHER DEBTOR - WTL EXPRESS SB" },
   { code: "3201-0000", name: "CASH IN HAND - HD (TB) CASHIER" },
+  { code: "3500-0000", name: "OTHER DEBTOR - DRIVER DUIT JALAN" },
   { code: "5300-0000", name: "GAIN ON FOREIGN EXCHANGE" },
   { code: "6301-0000", name: "CHOP BORDER PASS" },
   { code: "6302-0000", name: "FISH CHECKING" },
@@ -51,6 +52,30 @@ export const CASH_BOOK_MYR_ACCOUNTS: readonly CashBookAccount[] = [
   { code: "9205-0000", name: "LOSS ON FOREIGN EXCHANGE" },
   { code: "9308-0000", name: "COMMISSION GIVEN" },
 ] as const;
+
+/** Driver-voucher advance holding account (MYR Cash Book only). */
+export const DRIVER_VOUCHER_ADVANCE_ACCOUNT_CODE = "3500-0000";
+
+/** Belanja accounts exported to AutoCount (excludes advance 3500). */
+export const DRIVER_VOUCHER_AUTOCOUNT_ACCOUNT_CODES = [
+  "6301-0000",
+  "6302-0000",
+  "6303-0000",
+  "6304-0000",
+  "6305-0000",
+  "6306-0000",
+] as const;
+
+export type DriverVoucherAutocountAccountCode =
+  (typeof DRIVER_VOUCHER_AUTOCOUNT_ACCOUNT_CODES)[number];
+
+export function isDriverVoucherAutocountAccountCode(
+  code: string
+): code is DriverVoucherAutocountAccountCode {
+  return (DRIVER_VOUCHER_AUTOCOUNT_ACCOUNT_CODES as readonly string[]).includes(
+    code
+  );
+}
 
 export const PAYMENT_VOUCHER_METHODS = ["CASH", "TRANSFER", "CHEQUE"] as const;
 export type PaymentVoucherMethod = (typeof PAYMENT_VOUCHER_METHODS)[number];

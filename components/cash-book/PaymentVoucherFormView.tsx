@@ -113,7 +113,7 @@ export function PaymentVoucherFormView({
     setError(null);
     startTransition(async () => {
       try {
-        const saved = await savePaymentVoucher({
+        const result = await savePaymentVoucher({
           id: existing?.id,
           book,
           voucherDate,
@@ -132,8 +132,11 @@ export function PaymentVoucherFormView({
             amount: Number(row.amount),
           })),
         });
-        if (!saved) throw new Error("保存失败");
-        router.push(`/financial/cash-book/payment-voucher/${saved.id}`);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        router.push(`/financial/cash-book/payment-voucher/${result.data.id}`);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败");

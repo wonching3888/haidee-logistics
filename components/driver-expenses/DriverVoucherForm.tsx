@@ -17,6 +17,8 @@ import {
   sumActualBelanja,
   sumCharterSuggestedAmounts,
   sumSuggestedAmounts,
+  hasVoucherSettlementActuals,
+  isAdvancePendingSettlement,
   VOUCHER_LABELS,
   type DriverVoucherData,
   type VoucherMarketActualData,
@@ -314,12 +316,56 @@ export function DriverVoucherForm({
 
   const backHref = `/documents/driver-expenses?date=${date}&refresh=1`;
   const formEditable = canEditVoucherFields(workflow.status, userRole, mode);
-  const showFinalizeButtons =
+  const settlementEmpty = useMemo(() => {
+    if (!form) return true;
+    const tripSource = form.tripSource === "charter" ? "charter" : "dispatch";
+    if (tripSource === "charter") {
+      return !hasVoucherSettlementActuals(
+        {
+          chopBorderActual: parseOptionalNumber(form.chopBorderActual),
+          parkingActual: null,
+          kpbActual: null,
+          fishCheckActual: null,
+          upahTurunActual: parseOptionalNumber(form.upahTurunActual),
+          upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
+          minyakMotoEnabled: form.minyakMotoEnabled,
+          minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+          otherActual: parseOptionalNumber(form.otherActual),
+        },
+        { tripSource: "charter" }
+      );
+    }
+    const parkingActual =
+      sumMarketActualFormValues(marketActuals, "parking") ??
+      parseOptionalNumber(form.parkingActual);
+    const kpbActual =
+      sumMarketActualFormValues(marketActuals, "kpb") ??
+      parseOptionalNumber(form.kpbActual);
+    const upahTurunActual =
+      sumMarketActualFormValues(marketActuals, "unload") ??
+      parseOptionalNumber(form.upahTurunActual);
+    return !hasVoucherSettlementActuals({
+      chopBorderActual: parseOptionalNumber(form.chopBorderActual),
+      parkingActual,
+      kpbActual,
+      fishCheckActual: parseOptionalNumber(form.fishCheckActual),
+      upahTurunActual,
+      upahNaikTongActual: parseOptionalNumber(form.upahNaikTongActual),
+      minyakMotoEnabled: form.minyakMotoEnabled,
+      minyakMotoActual: parseOptionalNumber(form.minyakMotoActual),
+      otherActual: parseOptionalNumber(form.otherActual),
+    });
+  }, [form, marketActuals]);
+
+  const canShowEntryActions =
     formEditable &&
     Boolean(form) &&
     (mode === "new" ||
       workflow.status === "draft" ||
       workflow.status === "rejected");
+  /** Advance-only when no Actuals yet — hides confirm to block zero-settlement confirms. */
+  const showAdvanceOnlyButton = canShowEntryActions && settlementEmpty;
+  const showFinalizeButtons = canShowEntryActions && !settlementEmpty;
   const showDecisionPanel =
     workflow.status === "clerk_entered" && canWriteDriverVoucher(userRole);
   const showReviewPanel =
@@ -330,6 +376,23 @@ export function DriverVoucherForm({
     userRole === "admin" &&
     (workflow.status === "confirmed" || workflow.status === "approved");
   const workflowBusyAny = saving || workflowBusy;
+  const advancePendingLabel = isAdvancePendingSettlement({
+    status: workflow.status,
+    duitJalan: form ? parseOptionalNumber(form.duitJalan) : null,
+    chopBorderActual: form
+      ? parseOptionalNumber(form.chopBorderActual)
+      : null,
+    parkingActual: form ? parseOptionalNumber(form.parkingActual) : null,
+    kpbActual: form ? parseOptionalNumber(form.kpbActual) : null,
+    fishCheckActual: form ? parseOptionalNumber(form.fishCheckActual) : null,
+    upahTurunActual: form ? parseOptionalNumber(form.upahTurunActual) : null,
+    upahNaikTongActual: form
+      ? parseOptionalNumber(form.upahNaikTongActual)
+      : null,
+    minyakMotoEnabled: form?.minyakMotoEnabled ?? false,
+    minyakMotoActual: form ? parseOptionalNumber(form.minyakMotoActual) : null,
+    otherActual: form ? parseOptionalNumber(form.otherActual) : null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -524,7 +587,10 @@ export function DriverVoucherForm({
     setChangeLogs(data.logs ?? []);
   }
 
-  function buildSavePayload(submitEntry?: boolean) {
+  function buildSavePayload(options?: {
+    submitEntry?: boolean;
+    recordAdvanceOnly?: boolean;
+  }) {
     if (!form) throw new Error("Form not ready");
     const isCharter = form.tripSource === "charter";
     const parkingActual = isCharter
@@ -566,16 +632,21 @@ export function DriverVoucherForm({
       duitJalan: parseOptionalNumber(form.duitJalan),
       marketActuals:
         marketActualInputs.length > 0 ? marketActualInputs : undefined,
-      submitEntry,
+      submitEntry: options?.submitEntry,
+      recordAdvanceOnly: options?.recordAdvanceOnly,
     };
   }
 
   async function persistVoucher(options?: {
     submitEntry?: boolean;
+    recordAdvanceOnly?: boolean;
     stayOnPage?: boolean;
   }): Promise<string> {
     if (!form) throw new Error("Form not ready");
-    const payload = buildSavePayload(options?.submitEntry);
+    const payload = buildSavePayload({
+      submitEntry: options?.submitEntry,
+      recordAdvanceOnly: options?.recordAdvanceOnly,
+    });
 
     const url =
       mode === "edit" && voucherId
@@ -622,6 +693,30 @@ export function DriverVoucherForm({
   async function transitionVoucher(toStatus: VoucherStatus, note?: string) {
     if (!voucherId) throw new Error("Voucher ID required");
     await transitionVoucherById(voucherId, toStatus, note);
+  }
+
+  async function submitAdvanceOnly() {
+    if (!form) return;
+    const duit = parseOptionalNumber(form.duitJalan);
+    if (duit == null || !(duit > 0)) {
+      setError(t("driverExpenses.form.advanceRequiresDuitJalan"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const id = await persistVoucher({
+        recordAdvanceOnly: true,
+        submitEntry: false,
+        stayOnPage: false,
+      });
+      router.push(`/documents/driver-expenses/${id}?date=${date}`);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menyimpan / Save failed");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function submitAndFinalize(
@@ -951,7 +1046,10 @@ export function DriverVoucherForm({
             : VOUCHER_LABELS.newVoucher}
         </h2>
         {mode === "edit" && (
-          <VoucherStatusBadge status={workflow.status} />
+          <VoucherStatusBadge
+            status={workflow.status}
+            advancePending={advancePendingLabel}
+          />
         )}
       </div>
 
@@ -1519,6 +1617,22 @@ export function DriverVoucherForm({
             )}
 
             <div className="flex flex-wrap gap-2">
+              {showAdvanceOnlyButton && (
+                <Button
+                  type="button"
+                  disabled={workflowBusyAny}
+                  variant="outline"
+                  className="border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100"
+                  onClick={() => void submitAdvanceOnly()}
+                  title={t("driverExpenses.form.saveAdvanceOnlyHint")}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("driverExpenses.form.saveAdvanceOnly")
+                  )}
+                </Button>
+              )}
               {showFinalizeButtons && (
                 <>
                   <Button
@@ -1560,6 +1674,12 @@ export function DriverVoucherForm({
                 {VOUCHER_LABELS.batal}
               </Link>
             </div>
+
+            {showAdvanceOnlyButton && (
+              <p className="text-xs text-amber-900/80">
+                {t("driverExpenses.form.saveAdvanceOnlyHint")}
+              </p>
+            )}
 
             {showFinalizeButtons && showFlagForm && (
               <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50/50 p-3">

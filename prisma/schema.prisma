@@ -1193,11 +1193,14 @@ model DriverVoucher {
   costAppliedAt      DateTime? @map("cost_applied_at")
   clerkNote          String?  @map("clerk_note")
   reviewNote         String?  @map("review_note")
+  /** Linked MYR Cash Book Payment Voucher created on advance; replaced on settle. */
+  cashBookPaymentVoucherId String? @unique @map("cash_book_payment_voucher_id") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   changeLogs DriverVoucherChangeLog[]
   marketActuals DriverVoucherMarketActual[]
+  cashBookPaymentVoucher CashBookPaymentVoucher? @relation(fields: [cashBookPaymentVoucherId], references: [id], onDelete: SetNull)
 
   @@unique([tripId, tripSource])
   @@index([status, tripDate(sort: Desc)])
@@ -1618,6 +1621,7 @@ model CashBookPaymentVoucher {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   lines CashBookPaymentVoucherLine[]
+  driverVoucher DriverVoucher?
 
   @@index([voucherDate])
   @@index([book])

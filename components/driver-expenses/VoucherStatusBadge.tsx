@@ -17,6 +17,9 @@ const STATUS_CLASS: Record<VoucherStatus | "none", string> = {
   rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
+const ADVANCE_PENDING_CLASS =
+  "bg-amber-50 text-amber-950 border-amber-300";
+
 const STATUS_LABEL_KEYS: Record<VoucherStatus | "none", MessageKey> = {
   none: "driverExpenses.status.notEntered",
   draft: "driverExpenses.status.draft",
@@ -29,9 +32,12 @@ const STATUS_LABEL_KEYS: Record<VoucherStatus | "none", MessageKey> = {
 
 export function VoucherStatusBadge({
   status,
+  advancePending = false,
   className,
 }: {
   status: string;
+  /** draft + Duit Jalan + empty Actuals → show advance-pending label. */
+  advancePending?: boolean;
   className?: string;
 }) {
   const { t } = useT();
@@ -42,16 +48,20 @@ export function VoucherStatusBadge({
         ? status
         : "draft";
 
+  const showAdvance = key === "draft" && advancePending;
+
   return (
     <Badge
       variant="outline"
       className={cn(
         "whitespace-nowrap font-normal",
-        STATUS_CLASS[key],
+        showAdvance ? ADVANCE_PENDING_CLASS : STATUS_CLASS[key],
         className
       )}
     >
-      {t(STATUS_LABEL_KEYS[key])}
+      {showAdvance
+        ? t("driverExpenses.status.advancePending")
+        : t(STATUS_LABEL_KEYS[key])}
     </Badge>
   );
 }

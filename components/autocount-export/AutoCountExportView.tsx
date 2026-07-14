@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArInvoiceFreightExportPanel } from "@/components/ar-invoice-export/ArInvoiceFreightExportPanel";
 import { ArInvoiceCrateReturnExportPanel } from "@/components/ar-invoice-export/ArInvoiceCrateReturnExportPanel";
 import { ArInvoiceCharterExportPanel } from "@/components/ar-invoice-export/ArInvoiceCharterExportPanel";
+import { CashBookPvAutocountExportPanel } from "@/components/autocount-export/CashBookPvAutocountExportPanel";
 import { PayrollJvExportPanel } from "@/components/driver-payroll/PayrollJvExportPanel";
 import { YearMonthFields } from "@/components/shared/YearMonthFields";
 
@@ -19,7 +20,7 @@ export function AutoCountExportView() {
           AutoCount 导出 Export
         </h2>
         <p className="mt-1 text-sm text-haidee-muted">
-          集中导出 AR 销售发票与司机薪资 JV，供 AutoCount 导入。
+          集中导出 AR 销售发票、现金簿付款凭证与司机薪资 JV，供 AutoCount 导入。
         </p>
       </div>
 
@@ -28,6 +29,8 @@ export function AutoCountExportView() {
       <ArInvoiceCrateReturnExportPanel />
 
       <ArInvoiceCharterExportPanel />
+
+      <CashBookPvAutocountExportPanel />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end gap-4">

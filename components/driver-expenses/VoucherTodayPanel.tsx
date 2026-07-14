@@ -99,7 +99,10 @@ export function VoucherTodayPanel({
                       )}
                     </TableCell>
                     <TableCell>
-                      <VoucherStatusBadge status={row.status} />
+                      <VoucherStatusBadge
+                        status={row.status}
+                        advancePending={row.advancePending}
+                      />
                     </TableCell>
                     <TableCell>
                       {actionLabel ? (

@@ -9,6 +9,7 @@ import {
   applyCharterVoucherCostActuals,
   clearCharterVoucherCostActuals,
 } from "@/lib/driver-expense/charter-voucher-cost-apply";
+import { syncDriverVoucherSettlementCashBook } from "@/lib/cash-book/driver-voucher-cash-book";
 import {
   isVoucherStatus,
   type VoucherStatus,
@@ -341,27 +342,41 @@ export async function transitionVoucherStatus(input: {
       note: input.note,
     });
 
+    let voucher;
     if (isVoucherCostEnforced()) {
       if (existing.tripSource === "charter") {
         if (input.toStatus === "confirmed" || input.toStatus === "approved") {
-          return applyCharterVoucherCostActuals(input.voucherId, tx);
+          voucher = await applyCharterVoucherCostActuals(input.voucherId, tx);
+        } else if (input.toStatus === "rejected") {
+          voucher = await clearCharterVoucherCostActuals(input.voucherId, tx);
         }
-        if (input.toStatus === "rejected") {
-          return clearCharterVoucherCostActuals(input.voucherId, tx);
-        }
-      } else {
-        if (input.toStatus === "confirmed" || input.toStatus === "approved") {
-          return applyVoucherCostActuals(input.voucherId, tx);
-        }
-        if (input.toStatus === "rejected") {
-          return clearVoucherCostActuals(input.voucherId, tx);
-        }
+      } else if (
+        input.toStatus === "confirmed" ||
+        input.toStatus === "approved"
+      ) {
+        voucher = await applyVoucherCostActuals(input.voucherId, tx);
+      } else if (input.toStatus === "rejected") {
+        voucher = await clearVoucherCostActuals(input.voucherId, tx);
       }
     }
 
-    return tx.driverVoucher.findUniqueOrThrow({
-      where: { id: input.voucherId },
-    });
+    if (
+      input.toStatus === "confirmed" ||
+      input.toStatus === "pending_review"
+    ) {
+      await syncDriverVoucherSettlementCashBook({
+        driverVoucherId: input.voucherId,
+        actorUserId: input.actor.id,
+        tx,
+      });
+    }
+
+    return (
+      voucher ??
+      (await tx.driverVoucher.findUniqueOrThrow({
+        where: { id: input.voucherId },
+      }))
+    );
   }).then((voucher) => {
     invalidatePnlTripsCache();
     return voucher;

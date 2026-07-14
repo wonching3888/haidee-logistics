@@ -5,6 +5,7 @@ import {
   appendVoucherFieldChangeLogs,
   diffVoucherFieldChanges,
 } from "@/lib/driver-voucher-audit";
+import { syncDriverVoucherAdvanceCashBook } from "@/lib/cash-book/driver-voucher-cash-book";
 import {
   applyVoucherStatusTransitionInTx,
   assertActorCanTransition,
@@ -69,7 +70,11 @@ import {
   parseDriverVoucherTripSource,
   type DriverVoucherTripSource,
 } from "@/lib/driver-expense/trip-source";
-import { sumActualBelanja } from "@/lib/driver-expense/voucher-utils";
+import {
+  hasVoucherSettlementActuals,
+  isAdvancePendingSettlement,
+  sumActualBelanja,
+} from "@/lib/driver-expense/voucher-utils";
 import { charterRouteLabel } from "@/lib/charter-pnl";
 
 export const DEFAULT_UNLOADING_RATES: UnloadingRateConfigInput[] = [
@@ -937,6 +942,8 @@ const EDITABLE_VOUCHER_STATUSES = new Set<VoucherStatus>([
 export interface DriverVoucherWriteOptions {
   actor?: VoucherTransitionActor;
   submitEntry?: boolean;
+  /** Persist Duit Jalan only; keep status draft (no clerk_entered / cost apply). */
+  recordAdvanceOnly?: boolean;
 }
 
 type VoucherAmountPatch = Partial<{
@@ -1285,6 +1292,96 @@ export async function nextVoucherNo(tripDateInput?: string) {
   return `${prefix}${String(seq).padStart(3, "0")}`;
 }
 
+function assertAdvanceOnlyInput(
+  input: {
+    duitJalan?: number | null;
+    chopBorderActual?: number | null;
+    parkingActual?: number | null;
+    kpbActual?: number | null;
+    fishCheckActual?: number | null;
+    upahTurunActual?: number | null;
+    upahNaikTongActual?: number | null;
+    minyakMotoEnabled?: boolean;
+    minyakMotoActual?: number | null;
+    otherActual?: number | null;
+    marketActuals?: MarketActualInput[];
+  },
+  tripSource: DriverVoucherTripSource
+) {
+  const duitJalan = input.duitJalan ?? null;
+  if (duitJalan == null || !(duitJalan > 0)) {
+    throw new Error("预支须填写 Duit Jalan / Duit Jalan required for advance");
+  }
+  if (input.marketActuals && input.marketActuals.length > 0) {
+    throw new Error(
+      "仅记录预支时不能填写实际支出 / Advance-only cannot include Actuals"
+    );
+  }
+  if (
+    hasVoucherSettlementActuals(
+      {
+        chopBorderActual: input.chopBorderActual ?? null,
+        parkingActual: input.parkingActual ?? null,
+        kpbActual: input.kpbActual ?? null,
+        fishCheckActual: input.fishCheckActual ?? null,
+        upahTurunActual: input.upahTurunActual ?? null,
+        upahNaikTongActual: input.upahNaikTongActual ?? null,
+        minyakMotoEnabled: input.minyakMotoEnabled ?? false,
+        minyakMotoActual: input.minyakMotoActual ?? null,
+        otherActual: input.otherActual ?? null,
+      },
+      { tripSource }
+    )
+  ) {
+    throw new Error(
+      "仅记录预支时不能填写实际支出 / Advance-only cannot include Actuals"
+    );
+  }
+}
+
+function assertSettlementActualsPresent(
+  input: {
+    chopBorderActual?: number | null;
+    parkingActual?: number | null;
+    kpbActual?: number | null;
+    fishCheckActual?: number | null;
+    upahTurunActual?: number | null;
+    upahNaikTongActual?: number | null;
+    minyakMotoEnabled?: boolean;
+    minyakMotoActual?: number | null;
+    otherActual?: number | null;
+    marketActuals?: MarketActualInput[];
+  },
+  tripSource: DriverVoucherTripSource
+) {
+  const hasMarket =
+    (input.marketActuals ?? []).some(
+      (row) => row.amount != null && Number.isFinite(row.amount)
+    ) ?? false;
+  if (hasMarket) return;
+  if (
+    hasVoucherSettlementActuals(
+      {
+        chopBorderActual: input.chopBorderActual ?? null,
+        parkingActual: input.parkingActual ?? null,
+        kpbActual: input.kpbActual ?? null,
+        fishCheckActual: input.fishCheckActual ?? null,
+        upahTurunActual: input.upahTurunActual ?? null,
+        upahNaikTongActual: input.upahNaikTongActual ?? null,
+        minyakMotoEnabled: input.minyakMotoEnabled ?? false,
+        minyakMotoActual: input.minyakMotoActual ?? null,
+        otherActual: input.otherActual ?? null,
+      },
+      { tripSource }
+    )
+  ) {
+    return;
+  }
+  throw new Error(
+    "确认/送审前须填写实际支出 / Settlement Actuals required before confirm"
+  );
+}
+
 export async function createDriverVoucher(
   input: {
     voucherNo?: string;
@@ -1316,6 +1413,11 @@ export async function createDriverVoucher(
   const suggestion = await suggestVoucherAmounts(input.tripId, tripSource);
   const voucherNo =
     input.voucherNo ?? (await nextVoucherNo(suggestion.tripDate));
+
+  const recordAdvanceOnly = options?.recordAdvanceOnly === true;
+  if (recordAdvanceOnly) {
+    assertAdvanceOnlyInput(input, tripSource);
+  }
 
   const draft = {
     voucherNo,
@@ -1352,7 +1454,12 @@ export async function createDriverVoucher(
       ? roundMoney(draft.duitJalan - draft.belanja)
       : null;
 
-  const submitEntry = options?.submitEntry ?? true;
+  const submitEntry = recordAdvanceOnly
+    ? false
+    : (options?.submitEntry ?? true);
+  if (submitEntry) {
+    assertSettlementActualsPresent(input, tripSource);
+  }
   const actor = options?.actor;
 
   const voucher = await prisma.$transaction(async (tx) => {
@@ -1387,6 +1494,18 @@ export async function createDriverVoucher(
       upahNaikTongActual: result.upahNaikTongActual,
     });
   }
+
+  if (recordAdvanceOnly && actor?.id) {
+    await syncDriverVoucherAdvanceCashBook({
+      driverVoucherId: result.id,
+      actorUserId: actor.id,
+    });
+    const refreshed = await prisma.driverVoucher.findUnique({
+      where: { id: result.id },
+    });
+    if (refreshed) result = refreshed;
+  }
+
   return result;
 }
 
@@ -1403,6 +1522,18 @@ export async function updateDriverVoucher(
   const { marketActuals, ...voucherPatch } = input;
   const merged = { ...existing, ...voucherPatch };
   const tripSource = parseDriverVoucherTripSource(existing.tripSource);
+
+  const recordAdvanceOnly = options?.recordAdvanceOnly === true;
+  if (recordAdvanceOnly) {
+    assertAdvanceOnlyInput(
+      {
+        ...merged,
+        marketActuals,
+      },
+      tripSource
+    );
+  }
+
   const belanja = voucherBelanja(merged, tripSource);
   const baki =
     merged.duitJalan != null
@@ -1410,9 +1541,20 @@ export async function updateDriverVoucher(
       : null;
 
   const actor = options?.actor;
-  const submitEntry =
-    options?.submitEntry ??
-    (existing.status === "draft" || existing.status === "rejected");
+  const submitEntry = recordAdvanceOnly
+    ? false
+    : (options?.submitEntry ??
+      (existing.status === "draft" || existing.status === "rejected"));
+
+  if (submitEntry) {
+    assertSettlementActualsPresent(
+      {
+        ...merged,
+        marketActuals,
+      },
+      tripSource
+    );
+  }
 
   const fieldChanges = diffVoucherFieldChanges(existing, voucherPatch);
 
@@ -1464,6 +1606,18 @@ export async function updateDriverVoucher(
       upahNaikTongActual: result.upahNaikTongActual,
     });
   }
+
+  if (recordAdvanceOnly && actor?.id) {
+    await syncDriverVoucherAdvanceCashBook({
+      driverVoucherId: result.id,
+      actorUserId: actor.id,
+    });
+    const refreshed = await prisma.driverVoucher.findUnique({
+      where: { id: result.id },
+    });
+    if (refreshed) result = refreshed;
+  }
+
   return result;
 }
 
@@ -1749,6 +1903,7 @@ export async function listDriverExpenseTodoItems(): Promise<DriverExpenseTodoIte
       voucherId: voucher.id,
       voucherNo: voucher.voucherNo,
       status: voucher.status,
+      advancePending: isAdvancePendingSettlement(voucher),
       unsettledDays: computeUnsettledDays(tripDate),
     });
   }

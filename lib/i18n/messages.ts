@@ -2518,6 +2518,11 @@ export const MESSAGES = {
     en: "Draft",
     th: "ประมาณการ",
   },
+  "driverExpenses.status.advancePending": {
+    zh: "已预支待结算",
+    en: "Advance pending settlement",
+    th: "เบิกแล้วรอเคลียร์",
+  },
   "driverExpenses.status.clerk_entered": {
     zh: "待确认",
     en: "Pending confirm",
@@ -2617,6 +2622,21 @@ export const MESSAGES = {
     zh: "保存并确认",
     en: "Save & confirm",
     th: "บันทึกและยืนยัน",
+  },
+  "driverExpenses.form.saveAdvanceOnly": {
+    zh: "仅记录预支",
+    en: "Record advance only",
+    th: "บันทึกเฉพาะเงินเบิก",
+  },
+  "driverExpenses.form.saveAdvanceOnlyHint": {
+    zh: "只存 Duit Jalan，状态保持「已预支待结算」。实际支出请回来后再填，用「保存并确认」。",
+    en: "Saves Duit Jalan only and keeps status as advance-pending. Fill Actuals later, then Save & confirm.",
+    th: "บันทึกเฉพาะ Duit Jalan และคงสถานะรอเคลียร์ กรอกยอดจริงภายหลังแล้วกดบันทึกและยืนยัน",
+  },
+  "driverExpenses.form.advanceRequiresDuitJalan": {
+    zh: "预支须填写 Duit Jalan",
+    en: "Duit Jalan is required for advance",
+    th: "ต้องระบุ Duit Jalan",
   },
   "driverExpenses.form.saveFlag": {
     zh: "保存并标记需审核",

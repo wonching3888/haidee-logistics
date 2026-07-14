@@ -3,8 +3,13 @@ import {
   sumActualBelanja,
   sumCharterActualBelanja,
   sumCharterSuggestedAmounts,
+  hasVoucherSettlementActuals,
+  isAdvancePendingSettlement,
 } from "@/lib/driver-expense/voucher-utils";
-import { buildUnenteredTodoHref } from "@/lib/driver-expense/todo-list";
+import {
+  buildUnenteredTodoHref,
+  TODO_VOUCHER_STATUSES,
+} from "@/lib/driver-expense/todo-list";
 import { expenseTripKey } from "@/lib/driver-expense/trip-source";
 
 describe("charter voucher belanja", () => {
@@ -75,5 +80,47 @@ describe("expenseTripKey", () => {
   it("namespaces dispatch and charter trip ids", () => {
     expect(expenseTripKey("same-uuid", "dispatch")).toBe("dispatch:same-uuid");
     expect(expenseTripKey("same-uuid", "charter")).toBe("charter:same-uuid");
+  });
+});
+
+const emptyActuals = {
+  chopBorderActual: null,
+  parkingActual: null,
+  kpbActual: null,
+  fishCheckActual: null,
+  upahTurunActual: null,
+  upahNaikTongActual: null,
+  minyakMotoEnabled: false,
+  minyakMotoActual: null,
+  otherActual: null,
+};
+
+describe("advance pending settlement helpers", () => {
+  it("includes draft in TODO_VOUCHER_STATUSES", () => {
+    expect(TODO_VOUCHER_STATUSES).toContain("draft");
+  });
+
+  it("detects settlement Actual presence", () => {
+    expect(hasVoucherSettlementActuals(emptyActuals)).toBe(false);
+    expect(
+      hasVoucherSettlementActuals({ ...emptyActuals, otherActual: 1 })
+    ).toBe(true);
+  });
+
+  it("labels advance-pending only for draft + duitJalan + empty Actuals", () => {
+    expect(
+      isAdvancePendingSettlement({
+        status: "draft",
+        duitJalan: 200,
+        ...emptyActuals,
+      })
+    ).toBe(true);
+    expect(
+      isAdvancePendingSettlement({
+        status: "draft",
+        duitJalan: null,
+        ...emptyActuals,
+      })
+    ).toBe(false);
   });
 });

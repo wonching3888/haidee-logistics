@@ -1,6 +1,7 @@
 import { subDays } from "date-fns";
 import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 import type { DriverVoucherTripSource } from "@/lib/driver-expense/trip-source";
+import { isAdvancePendingSettlement } from "@/lib/driver-expense/voucher-utils";
 
 export type DriverExpensesTab = "today" | "history";
 
@@ -17,6 +18,7 @@ export interface DriverVoucherListItem {
   duitJalan: number | null;
   belanja: number | null;
   baki: number | null;
+  advancePending?: boolean;
 }
 
 export function normalizeVoucherListItem(
@@ -33,6 +35,15 @@ export function normalizeVoucherListItem(
     duitJalan: number | null;
     belanja: number | null;
     baki: number | null;
+    chopBorderActual?: number | null;
+    parkingActual?: number | null;
+    kpbActual?: number | null;
+    fishCheckActual?: number | null;
+    upahTurunActual?: number | null;
+    upahNaikTongActual?: number | null;
+    minyakMotoEnabled?: boolean;
+    minyakMotoActual?: number | null;
+    otherActual?: number | null;
   }
 ): DriverVoucherListItem {
   const tripDate =
@@ -41,7 +52,34 @@ export function normalizeVoucherListItem(
       : toDateInputValue(row.tripDate);
   const tripSource: DriverVoucherTripSource =
     row.tripSource === "charter" ? "charter" : "dispatch";
-  return { ...row, tripDate, tripSource };
+  const advancePending = isAdvancePendingSettlement({
+    status: row.status,
+    duitJalan: row.duitJalan,
+    chopBorderActual: row.chopBorderActual ?? null,
+    parkingActual: row.parkingActual ?? null,
+    kpbActual: row.kpbActual ?? null,
+    fishCheckActual: row.fishCheckActual ?? null,
+    upahTurunActual: row.upahTurunActual ?? null,
+    upahNaikTongActual: row.upahNaikTongActual ?? null,
+    minyakMotoEnabled: row.minyakMotoEnabled ?? false,
+    minyakMotoActual: row.minyakMotoActual ?? null,
+    otherActual: row.otherActual ?? null,
+  });
+  return {
+    id: row.id,
+    voucherNo: row.voucherNo,
+    tripId: row.tripId,
+    tripSource,
+    tripDate,
+    lorry: row.lorry,
+    driverName: row.driverName,
+    route: row.route,
+    status: row.status,
+    duitJalan: row.duitJalan,
+    belanja: row.belanja,
+    baki: row.baki,
+    advancePending,
+  };
 }
 
 export function defaultHistoryDateRange(endDate?: string): {
@@ -81,6 +119,7 @@ export interface ExpenseTripRow {
   charterNo: string | null;
   voucherId?: string;
   status: DispatchTripStatus;
+  advancePending?: boolean;
 }
 
 /** @deprecated Use ExpenseTripRow */
@@ -107,6 +146,7 @@ export function buildExpenseTripRows(
       charterNo: t.charterNo ?? null,
       voucherId: voucher?.id,
       status: voucher?.status ?? "none",
+      advancePending: voucher?.advancePending,
     };
   });
 }

@@ -42,6 +42,19 @@ export function parsePaymentVoucherMethod(
   return normalized as PaymentVoucherMethod;
 }
 
+/** Drop fully blank rows (no account and amount empty/0) before validation. */
+export function filterBlankPaymentVoucherLines(
+  lines: PaymentVoucherLineInput[] | undefined
+): PaymentVoucherLineInput[] {
+  if (!lines) return [];
+  return lines.filter((row) => {
+    const accountCode = row.accountCode?.trim() ?? "";
+    const amount = Number(row.amount);
+    const amountEmpty = !Number.isFinite(amount) || amount === 0;
+    return !(accountCode === "" && amountEmpty);
+  });
+}
+
 export function normalizePaymentVoucherLines(
   book: CashBookLedger,
   lines: PaymentVoucherLineInput[] | undefined

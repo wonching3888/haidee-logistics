@@ -50,10 +50,11 @@ export async function POST(request: Request) {
       );
       return NextResponse.json({ suggestion, tripSource });
     }
-    const { submitEntry, ...createInput } = body ?? {};
+    const { submitEntry, recordAdvanceOnly, ...createInput } = body ?? {};
     const voucher = await createDriverVoucher(createInput, {
       actor: { id: user.id, role: user.role },
       submitEntry,
+      recordAdvanceOnly,
     });
     return NextResponse.json({ voucher });
   } catch (error) {

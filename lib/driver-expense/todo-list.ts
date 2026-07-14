@@ -7,6 +7,7 @@ import type { DriverVoucherTripSource } from "@/lib/driver-expense/trip-source";
 export const TODO_UNSETTLED_ALERT_DAYS = 7;
 
 export const TODO_VOUCHER_STATUSES = [
+  "draft",
   "clerk_entered",
   "pending_review",
   "rejected",
@@ -30,6 +31,11 @@ export interface DriverExpenseTodoItem {
   voucherNo?: string;
   /** `unentered` or a voucher workflow status. */
   status: string;
+  /**
+   * When status is draft with Duit Jalan and no Actuals, show "已预支待结算"
+   * instead of the generic draft ("估算") label.
+   */
+  advancePending?: boolean;
   unsettledDays: number;
 }
 

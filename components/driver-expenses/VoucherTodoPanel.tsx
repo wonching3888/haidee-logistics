@@ -34,7 +34,12 @@ function todoStatusBadge(item: DriverExpenseTodoItem) {
   if (item.kind === "unentered") {
     return <VoucherStatusBadge status="none" />;
   }
-  return <VoucherStatusBadge status={item.status} />;
+  return (
+    <VoucherStatusBadge
+      status={item.status}
+      advancePending={item.advancePending}
+    />
+  );
 }
 
 function todoReferenceNo(item: DriverExpenseTodoItem): string {
@@ -61,6 +66,11 @@ function todoActionLabel(
     return t("driverExpenses.action.review");
   }
   if (item.status === "clerk_entered" || item.status === "rejected") {
+    return canWrite
+      ? t("driverExpenses.action.continue")
+      : t("driverExpenses.action.view");
+  }
+  if (item.status === "draft") {
     return canWrite
       ? t("driverExpenses.action.continue")
       : t("driverExpenses.action.view");

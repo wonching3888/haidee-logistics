@@ -179,7 +179,10 @@ export function VoucherHistoryPanel({
                     )}
                   </TableCell>
                   <TableCell>
-                    <VoucherStatusBadge status={v.status} />
+                    <VoucherStatusBadge
+                      status={v.status}
+                      advancePending={v.advancePending}
+                    />
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {v.belanja != null ? formatMyr(v.belanja) : "—"}

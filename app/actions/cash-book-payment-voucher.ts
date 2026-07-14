@@ -7,6 +7,7 @@ import { canAccessCashBook, canWriteCashBook } from "@/lib/auth-roles";
 import { nextPaymentVoucherNo } from "@/lib/cash-book/payment-voucher-no";
 import {
   assertCashBookLedger,
+  filterBlankPaymentVoucherLines,
   normalizePaymentVoucherLines,
   parsePaymentVoucherMethod,
   PaymentVoucherValidationError,
@@ -153,6 +154,10 @@ export async function previewNextPaymentVoucherNo(
   return nextPaymentVoucherNo(date);
 }
 
+export type SavePaymentVoucherResult =
+  | { ok: true; data: PaymentVoucherDetail }
+  | { ok: false; error: string };
+
 export async function savePaymentVoucher(input: {
   id?: string;
   book: string;
@@ -167,51 +172,109 @@ export async function savePaymentVoucher(input: {
   preparedBy?: string | null;
   approvedBy?: string | null;
   lines: PaymentVoucherLineInput[];
-}) {
-  const user = await requireCashBookWrite();
-  const book = assertCashBookLedger(input.book);
-  const voucherDate = parseDateInput(input.voucherDate);
-  const paidTo = input.paidTo.trim();
-  if (!paidTo) throw new PaymentVoucherValidationError("付款对象不能为空");
+}): Promise<SavePaymentVoucherResult> {
+  try {
+    const user = await requireCashBookWrite();
+    const book = assertCashBookLedger(input.book);
+    const voucherDate = parseDateInput(input.voucherDate);
+    const paidTo = input.paidTo.trim();
+    if (!paidTo) {
+      return { ok: false, error: "付款对象不能为空" };
+    }
 
-  const paymentMethod = parsePaymentVoucherMethod(input.paymentMethod);
-  validateChequeFields({
-    paymentMethod,
-    checkNo: input.checkNo,
-    checkDate: input.checkDate,
-  });
-
-  const normalizedLines = normalizePaymentVoucherLines(book, input.lines);
-  const totalAmount = sumPaymentVoucherLines(normalizedLines);
-  const status = input.confirmed ? "confirmed" : "draft";
-  const checkNo =
-    paymentMethod === "CHEQUE" ? input.checkNo?.trim() || null : null;
-  const checkDate =
-    paymentMethod === "CHEQUE" && input.checkDate
-      ? parseDateInput(input.checkDate)
-      : null;
-  const dueDate = input.dueDate?.trim()
-    ? parseDateInput(input.dueDate)
-    : null;
-
-  const signatureData = {
-    payeeSignature: input.payeeSignature?.trim() || null,
-    preparedBy: input.preparedBy?.trim() || null,
-    approvedBy: input.approvedBy?.trim() || null,
-  };
-
-  if (input.id) {
-    const existing = await prisma.cashBookPaymentVoucher.findUnique({
-      where: { id: input.id },
+    const paymentMethod = parsePaymentVoucherMethod(input.paymentMethod);
+    validateChequeFields({
+      paymentMethod,
+      checkNo: input.checkNo,
+      checkDate: input.checkDate,
     });
-    if (!existing) throw new Error("凭证不存在");
 
-    const confirmingNow =
-      status === "confirmed" && existing.status !== "confirmed";
-    await prisma.$transaction(async (tx) => {
-      await tx.cashBookPaymentVoucher.update({
+    const filteredLines = filterBlankPaymentVoucherLines(input.lines);
+    const normalizedLines = normalizePaymentVoucherLines(book, filteredLines);
+    const totalAmount = sumPaymentVoucherLines(normalizedLines);
+    const status = input.confirmed ? "confirmed" : "draft";
+    const checkNo =
+      paymentMethod === "CHEQUE" ? input.checkNo?.trim() || null : null;
+    const checkDate =
+      paymentMethod === "CHEQUE" && input.checkDate
+        ? parseDateInput(input.checkDate)
+        : null;
+    const dueDate = input.dueDate?.trim()
+      ? parseDateInput(input.dueDate)
+      : null;
+
+    const signatureData = {
+      payeeSignature: input.payeeSignature?.trim() || null,
+      preparedBy: input.preparedBy?.trim() || null,
+      approvedBy: input.approvedBy?.trim() || null,
+    };
+
+    if (input.id) {
+      const existing = await prisma.cashBookPaymentVoucher.findUnique({
         where: { id: input.id },
+      });
+      if (!existing) return { ok: false, error: "凭证不存在" };
+
+      const confirmingNow =
+        status === "confirmed" && existing.status !== "confirmed";
+      await prisma.$transaction(async (tx) => {
+        await tx.cashBookPaymentVoucher.update({
+          where: { id: input.id },
+          data: {
+            book,
+            voucherDate,
+            paidTo,
+            paymentMethod,
+            checkNo,
+            checkDate,
+            dueDate,
+            status,
+            confirmedAt:
+              status === "confirmed"
+                ? confirmingNow
+                  ? new Date()
+                  : existing.confirmedAt
+                : null,
+            confirmedBy:
+              status === "confirmed"
+                ? confirmingNow
+                  ? user.id
+                  : existing.confirmedBy
+                : null,
+            totalAmount,
+            ...signatureData,
+          },
+        });
+        await tx.cashBookPaymentVoucherLine.deleteMany({
+          where: { voucherId: input.id },
+        });
+        await tx.cashBookPaymentVoucherLine.createMany({
+          data: normalizedLines.map((line, index) => ({
+            id: randomUUID(),
+            voucherId: input.id!,
+            lineOrder: index,
+            accountCode: line.accountCode,
+            accountName: line.accountName,
+            particulars: line.particulars,
+            amount: line.amount,
+          })),
+        });
+      });
+
+      revalidatePaymentVoucher(input.id);
+      const updated = await getPaymentVoucher(input.id);
+      if (!updated) return { ok: false, error: "保存失败" };
+      return { ok: true, data: updated };
+    }
+
+    const voucherNo = await nextPaymentVoucherNo(voucherDate);
+    const id = randomUUID();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.cashBookPaymentVoucher.create({
         data: {
+          id,
+          voucherNo,
           book,
           voucherDate,
           paidTo,
@@ -220,79 +283,35 @@ export async function savePaymentVoucher(input: {
           checkDate,
           dueDate,
           status,
-          confirmedAt:
-            status === "confirmed"
-              ? confirmingNow
-                ? new Date()
-                : existing.confirmedAt
-              : null,
-          confirmedBy:
-            status === "confirmed"
-              ? confirmingNow
-                ? user.id
-                : existing.confirmedBy
-              : null,
+          confirmedAt: status === "confirmed" ? new Date() : null,
+          confirmedBy: status === "confirmed" ? user.id : null,
           totalAmount,
+          createdBy: user.id,
           ...signatureData,
+          lines: {
+            create: normalizedLines.map((line, index) => ({
+              id: randomUUID(),
+              lineOrder: index,
+              accountCode: line.accountCode,
+              accountName: line.accountName,
+              particulars: line.particulars,
+              amount: line.amount,
+            })),
+          },
         },
-      });
-      await tx.cashBookPaymentVoucherLine.deleteMany({
-        where: { voucherId: input.id },
-      });
-      await tx.cashBookPaymentVoucherLine.createMany({
-        data: normalizedLines.map((line, index) => ({
-          id: randomUUID(),
-          voucherId: input.id!,
-          lineOrder: index,
-          accountCode: line.accountCode,
-          accountName: line.accountName,
-          particulars: line.particulars,
-          amount: line.amount,
-        })),
       });
     });
 
-    revalidatePaymentVoucher(input.id);
-    return getPaymentVoucher(input.id);
+    revalidatePaymentVoucher(id);
+    const created = await getPaymentVoucher(id);
+    if (!created) return { ok: false, error: "保存失败" };
+    return { ok: true, data: created };
+  } catch (e) {
+    if (e instanceof PaymentVoucherValidationError) {
+      return { ok: false, error: e.message };
+    }
+    throw e;
   }
-
-  const voucherNo = await nextPaymentVoucherNo(voucherDate);
-  const id = randomUUID();
-
-  await prisma.$transaction(async (tx) => {
-    await tx.cashBookPaymentVoucher.create({
-      data: {
-        id,
-        voucherNo,
-        book,
-        voucherDate,
-        paidTo,
-        paymentMethod,
-        checkNo,
-        checkDate,
-        dueDate,
-        status,
-        confirmedAt: status === "confirmed" ? new Date() : null,
-        confirmedBy: status === "confirmed" ? user.id : null,
-        totalAmount,
-        createdBy: user.id,
-        ...signatureData,
-        lines: {
-          create: normalizedLines.map((line, index) => ({
-            id: randomUUID(),
-            lineOrder: index,
-            accountCode: line.accountCode,
-            accountName: line.accountName,
-            particulars: line.particulars,
-            amount: line.amount,
-          })),
-        },
-      },
-    });
-  });
-
-  revalidatePaymentVoucher(id);
-  return getPaymentVoucher(id);
 }
 
 export async function deletePaymentVoucher(id: string) {
