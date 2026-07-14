@@ -493,6 +493,11 @@ export const THAI_COST_MESSAGES = {
     en: "Amount (THB)",
     th: "จำนวน (THB)",
   },
+  "thaiCost.sadaoHandling.openPaymentVoucher": {
+    zh: "去开凭证",
+    en: "Open PV",
+    th: "เปิดใบสำคัญจ่าย",
+  },
   "thaiCost.sadaoHandling.colDayTotal": {
     zh: "当日总成本 (THB)",
     en: "Day total (THB)",

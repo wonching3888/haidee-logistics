@@ -127,6 +127,11 @@ export const MAIN_NAV_FINANCIAL_CASH_BOOK_THB: MainNavLink = {
   messageKey: "nav.cashBookThb",
 };
 
+export const MAIN_NAV_FINANCIAL_THAI_SETTLEMENT: MainNavLink = {
+  href: "/financial/cash-book/thai-settlement",
+  messageKey: "nav.thaiCashBookSettlement",
+};
+
 export const MAIN_NAV_FINANCIAL_CASH_BOOK_MYR: MainNavLink = {
   href: "/financial/cash-book/ledger/myr",
   messageKey: "nav.cashBookMyr",
@@ -229,6 +234,7 @@ export const MAIN_NAV_FINANCIAL_CONTROL: MainNavGroup = {
     MAIN_NAV_FINANCIAL_BANK_RECONCILIATION,
     MAIN_NAV_FINANCIAL_PAYMENT_VOUCHER,
     MAIN_NAV_FINANCIAL_RECEIPT_VOUCHER,
+    MAIN_NAV_FINANCIAL_THAI_SETTLEMENT,
     MAIN_NAV_FINANCIAL_CASH_BOOK_THB,
     MAIN_NAV_FINANCIAL_CASH_BOOK_MYR,
     MAIN_NAV_FINANCIAL_AUTOCOUNT_EXPORT,

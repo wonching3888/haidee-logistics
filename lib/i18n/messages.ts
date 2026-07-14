@@ -232,6 +232,11 @@ export const MESSAGES = {
     en: "THB Cash Book",
     th: "สมุดเงินสด THB",
   },
+  "nav.thaiCashBookSettlement": {
+    zh: "THB结账待办",
+    en: "THB Settlement",
+    th: "รายการค้างชำระ THB",
+  },
   "nav.cashBookMyr": {
     zh: "MYR账本明细",
     en: "MYR Cash Book",

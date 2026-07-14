@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
   previewNextPaymentVoucherNo,
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   cashBookAccountsForLedger,
+  isCashBookLedger,
   PAYMENT_VOUCHER_METHODS,
   type CashBookLedger,
   type PaymentVoucherMethod,
@@ -45,6 +46,21 @@ function linesFromVoucher(v: PaymentVoucherDetail): LineFormRow[] {
   }));
 }
 
+function linesFromPrefill(search: URLSearchParams): LineFormRow[] | null {
+  const particulars = search.get("particulars")?.trim() ?? "";
+  const amount = search.get("amount")?.trim() ?? "";
+  const accountCode = search.get("accountCode")?.trim() ?? "";
+  if (!particulars && !amount && !accountCode) return null;
+  return [
+    {
+      key: crypto.randomUUID(),
+      accountCode,
+      particulars,
+      amount,
+    },
+  ];
+}
+
 export function PaymentVoucherFormView({
   existing,
   canWrite,
@@ -53,14 +69,24 @@ export function PaymentVoucherFormView({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const today = toDateInputValue(new Date());
 
-  const [book, setBook] = useState<CashBookLedger>(existing?.book ?? "THB");
-  const [voucherDate, setVoucherDate] = useState(existing?.voucherDate ?? today);
+  const prefillBook = searchParams.get("book");
+  const initialBook: CashBookLedger =
+    existing?.book ??
+    (prefillBook && isCashBookLedger(prefillBook) ? prefillBook : "THB");
+
+  const [book, setBook] = useState<CashBookLedger>(initialBook);
+  const [voucherDate, setVoucherDate] = useState(
+    existing?.voucherDate ?? searchParams.get("voucherDate") ?? today
+  );
   const [previewNo, setPreviewNo] = useState(existing?.voucherNo ?? "");
-  const [paidTo, setPaidTo] = useState(existing?.paidTo ?? "");
+  const [paidTo, setPaidTo] = useState(
+    existing?.paidTo ?? searchParams.get("paidTo") ?? ""
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentVoucherMethod>(
     (existing?.paymentMethod as PaymentVoucherMethod) ?? "CASH"
   );
@@ -73,9 +99,12 @@ export function PaymentVoucherFormView({
   );
   const [preparedBy, setPreparedBy] = useState(existing?.preparedBy ?? "");
   const [approvedBy, setApprovedBy] = useState(existing?.approvedBy ?? "");
-  const [lines, setLines] = useState<LineFormRow[]>(
-    existing ? linesFromVoucher(existing) : [emptyLine(), emptyLine()]
-  );
+  const [lines, setLines] = useState<LineFormRow[]>(() => {
+    if (existing) return linesFromVoucher(existing);
+    const fromQuery = linesFromPrefill(searchParams);
+    if (fromQuery) return fromQuery;
+    return [emptyLine(), emptyLine()];
+  });
 
   const accounts = useMemo(() => cashBookAccountsForLedger(book), [book]);
 

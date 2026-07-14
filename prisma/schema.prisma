@@ -1420,8 +1420,11 @@ model ThaiDriverTripDaily {
   createdBy         String   @map("created_by") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+  /** Linked THB Cash Book PV (6500 trip wages); null = unsettled. */
+  cashBookPaymentVoucherId String? @unique @map("cash_book_payment_voucher_id") @db.Uuid
 
   driver ThaiDriver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  cashBookPaymentVoucher CashBookPaymentVoucher? @relation(fields: [cashBookPaymentVoucherId], references: [id], onDelete: SetNull)
 
   @@unique([date, driverId])
   @@index([date])
@@ -1545,8 +1548,11 @@ model SadaoCrateHandlingDaily {
   createdBy            String   @map("created_by") @db.Uuid
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
+  /** Linked THB Cash Book PV (6502 handling commission only; excludes other expenses). */
+  cashBookPaymentVoucherId String? @unique @map("cash_book_payment_voucher_id") @db.Uuid
 
   otherExpenses SadaoHandlingOtherExpense[]
+  cashBookPaymentVoucher CashBookPaymentVoucher? @relation(fields: [cashBookPaymentVoucherId], references: [id], onDelete: SetNull)
 
   @@map("sadao_crate_handling_daily")
 }
@@ -1578,6 +1584,10 @@ model SongkhlaCrateHandlingDaily {
   createdBy          String   @map("created_by") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
+  /** Linked THB Cash Book PV (6502 handling commission). */
+  cashBookPaymentVoucherId String? @unique @map("cash_book_payment_voucher_id") @db.Uuid
+
+  cashBookPaymentVoucher CashBookPaymentVoucher? @relation(fields: [cashBookPaymentVoucherId], references: [id], onDelete: SetNull)
 
   @@map("songkhla_crate_handling_daily")
 }
@@ -1594,6 +1604,10 @@ model PattaniCrateHandlingDaily {
   createdBy String   @map("created_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  /** Linked THB Cash Book PV (6502 handling commission). */
+  cashBookPaymentVoucherId String? @unique @map("cash_book_payment_voucher_id") @db.Uuid
+
+  cashBookPaymentVoucher CashBookPaymentVoucher? @relation(fields: [cashBookPaymentVoucherId], references: [id], onDelete: SetNull)
 
   @@map("pattani_crate_handling_daily")
 }
@@ -1622,6 +1636,10 @@ model CashBookPaymentVoucher {
 
   lines CashBookPaymentVoucherLine[]
   driverVoucher DriverVoucher?
+  sadaoHandlingDaily SadaoCrateHandlingDaily?
+  songkhlaHandlingDaily SongkhlaCrateHandlingDaily?
+  pattaniHandlingDaily PattaniCrateHandlingDaily?
+  thaiDriverTripDaily ThaiDriverTripDaily?
 
   @@index([voucherDate])
   @@index([book])

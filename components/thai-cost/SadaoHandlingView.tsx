@@ -32,6 +32,7 @@ import {
 import { formatDisplay } from "@/lib/date-utils";
 import type { HolidayRateInfo } from "@/lib/thai-cost/holiday";
 import type { SadaoHandlingOtherExpenseInput } from "@/lib/thai-cost/sadao-handling-expenses";
+import { buildThbPaymentVoucherPrefillHref } from "@/lib/cash-book/payment-voucher-prefill";
 
 interface SadaoHandlingViewProps {
   year: number;
@@ -515,7 +516,30 @@ export function SadaoHandlingView({
                         }
                       />
                     </label>
-                    <div className="flex items-end">
+                    <div className="flex items-end gap-1">
+                      {(() => {
+                        const amt = Number(row.amountThb);
+                        const desc = row.description.trim();
+                        const canOpen =
+                          desc.length > 0 &&
+                          Number.isFinite(amt) &&
+                          amt > 0;
+                        return canOpen ? (
+                          <Link
+                            href={buildThbPaymentVoucherPrefillHref({
+                              voucherDate: form.date,
+                              particulars: desc,
+                              amountThb: amt,
+                              paidTo: "SADAO 其他开销",
+                            })}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 items-center rounded-md border border-haidee-border px-2 text-xs text-haidee-blue hover:bg-slate-50"
+                          >
+                            {tLocal("thaiCost.sadaoHandling.openPaymentVoucher")}
+                          </Link>
+                        ) : null;
+                      })()}
                       <Button
                         type="button"
                         variant="ghost"
