@@ -7,13 +7,15 @@ export interface CashBookAccount {
   name: string;
 }
 
-/** THB Cash Book (account 3201-0000) — 24 accounts per accounting chart (2026-07-09). */
+/** THB Cash Book — chart 2026-07-09 + 6426/9129 + 3201 TB cashier (2026-07-14). */
 export const CASH_BOOK_THB_ACCOUNTS: readonly CashBookAccount[] = [
+  { code: "3201-0000", name: "CASH IN HAND - HD (TB) CASHIER" },
   { code: "3202-0000", name: "CASH IN HAND - HD (RM) CASHIER" },
   { code: "6412-0000", name: "UPKEEP OF TYRE" },
   { code: "6416-0000", name: "CASH FUEL" },
   { code: "6420-0000", name: "RENTAL OF LORRY" },
   { code: "6425-0000", name: "THAI TOLL" },
+  { code: "6426-0000", name: "THAI SK OFFICE EXP" },
   { code: "6500-0000", name: "THAI DRIVER TRIP WAGES(PAY DAILY)" },
   { code: "6501-0000", name: "THAI DRIVER SALARY(BASIC-ONCE MTHLY)" },
   { code: "6502-0000", name: "THAI G.WORKER WAGES(THB3/THB4) LOAD FISH" },
@@ -29,6 +31,7 @@ export const CASH_BOOK_THB_ACCOUNTS: readonly CashBookAccount[] = [
   { code: "9126-0000", name: "WASH THE RAFT" },
   { code: "9127-0000", name: "THAI WASH LORRY" },
   { code: "9128-0000", name: "THAI CASH PURCHASE" },
+  { code: "9129-0000", name: "PRAWN PERMIT" },
   { code: "9130-0000", name: "THAI RENT ROOM" },
   { code: "9131-0000", name: "THAI POLICE FEE" },
   { code: "9132-0000", name: "WEIGHT CHARGES" },
