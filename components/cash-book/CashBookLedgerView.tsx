@@ -161,15 +161,25 @@ export function CashBookLedgerView({
         </div>
       )}
 
-      <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+      <WideTableScrollArea
+        heightOffset={260}
+        pinFirstColumn={false}
+        tableClassName="!min-w-0 w-full table-fixed"
+      >
         <TableHeader>
           <TableRow>
-            <TableHead>日期 Date</TableHead>
-            <TableHead>编号 No.</TableHead>
-            <TableHead>说明 Description</TableHead>
-            <TableHead className="text-right">DEBIT 支出</TableHead>
-            <TableHead className="text-right">CREDIT 收入</TableHead>
-            <TableHead className="text-right">BALANCE 余额</TableHead>
+            <TableHead className="w-[6.5rem] whitespace-nowrap">日期 Date</TableHead>
+            <TableHead className="w-[9rem] whitespace-nowrap">编号 No.</TableHead>
+            <TableHead className="w-[18rem] max-w-[18rem]">说明 Description</TableHead>
+            <TableHead className="w-[6.5rem] whitespace-nowrap text-right">
+              DEBIT 支出
+            </TableHead>
+            <TableHead className="w-[6.5rem] whitespace-nowrap text-right">
+              CREDIT 收入
+            </TableHead>
+            <TableHead className="w-[7rem] whitespace-nowrap text-right">
+              BALANCE 余额
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -178,10 +188,10 @@ export function CashBookLedgerView({
               key={row.id}
               className={row.kind === "opening" ? "bg-haidee-surface/60" : undefined}
             >
-              <TableCell>
+              <TableCell className="whitespace-nowrap">
                 {row.date ? formatDisplay(row.date) : "—"}
               </TableCell>
-              <TableCell className="font-mono text-sm">
+              <TableCell className="whitespace-nowrap font-mono text-sm">
                 {row.voucherNo ? (
                   <Link
                     href={
@@ -197,14 +207,21 @@ export function CashBookLedgerView({
                   "—"
                 )}
               </TableCell>
-              <TableCell>{row.description}</TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="w-[18rem] max-w-[18rem]">
+                <div
+                  className="truncate text-sm"
+                  title={row.description || undefined}
+                >
+                  {row.description || "—"}
+                </div>
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-right font-mono">
                 {money(row.debit)}
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="whitespace-nowrap text-right font-mono">
                 {money(row.credit)}
               </TableCell>
-              <TableCell className="text-right font-mono font-semibold">
+              <TableCell className="whitespace-nowrap text-right font-mono font-semibold">
                 {money(row.balance)}
               </TableCell>
             </TableRow>

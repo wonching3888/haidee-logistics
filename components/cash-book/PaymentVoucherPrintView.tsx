@@ -87,9 +87,11 @@ export function PaymentVoucherPrintView({
           nameEn="HAI DEE LOGISTICS CO., LTD."
         />
 
-        <h1 className="mt-4 text-center text-lg font-bold">{P.title}</h1>
+        <h1 className="mt-4 text-center text-lg font-bold print:mt-1 print:text-[11pt]">
+          {P.title}
+        </h1>
 
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+        <div className="payment-voucher-meta mt-4 grid gap-2 text-sm sm:grid-cols-2 print:mt-1.5 print:gap-0.5 print:text-[8.5pt]">
           <p>
             <span className="font-medium">{P.voucherNo}:</span>{" "}
             <span className="font-mono">{voucher.voucherNo}</span>
@@ -125,13 +127,13 @@ export function PaymentVoucherPrintView({
           )}
         </div>
 
-        <table className="payment-voucher-table mt-6 w-full border-collapse text-sm">
+        <table className="payment-voucher-table mt-6 w-full border-collapse text-sm print:mt-1.5">
           <thead>
             <tr className="border-b-2 border-black">
-              <th className="py-2 pr-2 text-left align-bottom">
+              <th className="py-2 pr-2 text-left align-bottom print:py-0.5">
                 {P.colParticulars}
               </th>
-              <th className="w-32 py-2 text-right align-bottom whitespace-nowrap">
+              <th className="w-32 py-2 text-right align-bottom whitespace-nowrap print:py-0.5">
                 {P.colAmount} ({voucher.book})
               </th>
             </tr>
@@ -139,49 +141,51 @@ export function PaymentVoucherPrintView({
           <tbody>
             {voucher.lines.map((line) => (
               <tr key={line.id} className="border-b border-gray-300">
-                <td className="py-2 pr-2 align-top break-words">
+                <td className="py-2 pr-2 align-top break-words print:py-0.5">
                   {line.particulars || "—"}
                 </td>
-                <td className="py-2 text-right align-top font-mono whitespace-nowrap">
+                <td className="py-2 text-right align-top font-mono whitespace-nowrap print:py-0.5">
                   {money(line.amount)}
                 </td>
               </tr>
             ))}
             <tr className="border-t-2 border-black font-bold">
-              <td className="py-2 text-right">{P.total}</td>
-              <td className="py-2 text-right font-mono">
+              <td className="py-2 text-right print:py-0.5">{P.total}</td>
+              <td className="py-2 text-right font-mono print:py-0.5">
                 {money(voucher.totalAmount)}
               </td>
             </tr>
           </tbody>
         </table>
 
-        <div className="mt-4 rounded border border-gray-300 bg-gray-50 p-3 text-sm">
+        <div className="payment-voucher-words mt-4 rounded border border-gray-300 bg-gray-50 p-3 text-sm print:mt-1.5 print:p-1.5 print:text-[8.5pt]">
           <p className="font-medium">{P.amountInWords}</p>
-          <p className="payment-voucher-amount-words mt-1 break-words leading-relaxed">
+          <p className="payment-voucher-amount-words mt-1 break-words leading-relaxed print:mt-0.5 print:leading-snug">
             {amountWords}
           </p>
         </div>
 
-        <div className="mt-10 grid grid-cols-3 gap-6 text-center text-sm">
+        <div className="payment-voucher-signatures mt-10 grid grid-cols-3 gap-6 text-center text-sm print:mt-2.5 print:gap-2 print:text-[8pt]">
           <div>
-            <div className="min-h-[3rem] border-b border-black" />
+            <div className="payment-voucher-sig-line min-h-[3rem] border-b border-black print:min-h-[1.35rem]" />
             <p className="mt-1">{P.payeeSignature}</p>
             <p className="text-xs text-gray-600">{voucher.payeeSignature ?? ""}</p>
           </div>
           <div>
-            <div className="min-h-[3rem] border-b border-black" />
+            <div className="payment-voucher-sig-line min-h-[3rem] border-b border-black print:min-h-[1.35rem]" />
             <p className="mt-1">{P.preparedBy}</p>
             <p className="text-xs text-gray-600">{voucher.preparedBy ?? ""}</p>
           </div>
           <div>
-            <div className="min-h-[3rem] border-b border-black" />
+            <div className="payment-voucher-sig-line min-h-[3rem] border-b border-black print:min-h-[1.35rem]" />
             <p className="mt-1">{P.approvedBy}</p>
             <p className="text-xs text-gray-600">{voucher.approvedBy ?? ""}</p>
           </div>
         </div>
 
-        <p className="mt-8 text-xs text-gray-500">{P.footer}</p>
+        <p className="payment-voucher-footer mt-8 text-xs text-gray-500 print:mt-1.5 print:text-[7.5pt]">
+          {P.footer}
+        </p>
       </div>
     </div>
   );
