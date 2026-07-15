@@ -1,12 +1,11 @@
 /**
- * THB Cash Book settlement for Thai handling commissions (6502) and
- * driver trip wages (6500). Generates draft PVs; accountant confirms to post.
+ * THB Cash Book auto-draft sync for Thai handling (6502) and driver trip wages (6500).
  *
- * Handling todos exclude Pattani (SADAO + Songkhla only). Trip wages cover all
- * stations including Pattani / 「其他」drivers.
+ * Triggered silently on clerk save of SADAO/Songkhla handling days and driver-trip
+ * aggregates. Pattani handling is excluded. Accountant confirms via「待确认」only —
+ * opening the draft and saving confirms (no todo checklist).
  *
- * Does NOT touch sadao_handling_other_expenses (manual shortcut only).
- * Does NOT touch MYR driver_vouchers or PNL calc paths.
+ * Does NOT touch sadao_handling_other_expenses, MYR driver_vouchers, or PNL paths.
  */
 
 import { randomUUID } from "crypto";
@@ -14,9 +13,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { findCashBookAccount } from "@/lib/constants/cash-book-accounts";
 import { nextPaymentVoucherNo } from "@/lib/cash-book/payment-voucher-no";
-import {
-  PaymentVoucherValidationError,
-} from "@/lib/cash-book/payment-voucher-lines";
+import { PaymentVoucherValidationError } from "@/lib/cash-book/payment-voucher-lines";
 import { parseDateInput, toDateInputValue } from "@/lib/date-utils";
 import { decimalToNumber } from "@/lib/freight-rates";
 import { prisma } from "@/lib/prisma";
@@ -37,32 +34,6 @@ export const THAI_DRIVER_TRIP_PV_ACCOUNT_CODE = "6500-0000";
 
 export type ThaiHandlingStation = "SADAO" | "SONGKHLA" | "PATTANI";
 
-export type ThaiHandlingTodoItem = {
-  kind: "handling";
-  station: ThaiHandlingStation;
-  id: string;
-  date: string;
-  amountThb: number;
-  paidTo: string;
-  particulars: string;
-  cashBookPaymentVoucherId: string | null;
-};
-
-export type ThaiDriverTripTodoItem = {
-  kind: "driver_trip";
-  id: string;
-  date: string;
-  driverId: string;
-  driverName: string;
-  songkhlaTripCount: number;
-  pattaniTripCount: number;
-  tripCommissionThb: number;
-  amountThb: number;
-  paidTo: string;
-  particulars: string;
-  cashBookPaymentVoucherId: string | null;
-};
-
 export type ThaiSettlementPendingSource =
   | "handling_sadao"
   | "handling_songkhla"
@@ -80,6 +51,12 @@ export type ThaiSettlementPendingConfirmItem = {
   source: ThaiSettlementPendingSource;
   sourceLabel: string;
   sourceDate: string;
+};
+
+type PvLineSpec = {
+  accountCode: string;
+  particulars: string;
+  amountThb: number;
 };
 
 const REVALIDATE_PATHS = [
@@ -105,6 +82,7 @@ function revalidateThaiSettlement(pvId?: string) {
     }
     if (pvId) {
       revalidatePath(`/financial/cash-book/payment-voucher/${pvId}`);
+      revalidatePath(`/financial/cash-book/payment-voucher/${pvId}/edit`);
     }
   } catch {
     // Scripts/CLI may not have Next revalidate store.
@@ -121,15 +99,8 @@ function requireThbAccount(code: string) {
   return account;
 }
 
-function stationPaidTo(station: ThaiHandlingStation): string {
-  switch (station) {
-    case "SADAO":
-      return "SADAO 搬运";
-    case "SONGKHLA":
-      return "宋卡搬运";
-    case "PATTANI":
-      return "北大年搬运";
-  }
+function stationPaidTo(station: Exclude<ThaiHandlingStation, "PATTANI">): string {
+  return station === "SADAO" ? "SADAO 搬运" : "宋卡搬运";
 }
 
 function stationLabel(station: ThaiHandlingStation): string {
@@ -143,18 +114,33 @@ function stationLabel(station: ThaiHandlingStation): string {
   }
 }
 
+/** Handling PV line text — includes billable crate/box qty when provided. */
 export function buildHandlingParticulars(
   date: string,
-  station: ThaiHandlingStation
+  station: ThaiHandlingStation,
+  qty?: { crateQty: number; boxQty: number }
 ): string {
-  return `${date} / ${stationLabel(station)} / 搬运费`;
+  const base = `${date} / ${stationLabel(station)} / 搬运费`;
+  if (!qty) return base;
+  const parts = [`桶 ${qty.crateQty}`];
+  if (qty.boxQty > 0) parts.push(`盒 ${qty.boxQty}`);
+  return `${base} / ${parts.join(" ")}`;
 }
 
+/** Header-style trip particulars (legacy helper / tests). */
 export function buildDriverTripParticulars(
   date: string,
   driverName: string
 ): string {
   return `${date} / ${driverName} / 趋次工资`;
+}
+
+export function buildDriverTripLineParticulars(
+  date: string,
+  driverName: string,
+  destination: "SONGKHLA" | "PATTANI"
+): string {
+  return `${date} / ${driverName} / 趋次 / ${destination}`;
 }
 
 /** Trip wages only — standby ALLOWANCE is manual (not auto-added). */
@@ -166,30 +152,50 @@ export function computeThaiDriverTripSettlementAmount(input: {
 }): {
   tripCommissionThb: number;
   amountThb: number;
+  songkhlaAmountThb: number;
+  pattaniAmountThb: number;
 } {
-  const tripCommissionThb = roundMoney(
-    input.songkhlaTripCount * input.driverTripSongkhla +
-      input.pattaniTripCount * input.driverTripPattani
+  const songkhlaAmountThb = roundMoney(
+    input.songkhlaTripCount * input.driverTripSongkhla
   );
+  const pattaniAmountThb = roundMoney(
+    input.pattaniTripCount * input.driverTripPattani
+  );
+  const tripCommissionThb = roundMoney(songkhlaAmountThb + pattaniAmountThb);
   return {
     tripCommissionThb,
     amountThb: tripCommissionThb,
+    songkhlaAmountThb,
+    pattaniAmountThb,
   };
+}
+
+async function ratesForDate(d: Date, cache: Map<string, ThaiCostRates>) {
+  const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
+  let rates = cache.get(key);
+  if (!rates) {
+    rates = await resolveThaiCostRatesForMonth(
+      d.getUTCFullYear(),
+      d.getUTCMonth() + 1
+    );
+    cache.set(key, rates);
+  }
+  return rates;
 }
 
 async function createDraftThbPv(input: {
   voucherDate: Date;
   paidTo: string;
-  accountCode: string;
-  particulars: string;
-  amountThb: number;
+  lines: PvLineSpec[];
   actorUserId: string;
   tx: Prisma.TransactionClient;
 }): Promise<string> {
-  if (!(input.amountThb > 0)) {
+  const total = roundMoney(
+    input.lines.reduce((sum, line) => sum + line.amountThb, 0)
+  );
+  if (!(total > 0) || input.lines.length === 0) {
     throw new PaymentVoucherValidationError("结账金额须大于 0");
   }
-  const account = requireThbAccount(input.accountCode);
   const voucherNo = await nextPaymentVoucherNo(input.voucherDate);
   const pvId = randomUUID();
   await input.tx.cashBookPaymentVoucher.create({
@@ -203,300 +209,415 @@ async function createDraftThbPv(input: {
       status: "draft",
       confirmedAt: null,
       confirmedBy: null,
-      totalAmount: input.amountThb,
+      totalAmount: total,
       createdBy: input.actorUserId,
       lines: {
-        create: [
-          {
+        create: input.lines.map((line, index) => {
+          const account = requireThbAccount(line.accountCode);
+          return {
             id: randomUUID(),
-            lineOrder: 0,
+            lineOrder: index,
             accountCode: account.code,
             accountName: account.name,
-            particulars: input.particulars,
-            amount: input.amountThb,
-          },
-        ],
+            particulars: line.particulars,
+            amount: line.amountThb,
+          };
+        }),
       },
     },
   });
   return pvId;
 }
 
-export async function listThaiHandlingSettlementTodos(input?: {
-  fromDate?: string;
-  toDate?: string;
-}): Promise<ThaiHandlingTodoItem[]> {
-  const from = input?.fromDate
-    ? parseDateInput(input.fromDate)
-    : parseDateInput("2020-01-01");
-  const to = input?.toDate ? parseDateInput(input.toDate) : new Date();
-
-  // Pattani handling is excluded server-side (manual PV only). Trip wages still cover Pattani.
-  const [sadaoRows, songkhlaRows, holidays] = await Promise.all([
-    prisma.sadaoCrateHandlingDaily.findMany({
-      where: {
-        cashBookPaymentVoucherId: null,
-        date: { gte: from, lte: to },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.songkhlaCrateHandlingDaily.findMany({
-      where: {
-        cashBookPaymentVoucherId: null,
-        date: { gte: from, lte: to },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.thaiPublicHoliday.findMany({
-      where: { date: { gte: from, lte: to } },
-      select: { date: true },
-    }),
-  ]);
-
-  const holidayKeys = buildPublicHolidayKeySet(holidays);
-  const ratesCache = new Map<string, ThaiCostRates>();
-  async function ratesFor(d: Date) {
-    const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
-    let rates = ratesCache.get(key);
-    if (!rates) {
-      rates = await resolveThaiCostRatesForMonth(
-        d.getUTCFullYear(),
-        d.getUTCMonth() + 1
-      );
-      ratesCache.set(key, rates);
-    }
-    return rates;
+async function updateDraftThbPv(input: {
+  paymentVoucherId: string;
+  voucherDate: Date;
+  paidTo: string;
+  lines: PvLineSpec[];
+  tx: Prisma.TransactionClient;
+}) {
+  const total = roundMoney(
+    input.lines.reduce((sum, line) => sum + line.amountThb, 0)
+  );
+  if (!(total > 0) || input.lines.length === 0) {
+    throw new PaymentVoucherValidationError("结账金额须大于 0");
   }
-
-  const items: ThaiHandlingTodoItem[] = [];
-
-  for (const row of sadaoRows) {
-    const date = toDateInputValue(row.date);
-    const rates = await ratesFor(row.date);
-    const commission = computeSadaoHandlingCommission(row, {
-      holidayRate: isHolidayRate(row.date, holidayKeys),
-      rateConfig: rates,
-    });
-    const amountThb = roundMoney(commission.totalCommissionThb);
-    if (!(amountThb > 0)) continue;
-    items.push({
-      kind: "handling",
-      station: "SADAO",
-      id: row.id,
-      date,
-      amountThb,
-      paidTo: stationPaidTo("SADAO"),
-      particulars: buildHandlingParticulars(date, "SADAO"),
-      cashBookPaymentVoucherId: null,
-    });
-  }
-
-  for (const row of songkhlaRows) {
-    const date = toDateInputValue(row.date);
-    const rates = await ratesFor(row.date);
-    const qty = await resolveSongkhlaEffectiveQty(row, rates);
-    const amountThb = roundMoney(
-      computeSongkhlaHandlingCommission(qty, { rateConfig: rates })
-        .totalCommissionThb
-    );
-    if (!(amountThb > 0)) continue;
-    items.push({
-      kind: "handling",
-      station: "SONGKHLA",
-      id: row.id,
-      date,
-      amountThb,
-      paidTo: stationPaidTo("SONGKHLA"),
-      particulars: buildHandlingParticulars(date, "SONGKHLA"),
-      cashBookPaymentVoucherId: null,
-    });
-  }
-
-  return items.sort((a, b) => {
-    const byDate = b.date.localeCompare(a.date);
-    if (byDate !== 0) return byDate;
-    return a.station.localeCompare(b.station);
+  await input.tx.cashBookPaymentVoucher.update({
+    where: { id: input.paymentVoucherId },
+    data: {
+      voucherDate: input.voucherDate,
+      paidTo: input.paidTo,
+      totalAmount: total,
+      status: "draft",
+      confirmedAt: null,
+      confirmedBy: null,
+    },
+  });
+  await input.tx.cashBookPaymentVoucherLine.deleteMany({
+    where: { voucherId: input.paymentVoucherId },
+  });
+  await input.tx.cashBookPaymentVoucherLine.createMany({
+    data: input.lines.map((line, index) => {
+      const account = requireThbAccount(line.accountCode);
+      return {
+        id: randomUUID(),
+        voucherId: input.paymentVoucherId,
+        lineOrder: index,
+        accountCode: account.code,
+        accountName: account.name,
+        particulars: line.particulars,
+        amount: line.amountThb,
+      };
+    }),
   });
 }
 
-export async function listThaiDriverTripSettlementTodos(input?: {
-  fromDate?: string;
-  toDate?: string;
-}): Promise<ThaiDriverTripTodoItem[]> {
-  const from = input?.fromDate
-    ? parseDateInput(input.fromDate)
-    : parseDateInput("2020-01-01");
-  const to = input?.toDate ? parseDateInput(input.toDate) : new Date();
+async function deleteDraftPvAndClearLinks(
+  tx: Prisma.TransactionClient,
+  paymentVoucherId: string
+) {
+  await tx.sadaoCrateHandlingDaily.updateMany({
+    where: { cashBookPaymentVoucherId: paymentVoucherId },
+    data: { cashBookPaymentVoucherId: null },
+  });
+  await tx.songkhlaCrateHandlingDaily.updateMany({
+    where: { cashBookPaymentVoucherId: paymentVoucherId },
+    data: { cashBookPaymentVoucherId: null },
+  });
+  await tx.thaiDriverTripDaily.updateMany({
+    where: { cashBookPaymentVoucherId: paymentVoucherId },
+    data: { cashBookPaymentVoucherId: null },
+  });
+  const pv = await tx.cashBookPaymentVoucher.findUnique({
+    where: { id: paymentVoucherId },
+    select: { status: true },
+  });
+  if (pv?.status === "draft") {
+    await tx.cashBookPaymentVoucher.delete({ where: { id: paymentVoucherId } });
+  }
+}
 
-  const rows = await prisma.thaiDriverTripDaily.findMany({
-    where: {
-      cashBookPaymentVoucherId: null,
-      date: { gte: from, lte: to },
-      OR: [{ songkhlaTripCount: { gt: 0 } }, { pattaniTripCount: { gt: 0 } }],
-    },
-    include: { driver: { select: { name: true } } },
-    orderBy: [{ date: "desc" }, { driver: { name: "asc" } }],
+/**
+ * Create or refresh a draft 6502 PV for one SADAO/Songkhla handling day.
+ * Confirmed PVs are left untouched. Pattani is rejected by callers (no-op).
+ */
+export async function syncHandlingDraftFromDaily(input: {
+  station: "SADAO" | "SONGKHLA";
+  dailyId: string;
+  actorUserId: string;
+}): Promise<{ paymentVoucherId: string | null }> {
+  const ratesCache = new Map<string, ThaiCostRates>();
+
+  const result = await prisma.$transaction(async (tx) => {
+    if (input.station === "SADAO") {
+      const row = await tx.sadaoCrateHandlingDaily.findUnique({
+        where: { id: input.dailyId },
+      });
+      if (!row) return { paymentVoucherId: null as string | null };
+
+      if (row.cashBookPaymentVoucherId) {
+        const existing = await tx.cashBookPaymentVoucher.findUnique({
+          where: { id: row.cashBookPaymentVoucherId },
+          select: { id: true, status: true },
+        });
+        if (existing?.status === "confirmed") {
+          return { paymentVoucherId: existing.id };
+        }
+      }
+
+      const rates = await ratesForDate(row.date, ratesCache);
+      const holidays = await tx.thaiPublicHoliday.findMany({
+        where: { date: row.date },
+        select: { date: true },
+      });
+      const holidayKeys = buildPublicHolidayKeySet(holidays);
+      const commission = computeSadaoHandlingCommission(row, {
+        holidayRate: isHolidayRate(row.date, holidayKeys),
+        rateConfig: rates,
+      });
+      const amountThb = roundMoney(commission.totalCommissionThb);
+      const dateStr = toDateInputValue(row.date);
+      const lines: PvLineSpec[] = [
+        {
+          accountCode: THAI_HANDLING_PV_ACCOUNT_CODE,
+          particulars: buildHandlingParticulars(dateStr, "SADAO", {
+            crateQty:
+              commission.smallBillableQty + commission.largeBillableQty,
+            boxQty: commission.boxBillableQty,
+          }),
+          amountThb,
+        },
+      ];
+      const paidTo = stationPaidTo("SADAO");
+
+      if (!(amountThb > 0)) {
+        if (row.cashBookPaymentVoucherId) {
+          await deleteDraftPvAndClearLinks(tx, row.cashBookPaymentVoucherId);
+        }
+        return { paymentVoucherId: null };
+      }
+
+      if (row.cashBookPaymentVoucherId) {
+        await updateDraftThbPv({
+          paymentVoucherId: row.cashBookPaymentVoucherId,
+          voucherDate: row.date,
+          paidTo,
+          lines,
+          tx,
+        });
+        return { paymentVoucherId: row.cashBookPaymentVoucherId };
+      }
+
+      const createdId = await createDraftThbPv({
+        voucherDate: row.date,
+        paidTo,
+        lines,
+        actorUserId: input.actorUserId,
+        tx,
+      });
+      await tx.sadaoCrateHandlingDaily.update({
+        where: { id: input.dailyId },
+        data: { cashBookPaymentVoucherId: createdId },
+      });
+      return { paymentVoucherId: createdId };
+    }
+
+    const row = await tx.songkhlaCrateHandlingDaily.findUnique({
+      where: { id: input.dailyId },
+    });
+    if (!row) return { paymentVoucherId: null as string | null };
+
+    if (row.cashBookPaymentVoucherId) {
+      const existing = await tx.cashBookPaymentVoucher.findUnique({
+        where: { id: row.cashBookPaymentVoucherId },
+        select: { id: true, status: true },
+      });
+      if (existing?.status === "confirmed") {
+        return { paymentVoucherId: existing.id };
+      }
+    }
+
+    const rates = await ratesForDate(row.date, ratesCache);
+    const qty = await resolveSongkhlaEffectiveQty(row, rates);
+    const commission = computeSongkhlaHandlingCommission(qty, {
+      rateConfig: rates,
+    });
+    const amountThb = roundMoney(commission.totalCommissionThb);
+    const dateStr = toDateInputValue(row.date);
+    const lines: PvLineSpec[] = [
+      {
+        accountCode: THAI_HANDLING_PV_ACCOUNT_CODE,
+        particulars: buildHandlingParticulars(dateStr, "SONGKHLA", {
+          crateQty: commission.crateBillableQty,
+          boxQty: commission.boxBillableQty,
+        }),
+        amountThb,
+      },
+    ];
+    const paidTo = stationPaidTo("SONGKHLA");
+
+    if (!(amountThb > 0)) {
+      if (row.cashBookPaymentVoucherId) {
+        await deleteDraftPvAndClearLinks(tx, row.cashBookPaymentVoucherId);
+      }
+      return { paymentVoucherId: null };
+    }
+
+    if (row.cashBookPaymentVoucherId) {
+      await updateDraftThbPv({
+        paymentVoucherId: row.cashBookPaymentVoucherId,
+        voucherDate: row.date,
+        paidTo,
+        lines,
+        tx,
+      });
+      return { paymentVoucherId: row.cashBookPaymentVoucherId };
+    }
+
+    const createdId = await createDraftThbPv({
+      voucherDate: row.date,
+      paidTo,
+      lines,
+      actorUserId: input.actorUserId,
+      tx,
+    });
+    await tx.songkhlaCrateHandlingDaily.update({
+      where: { id: input.dailyId },
+      data: { cashBookPaymentVoucherId: createdId },
+    });
+    return { paymentVoucherId: createdId };
   });
 
-  const ratesCache = new Map<string, ThaiCostRates>();
-  async function ratesFor(d: Date) {
-    const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
-    let rates = ratesCache.get(key);
-    if (!rates) {
-      rates = await resolveThaiCostRatesForMonth(
-        d.getUTCFullYear(),
-        d.getUTCMonth() + 1
-      );
-      ratesCache.set(key, rates);
-    }
-    return rates;
+  if (result.paymentVoucherId) {
+    revalidateThaiSettlement(result.paymentVoucherId);
+  } else {
+    revalidateThaiSettlement();
   }
+  return result;
+}
 
-  const items: ThaiDriverTripTodoItem[] = [];
-  for (const row of rows) {
-    const rates = await ratesFor(row.date);
+/**
+ * Create or refresh a draft 6500 PV for one driver-trip day.
+ * Multi-station days get one line per destination (SONGKHLA / PATTANI).
+ */
+export async function syncDriverTripDraftFromDaily(input: {
+  dailyId: string;
+  actorUserId: string;
+}): Promise<{ paymentVoucherId: string | null }> {
+  const ratesCache = new Map<string, ThaiCostRates>();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const row = await tx.thaiDriverTripDaily.findUnique({
+      where: { id: input.dailyId },
+      include: { driver: { select: { name: true } } },
+    });
+    if (!row) return { paymentVoucherId: null as string | null };
+
+    if (row.cashBookPaymentVoucherId) {
+      const existing = await tx.cashBookPaymentVoucher.findUnique({
+        where: { id: row.cashBookPaymentVoucherId },
+        select: { id: true, status: true },
+      });
+      if (existing?.status === "confirmed") {
+        return { paymentVoucherId: existing.id };
+      }
+    }
+
+    const rates = await ratesForDate(row.date, ratesCache);
     const settled = computeThaiDriverTripSettlementAmount({
       songkhlaTripCount: row.songkhlaTripCount,
       pattaniTripCount: row.pattaniTripCount,
       driverTripSongkhla: rates.driverTripSongkhla,
       driverTripPattani: rates.driverTripPattani,
     });
-    if (!(settled.amountThb > 0)) continue;
-    const date = toDateInputValue(row.date);
-    items.push({
-      kind: "driver_trip",
-      id: row.id,
-      date,
-      driverId: row.driverId,
-      driverName: row.driver.name,
-      songkhlaTripCount: row.songkhlaTripCount,
-      pattaniTripCount: row.pattaniTripCount,
-      tripCommissionThb: settled.tripCommissionThb,
-      amountThb: settled.amountThb,
+    const dateStr = toDateInputValue(row.date);
+    const lines: PvLineSpec[] = [];
+    if (row.songkhlaTripCount > 0 && settled.songkhlaAmountThb > 0) {
+      lines.push({
+        accountCode: THAI_DRIVER_TRIP_PV_ACCOUNT_CODE,
+        particulars: buildDriverTripLineParticulars(
+          dateStr,
+          row.driver.name,
+          "SONGKHLA"
+        ),
+        amountThb: settled.songkhlaAmountThb,
+      });
+    }
+    if (row.pattaniTripCount > 0 && settled.pattaniAmountThb > 0) {
+      lines.push({
+        accountCode: THAI_DRIVER_TRIP_PV_ACCOUNT_CODE,
+        particulars: buildDriverTripLineParticulars(
+          dateStr,
+          row.driver.name,
+          "PATTANI"
+        ),
+        amountThb: settled.pattaniAmountThb,
+      });
+    }
+
+    if (lines.length === 0 || !(settled.amountThb > 0)) {
+      if (row.cashBookPaymentVoucherId) {
+        await deleteDraftPvAndClearLinks(tx, row.cashBookPaymentVoucherId);
+      }
+      return { paymentVoucherId: null };
+    }
+
+    if (row.cashBookPaymentVoucherId) {
+      await updateDraftThbPv({
+        paymentVoucherId: row.cashBookPaymentVoucherId,
+        voucherDate: row.date,
+        paidTo: row.driver.name,
+        lines,
+        tx,
+      });
+      return { paymentVoucherId: row.cashBookPaymentVoucherId };
+    }
+
+    const createdId = await createDraftThbPv({
+      voucherDate: row.date,
       paidTo: row.driver.name,
-      particulars: buildDriverTripParticulars(date, row.driver.name),
-      cashBookPaymentVoucherId: null,
-    });
-  }
-  return items;
-}
-
-export async function settleThaiHandlingDay(input: {
-  station: ThaiHandlingStation;
-  id: string;
-  actorUserId: string;
-}): Promise<{ paymentVoucherId: string; voucherNo: string }> {
-  if (input.station === "PATTANI") {
-    throw new Error(
-      "北大年搬运费不在此结账 / Pattani handling is excluded from settlement"
-    );
-  }
-
-  const todos = await listThaiHandlingSettlementTodos({
-    fromDate: "2020-01-01",
-  });
-  const todo = todos.find(
-    (t) => t.station === input.station && t.id === input.id
-  );
-  if (!todo) {
-    throw new Error("待办不存在或金额为 0 / Todo missing or zero amount");
-  }
-
-  const date = parseDateInput(todo.date);
-  const pvId = await prisma.$transaction(async (tx) => {
-    const existing =
-      input.station === "SADAO"
-        ? await tx.sadaoCrateHandlingDaily.findUnique({ where: { id: input.id } })
-        : await tx.songkhlaCrateHandlingDaily.findUnique({
-            where: { id: input.id },
-          });
-    if (!existing) throw new Error("记录不存在");
-    if (existing.cashBookPaymentVoucherId) {
-      throw new Error("已结账 / Already settled");
-    }
-
-    const createdId = await createDraftThbPv({
-      voucherDate: date,
-      paidTo: todo.paidTo,
-      accountCode: THAI_HANDLING_PV_ACCOUNT_CODE,
-      particulars: todo.particulars,
-      amountThb: todo.amountThb,
+      lines,
       actorUserId: input.actorUserId,
       tx,
     });
-
-    if (input.station === "SADAO") {
-      await tx.sadaoCrateHandlingDaily.update({
-        where: { id: input.id },
-        data: { cashBookPaymentVoucherId: createdId },
-      });
-    } else {
-      await tx.songkhlaCrateHandlingDaily.update({
-        where: { id: input.id },
-        data: { cashBookPaymentVoucherId: createdId },
-      });
-    }
-    return createdId;
-  });
-
-  const pv = await prisma.cashBookPaymentVoucher.findUniqueOrThrow({
-    where: { id: pvId },
-    select: { voucherNo: true },
-  });
-  revalidateThaiSettlement(pvId);
-  return { paymentVoucherId: pvId, voucherNo: pv.voucherNo };
-}
-
-export async function settleThaiDriverTripDay(input: {
-  id: string;
-  actorUserId: string;
-}): Promise<{ paymentVoucherId: string; voucherNo: string }> {
-  const todos = await listThaiDriverTripSettlementTodos({
-    fromDate: "2020-01-01",
-  });
-  const todo = todos.find((t) => t.id === input.id);
-  if (!todo) {
-    throw new Error("待办不存在或金额为 0 / Todo missing or zero amount");
-  }
-
-  const date = parseDateInput(todo.date);
-  const pvId = await prisma.$transaction(async (tx) => {
-    const existing = await tx.thaiDriverTripDaily.findUnique({
-      where: { id: input.id },
-    });
-    if (!existing) throw new Error("记录不存在");
-    if (existing.cashBookPaymentVoucherId) {
-      throw new Error("已结账 / Already settled");
-    }
-
-    const createdId = await createDraftThbPv({
-      voucherDate: date,
-      paidTo: todo.paidTo,
-      accountCode: THAI_DRIVER_TRIP_PV_ACCOUNT_CODE,
-      particulars: todo.particulars,
-      amountThb: todo.amountThb,
-      actorUserId: input.actorUserId,
-      tx,
-    });
-
     await tx.thaiDriverTripDaily.update({
-      where: { id: input.id },
+      where: { id: input.dailyId },
       data: { cashBookPaymentVoucherId: createdId },
     });
-    return createdId;
+    return { paymentVoucherId: createdId };
   });
 
-  const pv = await prisma.cashBookPaymentVoucher.findUniqueOrThrow({
-    where: { id: pvId },
-    select: { voucherNo: true },
+  if (result.paymentVoucherId) {
+    revalidateThaiSettlement(result.paymentVoucherId);
+  } else {
+    revalidateThaiSettlement();
+  }
+  return result;
+}
+
+/**
+ * Before deleting a driver-trip aggregate row (zero vehicle trips), drop its
+ * linked draft PV if any. Confirmed PVs are left alone (link cleared by FK SetNull).
+ */
+export async function clearDriverTripDraftBeforeAggregateDelete(input: {
+  date: Date;
+  driverId: string;
+}): Promise<void> {
+  const existing = await prisma.thaiDriverTripDaily.findUnique({
+    where: {
+      date_driverId: { date: input.date, driverId: input.driverId },
+    },
+    select: { cashBookPaymentVoucherId: true },
   });
-  revalidateThaiSettlement(pvId);
-  return { paymentVoucherId: pvId, voucherNo: pv.voucherNo };
+  if (!existing?.cashBookPaymentVoucherId) return;
+
+  await prisma.$transaction(async (tx) => {
+    const pv = await tx.cashBookPaymentVoucher.findUnique({
+      where: { id: existing.cashBookPaymentVoucherId! },
+      select: { status: true },
+    });
+    if (pv?.status === "draft") {
+      await deleteDraftPvAndClearLinks(tx, existing.cashBookPaymentVoucherId!);
+    } else {
+      await tx.thaiDriverTripDaily.updateMany({
+        where: {
+          date: input.date,
+          driverId: input.driverId,
+        },
+        data: { cashBookPaymentVoucherId: null },
+      });
+    }
+  });
+  revalidateThaiSettlement(existing.cashBookPaymentVoucherId);
+}
+
+/** True when this PV is linked from a Thai handling/trip daily row. */
+export async function isThaiSettlementLinkedPaymentVoucher(
+  paymentVoucherId: string
+): Promise<boolean> {
+  const [sadao, songkhla, pattani, trip] = await Promise.all([
+    prisma.sadaoCrateHandlingDaily.findFirst({
+      where: { cashBookPaymentVoucherId: paymentVoucherId },
+      select: { id: true },
+    }),
+    prisma.songkhlaCrateHandlingDaily.findFirst({
+      where: { cashBookPaymentVoucherId: paymentVoucherId },
+      select: { id: true },
+    }),
+    prisma.pattaniCrateHandlingDaily.findFirst({
+      where: { cashBookPaymentVoucherId: paymentVoucherId },
+      select: { id: true },
+    }),
+    prisma.thaiDriverTripDaily.findFirst({
+      where: { cashBookPaymentVoucherId: paymentVoucherId },
+      select: { id: true },
+    }),
+  ]);
+  return Boolean(sadao || songkhla || pattani || trip);
 }
 
 /**
  * Draft PVs still linked to a handling/trip daily row — awaiting accountant confirm.
- * Includes drafts freshly generated here and any previously confirmed-then-unconfirmed.
  */
 export async function listThaiSettlementPendingConfirm(input?: {
   fromDate?: string;
@@ -507,6 +628,20 @@ export async function listThaiSettlementPendingConfirm(input?: {
     : parseDateInput("2020-01-01");
   const to = input?.toDate ? parseDateInput(input.toDate) : new Date();
 
+  const voucherSelect = {
+    id: true,
+    voucherNo: true,
+    voucherDate: true,
+    paidTo: true,
+    totalAmount: true,
+    status: true,
+    lines: {
+      orderBy: { lineOrder: "asc" as const },
+      take: 1,
+      select: { accountCode: true, particulars: true },
+    },
+  };
+
   const [sadao, songkhla, pattani, trips] = await Promise.all([
     prisma.sadaoCrateHandlingDaily.findMany({
       where: {
@@ -515,22 +650,7 @@ export async function listThaiSettlementPendingConfirm(input?: {
       },
       select: {
         date: true,
-        cashBookPaymentVoucherId: true,
-        cashBookPaymentVoucher: {
-          select: {
-            id: true,
-            voucherNo: true,
-            voucherDate: true,
-            paidTo: true,
-            totalAmount: true,
-            status: true,
-            lines: {
-              orderBy: { lineOrder: "asc" },
-              take: 1,
-              select: { accountCode: true, particulars: true },
-            },
-          },
-        },
+        cashBookPaymentVoucher: { select: voucherSelect },
       },
     }),
     prisma.songkhlaCrateHandlingDaily.findMany({
@@ -540,22 +660,7 @@ export async function listThaiSettlementPendingConfirm(input?: {
       },
       select: {
         date: true,
-        cashBookPaymentVoucherId: true,
-        cashBookPaymentVoucher: {
-          select: {
-            id: true,
-            voucherNo: true,
-            voucherDate: true,
-            paidTo: true,
-            totalAmount: true,
-            status: true,
-            lines: {
-              orderBy: { lineOrder: "asc" },
-              take: 1,
-              select: { accountCode: true, particulars: true },
-            },
-          },
-        },
+        cashBookPaymentVoucher: { select: voucherSelect },
       },
     }),
     prisma.pattaniCrateHandlingDaily.findMany({
@@ -565,22 +670,7 @@ export async function listThaiSettlementPendingConfirm(input?: {
       },
       select: {
         date: true,
-        cashBookPaymentVoucherId: true,
-        cashBookPaymentVoucher: {
-          select: {
-            id: true,
-            voucherNo: true,
-            voucherDate: true,
-            paidTo: true,
-            totalAmount: true,
-            status: true,
-            lines: {
-              orderBy: { lineOrder: "asc" },
-              take: 1,
-              select: { accountCode: true, particulars: true },
-            },
-          },
-        },
+        cashBookPaymentVoucher: { select: voucherSelect },
       },
     }),
     prisma.thaiDriverTripDaily.findMany({
@@ -590,23 +680,8 @@ export async function listThaiSettlementPendingConfirm(input?: {
       },
       select: {
         date: true,
-        cashBookPaymentVoucherId: true,
         driver: { select: { name: true } },
-        cashBookPaymentVoucher: {
-          select: {
-            id: true,
-            voucherNo: true,
-            voucherDate: true,
-            paidTo: true,
-            totalAmount: true,
-            status: true,
-            lines: {
-              orderBy: { lineOrder: "asc" },
-              take: 1,
-              select: { accountCode: true, particulars: true },
-            },
-          },
-        },
+        cashBookPaymentVoucher: { select: voucherSelect },
       },
     }),
   ]);

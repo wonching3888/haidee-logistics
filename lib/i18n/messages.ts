@@ -233,9 +233,9 @@ export const MESSAGES = {
     th: "สมุดเงินสด THB",
   },
   "nav.thaiCashBookSettlement": {
-    zh: "THB结账待办",
-    en: "THB Settlement",
-    th: "รายการค้างชำระ THB",
+    zh: "THB待确认",
+    en: "THB Pending Confirm",
+    th: "รออนุมัติ THB",
   },
   "nav.cashBookMyr": {
     zh: "MYR账本明细",

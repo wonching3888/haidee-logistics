@@ -7,13 +7,24 @@ import { notFound, redirect } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }
 
-export default async function PaymentVoucherDetailPage({ params }: PageProps) {
+export default async function PaymentVoucherDetailPage({
+  params,
+  searchParams,
+}: PageProps) {
   const user = await requirePageUser();
   if (!canAccessCashBook(user.role)) redirect("/dashboard");
 
   const { id } = await params;
+  const { from } = await searchParams;
+  const returnTo =
+    from === "thai-settlement"
+      ? "thai-settlement"
+      : from === "ledger-thb"
+        ? "ledger-thb"
+        : "payment-list";
 
   try {
     const voucher = await getPaymentVoucher(id);
@@ -23,6 +34,7 @@ export default async function PaymentVoucherDetailPage({ params }: PageProps) {
       <PaymentVoucherPrintView
         voucher={voucher}
         canWrite={canWriteCashBook(user.role)}
+        returnTo={returnTo}
       />
     );
   } catch (error) {

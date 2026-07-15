@@ -23,9 +23,11 @@ function money(amount: number) {
 export function PaymentVoucherPrintView({
   voucher,
   canWrite,
+  returnTo = "payment-list",
 }: {
   voucher: PaymentVoucherDetail;
   canWrite: boolean;
+  returnTo?: "thai-settlement" | "ledger-thb" | "payment-list";
 }) {
   const printRef = useRef<HTMLDivElement>(null);
   const P = PAYMENT_VOUCHER_PRINT;
@@ -33,13 +35,22 @@ export function PaymentVoucherPrintView({
     voucher.book === "THB"
       ? formatThbPaymentVoucherAmountInWords(voucher.totalAmount)
       : formatInvoiceAmountInWords(voucher.totalAmount, "MYR");
+  const listHref =
+    returnTo === "thai-settlement"
+      ? "/financial/cash-book/thai-settlement"
+      : returnTo === "ledger-thb"
+        ? "/financial/cash-book/ledger/thb"
+        : "/financial/cash-book/payment-voucher";
+  const editHref = `/financial/cash-book/payment-voucher/${voucher.id}/edit${
+    returnTo === "payment-list" ? "" : `?from=${returnTo}`
+  }`;
 
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/financial/cash-book/payment-voucher"
+            href={listHref}
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             <ArrowLeft className="mr-1 h-4 w-4" />
@@ -47,7 +58,7 @@ export function PaymentVoucherPrintView({
           </Link>
           {canWrite && (
             <Link
-              href={`/financial/cash-book/payment-voucher/${voucher.id}/edit`}
+              href={editHref}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               <Pencil className="mr-1 h-4 w-4" />

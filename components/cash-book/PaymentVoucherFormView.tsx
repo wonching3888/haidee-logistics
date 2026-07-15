@@ -64,15 +64,37 @@ function linesFromPrefill(search: URLSearchParams): LineFormRow[] | null {
 export function PaymentVoucherFormView({
   existing,
   canWrite,
+  thaiSettlementConfirmMode = false,
+  returnTo,
 }: {
   existing?: PaymentVoucherDetail | null;
   canWrite: boolean;
+  /** THB 结账关联草稿：隐藏确认勾选，保存即 confirmed，并跳回待确认列表 */
+  thaiSettlementConfirmMode?: boolean;
+  /** Back / after-save target when not default PV list */
+  returnTo?: "thai-settlement" | "ledger-thb" | "payment-list";
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const today = toDateInputValue(new Date());
+
+  const fromParam = searchParams.get("from");
+  const resolvedReturnTo: "thai-settlement" | "ledger-thb" | "payment-list" =
+    returnTo ??
+    (fromParam === "thai-settlement"
+      ? "thai-settlement"
+      : fromParam === "ledger-thb"
+        ? "ledger-thb"
+        : "payment-list");
+  const backHref =
+    resolvedReturnTo === "thai-settlement"
+      ? "/financial/cash-book/thai-settlement"
+      : resolvedReturnTo === "ledger-thb"
+        ? "/financial/cash-book/ledger/thb"
+        : "/financial/cash-book/payment-voucher";
+  const confirmOnSave = thaiSettlementConfirmMode;
 
   const prefillBook = searchParams.get("book");
   const initialBook: CashBookLedger =
@@ -93,7 +115,9 @@ export function PaymentVoucherFormView({
   const [checkNo, setCheckNo] = useState(existing?.checkNo ?? "");
   const [checkDate, setCheckDate] = useState(existing?.checkDate ?? "");
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
-  const [confirmed, setConfirmed] = useState(existing?.status === "confirmed");
+  const [confirmed, setConfirmed] = useState(
+    confirmOnSave ? true : existing?.status === "confirmed"
+  );
   const [payeeSignature, setPayeeSignature] = useState(
     existing?.payeeSignature ?? ""
   );
@@ -151,7 +175,7 @@ export function PaymentVoucherFormView({
           checkNo: paymentMethod === "CHEQUE" ? checkNo : null,
           checkDate: paymentMethod === "CHEQUE" ? checkDate : null,
           dueDate: dueDate || null,
-          confirmed,
+          confirmed: confirmOnSave ? true : confirmed,
           payeeSignature,
           preparedBy,
           approvedBy,
@@ -165,7 +189,15 @@ export function PaymentVoucherFormView({
           setError(result.error);
           return;
         }
-        router.push(`/financial/cash-book/payment-voucher/${result.data.id}`);
+        if (confirmOnSave || resolvedReturnTo === "thai-settlement") {
+          router.push("/financial/cash-book/thai-settlement");
+        } else {
+          const printQs =
+            resolvedReturnTo === "ledger-thb" ? "?from=ledger-thb" : "";
+          router.push(
+            `/financial/cash-book/payment-voucher/${result.data.id}${printQs}`
+          );
+        }
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败");
@@ -412,15 +444,22 @@ export function PaymentVoucherFormView({
         </label>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={confirmed}
-          disabled={!canWrite}
-          onChange={(e) => setConfirmed(e.target.checked)}
-        />
-        确认 / 已审核（泰国会计一步确认）
-      </label>
+      {!confirmOnSave && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            disabled={!canWrite}
+            onChange={(e) => setConfirmed(e.target.checked)}
+          />
+          确认 / 已审核（泰国会计一步确认）
+        </label>
+      )}
+      {confirmOnSave && (
+        <p className="text-sm text-haidee-muted">
+          保存后将直接确认为已审核并返回「待确认」列表。
+        </p>
+      )}
 
       {error && (
         <p className="rounded-md border border-haidee-red/30 bg-red-50 px-3 py-2 text-sm text-haidee-red">
@@ -441,7 +480,7 @@ export function PaymentVoucherFormView({
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/financial/cash-book/payment-voucher")}
+            onClick={() => router.push(backHref)}
           >
             返回列表 Back
           </Button>

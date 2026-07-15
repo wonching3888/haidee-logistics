@@ -34,6 +34,7 @@ const REVALIDATE_PATHS = [
   "/financial/cash-book/payment-voucher/new",
   "/financial/cash-book/ledger/thb",
   "/financial/cash-book/ledger/myr",
+  "/financial/cash-book/thai-settlement",
 ];
 
 function revalidatePaymentVoucher(id?: string) {

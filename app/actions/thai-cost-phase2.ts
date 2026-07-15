@@ -320,8 +320,9 @@ export async function saveSongkhlaHandling(input: {
     createdBy: user.id,
   };
 
+  let savedId: string;
   if (input.id) {
-    await prisma.songkhlaCrateHandlingDaily.update({
+    const saved = await prisma.songkhlaCrateHandlingDaily.update({
       where: { id: input.id },
       data: {
         date: data.date,
@@ -331,9 +332,11 @@ export async function saveSongkhlaHandling(input: {
         manualQty: data.manualQty,
         notes: data.notes,
       },
+      select: { id: true },
     });
+    savedId = saved.id;
   } else {
-    await prisma.songkhlaCrateHandlingDaily.upsert({
+    const saved = await prisma.songkhlaCrateHandlingDaily.upsert({
       where: { date },
       create: data,
       update: {
@@ -343,8 +346,20 @@ export async function saveSongkhlaHandling(input: {
         manualQty: data.manualQty,
         notes: data.notes,
       },
+      select: { id: true },
     });
+    savedId = saved.id;
   }
+
+  const { syncHandlingDraftFromDaily } = await import(
+    "@/lib/cash-book/thai-cash-book-settlement"
+  );
+  await syncHandlingDraftFromDaily({
+    station: "SONGKHLA",
+    dailyId: savedId,
+    actorUserId: user.id,
+  });
+
   revalidateThaiCost();
 }
 
@@ -461,8 +476,9 @@ export async function saveThaiDriverTrip(input: {
   }
   const date = parseDateInput(input.date);
   const notes = input.notes?.trim() || null;
+  let savedId: string;
   if (input.id) {
-    await prisma.thaiDriverTripDaily.update({
+    const saved = await prisma.thaiDriverTripDaily.update({
       where: { id: input.id },
       data: {
         date,
@@ -471,9 +487,11 @@ export async function saveThaiDriverTrip(input: {
         pattaniTripCount: input.pattaniTripCount,
         notes,
       },
+      select: { id: true },
     });
+    savedId = saved.id;
   } else {
-    await prisma.thaiDriverTripDaily.upsert({
+    const saved = await prisma.thaiDriverTripDaily.upsert({
       where: {
         date_driverId: { date, driverId: input.driverId },
       },
@@ -491,13 +509,37 @@ export async function saveThaiDriverTrip(input: {
         pattaniTripCount: input.pattaniTripCount,
         notes,
       },
+      select: { id: true },
     });
+    savedId = saved.id;
   }
+
+  const { syncDriverTripDraftFromDaily } = await import(
+    "@/lib/cash-book/thai-cash-book-settlement"
+  );
+  await syncDriverTripDraftFromDaily({
+    dailyId: savedId,
+    actorUserId: user.id,
+  });
+
   revalidateThaiCost();
 }
 
 export async function deleteThaiDriverTrip(id: string) {
   await requireWrite();
+  const existing = await prisma.thaiDriverTripDaily.findUnique({
+    where: { id },
+    select: { cashBookPaymentVoucherId: true, date: true, driverId: true },
+  });
+  if (existing?.cashBookPaymentVoucherId) {
+    const { clearDriverTripDraftBeforeAggregateDelete } = await import(
+      "@/lib/cash-book/thai-cash-book-settlement"
+    );
+    await clearDriverTripDraftBeforeAggregateDelete({
+      date: existing.date,
+      driverId: existing.driverId,
+    });
+  }
   await prisma.thaiDriverTripDaily.delete({ where: { id } });
   revalidateThaiCost();
 }
@@ -694,13 +736,17 @@ async function syncDriverTripAggregateForDate(
   }
 
   if (songkhla === 0 && pattani === 0) {
+    const { clearDriverTripDraftBeforeAggregateDelete } = await import(
+      "@/lib/cash-book/thai-cash-book-settlement"
+    );
+    await clearDriverTripDraftBeforeAggregateDelete({ date, driverId });
     await prisma.thaiDriverTripDaily.deleteMany({
       where: { date, driverId },
     });
     return;
   }
 
-  await prisma.thaiDriverTripDaily.upsert({
+  const saved = await prisma.thaiDriverTripDaily.upsert({
     where: { date_driverId: { date, driverId } },
     create: {
       id: randomUUID(),
@@ -714,6 +760,15 @@ async function syncDriverTripAggregateForDate(
       songkhlaTripCount: songkhla,
       pattaniTripCount: pattani,
     },
+    select: { id: true },
+  });
+
+  const { syncDriverTripDraftFromDaily } = await import(
+    "@/lib/cash-book/thai-cash-book-settlement"
+  );
+  await syncDriverTripDraftFromDaily({
+    dailyId: saved.id,
+    actorUserId: createdBy,
   });
 }
 

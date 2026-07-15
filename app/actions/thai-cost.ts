@@ -701,6 +701,15 @@ export async function saveSadaoHandling(input: {
     });
   });
 
+  const { syncHandlingDraftFromDaily } = await import(
+    "@/lib/cash-book/thai-cash-book-settlement"
+  );
+  await syncHandlingDraftFromDaily({
+    station: "SADAO",
+    dailyId: row.id,
+    actorUserId: user.id,
+  });
+
   revalidateThaiCost();
   return toHandlingRow(row, holidayKeys, rates);
 }

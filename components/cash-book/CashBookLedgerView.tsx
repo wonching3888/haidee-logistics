@@ -186,7 +186,7 @@ export function CashBookLedgerView({
                   <Link
                     href={
                       row.kind === "payment"
-                        ? `/financial/cash-book/payment-voucher/${row.id}`
+                        ? `/financial/cash-book/payment-voucher/${row.id}?from=ledger-thb`
                         : `/financial/cash-book/receipt-voucher/${row.id}`
                     }
                     className="text-haidee-blue hover:underline"
