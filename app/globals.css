@@ -67,6 +67,15 @@ body,
     height: auto !important;
     overflow: visible !important;
   }
+
+  /* AppShell screen lock (h-screen + overflow:hidden) must not clip/paginate print. */
+  body > div.flex.h-screen,
+  .flex.h-screen {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 }
 
 /* ScrollMatrixTable: on phones let AppShell <main> scroll vertically (no calc(100vh) trap). */

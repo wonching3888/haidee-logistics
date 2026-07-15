@@ -14,6 +14,7 @@ import {
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatThbPaymentVoucherAmountInWords } from "@/lib/thai-baht-text";
 import { formatDisplay } from "@/lib/date-utils";
+import { printVoucherA5 } from "@/lib/cash-book/voucher-print-fit";
 import "@/components/documents/document-print.css";
 import "@/components/cash-book/cash-book-voucher-print.css";
 
@@ -70,7 +71,7 @@ export function PaymentVoucherPrintView({
         <Button
           type="button"
           className="gap-2 bg-haidee-blue text-white"
-          onClick={() => window.print()}
+          onClick={() => printVoucherA5(printRef.current)}
         >
           <Printer className="h-4 w-4" />
           打印 Print

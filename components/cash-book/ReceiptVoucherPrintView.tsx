@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { ArrowLeft, Pencil, Printer } from "lucide-react";
 import type { ReceiptVoucherDetail } from "@/app/actions/cash-book-receipt-voucher";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { PrintLetterhead } from "@/components/shared/PrintLogo";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatThbPaymentVoucherAmountInWords } from "@/lib/thai-baht-text";
 import { formatDisplay } from "@/lib/date-utils";
+import { printVoucherA5 } from "@/lib/cash-book/voucher-print-fit";
 import "@/components/documents/document-print.css";
 import "@/components/cash-book/cash-book-voucher-print.css";
 
@@ -22,6 +24,7 @@ export function ReceiptVoucherPrintView({
   voucher: ReceiptVoucherDetail;
   canWrite: boolean;
 }) {
+  const printRef = useRef<HTMLDivElement>(null);
   const amountWords =
     voucher.book === "THB"
       ? formatThbPaymentVoucherAmountInWords(voucher.amount)
@@ -51,14 +54,17 @@ export function ReceiptVoucherPrintView({
         <Button
           type="button"
           className="gap-2 bg-haidee-blue text-white"
-          onClick={() => window.print()}
+          onClick={() => printVoucherA5(printRef.current)}
         >
           <Printer className="h-4 w-4" />
           打印 Print
         </Button>
       </div>
 
-      <div className="document-print payment-voucher-print rounded-lg border bg-white p-6">
+      <div
+        ref={printRef}
+        className="document-print payment-voucher-print rounded-lg border bg-white p-6"
+      >
         <PrintLetterhead
           nameZh=""
           nameTh="บริษัท ไฮดี โลจิสติกส์ จำกัด"
