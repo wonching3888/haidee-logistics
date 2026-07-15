@@ -35,6 +35,28 @@ function roundMoney(value: number) {
 }
 
 /**
+ * Ledger "说明 Description" text from primary (paidTo / receivedFrom) +
+ * secondary (particulars / notes). Avoids "X — X" when both sides carry the
+ * same (or trivially overlapping) content; keeps "A — B" when they differ.
+ */
+export function formatCashBookLedgerDescription(
+  primary: string | null | undefined,
+  secondary: string | null | undefined
+): string {
+  const a = (primary ?? "").trim();
+  const b = (secondary ?? "").trim();
+  if (!a && !b) return "";
+  if (!a) return b;
+  if (!b) return a;
+  if (a === b) return a;
+  // One side is only a trivial echo of the other (common in imports).
+  if (b.includes(a) || a.includes(b)) {
+    return a.length >= b.length ? a : b;
+  }
+  return `${a} — ${b}`;
+}
+
+/**
  * Build cash-book ledger rows.
  * Convention (per product): DEBIT = outflow (payment), CREDIT = inflow (receipt).
  * Only confirmed vouchers should be passed in as sourceRows.

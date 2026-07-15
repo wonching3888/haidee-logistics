@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canAccessCashBook, canWriteCashBook } from "@/lib/auth-roles";
 import {
   buildCashBookLedgerRows,
+  formatCashBookLedgerDescription,
   type CashBookLedgerDisplayRow,
   type CashBookLedgerSourceRow,
 } from "@/lib/cash-book/ledger";
@@ -161,9 +162,10 @@ export async function getCashBookLedger(
       id: p.id,
       voucherNo: p.voucherNo,
       voucherDate: toDateInputValue(p.voucherDate),
-      description:
-        p.paidTo +
-        (p.lines[0]?.particulars ? ` — ${p.lines[0].particulars}` : ""),
+      description: formatCashBookLedgerDescription(
+        p.paidTo,
+        p.lines[0]?.particulars
+      ),
       amount: decimalToNumber(p.totalAmount) ?? 0,
       sortKey: (p.confirmedAt ?? p.createdAt).toISOString(),
     })),
@@ -172,8 +174,7 @@ export async function getCashBookLedger(
       id: r.id,
       voucherNo: r.voucherNo,
       voucherDate: toDateInputValue(r.voucherDate),
-      description:
-        r.receivedFrom + (r.notes ? ` — ${r.notes}` : ""),
+      description: formatCashBookLedgerDescription(r.receivedFrom, r.notes),
       amount: decimalToNumber(r.amount) ?? 0,
       sortKey: (r.confirmedAt ?? r.createdAt).toISOString(),
     })),

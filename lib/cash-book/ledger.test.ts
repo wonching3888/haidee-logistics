@@ -1,6 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { buildCashBookLedgerRows } from "@/lib/cash-book/ledger";
+import {
+  buildCashBookLedgerRows,
+  formatCashBookLedgerDescription,
+} from "@/lib/cash-book/ledger";
 import { normalizeReceiptVoucherInput } from "@/lib/cash-book/receipt-voucher";
+
+describe("formatCashBookLedgerDescription", () => {
+  it("dedupes identical paidTo and particulars", () => {
+    expect(
+      formatCashBookLedgerDescription(
+        "OT FISH LOADING 30/06/69 SOO",
+        "OT FISH LOADING 30/06/69 SOO"
+      )
+    ).toBe("OT FISH LOADING 30/06/69 SOO");
+  });
+
+  it("keeps both sides when primary and secondary differ", () => {
+    expect(
+      formatCashBookLedgerDescription(
+        "宋卡搬运",
+        "2026-07-01 / 宋卡 Songkhla / 搬运费"
+      )
+    ).toBe("宋卡搬运 — 2026-07-01 / 宋卡 Songkhla / 搬运费");
+  });
+
+  it("returns the non-empty side when the other is blank", () => {
+    expect(formatCashBookLedgerDescription("", "only particulars")).toBe(
+      "only particulars"
+    );
+    expect(formatCashBookLedgerDescription("only payee", null)).toBe(
+      "only payee"
+    );
+  });
+
+  it("collapses when one side is a trivial substring of the other", () => {
+    expect(
+      formatCashBookLedgerDescription(
+        "OT FISH LOADING",
+        "OT FISH LOADING 30/06/69 SOO"
+      )
+    ).toBe("OT FISH LOADING 30/06/69 SOO");
+  });
+});
 
 describe("normalizeReceiptVoucherInput", () => {
   it("requires account and positive amount", () => {
