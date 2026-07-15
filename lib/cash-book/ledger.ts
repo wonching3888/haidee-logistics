@@ -13,7 +13,7 @@ export interface CashBookLedgerSourceRow {
   voucherDate: string; // YYYY-MM-DD
   description: string;
   amount: number;
-  /** ISO timestamp of confirmation (confirmedAt) — primary ledger sort key */
+  /** ISO timestamp of confirmation (confirmedAt) — secondary ledger sort key */
   sortKey: string;
 }
 
@@ -39,8 +39,8 @@ function roundMoney(value: number) {
  * Convention (per product): DEBIT = outflow (payment), CREDIT = inflow (receipt).
  * Only confirmed vouchers should be passed in as sourceRows.
  *
- * Sort order: confirmation timestamp (`sortKey` = confirmedAt ISO), not business
- * date and not voucher number — so rolling balances match real history.
+ * Sort order: business `voucherDate`, then confirmation timestamp (`sortKey`),
+ * then voucher number / id for stable ties. Running balances follow this order.
  */
 export function buildCashBookLedgerRows(input: {
   book: CashBookLedger;
@@ -49,9 +49,12 @@ export function buildCashBookLedgerRows(input: {
 }): CashBookLedgerDisplayRow[] {
   const opening = roundMoney(input.openingBalance);
   const sorted = [...input.sourceRows].sort((a, b) => {
+    const byDate = a.voucherDate.localeCompare(b.voucherDate);
+    if (byDate !== 0) return byDate;
     const byConfirm = a.sortKey.localeCompare(b.sortKey);
     if (byConfirm !== 0) return byConfirm;
-    // Stable tie-break only if two confirms share the exact same timestamp
+    const byVoucherNo = a.voucherNo.localeCompare(b.voucherNo);
+    if (byVoucherNo !== 0) return byVoucherNo;
     return a.id.localeCompare(b.id);
   });
 

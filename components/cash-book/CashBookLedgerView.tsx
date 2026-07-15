@@ -12,14 +12,14 @@ import type { CashBookLedger } from "@/lib/constants/cash-book-accounts";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDisplay } from "@/lib/date-utils";
+import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
+import { formatDisplay, formatDisplayDateTime } from "@/lib/date-utils";
 
 function money(n: number | null) {
   if (n == null) return "—";
@@ -161,90 +161,86 @@ export function CashBookLedgerView({
         </div>
       )}
 
-      <div className="rounded-lg border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>日期 Date</TableHead>
-              <TableHead>编号 No.</TableHead>
-              <TableHead>说明 Description</TableHead>
-              <TableHead className="text-right">DEBIT 支出</TableHead>
-              <TableHead className="text-right">CREDIT 收入</TableHead>
-              <TableHead className="text-right">BALANCE 余额</TableHead>
+      <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>日期 Date</TableHead>
+            <TableHead>编号 No.</TableHead>
+            <TableHead>说明 Description</TableHead>
+            <TableHead className="text-right">DEBIT 支出</TableHead>
+            <TableHead className="text-right">CREDIT 收入</TableHead>
+            <TableHead className="text-right">BALANCE 余额</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow
+              key={row.id}
+              className={row.kind === "opening" ? "bg-haidee-surface/60" : undefined}
+            >
+              <TableCell>
+                {row.date ? formatDisplay(row.date) : "—"}
+              </TableCell>
+              <TableCell className="font-mono text-sm">
+                {row.voucherNo ? (
+                  <Link
+                    href={
+                      row.kind === "payment"
+                        ? `/financial/cash-book/payment-voucher/${row.id}`
+                        : `/financial/cash-book/receipt-voucher/${row.id}`
+                    }
+                    className="text-haidee-blue hover:underline"
+                  >
+                    {row.voucherNo}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </TableCell>
+              <TableCell>{row.description}</TableCell>
+              <TableCell className="text-right font-mono">
+                {money(row.debit)}
+              </TableCell>
+              <TableCell className="text-right font-mono">
+                {money(row.credit)}
+              </TableCell>
+              <TableCell className="text-right font-mono font-semibold">
+                {money(row.balance)}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={row.kind === "opening" ? "bg-haidee-surface/60" : undefined}
-              >
-                <TableCell>
-                  {row.date ? formatDisplay(row.date) : "—"}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {row.voucherNo ? (
-                    <Link
-                      href={
-                        row.kind === "payment"
-                          ? `/financial/cash-book/payment-voucher/${row.id}`
-                          : `/financial/cash-book/receipt-voucher/${row.id}`
-                      }
-                      className="text-haidee-blue hover:underline"
-                    >
-                      {row.voucherNo}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>{row.description}</TableCell>
-                <TableCell className="text-right font-mono">
-                  {money(row.debit)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {money(row.credit)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {money(row.balance)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+          ))}
+        </TableBody>
+      </WideTableScrollArea>
 
       {adjustments.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium">期初调整留痕 Adjustment log</h3>
-          <div className="rounded-lg border bg-white text-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>时间</TableHead>
-                  <TableHead className="text-right">原金额</TableHead>
-                  <TableHead className="text-right">新金额</TableHead>
-                  <TableHead>说明</TableHead>
+          <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>时间</TableHead>
+                <TableHead className="text-right">原金额</TableHead>
+                <TableHead className="text-right">新金额</TableHead>
+                <TableHead>说明</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {adjustments.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-mono text-xs">
+                    {formatDisplayDateTime(new Date(a.createdAt))}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {money(a.previousAmount)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {money(a.newAmount)}
+                  </TableCell>
+                  <TableCell>{a.notes}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {adjustments.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-mono text-xs">
-                      {new Date(a.createdAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {money(a.previousAmount)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {money(a.newAmount)}
-                    </TableCell>
-                    <TableCell>{a.notes}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </WideTableScrollArea>
         </div>
       )}
     </div>

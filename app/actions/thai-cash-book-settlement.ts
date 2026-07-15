@@ -5,11 +5,13 @@ import { canAccessCashBook, canWriteCashBook } from "@/lib/auth-roles";
 import {
   listThaiDriverTripSettlementTodos,
   listThaiHandlingSettlementTodos,
+  listThaiSettlementPendingConfirm,
   settleThaiDriverTripDay,
   settleThaiHandlingDay,
   type ThaiDriverTripTodoItem,
   type ThaiHandlingStation,
   type ThaiHandlingTodoItem,
+  type ThaiSettlementPendingConfirmItem,
 } from "@/lib/cash-book/thai-cash-book-settlement";
 import { revalidatePath } from "next/cache";
 
@@ -46,6 +48,14 @@ export async function getThaiDriverTripSettlementTodos(input?: {
 }): Promise<ThaiDriverTripTodoItem[]> {
   await requireCashBookRead();
   return listThaiDriverTripSettlementTodos(input);
+}
+
+export async function getThaiSettlementPendingConfirm(input?: {
+  fromDate?: string;
+  toDate?: string;
+}): Promise<ThaiSettlementPendingConfirmItem[]> {
+  await requireCashBookRead();
+  return listThaiSettlementPendingConfirm(input);
 }
 
 export async function settleThaiHandlingDayAction(input: {

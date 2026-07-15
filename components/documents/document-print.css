@@ -1459,7 +1459,15 @@
   }
 }
 
-/* Cash Book Payment Voucher print */
+/* Cash Book Payment / Receipt Voucher print — A5 portrait */
+.document-print.payment-voucher-print {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 148mm; /* A5 width — screen preview matches print */
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .document-print.payment-voucher-print table.payment-voucher-table {
   table-layout: fixed;
   width: 100%;
@@ -1486,8 +1494,16 @@
 
 @media print {
   .document-print.payment-voucher-print {
+    page: payment-voucher-a5;
     border: none !important;
     padding: 0 !important;
+    max-width: none;
+    width: 100%;
+  }
+
+  @page payment-voucher-a5 {
+    size: A5 portrait;
+    margin: 10mm;
   }
 
   .document-print.payment-voucher-print .payment-voucher-table th,

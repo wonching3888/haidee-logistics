@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import {
   getThaiDriverTripSettlementTodos,
   getThaiHandlingSettlementTodos,
+  getThaiSettlementPendingConfirm,
   settleThaiDriverTripDayAction,
   settleThaiDriverTripDaysBulkAction,
   settleThaiHandlingDayAction,
@@ -14,6 +15,7 @@ import {
 import type {
   ThaiDriverTripTodoItem,
   ThaiHandlingTodoItem,
+  ThaiSettlementPendingConfirmItem,
 } from "@/lib/cash-book/thai-cash-book-settlement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,9 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
   const [toDate, setToDate] = useState(monthEnd);
   const [handling, setHandling] = useState<ThaiHandlingTodoItem[]>([]);
   const [trips, setTrips] = useState<ThaiDriverTripTodoItem[]>([]);
+  const [pending, setPending] = useState<ThaiSettlementPendingConfirmItem[]>(
+    []
+  );
   const [selectedHandling, setSelectedHandling] = useState<Set<string>>(
     new Set()
   );
@@ -64,12 +69,14 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
     startTransition(async () => {
       setError(null);
       try {
-        const [h, t] = await Promise.all([
+        const [h, t, p] = await Promise.all([
           getThaiHandlingSettlementTodos({ fromDate, toDate }),
           getThaiDriverTripSettlementTodos({ fromDate, toDate }),
+          getThaiSettlementPendingConfirm({ fromDate, toDate }),
         ]);
         setHandling(h);
         setTrips(t);
+        setPending(p);
         setSelectedHandling(new Set());
         setSelectedTrips(new Set());
       } catch (e) {
@@ -95,7 +102,9 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
         setError(result.error);
         return;
       }
-      setMessage(`已生成 ${result.voucherNo}（${stationLabel(row.station)} ${row.date}）`);
+      setMessage(
+        `已生成草稿 ${result.voucherNo}（${stationLabel(row.station)} ${row.date}）— 请在「待确认」核对后确认`
+      );
       reload();
     });
   }
@@ -109,7 +118,9 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
         setError(result.error);
         return;
       }
-      setMessage(`已生成 ${result.voucherNo}（${row.driverName} ${row.date}）`);
+      setMessage(
+        `已生成草稿 ${result.voucherNo}（${row.driverName} ${row.date}）— 请在「待确认」核对后确认`
+      );
       reload();
     });
   }
@@ -124,8 +135,9 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
       setError(null);
       const result = await settleThaiHandlingDaysBulkAction({ items });
       setMessage(
-        `搬运费结账 ${result.settled.length} 笔` +
-          (result.errors.length ? `，失败 ${result.errors.length}` : "")
+        `搬运费草稿 ${result.settled.length} 笔` +
+          (result.errors.length ? `，失败 ${result.errors.length}` : "") +
+          " — 请在「待确认」核对后确认"
       );
       if (result.errors[0]) setError(result.errors[0].error);
       reload();
@@ -142,8 +154,9 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
       setError(null);
       const result = await settleThaiDriverTripDaysBulkAction({ ids });
       setMessage(
-        `趋次结账 ${result.settled.length} 笔` +
-          (result.errors.length ? `，失败 ${result.errors.length}` : "")
+        `趋次草稿 ${result.settled.length} 笔` +
+          (result.errors.length ? `，失败 ${result.errors.length}` : "") +
+          " — 请在「待确认」核对后确认"
       );
       if (result.errors[0]) setError(result.errors[0].error);
       reload();
@@ -189,11 +202,75 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-haidee-text">
+              待确认 Pending confirm
+            </h2>
+            <p className="text-sm text-haidee-muted">
+              已关联日表的草稿 PV。打开编辑页勾选「确认/已审核」后才计入账本。
+            </p>
+          </div>
+        </div>
+        <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>凭证号 No.</TableHead>
+              <TableHead>日期 Date</TableHead>
+              <TableHead>来源 Source</TableHead>
+              <TableHead>付给 Paid To</TableHead>
+              <TableHead className="text-right">金额 Amount</TableHead>
+              <TableHead>说明 Particulars</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pending.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-haidee-muted">
+                  暂无待确认草稿 No pending draft PVs
+                </TableCell>
+              </TableRow>
+            ) : (
+              pending.map((row) => (
+                <TableRow key={row.paymentVoucherId}>
+                  <TableCell className="font-mono text-sm">
+                    {row.voucherNo}
+                  </TableCell>
+                  <TableCell>{formatDisplay(row.voucherDate)}</TableCell>
+                  <TableCell>
+                    {row.sourceLabel}
+                    <span className="ml-1 text-xs text-haidee-muted">
+                      ({formatDisplay(row.sourceDate)})
+                    </span>
+                  </TableCell>
+                  <TableCell>{row.paidTo}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {money(row.totalAmount)}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">
+                    {row.particulars ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/financial/cash-book/payment-voucher/${row.paymentVoucherId}/edit`}
+                      className="text-sm text-haidee-blue underline"
+                    >
+                      打开编辑 Edit
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </WideTableScrollArea>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-haidee-text">
               搬运费待办 Handling (6502)
             </h2>
             <p className="text-sm text-haidee-muted">
-              按日期+站点；SADAO 仅佣金，不含其他开销。一天一站一笔已确认
-              PV。
+              仅 SADAO + 宋卡（不含北大年）。SADAO 仅佣金，不含其他开销。生成即草稿，须人工确认入账。
             </p>
           </div>
           {canWrite && (
@@ -202,79 +279,77 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
               disabled={isPending || selectedHandling.size === 0}
               onClick={() => settleHandlingBulk()}
             >
-              批量结账 Selected ({selectedHandling.size})
+              批量生成草稿 Selected ({selectedHandling.size})
             </Button>
           )}
         </div>
-        <WideTableScrollArea>
-          <table className="min-w-max w-full caption-bottom text-sm">
-            <TableHeader>
+        <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+          <TableHeader>
+            <TableRow>
+              {canWrite && <TableHead className="w-10" />}
+              <TableHead>日期 Date</TableHead>
+              <TableHead>站点 Station</TableHead>
+              <TableHead className="text-right">金额 Amount</TableHead>
+              <TableHead>说明 Particulars</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {handling.length === 0 ? (
               <TableRow>
-                {canWrite && <TableHead className="w-10" />}
-                <TableHead>日期 Date</TableHead>
-                <TableHead>站点 Station</TableHead>
-                <TableHead className="text-right">金额 Amount</TableHead>
-                <TableHead>说明 Particulars</TableHead>
-                <TableHead />
+                <TableCell
+                  colSpan={canWrite ? 6 : 5}
+                  className="text-haidee-muted"
+                >
+                  暂无未结账搬运费 No unsettled handling rows
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {handling.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={canWrite ? 6 : 5}
-                    className="text-haidee-muted"
-                  >
-                    暂无未结账搬运费 No unsettled handling rows
-                  </TableCell>
-                </TableRow>
-              ) : (
-                handling.map((row) => {
-                  const key = handlingKey(row);
-                  return (
-                    <TableRow key={key}>
-                      {canWrite && (
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedHandling.has(key)}
-                            onChange={(e) => {
-                              setSelectedHandling((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(key);
-                                else next.delete(key);
-                                return next;
-                              });
-                            }}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell>{formatDisplay(row.date)}</TableCell>
-                      <TableCell>{stationLabel(row.station)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {money(row.amountThb)}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {row.particulars}
-                      </TableCell>
+            ) : (
+              handling.map((row) => {
+                const key = handlingKey(row);
+                return (
+                  <TableRow key={key}>
+                    {canWrite && (
                       <TableCell>
-                        {canWrite && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={isPending}
-                            onClick={() => settleOneHandling(row)}
-                          >
-                            生成 PV
-                          </Button>
-                        )}
+                        <input
+                          type="checkbox"
+                          checked={selectedHandling.has(key)}
+                          onChange={(e) => {
+                            setSelectedHandling((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(key);
+                              else next.delete(key);
+                              return next;
+                            });
+                          }}
+                        />
                       </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </table>
+                    )}
+                    <TableCell>{formatDisplay(row.date)}</TableCell>
+                    <TableCell>{stationLabel(row.station)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {money(row.amountThb)}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {row.particulars}
+                    </TableCell>
+                    <TableCell>
+                      {canWrite && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => settleOneHandling(row)}
+                        >
+                          生成草稿 PV
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
         </WideTableScrollArea>
       </section>
 
@@ -285,7 +360,7 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
               司机趋次待办 Trip wages (6500)
             </h2>
             <p className="text-sm text-haidee-muted">
-              按日期+司机（宋卡+北大年同日合计）。金额仅为趋次工资；待命津贴须人工开凭证。含「其他」替补司机。
+              按日期+司机（宋卡+北大年同日合计）。金额仅为趋次工资；待命津贴须人工开凭证。含「其他」替补司机。生成即草稿。
             </p>
           </div>
           {canWrite && (
@@ -294,85 +369,83 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
               disabled={isPending || selectedTrips.size === 0}
               onClick={() => settleTripBulk()}
             >
-              批量结账 Selected ({selectedTrips.size})
+              批量生成草稿 Selected ({selectedTrips.size})
             </Button>
           )}
         </div>
-        <WideTableScrollArea>
-          <table className="min-w-max w-full caption-bottom text-sm">
-            <TableHeader>
+        <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
+          <TableHeader>
+            <TableRow>
+              {canWrite && <TableHead className="w-10" />}
+              <TableHead>日期 Date</TableHead>
+              <TableHead>司机 Driver</TableHead>
+              <TableHead className="text-right">宋卡</TableHead>
+              <TableHead className="text-right">北大年</TableHead>
+              <TableHead className="text-right">金额 Amount</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {trips.length === 0 ? (
               <TableRow>
-                {canWrite && <TableHead className="w-10" />}
-                <TableHead>日期 Date</TableHead>
-                <TableHead>司机 Driver</TableHead>
-                <TableHead className="text-right">宋卡</TableHead>
-                <TableHead className="text-right">北大年</TableHead>
-                <TableHead className="text-right">金额 Amount</TableHead>
-                <TableHead />
+                <TableCell
+                  colSpan={canWrite ? 7 : 6}
+                  className="text-haidee-muted"
+                >
+                  暂无未结账趋次 No unsettled trip rows
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {trips.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={canWrite ? 7 : 6}
-                    className="text-haidee-muted"
-                  >
-                    暂无未结账趋次 No unsettled trip rows
+            ) : (
+              trips.map((row) => (
+                <TableRow key={row.id}>
+                  {canWrite && (
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedTrips.has(row.id)}
+                        onChange={(e) => {
+                          setSelectedTrips((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(row.id);
+                            else next.delete(row.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell>{formatDisplay(row.date)}</TableCell>
+                  <TableCell>{row.driverName}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {row.songkhlaTripCount}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {row.pattaniTripCount}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {money(row.amountThb)}
+                  </TableCell>
+                  <TableCell>
+                    {canWrite && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isPending}
+                        onClick={() => settleOneTrip(row)}
+                      >
+                        生成草稿 PV
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
-              ) : (
-                trips.map((row) => (
-                  <TableRow key={row.id}>
-                    {canWrite && (
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedTrips.has(row.id)}
-                          onChange={(e) => {
-                            setSelectedTrips((prev) => {
-                              const next = new Set(prev);
-                              if (e.target.checked) next.add(row.id);
-                              else next.delete(row.id);
-                              return next;
-                            });
-                          }}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>{formatDisplay(row.date)}</TableCell>
-                    <TableCell>{row.driverName}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.songkhlaTripCount}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.pattaniTripCount}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {money(row.amountThb)}
-                    </TableCell>
-                    <TableCell>
-                      {canWrite && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isPending}
-                          onClick={() => settleOneTrip(row)}
-                        >
-                          生成 PV
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </table>
+              ))
+            )}
+          </TableBody>
         </WideTableScrollArea>
       </section>
 
       <p className="text-sm text-haidee-muted">
-        结账后可在{" "}
+        草稿确认后可在{" "}
         <Link
           href="/financial/cash-book/ledger/thb"
           className="text-haidee-blue underline"
@@ -386,7 +459,7 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
         >
           付款凭证
         </Link>{" "}
-        查看。SADAO「其他开销」不在此自动结账，请用录入页「去开凭证」。
+        查看。北大年搬运费与 SADAO「其他开销」不在此自动结账，请人工开凭证。
       </p>
     </div>
   );

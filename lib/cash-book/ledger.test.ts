@@ -36,7 +36,7 @@ describe("normalizeReceiptVoucherInput", () => {
 });
 
 describe("buildCashBookLedgerRows", () => {
-  it("orders by confirm time: receipt then payment → never goes negative", () => {
+  it("same voucherDate: receipt then payment by confirm time → never goes negative", () => {
     const rows = buildCashBookLedgerRows({
       book: "THB",
       openingBalance: 0,
@@ -48,7 +48,6 @@ describe("buildCashBookLedgerRows", () => {
           voucherDate: "2026-07-10",
           description: "付款",
           amount: 200,
-          // Confirmed later — must appear after receipt despite PV < RV alphabetically
           sortKey: "2026-07-10T10:00:02.000Z",
         },
         {
@@ -72,7 +71,7 @@ describe("buildCashBookLedgerRows", () => {
     expect(rows[2]!.balance).toBe(300);
   });
 
-  it("orders by confirm time: payment then receipt → intermediate balance is negative", () => {
+  it("same voucherDate: payment then receipt by confirm → intermediate balance negative", () => {
     const rows = buildCashBookLedgerRows({
       book: "THB",
       openingBalance: 0,
@@ -113,7 +112,7 @@ describe("buildCashBookLedgerRows", () => {
     expect(rows[0]!.balance).toBe(100);
   });
 
-  it("sorts by confirm timestamp, not business date or voucher number", () => {
+  it("sorts by voucherDate first, not confirm timestamp", () => {
     const rows = buildCashBookLedgerRows({
       book: "THB",
       openingBalance: 0,
@@ -123,7 +122,7 @@ describe("buildCashBookLedgerRows", () => {
           id: "p2",
           voucherNo: "PV-20260709-001",
           voucherDate: "2026-07-09",
-          description: "confirmed later",
+          description: "confirmed later, earlier business date",
           amount: 50,
           sortKey: "2026-07-11T12:00:00.000Z",
         },
@@ -132,14 +131,46 @@ describe("buildCashBookLedgerRows", () => {
           id: "r1",
           voucherNo: "RV-20260711-001",
           voucherDate: "2026-07-11",
-          description: "confirmed earlier",
+          description: "confirmed earlier, later business date",
           amount: 100,
           sortKey: "2026-07-10T08:00:00.000Z",
         },
       ],
     });
-    expect(rows[1]!.voucherNo).toBe("RV-20260711-001");
-    expect(rows[2]!.voucherNo).toBe("PV-20260709-001");
+    expect(rows[1]!.voucherNo).toBe("PV-20260709-001");
+    expect(rows[1]!.balance).toBe(-50);
+    expect(rows[2]!.voucherNo).toBe("RV-20260711-001");
     expect(rows[2]!.balance).toBe(50);
+  });
+
+  it("same date + same confirm: tie-breaks by voucherNo then id", () => {
+    const rows = buildCashBookLedgerRows({
+      book: "THB",
+      openingBalance: 100,
+      sourceRows: [
+        {
+          kind: "payment",
+          id: "b",
+          voucherNo: "PV-20260710-002",
+          voucherDate: "2026-07-10",
+          description: "second",
+          amount: 10,
+          sortKey: "2026-07-10T10:00:00.000Z",
+        },
+        {
+          kind: "payment",
+          id: "a",
+          voucherNo: "PV-20260710-001",
+          voucherDate: "2026-07-10",
+          description: "first",
+          amount: 20,
+          sortKey: "2026-07-10T10:00:00.000Z",
+        },
+      ],
+    });
+    expect(rows[1]!.voucherNo).toBe("PV-20260710-001");
+    expect(rows[1]!.balance).toBe(80);
+    expect(rows[2]!.voucherNo).toBe("PV-20260710-002");
+    expect(rows[2]!.balance).toBe(70);
   });
 });

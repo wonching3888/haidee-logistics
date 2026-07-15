@@ -1,6 +1,9 @@
 /**
  * THB Cash Book settlement for Thai handling commissions (6502) and
- * driver trip wages (6500). One-shot confirmed PVs — no advance phase.
+ * driver trip wages (6500). Generates draft PVs; accountant confirms to post.
+ *
+ * Handling todos exclude Pattani (SADAO + Songkhla only). Trip wages cover all
+ * stations including Pattani / 「其他」drivers.
  *
  * Does NOT touch sadao_handling_other_expenses (manual shortcut only).
  * Does NOT touch MYR driver_vouchers or PNL calc paths.
@@ -21,17 +24,13 @@ import {
   buildPublicHolidayKeySet,
   isHolidayRate,
 } from "@/lib/thai-cost/holiday";
-import { computePattaniHandlingCosts } from "@/lib/thai-cost/pattani-handling-cost";
 import {
   resolveThaiCostRatesForMonth,
   type ThaiCostRates,
 } from "@/lib/thai-cost/rate-settings";
 import { computeSadaoHandlingCommission } from "@/lib/thai-cost/sadao-cost";
 import { computeSongkhlaHandlingCommission } from "@/lib/thai-cost/songkhla-handling-cost";
-import {
-  resolvePattaniEffectiveQty,
-  resolveSongkhlaEffectiveQty,
-} from "@/lib/thai-cost/station-handling-qty";
+import { resolveSongkhlaEffectiveQty } from "@/lib/thai-cost/station-handling-qty";
 
 export const THAI_HANDLING_PV_ACCOUNT_CODE = "6502-0000";
 export const THAI_DRIVER_TRIP_PV_ACCOUNT_CODE = "6500-0000";
@@ -62,6 +61,25 @@ export type ThaiDriverTripTodoItem = {
   paidTo: string;
   particulars: string;
   cashBookPaymentVoucherId: string | null;
+};
+
+export type ThaiSettlementPendingSource =
+  | "handling_sadao"
+  | "handling_songkhla"
+  | "handling_pattani"
+  | "driver_trip";
+
+export type ThaiSettlementPendingConfirmItem = {
+  paymentVoucherId: string;
+  voucherNo: string;
+  voucherDate: string;
+  paidTo: string;
+  totalAmount: number;
+  accountCode: string | null;
+  particulars: string | null;
+  source: ThaiSettlementPendingSource;
+  sourceLabel: string;
+  sourceDate: string;
 };
 
 const REVALIDATE_PATHS = [
@@ -159,7 +177,7 @@ export function computeThaiDriverTripSettlementAmount(input: {
   };
 }
 
-async function createConfirmedThbPv(input: {
+async function createDraftThbPv(input: {
   voucherDate: Date;
   paidTo: string;
   accountCode: string;
@@ -182,9 +200,9 @@ async function createConfirmedThbPv(input: {
       voucherDate: input.voucherDate,
       paidTo: input.paidTo,
       paymentMethod: "CASH",
-      status: "confirmed",
-      confirmedAt: new Date(),
-      confirmedBy: input.actorUserId,
+      status: "draft",
+      confirmedAt: null,
+      confirmedBy: null,
       totalAmount: input.amountThb,
       createdBy: input.actorUserId,
       lines: {
@@ -213,7 +231,8 @@ export async function listThaiHandlingSettlementTodos(input?: {
     : parseDateInput("2020-01-01");
   const to = input?.toDate ? parseDateInput(input.toDate) : new Date();
 
-  const [sadaoRows, songkhlaRows, pattaniRows, holidays] = await Promise.all([
+  // Pattani handling is excluded server-side (manual PV only). Trip wages still cover Pattani.
+  const [sadaoRows, songkhlaRows, holidays] = await Promise.all([
     prisma.sadaoCrateHandlingDaily.findMany({
       where: {
         cashBookPaymentVoucherId: null,
@@ -222,13 +241,6 @@ export async function listThaiHandlingSettlementTodos(input?: {
       orderBy: { date: "desc" },
     }),
     prisma.songkhlaCrateHandlingDaily.findMany({
-      where: {
-        cashBookPaymentVoucherId: null,
-        date: { gte: from, lte: to },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.pattaniCrateHandlingDaily.findMany({
       where: {
         cashBookPaymentVoucherId: null,
         date: { gte: from, lte: to },
@@ -296,26 +308,6 @@ export async function listThaiHandlingSettlementTodos(input?: {
       amountThb,
       paidTo: stationPaidTo("SONGKHLA"),
       particulars: buildHandlingParticulars(date, "SONGKHLA"),
-      cashBookPaymentVoucherId: null,
-    });
-  }
-
-  for (const row of pattaniRows) {
-    const date = toDateInputValue(row.date);
-    const rates = await ratesFor(row.date);
-    const qty = await resolvePattaniEffectiveQty(row, rates);
-    const amountThb = roundMoney(
-      computePattaniHandlingCosts(qty, rates).dayTotalThb
-    );
-    if (!(amountThb > 0)) continue;
-    items.push({
-      kind: "handling",
-      station: "PATTANI",
-      id: row.id,
-      date,
-      amountThb,
-      paidTo: stationPaidTo("PATTANI"),
-      particulars: buildHandlingParticulars(date, "PATTANI"),
       cashBookPaymentVoucherId: null,
     });
   }
@@ -394,6 +386,12 @@ export async function settleThaiHandlingDay(input: {
   id: string;
   actorUserId: string;
 }): Promise<{ paymentVoucherId: string; voucherNo: string }> {
+  if (input.station === "PATTANI") {
+    throw new Error(
+      "北大年搬运费不在此结账 / Pattani handling is excluded from settlement"
+    );
+  }
+
   const todos = await listThaiHandlingSettlementTodos({
     fromDate: "2020-01-01",
   });
@@ -409,19 +407,15 @@ export async function settleThaiHandlingDay(input: {
     const existing =
       input.station === "SADAO"
         ? await tx.sadaoCrateHandlingDaily.findUnique({ where: { id: input.id } })
-        : input.station === "SONGKHLA"
-          ? await tx.songkhlaCrateHandlingDaily.findUnique({
-              where: { id: input.id },
-            })
-          : await tx.pattaniCrateHandlingDaily.findUnique({
-              where: { id: input.id },
-            });
+        : await tx.songkhlaCrateHandlingDaily.findUnique({
+            where: { id: input.id },
+          });
     if (!existing) throw new Error("记录不存在");
     if (existing.cashBookPaymentVoucherId) {
       throw new Error("已结账 / Already settled");
     }
 
-    const createdId = await createConfirmedThbPv({
+    const createdId = await createDraftThbPv({
       voucherDate: date,
       paidTo: todo.paidTo,
       accountCode: THAI_HANDLING_PV_ACCOUNT_CODE,
@@ -436,13 +430,8 @@ export async function settleThaiHandlingDay(input: {
         where: { id: input.id },
         data: { cashBookPaymentVoucherId: createdId },
       });
-    } else if (input.station === "SONGKHLA") {
-      await tx.songkhlaCrateHandlingDaily.update({
-        where: { id: input.id },
-        data: { cashBookPaymentVoucherId: createdId },
-      });
     } else {
-      await tx.pattaniCrateHandlingDaily.update({
+      await tx.songkhlaCrateHandlingDaily.update({
         where: { id: input.id },
         data: { cashBookPaymentVoucherId: createdId },
       });
@@ -480,7 +469,7 @@ export async function settleThaiDriverTripDay(input: {
       throw new Error("已结账 / Already settled");
     }
 
-    const createdId = await createConfirmedThbPv({
+    const createdId = await createDraftThbPv({
       voucherDate: date,
       paidTo: todo.paidTo,
       accountCode: THAI_DRIVER_TRIP_PV_ACCOUNT_CODE,
@@ -503,6 +492,189 @@ export async function settleThaiDriverTripDay(input: {
   });
   revalidateThaiSettlement(pvId);
   return { paymentVoucherId: pvId, voucherNo: pv.voucherNo };
+}
+
+/**
+ * Draft PVs still linked to a handling/trip daily row — awaiting accountant confirm.
+ * Includes drafts freshly generated here and any previously confirmed-then-unconfirmed.
+ */
+export async function listThaiSettlementPendingConfirm(input?: {
+  fromDate?: string;
+  toDate?: string;
+}): Promise<ThaiSettlementPendingConfirmItem[]> {
+  const from = input?.fromDate
+    ? parseDateInput(input.fromDate)
+    : parseDateInput("2020-01-01");
+  const to = input?.toDate ? parseDateInput(input.toDate) : new Date();
+
+  const [sadao, songkhla, pattani, trips] = await Promise.all([
+    prisma.sadaoCrateHandlingDaily.findMany({
+      where: {
+        cashBookPaymentVoucherId: { not: null },
+        date: { gte: from, lte: to },
+      },
+      select: {
+        date: true,
+        cashBookPaymentVoucherId: true,
+        cashBookPaymentVoucher: {
+          select: {
+            id: true,
+            voucherNo: true,
+            voucherDate: true,
+            paidTo: true,
+            totalAmount: true,
+            status: true,
+            lines: {
+              orderBy: { lineOrder: "asc" },
+              take: 1,
+              select: { accountCode: true, particulars: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.songkhlaCrateHandlingDaily.findMany({
+      where: {
+        cashBookPaymentVoucherId: { not: null },
+        date: { gte: from, lte: to },
+      },
+      select: {
+        date: true,
+        cashBookPaymentVoucherId: true,
+        cashBookPaymentVoucher: {
+          select: {
+            id: true,
+            voucherNo: true,
+            voucherDate: true,
+            paidTo: true,
+            totalAmount: true,
+            status: true,
+            lines: {
+              orderBy: { lineOrder: "asc" },
+              take: 1,
+              select: { accountCode: true, particulars: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.pattaniCrateHandlingDaily.findMany({
+      where: {
+        cashBookPaymentVoucherId: { not: null },
+        date: { gte: from, lte: to },
+      },
+      select: {
+        date: true,
+        cashBookPaymentVoucherId: true,
+        cashBookPaymentVoucher: {
+          select: {
+            id: true,
+            voucherNo: true,
+            voucherDate: true,
+            paidTo: true,
+            totalAmount: true,
+            status: true,
+            lines: {
+              orderBy: { lineOrder: "asc" },
+              take: 1,
+              select: { accountCode: true, particulars: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.thaiDriverTripDaily.findMany({
+      where: {
+        cashBookPaymentVoucherId: { not: null },
+        date: { gte: from, lte: to },
+      },
+      select: {
+        date: true,
+        cashBookPaymentVoucherId: true,
+        driver: { select: { name: true } },
+        cashBookPaymentVoucher: {
+          select: {
+            id: true,
+            voucherNo: true,
+            voucherDate: true,
+            paidTo: true,
+            totalAmount: true,
+            status: true,
+            lines: {
+              orderBy: { lineOrder: "asc" },
+              take: 1,
+              select: { accountCode: true, particulars: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const items: ThaiSettlementPendingConfirmItem[] = [];
+
+  function pushLinked(
+    source: ThaiSettlementPendingSource,
+    sourceLabel: string,
+    sourceDate: Date,
+    voucher: {
+      id: string;
+      voucherNo: string;
+      voucherDate: Date;
+      paidTo: string;
+      totalAmount: unknown;
+      status: string;
+      lines: Array<{ accountCode: string; particulars: string | null }>;
+    } | null
+  ) {
+    if (!voucher || voucher.status !== "draft") return;
+    items.push({
+      paymentVoucherId: voucher.id,
+      voucherNo: voucher.voucherNo,
+      voucherDate: toDateInputValue(voucher.voucherDate),
+      paidTo: voucher.paidTo,
+      totalAmount: roundMoney(decimalToNumber(voucher.totalAmount) ?? 0),
+      accountCode: voucher.lines[0]?.accountCode ?? null,
+      particulars: voucher.lines[0]?.particulars ?? null,
+      source,
+      sourceLabel,
+      sourceDate: toDateInputValue(sourceDate),
+    });
+  }
+
+  for (const row of sadao) {
+    pushLinked("handling_sadao", "SADAO 搬运", row.date, row.cashBookPaymentVoucher);
+  }
+  for (const row of songkhla) {
+    pushLinked(
+      "handling_songkhla",
+      "宋卡搬运",
+      row.date,
+      row.cashBookPaymentVoucher
+    );
+  }
+  for (const row of pattani) {
+    pushLinked(
+      "handling_pattani",
+      "北大年搬运",
+      row.date,
+      row.cashBookPaymentVoucher
+    );
+  }
+  for (const row of trips) {
+    pushLinked(
+      "driver_trip",
+      `趋次 / ${row.driver.name}`,
+      row.date,
+      row.cashBookPaymentVoucher
+    );
+  }
+
+  return items.sort((a, b) => {
+    const byDate = b.voucherDate.localeCompare(a.voucherDate);
+    if (byDate !== 0) return byDate;
+    return a.voucherNo.localeCompare(b.voucherNo);
+  });
 }
 
 /** Convenience for tests: verify linked total amount. */
