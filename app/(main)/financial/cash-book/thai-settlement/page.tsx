@@ -14,7 +14,7 @@ export default async function ThaiCashBookSettlementPage() {
           THB 待确认 Thai Cash Book Pending Confirm
         </h1>
         <p className="mt-1 text-sm text-haidee-muted">
-          搬运费（6502，不含北大年）与司机趋次工资（6500）草稿随数据录入自动生成；此处打开并保存即确认入账。
+          搬运费（6502，不含北大年）与司机趟次工资（6500）草稿随数据录入自动生成；此处打开并保存即确认入账。
         </p>
       </div>
       <ThaiCashBookSettlementView canWrite={canWriteCashBook(user.role)} />

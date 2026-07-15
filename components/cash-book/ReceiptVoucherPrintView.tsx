@@ -9,6 +9,7 @@ import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatThbPaymentVoucherAmountInWords } from "@/lib/thai-baht-text";
 import { formatDisplay } from "@/lib/date-utils";
 import "@/components/documents/document-print.css";
+import "@/components/cash-book/cash-book-voucher-print.css";
 
 function money(amount: number) {
   return amount.toLocaleString("en-US", { minimumFractionDigits: 2 });
@@ -28,7 +29,7 @@ export function ReceiptVoucherPrintView({
 
   return (
     <div className="space-y-4">
-      <div className="no-print flex flex-wrap items-center justify-between gap-3">
+      <div className="no-print print:hidden flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/financial/cash-book/receipt-voucher"

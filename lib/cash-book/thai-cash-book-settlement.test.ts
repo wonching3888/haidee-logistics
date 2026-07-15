@@ -50,15 +50,15 @@ describe("particulars builders", () => {
   it("includes destination on each trip wage line", () => {
     expect(
       buildDriverTripLineParticulars("2026-07-14", "其他", "SONGKHLA")
-    ).toBe("2026-07-14 / 其他 / 趋次 / SONGKHLA");
+    ).toBe("2026-07-14 / 其他 / 趟次 / SONGKHLA");
     expect(
       buildDriverTripLineParticulars("2026-07-14", "其他", "PATTANI")
-    ).toBe("2026-07-14 / 其他 / 趋次 / PATTANI");
+    ).toBe("2026-07-14 / 其他 / 趟次 / PATTANI");
   });
 
   it("keeps legacy trip header helper", () => {
     expect(buildDriverTripParticulars("2026-07-14", "其他")).toBe(
-      "2026-07-14 / 其他 / 趋次工资"
+      "2026-07-14 / 其他 / 趟次工资"
     );
   });
 });

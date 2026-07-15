@@ -55,6 +55,20 @@ body,
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* AppShell / print toolbars use `.no-print`. Must be global — previously only
+   defined in driver-expense-print.css, so cash-book print still showed the nav. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
 /* ScrollMatrixTable: on phones let AppShell <main> scroll vertically (no calc(100vh) trap). */
 @media (max-width: 767px) {
   .scroll-matrix-natural-mobile {

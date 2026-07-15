@@ -104,19 +104,21 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
             待确认 Pending confirm
           </h2>
           <p className="text-sm text-haidee-muted">
-            草稿由书记保存搬运/趋次数据时自动生成。打开后点「保存」即确认入账，无需再勾选。
+            草稿由书记保存搬运/趟次数据时自动生成。打开后点「保存」即确认入账，无需再勾选。
             {!canWrite && "（当前只读）"}
           </p>
         </div>
         <WideTableScrollArea heightOffset={260} pinFirstColumn={false}>
           <TableHeader>
             <TableRow>
-              <TableHead>凭证日期</TableHead>
-              <TableHead>编号</TableHead>
-              <TableHead>来源</TableHead>
-              <TableHead>付款对象</TableHead>
-              <TableHead>说明</TableHead>
-              <TableHead className="text-right">金额</TableHead>
+              <TableHead className="whitespace-nowrap">凭证日期</TableHead>
+              <TableHead className="whitespace-nowrap">编号</TableHead>
+              <TableHead className="whitespace-nowrap">来源</TableHead>
+              <TableHead className="whitespace-nowrap">付款对象</TableHead>
+              <TableHead className="w-[14rem] max-w-[14rem]">说明</TableHead>
+              <TableHead className="sticky right-0 z-[1] bg-white text-right whitespace-nowrap shadow-[-4px_0_8px_-6px_rgba(0,0,0,0.15)]">
+                金额
+              </TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -133,8 +135,10 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
             )}
             {pending.map((row) => (
               <TableRow key={row.paymentVoucherId}>
-                <TableCell>{formatDisplay(row.voucherDate)}</TableCell>
-                <TableCell className="font-mono text-sm">
+                <TableCell className="whitespace-nowrap">
+                  {formatDisplay(row.voucherDate)}
+                </TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap">
                   {row.voucherNo}
                 </TableCell>
                 <TableCell>
@@ -143,11 +147,14 @@ export function ThaiCashBookSettlementView({ canWrite }: { canWrite: boolean }) 
                     ({formatDisplay(row.sourceDate)})
                   </span>
                 </TableCell>
-                <TableCell>{row.paidTo}</TableCell>
-                <TableCell className="max-w-[240px] truncate text-sm">
+                <TableCell className="whitespace-nowrap">{row.paidTo}</TableCell>
+                <TableCell
+                  className="max-w-[14rem] truncate text-sm"
+                  title={row.particulars ?? undefined}
+                >
                   {row.particulars ?? "—"}
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="sticky right-0 z-[1] bg-white text-right font-mono whitespace-nowrap shadow-[-4px_0_8px_-6px_rgba(0,0,0,0.15)]">
                   {money(row.totalAmount)}
                 </TableCell>
                 <TableCell>

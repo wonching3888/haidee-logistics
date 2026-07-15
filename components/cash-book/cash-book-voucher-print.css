@@ -1,0 +1,15 @@
+/**
+ * Cash Book PV/RV print — loaded only on voucher print pages so @page A5
+ * wins over the shared document-print.css default A4 (named pages alone are
+ * unreliable in Chrome print preview paper-size selection).
+ */
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 10mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

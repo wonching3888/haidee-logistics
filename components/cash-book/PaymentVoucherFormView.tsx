@@ -69,7 +69,7 @@ export function PaymentVoucherFormView({
 }: {
   existing?: PaymentVoucherDetail | null;
   canWrite: boolean;
-  /** THB 结账关联草稿：隐藏确认勾选，保存即 confirmed，并跳回待确认列表 */
+  /** THB 结账关联草稿：隐藏确认勾选，保存即 confirmed，成功后进入本凭证打印页 */
   thaiSettlementConfirmMode?: boolean;
   /** Back / after-save target when not default PV list */
   returnTo?: "thai-settlement" | "ledger-thb" | "payment-list";
@@ -189,15 +189,16 @@ export function PaymentVoucherFormView({
           setError(result.error);
           return;
         }
-        if (confirmOnSave || resolvedReturnTo === "thai-settlement") {
-          router.push("/financial/cash-book/thai-settlement");
-        } else {
-          const printQs =
-            resolvedReturnTo === "ledger-thb" ? "?from=ledger-thb" : "";
-          router.push(
-            `/financial/cash-book/payment-voucher/${result.data.id}${printQs}`
-          );
-        }
+        // Always land on this voucher's print page so user can print immediately.
+        const printQs =
+          resolvedReturnTo === "thai-settlement"
+            ? "?from=thai-settlement"
+            : resolvedReturnTo === "ledger-thb"
+              ? "?from=ledger-thb"
+              : "";
+        router.push(
+          `/financial/cash-book/payment-voucher/${result.data.id}${printQs}`
+        );
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "保存失败");
@@ -327,12 +328,12 @@ export function PaymentVoucherFormView({
           {lines.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-2 border-b border-haidee-border/60 pb-3 last:border-0 lg:grid-cols-[minmax(12rem,1.2fr)_minmax(10rem,1fr)_8rem_auto]"
+              className="grid gap-2 border-b border-haidee-border/60 pb-3 last:border-0 lg:grid-cols-[minmax(10rem,1.1fr)_minmax(0,1fr)_minmax(7.5rem,7.5rem)_auto]"
             >
-              <label className="space-y-1 text-sm">
+              <label className="min-w-0 space-y-1 text-sm">
                 <span>科目 Account * ({book})</span>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-2 py-2 text-sm"
+                  className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 py-2 text-sm"
                   value={row.accountCode}
                   disabled={!canWrite}
                   onChange={(e) =>
@@ -353,9 +354,11 @@ export function PaymentVoucherFormView({
                   ))}
                 </select>
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="min-w-0 space-y-1 text-sm">
                 <span>说明 Particulars</span>
                 <Input
+                  className="min-w-0 truncate"
+                  title={row.particulars || undefined}
                   value={row.particulars}
                   disabled={!canWrite}
                   onChange={(e) =>
@@ -369,12 +372,13 @@ export function PaymentVoucherFormView({
                   }
                 />
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="w-full min-w-[7.5rem] shrink-0 space-y-1 text-sm">
                 <span>金额 Amount ({book}) *</span>
                 <Input
                   type="number"
                   min={0}
                   step="0.01"
+                  className="font-mono"
                   value={row.amount}
                   disabled={!canWrite}
                   onChange={(e) =>

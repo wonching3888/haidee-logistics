@@ -132,7 +132,7 @@ export function buildDriverTripParticulars(
   date: string,
   driverName: string
 ): string {
-  return `${date} / ${driverName} / 趋次工资`;
+  return `${date} / ${driverName} / 趟次工资`;
 }
 
 export function buildDriverTripLineParticulars(
@@ -140,7 +140,7 @@ export function buildDriverTripLineParticulars(
   driverName: string,
   destination: "SONGKHLA" | "PATTANI"
 ): string {
-  return `${date} / ${driverName} / 趋次 / ${destination}`;
+  return `${date} / ${driverName} / 趟次 / ${destination}`;
 }
 
 /** Trip wages only — standby ALLOWANCE is manual (not auto-added). */
@@ -739,7 +739,7 @@ export async function listThaiSettlementPendingConfirm(input?: {
   for (const row of trips) {
     pushLinked(
       "driver_trip",
-      `趋次 / ${row.driver.name}`,
+      `趟次 / ${row.driver.name}`,
       row.date,
       row.cashBookPaymentVoucher
     );
