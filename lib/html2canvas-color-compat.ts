@@ -207,6 +207,19 @@ function injectInvoicePdfCaptureTypography(doc: Document) {
   doc.head.appendChild(style);
 }
 
+function injectMarketDoTableCaptureBaseline(doc: Document) {
+  const style = doc.createElement("style");
+  style.setAttribute("data-html2canvas-market-do-baseline", "true");
+  style.textContent = `
+    [data-pdf-capture-root] .market-do-table th,
+    [data-pdf-capture-root] .market-do-table td {
+      padding-top: 1px !important;
+      padding-bottom: 3px !important;
+    }
+  `;
+  doc.head.appendChild(style);
+}
+
 function injectDispatchKlMcPdfCaptureLayout(doc: Document) {
   const style = doc.createElement("style");
   style.setAttribute("data-html2canvas-klmc-layout", "true");
@@ -276,6 +289,7 @@ export function prepareHtml2CanvasClone(
   inlineResolvedColorsForHtml2Canvas(sourceRoot, clonedRoot);
   expandOverflowContainersForCapture(clonedRoot, options);
   injectInvoicePdfCaptureTypography(clonedDoc);
+  injectMarketDoTableCaptureBaseline(clonedDoc);
   if (sourceRoot.querySelector(".dispatch-klmc-print-a4")) {
     injectDispatchKlMcPdfCaptureLayout(clonedDoc);
   }
