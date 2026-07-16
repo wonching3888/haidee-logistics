@@ -1,33 +1,42 @@
 /**
- * Automated A5 print verification — reproduces the REAL click-Print timing path.
+ * Automated A5 landscape PV/RV print verification — 5 slots/page, no zoom fit.
  *
- * Critical regression this script must catch:
- *   Measuring getBoundingClientRect() on SCREEN styles (before @media print /
- *   Tailwind print: densification) yields an inflated height → scale << 1 →
- *   over-compressed printout. Fit MUST run inside beforeprint (print media on).
+ * Asserts:
+ *   - page count = ceil(lineCount / 5) (empty → 1)
+ *   - each PDF page MediaBox is A5 landscape (~595×420 pt)
+ *   - non-last pages: no total / words / signatures
+ *   - last page: has total + words + signatures; slots padded to 5
  *
- * Flow under test (mirrors printVoucherA5):
- *   1. Screen media (fat Tailwind spacing) — baseline
- *   2. emulateMedia('print') — as the browser does before beforeprint
- *   3. Fire beforeprint → applyVoucherA5PrintFit → record scale
- *   4. afterprint → clear zoom
- *   5. PDF page-count under preferCSSPageSize A5
- *
- * Also asserts the OLD buggy path (measure on screen) would over-compress
- * short vouchers, so this methodology gap cannot silently return.
+ * Fixtures: 1 line, 5 lines, 6 lines (→ 2 pages).
  *
  * Run: npx tsx scripts/_verify-pv-a5-print.ts
  * Exit 0 only when all asserts pass.
+ * Artifacts: .tmp-screenshots/pv-a5-land-{1|5|6}line.{pdf,png}
+ *
+ * ---------------------------------------------------------------------------
+ * PHYSICAL PRINT PITFALL (RICOH IM 2702 / this office queue) — 2026-07-16
+ * ---------------------------------------------------------------------------
+ * A5 landscape PDF MediaBox alone is NOT enough for correct physical output.
+ * This printer's default orientation-requested is portrait; without an explicit
+ * landscape flag the driver maps the 210mm-wide page onto the 148mm axis and
+ * the print is clipped ("打印被截").
+ *
+ * When sending to the bypass tray (A5, long-edge-first / LEF), always include:
+ *   -o orientation-requested=4
+ * together with:
+ *   -o media=iso_a5_148x210mm -o PageSize=A5 -o InputSlot=manual
+ *   -o print-scaling=none -o fit-to-page=false -o sides=one-sided
+ *
+ * Do not rely on PDF MediaBox / @page landscape to set printer orientation.
+ * ---------------------------------------------------------------------------
  */
 import fs from "node:fs";
 import path from "node:path";
 import { chromium, type Page } from "playwright";
+import { expectedVoucherPrintPageCount } from "../lib/cash-book/voucher-print-pages";
 
 const ROOT = process.cwd();
-const OUT = path.join(
-  process.env.HOME ?? ROOT,
-  "Desktop/Screenshots/a5-print-verify"
-);
+const OUT = path.join(ROOT, ".tmp-screenshots");
 const CSS_DOC = fs.readFileSync(
   path.join(ROOT, "components/documents/document-print.css"),
   "utf8"
@@ -51,122 +60,181 @@ const LOGO = `data:image/png;base64,${fs
   .readFileSync(path.join(ROOT, "public/logo.png"))
   .toString("base64")}`;
 
-const A5_H_MM = 210;
-const A5_FIT_MM = 200;
+/** A5 landscape in PDF points (210mm × 148mm). */
+const A5_LAND_W_PT = 595.28;
+const A5_LAND_H_PT = 419.53;
+const A5_LAND_H_MM = 148;
+/** Soft ceiling for last-page content height (padding included). Usable ≈138mm. */
+const LAST_PAGE_HEIGHT_MM_MAX = 128;
 
-/** Short 1-line voucher (like PV-20260715-004) must not need meaningful zoom. */
-const SHORT_SCALE_MIN = 0.98;
-/**
- * Screen-layout height must be substantially taller than print-layout height,
- * otherwise the fixture cannot demonstrate the beforeprint timing pitfall.
- */
-const SCREEN_VS_PRINT_HEIGHT_RATIO_MIN = 1.4;
+type CaseName = "1line" | "5line" | "6line";
 
-type CaseName = "short" | "stress";
+const CASES: Record<CaseName, number> = {
+  "1line": 1,
+  "5line": 5,
+  "6line": 6,
+};
 
 function countPdfPages(buf: Buffer): number {
   return (buf.toString("latin1").match(/\/Type\s*\/Page(?!\w)/g) ?? []).length;
 }
 
-/** Same algorithm as lib/cash-book/voucher-print-fit.ts (kept in sync manually). */
-const FIT_RUNTIME_JS = `
-window.__a5Fit = (function () {
-  const A5_FIT_HEIGHT_MM = ${A5_FIT_MM};
-  function a5FitHeightPx() { return (A5_FIT_HEIGHT_MM * 96) / 25.4; }
-  let lastScale;
-  function applyVoucherA5PrintFit(el) {
-    el.style.zoom = "1";
-    const height = el.getBoundingClientRect().height;
-    const scale = Math.min(1, a5FitHeightPx() / Math.max(height, 1));
-    el.style.zoom = String(scale);
-    lastScale = scale;
-    return scale;
-  }
-  function clearVoucherA5PrintFit(el) { el.style.zoom = ""; }
-  function printVoucherA5(el) {
-    if (!el) { window.print(); return; }
-    const onBeforePrint = () => { applyVoucherA5PrintFit(el); };
-    const onAfterPrint = () => {
-      clearVoucherA5PrintFit(el);
-      window.removeEventListener("beforeprint", onBeforePrint);
-      window.removeEventListener("afterprint", onAfterPrint);
-    };
-    window.addEventListener("beforeprint", onBeforePrint);
-    window.addEventListener("afterprint", onAfterPrint);
-    window.print();
-  }
-  return {
-    applyVoucherA5PrintFit,
-    clearVoucherA5PrintFit,
-    printVoucherA5,
-    getLastScale: () => lastScale,
-    measure: (el) => {
-      const h = el.getBoundingClientRect().height;
-      return {
-        heightPx: h,
-        heightMm: +(h / (96 / 25.4)).toFixed(2),
-        logoH: el.querySelector(".haidee-invoice-letterhead-logo")
-          ?.getBoundingClientRect().height ?? null,
-        sigMinH: getComputedStyle(el.querySelector(".payment-voucher-sig-line")).minHeight,
-        padding: getComputedStyle(el).padding,
-        fontSize: getComputedStyle(el).fontSize,
-      };
-    },
-  };
-})();
-`;
+function parseMediaBoxes(buf: Buffer): string[] {
+  return [
+    ...buf.toString("latin1").matchAll(/\/MediaBox\s*\[\s*([0-9.\s]+)\]/g),
+  ].map((m) => m[1].trim());
+}
 
-function buildHtml(kind: CaseName): string {
-  const lines =
-    kind === "short"
-      ? [["2026-07-15 / THONGDANG / เที่ยว / SONGKHLA", "1,200.00"]]
-      : [
-          [
-            "2026-07-15 / P.NARONG / เที่ยวครั้ง / SONGKHLA → PATTANI → HATYAI / fuel + allowance + border fee with a long wrap",
-            "45,600.00",
-          ],
-          [
-            "Handling charge / ค่าดำเนินการ Extra note line that must wrap under A5 width",
-            "3,250.50",
-          ],
-          [
-            "Adjustment / ปรับปรุง รายการเพิ่มเติมเพื่อทดสอบหลายบรรทัดในตาราง",
-            "999.99",
-          ],
-          ["Subtotal carry / รวมย่อย", "49,850.49"],
-        ];
-  const words =
-    kind === "short"
-      ? "หนึ่งพันสองร้อยบาทถ้วน / One Thousand Two Hundred Baht Only"
-      : "สี่หมื่นเก้าพันแปดร้อยห้าสิบบาทสี่สิบเก้าสตางค์ / Forty-Nine Thousand Eight Hundred Fifty Baht and Forty-Nine Satang Only — intentionally long bilingual amount-in-words";
+function isA5LandscapeMediaBox(box: string): boolean {
+  const parts = box.split(/\s+/).map(Number);
+  if (parts.length !== 4) return false;
+  const [, , w, h] = parts;
+  return Math.abs(w - A5_LAND_W_PT) < 4 && Math.abs(h - A5_LAND_H_PT) < 4;
+}
 
-  const bodyRows = lines
-    .map(
-      ([p, a]) => `<tr class="border-b border-gray-300">
-      <td class="py-2 pr-2 break-words">${p}</td>
-      <td class="py-2 text-right font-mono whitespace-nowrap">${a}</td>
-    </tr>`
-    )
+function sampleLines(n: number): Array<[string, string]> {
+  const rows: Array<[string, string]> = [];
+  for (let i = 1; i <= n; i++) {
+    const long =
+      i === 6
+        ? `Line ${i} / รายการที่ ${i} — long wrap check fuel + allowance SONGKHLA → PATTANI`
+        : `Line ${i} / รายการที่ ${i} THONGDANG trip`;
+    rows.push([
+      long,
+      `${(i * 100 + 0.5).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+    ]);
+  }
+  return rows;
+}
+
+function padSlots(
+  pageLines: Array<[string, string]>
+): Array<[string, string] | null> {
+  const slots: Array<[string, string] | null> = [...pageLines];
+  while (slots.length < 5) slots.push(null);
+  return slots.slice(0, 5);
+}
+
+function buildPageHtml(opts: {
+  pageNum: number;
+  pageCount: number;
+  pageLines: Array<[string, string]>;
+  isLast: boolean;
+  total: string;
+  words: string;
+}): string {
+  const { pageNum, pageCount, pageLines, isLast, total, words } = opts;
+  const slots = padSlots(pageLines);
+  const pageLabel =
+    pageCount > 1
+      ? `<p class="payment-voucher-page-label">หน้า ${pageNum}/${pageCount}</p>`
+      : "";
+  const slotRows = slots
+    .map((slot, idx) => {
+      const empty = slot ? "0" : "1";
+      const p = slot ? slot[0] : "&nbsp;";
+      const a = slot ? slot[1] : "&nbsp;";
+      return `<tr class="payment-voucher-slot-row" data-empty="${empty}" data-slot="${idx}">
+        <td class="payment-voucher-slot-particulars">${p}</td>
+        <td class="payment-voucher-amount-col text-right font-mono whitespace-nowrap">${a}</td>
+      </tr>`;
+    })
     .join("");
+  const totalRow = isLast
+    ? `<tr class="payment-voucher-total-row font-bold">
+        <td class="text-right">รวม / Total</td>
+        <td class="payment-voucher-amount-col text-right font-mono">${total}</td>
+      </tr>`
+    : "";
+  const footer = isLast
+    ? `<div class="payment-voucher-words" data-voucher-words="1">
+        <span class="font-medium payment-voucher-words-label">จำนวนเงิน (ตัวอักษร) / Amount in words:</span>
+        <span class="payment-voucher-amount-words">${words}</span>
+      </div>
+      <div class="payment-voucher-signatures" style="grid-template-columns:repeat(3,minmax(0,1fr))" data-voucher-signatures="1">
+        <div><div class="payment-voucher-sig-line"></div><p class="payment-voucher-sig-label">ผู้รับเงิน / Payee</p><p class="payment-voucher-sig-name">Payee Name</p></div>
+        <div><div class="payment-voucher-sig-line"></div><p class="payment-voucher-sig-label">ผู้จัดทำ / Prepared by</p><p class="payment-voucher-sig-name">Clerk</p></div>
+        <div><div class="payment-voucher-sig-line"></div><p class="payment-voucher-sig-label">ผู้อนุมัติ / Approved by</p><p class="payment-voucher-sig-name">Manager</p></div>
+      </div>`
+    : `<p class="payment-voucher-continued" data-voucher-continued="1">— ต่อหน้าถัดไป / continued —</p>`;
+
+  return `<div
+    class="document-print payment-voucher-print payment-voucher-print-page ${isLast ? "is-last-page" : ""} rounded-lg border bg-white p-6"
+    data-voucher-print-page="${pageNum}"
+    data-voucher-print-page-count="${pageCount}"
+    data-voucher-print-is-last="${isLast ? "1" : "0"}"
+    data-voucher-print-orientation="landscape"
+  >
+    <header class="payment-voucher-topband">
+      <div class="payment-voucher-topband-company">
+        <img class="haidee-invoice-letterhead-logo payment-voucher-topband-logo" src="${LOGO}" alt="Logo"/>
+        <div class="payment-voucher-topband-company-text">
+          <div class="haidee-invoice-letterhead-name-th">บริษัท ไฮดี โลจิสติกส์ จำกัด</div>
+          <div class="haidee-invoice-letterhead-name-en">HAI DEE LOGISTICS CO., LTD.</div>
+          <div class="haidee-invoice-letterhead-detail">38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320</div>
+          <div class="haidee-invoice-letterhead-detail">เลขประจำตัวผู้เสียภาษี 0905567001730</div>
+        </div>
+      </div>
+      <h1 class="payment-voucher-title"><span>ใบสำคัญจ่าย / Payment Voucher</span></h1>
+      <div class="payment-voucher-topband-right">
+        <p><span class="font-medium">เลขที่ / Voucher No.</span></p>
+        <p class="font-mono payment-voucher-topband-voucher-no">PV-VERIFY-${pageCount}P</p>
+        ${pageLabel}
+      </div>
+    </header>
+    <div class="payment-voucher-meta">
+      <p><span class="font-medium">วันที่ / Date:</span> 15/07/2026</p>
+      <p class="payment-voucher-meta-party"><span class="font-medium">จ่ายให้ / Paid To:</span> THONGDANG LOGISTICS PARTNER CO., LTD.</p>
+      <p><span class="font-medium">วิธีชำระ / Payment Method:</span> โอนเงิน / Transfer</p>
+      <p><span class="font-medium">วันครบกำหนด / Due Date:</span> 20/07/2026</p>
+    </div>
+    <table class="payment-voucher-table">
+      <thead>
+        <tr>
+          <th class="text-left">รายละเอียด / Particulars</th>
+          <th class="payment-voucher-amount-col text-right whitespace-nowrap">จำนวนเงิน / Amount (THB)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${slotRows}
+        ${totalRow}
+      </tbody>
+    </table>
+    ${footer}
+  </div>`;
+}
+
+function buildHtml(lineCount: number): string {
+  const all = sampleLines(lineCount);
+  const pageCount = expectedVoucherPrintPageCount(lineCount);
+  const pages: string[] = [];
+  for (let i = 0; i < pageCount; i++) {
+    const slice = all.slice(i * 5, i * 5 + 5);
+    pages.push(
+      buildPageHtml({
+        pageNum: i + 1,
+        pageCount,
+        pageLines: slice,
+        isLast: i === pageCount - 1,
+        total: all
+          .reduce((s, [, a]) => s + Number(a.replace(/,/g, "")), 0)
+          .toLocaleString("en-US", { minimumFractionDigits: 2 }),
+        words:
+          "หนึ่งพันสองร้อยบาทถ้วน / One Thousand Two Hundred Baht Only",
+      })
+    );
+  }
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"/>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,"Noto Sans Thai",Tahoma,sans-serif}
-.mt-4{margin-top:1rem}.mt-1{margin-top:.25rem}.mt-6{margin-top:1.5rem}.mt-8{margin-top:2rem}.mt-10{margin-top:2.5rem}
-.p-6{padding:1.5rem}.p-3{padding:.75rem}.text-lg{font-size:1.125rem}.text-sm{font-size:.875rem}.text-xs{font-size:.75rem}
+.text-right{text-align:right}.text-left{text-align:left}.text-center{text-align:center}
 .font-bold{font-weight:700}.font-medium{font-weight:500}.font-mono{font-family:ui-monospace,monospace}
-.text-center{text-align:center}.text-right{text-align:right}.text-left{text-align:left}
-.bg-white{background:#fff}.bg-gray-50{background:#f9fafb}.border{border:1px solid #d1d5db}
-.border-b{border-bottom:1px solid #d1d5db}.border-b-2{border-bottom:2px solid #000}.border-t-2{border-top:2px solid #000}
-.border-black{border-color:#000}.border-gray-300{border-color:#d1d5db}.rounded-lg{border-radius:.5rem}.rounded{border-radius:.25rem}
-.w-full{width:100%}.w-32{width:8rem}.grid{display:grid}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-.gap-2{gap:.5rem}.gap-6{gap:1.5rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.pr-2{padding-right:.5rem}
-.min-h-\\[3rem\\]{min-height:3rem}.break-words{overflow-wrap:anywhere}.leading-relaxed{line-height:1.625}
-.border-collapse{border-collapse:collapse}.whitespace-nowrap{white-space:nowrap}
-.space-y-4>*+*{margin-top:1rem}.no-print{display:block}
-.flex{display:flex}.h-screen{height:100vh}
+.bg-white{background:#fff}.border{border:1px solid #d1d5db}.rounded-lg{border-radius:.5rem}
+.p-6{padding:1.5rem}.whitespace-nowrap{white-space:nowrap}
+.no-print{display:block}.flex{display:flex}.h-screen{height:100vh}
 ${CSS_GLOBAL_PRINT}
 ${CSS_DOC}
 ${CSS_PV}
@@ -176,142 +244,67 @@ ${CSS_PV}
   <div class="no-print">SIDEBAR</div>
   <main style="flex:1;overflow:auto;padding:1.5rem">
     <div class="space-y-4">
-      <div class="no-print">TOOLBAR Print buttons</div>
-      <div class="document-print payment-voucher-print rounded-lg border bg-white p-6" id="voucher">
-        <div class="haidee-invoice-letterhead">
-          <img class="haidee-invoice-letterhead-logo" src="${LOGO}" alt="Logo"/>
-          <div class="haidee-invoice-letterhead-text">
-            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-th">บริษัท ไฮดี โลจิสติกส์ จำกัด</div>
-            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-en">HAI DEE LOGISTICS CO., LTD.</div>
-            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320</div>
-            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">เลขประจำตัวผู้เสียภาษี 0905567001730</div>
-          </div>
-        </div>
-        <h1 class="mt-4 text-center text-lg font-bold">ใบสำคัญจ่าย / Payment Voucher</h1>
-        <div class="payment-voucher-meta mt-4 grid gap-2 text-sm" style="grid-template-columns:1fr 1fr">
-          <p><span class="font-medium">เลขที่ / Voucher No.:</span> <span class="font-mono">PV-VERIFY-${kind.toUpperCase()}</span></p>
-          <p><span class="font-medium">วันที่ / Date:</span> 15/07/2026</p>
-          <p style="grid-column:1/-1"><span class="font-medium">จ่ายให้ / Paid To:</span> THONGDANG LOGISTICS PARTNER CO., LTD.</p>
-          <p><span class="font-medium">วิธีชำระ / Payment Method:</span> โอนเงิน / Transfer</p>
-          <p><span class="font-medium">วันครบกำหนด / Due Date:</span> 20/07/2026</p>
-        </div>
-        <table class="payment-voucher-table mt-6 w-full border-collapse text-sm">
-          <thead>
-            <tr class="border-b-2 border-black">
-              <th class="py-2 pr-2 text-left">รายละเอียด / Particulars</th>
-              <th class="w-32 py-2 text-right whitespace-nowrap">จำนวนเงิน / Amount (THB)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bodyRows}
-            <tr class="border-t-2 border-black font-bold">
-              <td class="py-2 text-right">รวม / Total</td>
-              <td class="py-2 text-right font-mono">${kind === "short" ? "1,200.00" : "49,850.49"}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="payment-voucher-words mt-4 rounded border border-gray-300 bg-gray-50 p-3 text-sm">
-          <p class="font-medium">จำนวนเงิน (ตัวอักษร) / Amount in words</p>
-          <p class="payment-voucher-amount-words mt-1 break-words leading-relaxed">${words}</p>
-        </div>
-        <div class="payment-voucher-signatures mt-10 grid grid-cols-3 gap-6 text-center text-sm">
-          <div><div class="payment-voucher-sig-line min-h-[3rem] border-b border-black"></div><p class="mt-1">ผู้รับเงิน / Payee</p></div>
-          <div><div class="payment-voucher-sig-line min-h-[3rem] border-b border-black"></div><p class="mt-1">ผู้จัดทำ / Prepared by</p></div>
-          <div><div class="payment-voucher-sig-line min-h-[3rem] border-b border-black"></div><p class="mt-1">ผู้อนุมัติ / Approved by</p></div>
-        </div>
-      </div>
+      <div class="no-print">TOOLBAR Print</div>
+      <div class="payment-voucher-print-stack">${pages.join("\n")}</div>
     </div>
   </main>
 </div>
-<script>${FIT_RUNTIME_JS}</script>
 </body></html>`;
 }
 
 async function runCase(page: Page, kind: CaseName) {
-  await page.setContent(buildHtml(kind), { waitUntil: "load" });
-  // Stay on SCREEN media first — this is the timing pitfall.
-  await page.emulateMedia({ media: "screen" });
-
-  const screenMeasure = await page.evaluate(`(() => {
-    const el = document.getElementById("voucher");
-    const m = window.__a5Fit.measure(el);
-    const buggyScale = window.__a5Fit.applyVoucherA5PrintFit(el);
-    window.__a5Fit.clearVoucherA5PrintFit(el);
-    return { ...m, buggyScreenScale: buggyScale };
-  })()`);
-
-  // Stub window.print like a headless print job: browser has already switched
-  // to print media before beforeprint (Playwright emulateMedia does that step).
-  await page.evaluate(`(() => {
-    window.print = function () {
-      window.dispatchEvent(new Event("beforeprint"));
-      window.dispatchEvent(new Event("afterprint"));
-    };
-  })()`);
-
+  const lineCount = CASES[kind];
+  const expectedPages = expectedVoucherPrintPageCount(lineCount);
+  await page.setContent(buildHtml(lineCount), { waitUntil: "load" });
   await page.emulateMedia({ media: "print" });
 
-  const printPath = await page.evaluate(`(() => {
-    const el = document.getElementById("voucher");
-    const beforeFit = window.__a5Fit.measure(el);
-    window.__a5Fit.printVoucherA5(el);
-    const scale = window.__a5Fit.getLastScale();
-    // afterprint cleared zoom; re-apply for PDF page-count check
-    window.__a5Fit.applyVoucherA5PrintFit(el);
-    const afterFit = window.__a5Fit.measure(el);
-    return {
-      beforeFit,
-      scale,
-      afterFit,
-      noPrintHidden:
-        getComputedStyle(document.querySelector(".no-print")).display === "none",
-      page: getComputedStyle(el).page,
-      zoomAfterClearWouldBeEmpty: (() => {
-        window.__a5Fit.clearVoucherA5PrintFit(el);
-        const cleared = el.style.zoom;
-        window.__a5Fit.applyVoucherA5PrintFit(el);
-        return cleared === "" || cleared === "normal";
-      })(),
-    };
-  })()`);
+  const dom = await page.evaluate(() => {
+    const pages = [
+      ...document.querySelectorAll<HTMLElement>("[data-voucher-print-page]"),
+    ];
+    return pages.map((el) => {
+      const h = el.getBoundingClientRect().height;
+      return {
+        page: Number(el.dataset.voucherPrintPage),
+        isLast: el.dataset.voucherPrintIsLast === "1",
+        orientation: el.dataset.voucherPrintOrientation ?? "",
+        slotCount: el.querySelectorAll(".payment-voucher-slot-row").length,
+        emptySlots: el.querySelectorAll(
+          '.payment-voucher-slot-row[data-empty="1"]'
+        ).length,
+        hasTotal: !!el.querySelector(".payment-voucher-total-row"),
+        hasWords: !!el.querySelector("[data-voucher-words]"),
+        hasSignatures: !!el.querySelector("[data-voucher-signatures]"),
+        hasContinued: !!el.querySelector("[data-voucher-continued]"),
+        hasTopband: !!el.querySelector(".payment-voucher-topband"),
+        heightMm: +(h / (96 / 25.4)).toFixed(2),
+        pageCss: getComputedStyle(el).page,
+        zoom: (el.style as CSSStyleDeclaration & { zoom?: string }).zoom || "",
+      };
+    });
+  });
 
-  const pdfCssZoom = await page.pdf({
+  const pdf = await page.pdf({
     preferCSSPageSize: true,
     printBackground: true,
   });
-  const pdfA4Zoom = await page.pdf({
-    format: "A4",
-    preferCSSPageSize: false,
-    printBackground: true,
-    margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
-  });
+  const mediaBoxes = parseMediaBoxes(pdf);
+  const pdfPages = countPdfPages(pdf);
 
-  const mediaBox =
-    [
-      ...pdfCssZoom
-        .toString("latin1")
-        .matchAll(/\/MediaBox\s*\[\s*([0-9.\s]+)\]/g),
-    ].map((m) => m[1].trim())[0] ?? null;
-
-  fs.writeFileSync(path.join(OUT, `pv-${kind}-a5-zoom.pdf`), pdfCssZoom);
-  await page.screenshot({
-    path: path.join(OUT, `pv-${kind}-print-media.png`),
-    fullPage: true,
-  });
+  const pdfPath = path.join(OUT, `pv-a5-land-${kind}.pdf`);
+  const pngPath = path.join(OUT, `pv-a5-land-${kind}-print.png`);
+  fs.writeFileSync(pdfPath, pdf);
+  await page.screenshot({ path: pngPath, fullPage: true });
 
   return {
     kind,
-    screenMeasure,
-    printPath,
-    pages: {
-      preferCss_zoom: countPdfPages(pdfCssZoom),
-      a4_zoom: countPdfPages(pdfA4Zoom),
-    },
-    mediaBoxZoom: mediaBox,
-    heightRatio: +(
-      screenMeasure.heightMm / printPath.beforeFit.heightMm
-    ).toFixed(3),
-    scaleDelta: +(printPath.scale - screenMeasure.buggyScreenScale).toFixed(4),
+    lineCount,
+    expectedPages,
+    pdfPages,
+    mediaBoxes,
+    dom,
+    pdfPath,
+    pngPath,
   };
 }
 
@@ -319,80 +312,106 @@ async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   const page = await browser.newPage({
-    viewport: { width: 900, height: 1200 },
+    viewport: { width: 1100, height: 900 },
   });
 
   const results = [];
+  const failures: string[] = [];
   try {
-    for (const kind of ["short", "stress"] as CaseName[]) {
+    for (const kind of Object.keys(CASES) as CaseName[]) {
       const r = await runCase(page, kind);
       results.push(r);
       console.log(JSON.stringify(r, null, 2));
-    }
 
-    const failures: string[] = [];
-    for (const r of results) {
-      if (r.pages.preferCss_zoom !== 1) {
-        failures.push(`${r.kind}: preferCss_zoom=${r.pages.preferCss_zoom}`);
-      }
-      if (r.pages.a4_zoom !== 1) {
-        failures.push(`${r.kind}: a4_zoom=${r.pages.a4_zoom}`);
-      }
-      if (!r.printPath.noPrintHidden) {
-        failures.push(`${r.kind}: .no-print still visible in print media`);
-      }
-      if (!r.mediaBoxZoom || !r.mediaBoxZoom.startsWith("0 0 420")) {
-        failures.push(`${r.kind}: MediaBox not A5 (${r.mediaBoxZoom})`);
-      }
-      if (r.printPath.afterFit.heightMm > A5_FIT_MM + 0.5) {
+      if (r.pdfPages !== r.expectedPages) {
         failures.push(
-          `${r.kind}: after beforeprint-fit height ${r.printPath.afterFit.heightMm}mm > ${A5_FIT_MM}mm`
+          `${kind}: pdfPages=${r.pdfPages} expected ${r.expectedPages}`
         );
       }
-
-      // Methodology: screen layout must be much taller than print layout.
-      if (r.heightRatio < SCREEN_VS_PRINT_HEIGHT_RATIO_MIN) {
+      if (r.dom.length !== r.expectedPages) {
         failures.push(
-          `${r.kind}: screen/print height ratio ${r.heightRatio} < ${SCREEN_VS_PRINT_HEIGHT_RATIO_MIN} (fixture cannot catch timing bug)`
+          `${kind}: dom pages=${r.dom.length} expected ${r.expectedPages}`
         );
       }
-
-      // Short 1-line voucher (PV-20260715-004 class): scale ≈ 1
-      if (r.kind === "short" && r.printPath.scale < SHORT_SCALE_MIN) {
+      if (r.mediaBoxes.length < r.expectedPages) {
         failures.push(
-          `short: beforeprint scale ${r.printPath.scale} < ${SHORT_SCALE_MIN} (still over-compressing)`
+          `${kind}: MediaBox count ${r.mediaBoxes.length} < ${r.expectedPages}`
         );
       }
-
-      // Stress case must still show the screen-vs-beforeprint timing pitfall
-      // (screen height exceeds fit target → buggy scale < 1, beforeprint scale = 1).
-      if (r.kind === "stress") {
-        if (r.screenMeasure.buggyScreenScale >= r.printPath.scale - 0.001) {
+      for (let i = 0; i < Math.min(r.mediaBoxes.length, r.expectedPages); i++) {
+        if (!isA5LandscapeMediaBox(r.mediaBoxes[i]!)) {
           failures.push(
-            `stress: buggy screen scale ${r.screenMeasure.buggyScreenScale} not < beforeprint scale ${r.printPath.scale}`
+            `${kind}: page ${i + 1} MediaBox not A5 landscape (${r.mediaBoxes[i]})`
           );
         }
-        if (r.screenMeasure.buggyScreenScale >= SHORT_SCALE_MIN) {
-          failures.push(
-            `stress: buggy screen scale ${r.screenMeasure.buggyScreenScale} unexpectedly ≥ ${SHORT_SCALE_MIN}`
-          );
+      }
+
+      for (const p of r.dom) {
+        if (p.orientation !== "landscape") {
+          failures.push(`${kind}: page ${p.page} orientation=${p.orientation}`);
+        }
+        if (!p.hasTopband) {
+          failures.push(`${kind}: page ${p.page} missing topband`);
+        }
+        if (p.slotCount !== 5) {
+          failures.push(`${kind}: page ${p.page} slots=${p.slotCount} (want 5)`);
+        }
+        if (p.zoom && p.zoom !== "1" && p.zoom !== "normal") {
+          failures.push(`${kind}: page ${p.page} unexpected zoom=${p.zoom}`);
+        }
+        if (p.isLast) {
+          if (!p.hasTotal || !p.hasWords || !p.hasSignatures) {
+            failures.push(`${kind}: last page missing total/words/signatures`);
+          }
+          if (p.hasContinued) {
+            failures.push(`${kind}: last page should not show continued`);
+          }
+          if (p.heightMm > LAST_PAGE_HEIGHT_MM_MAX) {
+            failures.push(
+              `${kind}: last page height ${p.heightMm}mm > ${LAST_PAGE_HEIGHT_MM_MAX}mm (tighten; no zoom)`
+            );
+          }
+        } else {
+          if (p.hasTotal || p.hasWords || p.hasSignatures) {
+            failures.push(
+              `${kind}: non-last page ${p.page} must not have total/words/signatures`
+            );
+          }
+          if (!p.hasContinued) {
+            failures.push(`${kind}: non-last page ${p.page} missing continued`);
+          }
+        }
+      }
+
+      if (kind === "1line" && r.dom[0]?.emptySlots !== 4) {
+        failures.push(`1line: emptySlots=${r.dom[0]?.emptySlots} want 4`);
+      }
+      if (kind === "5line" && r.dom[0]?.emptySlots !== 0) {
+        failures.push(`5line: emptySlots=${r.dom[0]?.emptySlots} want 0`);
+      }
+      if (kind === "6line") {
+        if (r.dom[0]?.emptySlots !== 0) {
+          failures.push(`6line p1: emptySlots=${r.dom[0]?.emptySlots} want 0`);
+        }
+        if (r.dom[1]?.emptySlots !== 4) {
+          failures.push(`6line p2: emptySlots=${r.dom[1]?.emptySlots} want 4`);
         }
       }
     }
 
     const pass = failures.length === 0;
     fs.writeFileSync(
-      path.join(OUT, "verify-results.json"),
+      path.join(OUT, "pv-a5-land-verify-results.json"),
       JSON.stringify(
         {
-          a5HeightMm: A5_H_MM,
-          a5FitMm: A5_FIT_MM,
-          shortScaleMin: SHORT_SCALE_MIN,
-          screenVsPrintHeightRatioMin: SCREEN_VS_PRINT_HEIGHT_RATIO_MIN,
+          a5LandscapeHeightMm: A5_LAND_H_MM,
+          usableHeightMmApprox: A5_LAND_H_MM - 10,
+          lastPageHeightMmMax: LAST_PAGE_HEIGHT_MM_MAX,
+          linesPerPage: 5,
           results,
           failures,
           note:
-            "Scale must be measured inside beforeprint (print media on). Measuring on screen styles over-compresses.",
+            "A5 landscape only; 5 slots/page; no voucher-print-fit zoom.",
           pass,
         },
         null,

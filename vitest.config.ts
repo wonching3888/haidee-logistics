@@ -109,6 +109,7 @@ export default defineConfig({
       "lib/thai-cost/thai-vehicle-pnl-calc.test.ts",
       "lib/page-access.thai-cost.test.ts",
       "lib/cash-book/payment-voucher-lines.test.ts",
+      "lib/cash-book/voucher-print-pages.test.ts",
       "lib/cash-book/driver-voucher-cash-book.test.ts",
       "lib/cash-book/payment-voucher-autocount-export.test.ts",
       "lib/cash-book/thai-cash-book-settlement.test.ts",

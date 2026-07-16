@@ -1,22 +1,14 @@
 /**
- * Cash Book PV/RV print — load only on voucher print pages so @page A5
- * overrides document-print.css unnamed A4.
- *
- * Design notes (2026-07 round N):
- * - @page margin is 0 on purpose. Chrome's print dialog "Default" margins often
- *   stack on top of CSS @page margins; putting breathing room as *element*
- *   padding avoids that double-shrink which easily pushes a short voucher to page 2.
- * - Zoom scale-to-fit is applied from TS right before print/PDF as a hard guarantee.
- * - Signature break-inside:avoid removed — it was forcing the whole block onto
- *   page 2 when remaining space on page 1 was only slightly short.
+ * Cash Book PV/RV print — A5 landscape, 5 detail slots per page.
+ * Portrait retired. No zoom / beforeprint fit.
+ * @page margin 0; inset via element padding.
  */
 @media print {
   @page {
-    size: A5 portrait;
+    size: A5 landscape;
     margin: 0;
   }
 
-  /* AppShell locks height/overflow for screen; release for print pagination. */
   html,
   body,
   body > div,
@@ -24,26 +16,37 @@
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    display: block !important;
   }
 
   .no-print {
     display: none !important;
   }
 
-  .document-print.payment-voucher-print {
+  .payment-voucher-print-stack {
+    display: block;
+  }
+
+  .document-print.payment-voucher-print.payment-voucher-print-page {
     page: payment-voucher-a5;
+    box-sizing: border-box;
     border: none !important;
-    /* sole inset — replaces @page margin to avoid browser+CSS stacking */
-    padding: 5mm !important;
+    border-radius: 0 !important;
+    padding: 6mm 5mm !important;
     max-width: none !important;
     width: 100% !important;
     margin: 0 !important;
     font-size: 9pt;
     line-height: 1.2;
-    /* document-print.css forces 700 on all .document-print — undo for wrap height */
     font-weight: 500 !important;
     color: #000 !important;
-    transform-origin: top left;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .document-print.payment-voucher-print.payment-voucher-print-page.is-last-page {
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .document-print.payment-voucher-print *,
@@ -54,92 +57,392 @@
   }
 
   .document-print.payment-voucher-print .haidee-invoice-letterhead-name-th,
-  .document-print.payment-voucher-print .haidee-invoice-letterhead-name,
-  .document-print.payment-voucher-print h1,
+  .document-print.payment-voucher-print .haidee-invoice-letterhead-name-en,
+  .document-print.payment-voucher-print .payment-voucher-title,
   .document-print.payment-voucher-print .font-bold,
-  .document-print.payment-voucher-print tr.font-bold td {
+  .document-print.payment-voucher-print tr.font-bold td,
+  .document-print.payment-voucher-print .payment-voucher-total-row td {
     font-weight: 700 !important;
   }
 
-  .document-print.payment-voucher-print .haidee-invoice-letterhead {
-    gap: 6px !important;
-    margin-bottom: 2px !important;
-    padding: 0 !important;
+  /* Top band: company | title | voucher no + page */
+  .document-print.payment-voucher-print .payment-voucher-topband {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.1fr) minmax(0, 0.85fr);
+    gap: 4px 8px;
+    align-items: start;
+    margin: 0 !important;
+    padding: 0 0 2px !important;
+    border-bottom: 0.75pt solid #000;
   }
 
-  .document-print.payment-voucher-print .haidee-invoice-letterhead-logo {
-    height: 28px !important;
+  .document-print.payment-voucher-print .payment-voucher-topband-company {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    min-width: 0;
   }
 
-  .document-print.payment-voucher-print .haidee-invoice-letterhead-text {
-    font-size: 8pt !important;
-    line-height: 1.2 !important;
-    gap: 0 !important;
+  .document-print.payment-voucher-print .payment-voucher-topband-logo {
+    height: 22px !important;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-topband-company-text {
+    font-size: 7pt !important;
+    line-height: 1.15 !important;
+    min-width: 0;
   }
 
   .document-print.payment-voucher-print .haidee-invoice-letterhead-name-th,
-  .document-print.payment-voucher-print .haidee-invoice-letterhead-name {
+  .document-print.payment-voucher-print .haidee-invoice-letterhead-name-en {
+    font-size: 12pt !important;
+    line-height: 1.2 !important;
+  }
+
+  .document-print.payment-voucher-print .haidee-invoice-letterhead-detail {
+    font-size: 6.5pt !important;
+    font-weight: 400 !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-title {
+    margin: 0 !important;
+    padding-top: 1px !important;
+    font-size: 12pt !important;
+    line-height: 1.2 !important;
+    text-align: center;
+    align-self: center;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-topband-right {
+    text-align: right;
+    font-size: 7.5pt !important;
+    line-height: 1.2 !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-topband-voucher-no {
     font-size: 9pt !important;
+    font-weight: 700 !important;
   }
 
-  .document-print.payment-voucher-print h1 {
-    margin-top: 2px !important;
-    margin-bottom: 0 !important;
-    font-size: 11pt !important;
-    line-height: 1.15 !important;
-  }
-
-  .document-print.payment-voucher-print .payment-voucher-meta {
-    margin-top: 4px !important;
-    gap: 1px 8px !important;
+  .document-print.payment-voucher-print .payment-voucher-page-label {
+    margin-top: 1px !important;
     font-size: 8pt !important;
+    font-weight: 600 !important;
+  }
+
+  /* Meta: horizontal strip, 1–2 rows */
+  .document-print.payment-voucher-print .payment-voucher-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 14px;
+    row-gap: 1px;
+    margin-top: 6px !important;
+    font-size: 7.5pt !important;
+    line-height: 1.2 !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-meta > p {
+    margin: 0 !important;
+    white-space: nowrap;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-meta-party {
+    white-space: normal !important;
+    flex: 1 1 28%;
+    min-width: 80px;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-meta-span {
+    flex: 1 1 100%;
+    white-space: normal !important;
   }
 
   .document-print.payment-voucher-print table.payment-voucher-table {
-    margin-top: 4px !important;
+    width: 100%;
+    margin-top: 6px !important;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-table thead tr {
+    border-bottom: 1.5pt solid #000;
   }
 
   .document-print.payment-voucher-print .payment-voucher-table th,
   .document-print.payment-voucher-print .payment-voucher-table td {
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
+    padding: 1px 4px !important;
     font-size: 8pt !important;
-    line-height: 1.2 !important;
-    vertical-align: top;
+    line-height: 1.15 !important;
+    vertical-align: middle;
     background: transparent !important;
   }
 
+  /* 5 fixed slots — airy landscape (~6.8mm); target last-page ~115–125mm */
+  .document-print.payment-voucher-print .payment-voucher-slot-row {
+    height: 6.8mm;
+    max-height: 6.8mm;
+    border-bottom: 0.5pt solid #999;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-slot-row td {
+    height: 6.8mm;
+    max-height: 6.8mm;
+    overflow: hidden;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-slot-particulars {
+    text-align: left !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-amount-col {
+    width: 21% !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-table th:nth-child(1),
+  .document-print.payment-voucher-print .payment-voucher-table td:nth-child(1) {
+    width: 79% !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-total-row {
+    border-top: 1.5pt solid #000;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-total-row td {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  /* Amount in words: single horizontal strip */
   .document-print.payment-voucher-print .payment-voucher-words {
-    margin-top: 4px !important;
-    padding: 3px 5px !important;
-    font-size: 8pt !important;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 8px !important;
+    padding: 4px 6px !important;
+    border: 0.5pt solid #888;
+    font-size: 7.5pt !important;
+    line-height: 1.2 !important;
     background: transparent !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-words-label {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .document-print.payment-voucher-print .payment-voucher-amount-words {
-    margin-top: 1px !important;
-    font-size: 8.5pt !important;
-    line-height: 1.25 !important;
+    margin: 0 !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
     font-weight: 400 !important;
+    min-width: 0;
   }
 
   .document-print.payment-voucher-print .payment-voucher-signatures {
-    margin-top: 8px !important;
-    gap: 6px !important;
-    font-size: 7.5pt !important;
+    display: grid;
+    margin-top: 14px !important;
+    gap: 12px !important;
+    font-size: 7pt !important;
+    text-align: center;
   }
 
   .document-print.payment-voucher-print .payment-voucher-sig-line {
-    min-height: 0.9rem !important;
+    min-height: 14mm !important;
+    border-bottom: 0.75pt solid #000;
   }
 
-  .document-print.payment-voucher-print .payment-voucher-footer {
+  .document-print.payment-voucher-print .payment-voucher-sig-label {
+    margin-top: 1px !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-sig-name {
+    font-size: 6.5pt !important;
+    color: #333 !important;
+  }
+
+  .document-print.payment-voucher-print .payment-voucher-continued {
     margin-top: 4px !important;
     font-size: 7pt !important;
+    text-align: center;
+    color: #666 !important;
   }
 }
 
 @page payment-voucher-a5 {
-  size: A5 portrait;
+  size: A5 landscape;
   margin: 0;
+}
+
+/* Screen preview — A5 landscape width */
+.payment-voucher-print-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.document-print.payment-voucher-print {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 210mm;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.1fr) minmax(0, 0.85fr);
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #111;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband-company {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband-logo {
+  height: 2rem;
+  width: auto;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband-company-text {
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.document-print.payment-voucher-print .payment-voucher-title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  align-self: center;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband-right {
+  text-align: right;
+  font-size: 0.8125rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-topband-voucher-no {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.document-print.payment-voucher-print .payment-voucher-page-label {
+  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.document-print.payment-voucher-print .payment-voucher-meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1rem;
+  row-gap: 0.2rem;
+  margin-top: 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-meta > p {
+  margin: 0;
+}
+
+.document-print.payment-voucher-print .payment-voucher-meta-party {
+  flex: 1 1 30%;
+}
+
+.document-print.payment-voucher-print .payment-voucher-meta-span {
+  flex: 1 1 100%;
+}
+
+.document-print.payment-voucher-print table.payment-voucher-table {
+  width: 100%;
+  margin-top: 0.6rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.8125rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-table thead tr {
+  border-bottom: 2px solid #000;
+}
+
+.document-print.payment-voucher-print .payment-voucher-table th,
+.document-print.payment-voucher-print .payment-voucher-table td {
+  padding: 0.3rem 0.35rem;
+  vertical-align: middle;
+}
+
+.document-print.payment-voucher-print .payment-voucher-slot-row {
+  height: 1.65rem;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.document-print.payment-voucher-print .payment-voucher-amount-col {
+  width: 21%;
+}
+
+.document-print.payment-voucher-print .payment-voucher-table th:nth-child(1),
+.document-print.payment-voucher-print .payment-voucher-table td:nth-child(1) {
+  width: 79%;
+}
+
+.document-print.payment-voucher-print .payment-voucher-total-row {
+  border-top: 2px solid #000;
+}
+
+.document-print.payment-voucher-print .payment-voucher-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background: #f9fafb;
+  font-size: 0.8125rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-amount-words {
+  margin: 0;
+  font-family: "Leelawadee UI", "Tahoma", "Noto Sans Thai", sans-serif;
+}
+
+.document-print.payment-voucher-print .payment-voucher-signatures {
+  display: grid;
+  margin-top: 1rem;
+  gap: 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-sig-line {
+  min-height: 2.25rem;
+  border-bottom: 1px solid #000;
+}
+
+.document-print.payment-voucher-print .payment-voucher-sig-label {
+  margin-top: 0.2rem;
+}
+
+.document-print.payment-voucher-print .payment-voucher-sig-name {
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.document-print.payment-voucher-print .payment-voucher-continued {
+  margin-top: 0.6rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #6b7280;
 }

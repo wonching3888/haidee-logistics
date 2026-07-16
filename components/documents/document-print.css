@@ -1459,11 +1459,12 @@
   }
 }
 
-/* Cash Book Payment / Receipt Voucher print — A5 portrait */
+/* Cash Book Payment / Receipt Voucher print — A5 landscape.
+   Density / band layout owned by cash-book-voucher-print.css (loaded last). */
 .document-print.payment-voucher-print {
   box-sizing: border-box;
   width: 100%;
-  max-width: 148mm; /* A5 width — screen preview matches print */
+  max-width: 210mm; /* A5 landscape width — screen preview matches print */
   margin-left: auto;
   margin-right: auto;
 }
@@ -1475,23 +1476,17 @@
 
 .document-print.payment-voucher-print .payment-voucher-table th:nth-child(1),
 .document-print.payment-voucher-print .payment-voucher-table td:nth-child(1) {
-  width: 72%;
+  width: 79%;
   word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
 .document-print.payment-voucher-print .payment-voucher-table th:nth-child(2),
 .document-print.payment-voucher-print .payment-voucher-table td:nth-child(2) {
-  width: 28%;
+  width: 21%;
 }
 
 .document-print.payment-voucher-print .payment-voucher-amount-words {
   font-family: "Leelawadee UI", "Tahoma", "Noto Sans Thai", sans-serif;
   font-weight: 400;
-  font-size: 11pt;
-  line-height: 1.5;
 }
-
-/* Print density for A5 is owned by cash-book-voucher-print.css
-   (loaded last on PV/RV print pages). Keep table layout rules above;
-   do not re-assert the looser 10mm / large type defaults here. */

@@ -47,6 +47,15 @@ async function requireCashBookWrite() {
   return user;
 }
 
+export interface ReceiptVoucherLineRow {
+  id: string;
+  lineOrder: number;
+  accountCode: string;
+  accountName: string;
+  particulars: string | null;
+  amount: number;
+}
+
 export interface ReceiptVoucherDetail {
   id: string;
   voucherNo: string;
@@ -61,12 +70,27 @@ export interface ReceiptVoucherDetail {
   confirmedAt: string | null;
   preparedBy: string | null;
   approvedBy: string | null;
+  lines: ReceiptVoucherLineRow[];
 }
 
-function mapReceipt(
-  row: Awaited<ReturnType<typeof prisma.cashBookReceiptVoucher.findUnique>>
-): ReceiptVoucherDetail | null {
+type ReceiptRow =
+  | Awaited<ReturnType<typeof prisma.cashBookReceiptVoucher.findUnique>>
+  | (NonNullable<
+      Awaited<ReturnType<typeof prisma.cashBookReceiptVoucher.findUnique>>
+    > & {
+      lines?: Array<{
+        id: string;
+        lineOrder: number;
+        accountCode: string;
+        accountName: string;
+        particulars: string | null;
+        amount: unknown;
+      }>;
+    });
+
+function mapReceipt(row: ReceiptRow): ReceiptVoucherDetail | null {
   if (!row) return null;
+  const lines = "lines" in row && Array.isArray(row.lines) ? row.lines : [];
   return {
     id: row.id,
     voucherNo: row.voucherNo,
@@ -81,6 +105,14 @@ function mapReceipt(
     confirmedAt: row.confirmedAt?.toISOString() ?? null,
     preparedBy: row.preparedBy,
     approvedBy: row.approvedBy,
+    lines: lines.map((line) => ({
+      id: line.id,
+      lineOrder: line.lineOrder,
+      accountCode: line.accountCode,
+      accountName: line.accountName,
+      particulars: line.particulars,
+      amount: decimalToNumber(line.amount) ?? 0,
+    })),
   };
 }
 
@@ -103,7 +135,10 @@ export async function getReceiptVoucher(
   id: string
 ): Promise<ReceiptVoucherDetail | null> {
   await requireCashBookRead();
-  const row = await prisma.cashBookReceiptVoucher.findUnique({ where: { id } });
+  const row = await prisma.cashBookReceiptVoucher.findUnique({
+    where: { id },
+    include: { lines: { orderBy: { lineOrder: "asc" } } },
+  });
   return mapReceipt(row);
 }
 
