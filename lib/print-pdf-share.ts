@@ -357,6 +357,8 @@ async function renderElementToPdfBlobCore(
       : {}),
   };
 
+  const cloneDebugInfo: string[] = [];
+
   const canvas = await runWithHtml2CanvasCompat(() =>
     html2canvas(element, {
       scale,
@@ -376,6 +378,40 @@ async function renderElementToPdfBlobCore(
           clonedElement instanceof HTMLElement ? clonedElement : element;
         clonedRoot.setAttribute("data-pdf-capture-root", "true");
         prepareHtml2CanvasClone(clonedDoc, element, clonedRoot, cloneOptions);
+
+        if (PDF_DEBUG_MEASURE) {
+          try {
+            const styleTag = clonedDoc.querySelector(
+              "[data-html2canvas-market-do-baseline]"
+            );
+            cloneDebugInfo.push(`baselineStyleTagFound=${!!styleTag}`);
+            if (styleTag?.textContent) {
+              cloneDebugInfo.push(
+                `styleText=${styleTag.textContent.replace(/\s+/g, " ").trim()}`
+              );
+            }
+            const sampleTd = clonedRoot.querySelector(
+              ".market-do-table .market-do-stall-col"
+            );
+            if (sampleTd instanceof HTMLElement) {
+              const view = clonedDoc.defaultView;
+              const cs = view?.getComputedStyle(sampleTd);
+              if (cs) {
+                cloneDebugInfo.push(
+                  `td: paddingTop=${cs.paddingTop} paddingBottom=${cs.paddingBottom} lineHeight=${cs.lineHeight} fontSize=${cs.fontSize} height=${sampleTd.offsetHeight} verticalAlign=${cs.verticalAlign} boxSizing=${cs.boxSizing}`
+                );
+              }
+              const parentRow = sampleTd.closest("tr");
+              if (parentRow instanceof HTMLElement) {
+                cloneDebugInfo.push(`tr offsetHeight=${parentRow.offsetHeight}`);
+              }
+            } else {
+              cloneDebugInfo.push("sampleTd not found");
+            }
+          } catch (err) {
+            cloneDebugInfo.push(`clone debug error: ${String(err)}`);
+          }
+        }
       },
     })
   );
@@ -404,18 +440,21 @@ async function renderElementToPdfBlobCore(
       pdf.addPage();
       pdf.setFontSize(8);
       pdf.text("PDF-DEBUG (temporary, will be removed after diagnosis):", 10, 10);
+      let debugY = 16;
       debugRows.forEach((r, idx) => {
         pdf.text(
           `row${idx}: y=${r.y} textH=${r.textH} gapAbove=${r.gapAbove} gapBelow=${r.gapBelow}`,
           10,
-          16 + idx * 6
+          debugY
         );
+        debugY += 6;
       });
-      pdf.text(
-        `canvas: ${canvas.width} x ${canvas.height}, scale=${scale}`,
-        10,
-        16 + debugRows.length * 6 + 6
-      );
+      pdf.text(`canvas: ${canvas.width} x ${canvas.height}, scale=${scale}`, 10, debugY);
+      debugY += 6;
+      cloneDebugInfo.forEach((line) => {
+        pdf.text(line.slice(0, 150), 10, debugY);
+        debugY += 6;
+      });
     } catch (err) {
       console.error("[PDF-DEBUG] measurement failed", err);
     }
