@@ -75,7 +75,7 @@ export function CashBookLedgerView({
             {book} 账本明细 Cash Book Ledger
           </h2>
           <p className="mt-1 text-sm text-haidee-muted">
-            仅已审核凭证计入余额 · DEBIT=支出 · CREDIT=收入 · 期初默认 0
+            仅已审核凭证计入余额 · DEBIT=收入 · CREDIT=支出 · 期初默认 0
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -172,10 +172,10 @@ export function CashBookLedgerView({
             <TableHead className="w-[9rem] whitespace-nowrap">编号 No.</TableHead>
             <TableHead className="w-[18rem] max-w-[18rem]">说明 Description</TableHead>
             <TableHead className="w-[6.5rem] whitespace-nowrap text-right">
-              DEBIT 支出
+              DEBIT 收入
             </TableHead>
             <TableHead className="w-[6.5rem] whitespace-nowrap text-right">
-              CREDIT 收入
+              CREDIT 支出
             </TableHead>
             <TableHead className="w-[7rem] whitespace-nowrap text-right">
               BALANCE 余额
