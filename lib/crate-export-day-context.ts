@@ -132,6 +132,9 @@ export async function loadCrateExportDayInput(
   const exportsByShipperId = new Map<string, Map<string, number>>();
   for (const row of exports) {
     if (row.quantityActual <= 0) continue;
+    // 创建当下系统建议就是0的单（额外加桶/补之前欠的桶），不计入"已归还池"，
+    // 避免拖累同一天其他正常单被误判为"不符"。
+    if ((row.quantitySuggested ?? 0) === 0) continue;
     const map = exportsByShipperId.get(row.shipperId) ?? new Map();
     map.set(row.tongType.code, (map.get(row.tongType.code) ?? 0) + row.quantityActual);
     exportsByShipperId.set(row.shipperId, map);
