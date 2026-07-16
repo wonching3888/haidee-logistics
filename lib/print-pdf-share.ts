@@ -66,10 +66,84 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_") || "document.pdf";
 }
 
+// TEMPORARY(踩线排查用): 为 true 时每份生成的 PDF 末尾会多一页诊断数字,排查结束后请删除
+// 这个常量以及 renderElementToPdfBlobCore 里那一段 `if (PDF_DEBUG_MEASURE)` 代码。
+const PDF_DEBUG_MEASURE = true;
+
 async function waitForDocumentFonts() {
   if (typeof document !== "undefined" && document.fonts?.ready) {
     await document.fonts.ready;
   }
+}
+
+/**
+ * Collect Y-positions (in captured-canvas pixel space) that are safe to cut a PDF page at:
+ * boundaries between table rows (<tr>) and between standalone text lines (title/date/grand-total),
+ * so that addCanvasImageToPdfPages() never slices through the middle of a row's text.
+ */
+function collectSafeCutBoundariesPx(root: HTMLElement, scale: number): number[] {
+  const rootRect = root.getBoundingClientRect();
+  const boundaries = new Set<number>();
+  boundaries.add(0);
+
+  function isAtomicUnit(el: Element): boolean {
+    if (el.tagName === "TR") return true;
+    const elementChildren = Array.from(el.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement
+    );
+    return elementChildren.length === 0 && !el.closest("tr");
+  }
+
+  root.querySelectorAll("*").forEach((el) => {
+    if (!isAtomicUnit(el)) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+    const top = (rect.top - rootRect.top) * scale;
+    const bottom = (rect.bottom - rootRect.top) * scale;
+    if (top >= 0) boundaries.add(top);
+    if (bottom >= 0) boundaries.add(bottom);
+  });
+
+  boundaries.add(root.scrollHeight * scale);
+  return Array.from(boundaries).sort((a, b) => a - b);
+}
+
+/** Nearest safe boundary at-or-before naiveTargetPx, leaving ≥20% of a page's content on this page. */
+function pickSafeCutY(
+  naiveTargetPx: number,
+  safeBoundariesPx: number[],
+  minPx: number,
+  pageHeightPx: number,
+  canvasHeightPx: number
+): number {
+  if (naiveTargetPx >= canvasHeightPx - 0.5) {
+    return canvasHeightPx;
+  }
+  let best: number | null = null;
+  for (const y of safeBoundariesPx) {
+    if (y <= naiveTargetPx && y > minPx + pageHeightPx * 0.2) {
+      best = y;
+    }
+    if (y > naiveTargetPx) {
+      break;
+    }
+  }
+  return best ?? naiveTargetPx;
+}
+
+/** Extract one horizontal slice [sy, sy+sh) of a canvas as its own PNG data URL. */
+function sliceCanvasToDataUrl(canvas: HTMLCanvasElement, sy: number, sh: number): string {
+  const slice = document.createElement("canvas");
+  slice.width = canvas.width;
+  slice.height = Math.max(1, Math.round(sh));
+  const ctx = slice.getContext("2d");
+  if (!ctx) {
+    return canvas.toDataURL("image/png");
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, slice.width, slice.height);
+  ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+  return slice.toDataURL("image/png");
 }
 
 function addCanvasImageToPdfPages(
@@ -78,7 +152,7 @@ function addCanvasImageToPdfPages(
   canvas: HTMLCanvasElement,
   pageWidth: number,
   pageHeight: number,
-  options?: { startOnNewPage?: boolean }
+  options?: { startOnNewPage?: boolean; safeBoundariesPx?: number[] }
 ) {
   const renderWidth = pageWidth;
   const renderHeight = (canvas.height * renderWidth) / canvas.width;
@@ -92,19 +166,95 @@ function addCanvasImageToPdfPages(
     return;
   }
 
-  let heightLeft = renderHeight;
-  let position = 0;
+  const pxPerMm = canvas.width / renderWidth;
+  const pageHeightPx = pageHeight * pxPerMm;
+  const safeBoundariesPx = options?.safeBoundariesPx;
+
+  let consumedPx = 0;
   let isFirstSlice = true;
 
-  while (heightLeft > 0.5) {
+  while (consumedPx < canvas.height - 0.5) {
     if (!isFirstSlice) {
       pdf.addPage();
     }
     isFirstSlice = false;
-    pdf.addImage(imgData, "PNG", 0, position, renderWidth, renderHeight);
-    heightLeft -= pageHeight;
-    position = heightLeft - renderHeight;
+
+    const naiveTargetPx = Math.min(consumedPx + pageHeightPx, canvas.height);
+    const cutPx = safeBoundariesPx
+      ? pickSafeCutY(naiveTargetPx, safeBoundariesPx, consumedPx, pageHeightPx, canvas.height)
+      : naiveTargetPx;
+
+    const sliceHeightPx = cutPx - consumedPx;
+    const sliceHeightMm = sliceHeightPx / pxPerMm;
+    const sliceDataUrl = sliceCanvasToDataUrl(canvas, consumedPx, sliceHeightPx);
+    pdf.addImage(sliceDataUrl, "PNG", 0, 0, renderWidth, sliceHeightMm);
+
+    consumedPx = cutPx;
   }
+}
+
+/**
+ * TEMPORARY diagnostic (踩线排查用,诊断结束后会删除): sample a vertical strip of the
+ * captured canvas and report, for a few detected table rows, the pixel gap above/below the
+ * text within its border box. Safe no-op-on-failure — must never break real PDF sharing.
+ */
+function debugMeasureRowBands(
+  canvas: HTMLCanvasElement
+): Array<{ y: number; textH: number; gapAbove: number; gapBelow: number }> {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return [];
+
+  const x0 = Math.floor(canvas.width * 0.1);
+  const x1 = Math.floor(canvas.width * 0.3);
+  const w = Math.max(1, x1 - x0);
+  const { data } = ctx.getImageData(x0, 0, w, canvas.height);
+
+  function darkFracAtRow(y: number): number {
+    let dark = 0;
+    for (let x = 0; x < w; x += 1) {
+      const i = (y * w + x) * 4;
+      const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      if (luminance < 100) dark += 1;
+    }
+    return dark / w;
+  }
+
+  function classify(f: number): "B" | "T" | "." {
+    if (f > 0.7) return "B";
+    if (f > 0.02) return "T";
+    return ".";
+  }
+
+  const labels: Array<"B" | "T" | "."> = [];
+  for (let y = 0; y < canvas.height; y += 1) {
+    labels.push(classify(darkFracAtRow(y)));
+  }
+
+  const bands: Array<["B" | "T" | ".", number, number]> = [];
+  let cur = labels[0];
+  let start = 0;
+  for (let i = 1; i < labels.length; i += 1) {
+    if (labels[i] !== cur) {
+      bands.push([cur, start, i - 1]);
+      cur = labels[i];
+      start = i;
+    }
+  }
+  bands.push([cur, start, labels.length - 1]);
+
+  const results: Array<{ y: number; textH: number; gapAbove: number; gapBelow: number }> = [];
+  for (let i = 1; i < bands.length - 1 && results.length < 6; i += 1) {
+    const [kind, s, e] = bands[i];
+    if (kind !== "T") continue;
+    const textH = e - s + 1;
+    if (textH < 12) continue;
+    const before = bands[i - 1];
+    const after = bands[i + 1];
+    const gapAbove = before[0] === "." ? before[2] - before[1] + 1 : 0;
+    const gapBelow = after[0] === "." ? after[2] - after[1] + 1 : 0;
+    results.push({ y: s, textH, gapAbove, gapBelow });
+  }
+  return results;
 }
 
 export function resolvePdfOrientation(
@@ -193,6 +343,7 @@ async function renderElementToPdfBlobCore(
     element,
     options?.captureFullContentWidth ? { wideTableSelector } : undefined
   );
+  const safeBoundariesPx = collectSafeCutBoundariesPx(element, scale);
 
   const orientation = resolvePdfOrientation(options, captureExtents.width);
   const cloneOptions: Html2CanvasCloneOptions = {
@@ -240,16 +391,35 @@ async function renderElementToPdfBlobCore(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  addCanvasImageToPdfPages(
-    pdf,
-    imgData,
-    canvas,
-    pageWidth,
-    pageHeight,
-    pdfContext?.pdf
+  addCanvasImageToPdfPages(pdf, imgData, canvas, pageWidth, pageHeight, {
+    ...(pdfContext?.pdf
       ? { startOnNewPage: pdfContext.startOnNewPage ?? true }
-      : undefined
-  );
+      : {}),
+    safeBoundariesPx,
+  });
+
+  if (PDF_DEBUG_MEASURE) {
+    try {
+      const debugRows = debugMeasureRowBands(canvas);
+      pdf.addPage();
+      pdf.setFontSize(8);
+      pdf.text("PDF-DEBUG (temporary, will be removed after diagnosis):", 10, 10);
+      debugRows.forEach((r, idx) => {
+        pdf.text(
+          `row${idx}: y=${r.y} textH=${r.textH} gapAbove=${r.gapAbove} gapBelow=${r.gapBelow}`,
+          10,
+          16 + idx * 6
+        );
+      });
+      pdf.text(
+        `canvas: ${canvas.width} x ${canvas.height}, scale=${scale}`,
+        10,
+        16 + debugRows.length * 6 + 6
+      );
+    } catch (err) {
+      console.error("[PDF-DEBUG] measurement failed", err);
+    }
+  }
 
   const fileName = sanitizeFileName(options?.fileName ?? "document.pdf");
 
