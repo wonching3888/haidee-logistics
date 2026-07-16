@@ -134,6 +134,14 @@ export async function saveReceiptVoucher(input: {
     preparedBy: input.preparedBy?.trim() || null,
     approvedBy: input.approvedBy?.trim() || null,
   };
+  const lineData = {
+    id: randomUUID(),
+    lineOrder: normalized.line.lineOrder,
+    accountCode: normalized.line.accountCode,
+    accountName: normalized.line.accountName,
+    particulars: normalized.line.particulars,
+    amount: normalized.line.amount,
+  };
 
   if (input.id) {
     const existing = await prisma.cashBookReceiptVoucher.findUnique({
@@ -143,9 +151,55 @@ export async function saveReceiptVoucher(input: {
 
     const confirmingNow =
       status === "confirmed" && existing.status !== "confirmed";
-    await prisma.cashBookReceiptVoucher.update({
-      where: { id: input.id },
+
+    await prisma.$transaction(async (tx) => {
+      await tx.cashBookReceiptVoucher.update({
+        where: { id: input.id },
+        data: {
+          book: normalized.book,
+          voucherDate,
+          receivedFrom: normalized.receivedFrom,
+          accountCode: normalized.accountCode,
+          accountName: normalized.accountName,
+          amount: normalized.amount,
+          notes: normalized.notes,
+          status,
+          confirmedAt:
+            status === "confirmed"
+              ? confirmingNow
+                ? new Date()
+                : existing.confirmedAt
+              : null,
+          confirmedBy:
+            status === "confirmed"
+              ? confirmingNow
+                ? user.id
+                : existing.confirmedBy
+              : null,
+          ...signatureData,
+        },
+      });
+      await tx.cashBookReceiptVoucherLine.deleteMany({
+        where: { voucherId: input.id! },
+      });
+      await tx.cashBookReceiptVoucherLine.create({
+        data: {
+          ...lineData,
+          voucherId: input.id!,
+        },
+      });
+    });
+    revalidateReceipt(input.id);
+    return getReceiptVoucher(input.id);
+  }
+
+  const voucherNo = await nextReceiptVoucherNo(voucherDate);
+  const id = randomUUID();
+  await prisma.$transaction(async (tx) => {
+    await tx.cashBookReceiptVoucher.create({
       data: {
+        id,
+        voucherNo,
         book: normalized.book,
         voucherDate,
         receivedFrom: normalized.receivedFrom,
@@ -154,44 +208,15 @@ export async function saveReceiptVoucher(input: {
         amount: normalized.amount,
         notes: normalized.notes,
         status,
-        confirmedAt:
-          status === "confirmed"
-            ? confirmingNow
-              ? new Date()
-              : existing.confirmedAt
-            : null,
-        confirmedBy:
-          status === "confirmed"
-            ? confirmingNow
-              ? user.id
-              : existing.confirmedBy
-            : null,
+        confirmedAt: status === "confirmed" ? new Date() : null,
+        confirmedBy: status === "confirmed" ? user.id : null,
+        createdBy: user.id,
         ...signatureData,
+        lines: {
+          create: [lineData],
+        },
       },
     });
-    revalidateReceipt(input.id);
-    return getReceiptVoucher(input.id);
-  }
-
-  const voucherNo = await nextReceiptVoucherNo(voucherDate);
-  const id = randomUUID();
-  await prisma.cashBookReceiptVoucher.create({
-    data: {
-      id,
-      voucherNo,
-      book: normalized.book,
-      voucherDate,
-      receivedFrom: normalized.receivedFrom,
-      accountCode: normalized.accountCode,
-      accountName: normalized.accountName,
-      amount: normalized.amount,
-      notes: normalized.notes,
-      status,
-      confirmedAt: status === "confirmed" ? new Date() : null,
-      confirmedBy: status === "confirmed" ? user.id : null,
-      createdBy: user.id,
-      ...signatureData,
-    },
   });
   revalidateReceipt(id);
   return getReceiptVoucher(id);

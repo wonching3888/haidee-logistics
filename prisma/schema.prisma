@@ -1662,7 +1662,8 @@ model CashBookPaymentVoucherLine {
   @@map("cash_book_payment_voucher_lines")
 }
 
-/// Cash Book receipt voucher (single-line inflow; THB or MYR book).
+/// Cash Book receipt voucher (inflow; THB or MYR book).
+/// Header accountCode/accountName/amount/notes are cache mirrors of lineOrder=1.
 model CashBookReceiptVoucher {
   id            String    @id @default(uuid()) @db.Uuid
   voucherNo     String    @unique @map("voucher_no")
@@ -1682,10 +1683,28 @@ model CashBookReceiptVoucher {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  lines CashBookReceiptVoucherLine[]
+
   @@index([voucherDate])
   @@index([book])
   @@index([status])
   @@map("cash_book_receipt_vouchers")
+}
+
+model CashBookReceiptVoucherLine {
+  id          String  @id @default(uuid()) @db.Uuid
+  voucherId   String  @map("voucher_id") @db.Uuid
+  lineOrder   Int     @map("line_order")
+  accountCode String  @map("account_code")
+  accountName String  @map("account_name")
+  particulars String?
+  amount      Decimal @db.Decimal(14, 2)
+
+  voucher CashBookReceiptVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, lineOrder])
+  @@index([voucherId])
+  @@map("cash_book_receipt_voucher_lines")
 }
 
 /// Audited opening-balance adjustments for Cash Book ledgers (default 0 until set).

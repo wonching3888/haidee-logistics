@@ -22,6 +22,11 @@ export function assertCashBookLedger(value: string): CashBookLedger {
   return value;
 }
 
+/**
+ * Normalize single-line RV form input.
+ * Header cache fields (accountCode/accountName/amount/notes) mirror lineOrder=1
+ * (particulars on the line === notes on the header).
+ */
 export function normalizeReceiptVoucherInput(input: {
   book: string;
   receivedFrom: string;
@@ -48,12 +53,21 @@ export function normalizeReceiptVoucherInput(input: {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new ReceiptVoucherValidationError("金额须大于 0");
   }
+  const notes = input.notes?.trim() || null;
   return {
     book,
     receivedFrom,
     accountCode: account.code,
     accountName: account.name,
     amount: roundMoney(amount),
-    notes: input.notes?.trim() || null,
+    notes,
+    /** lineOrder=1 payload — particulars mirrors header notes */
+    line: {
+      lineOrder: 1 as const,
+      accountCode: account.code,
+      accountName: account.name,
+      particulars: notes,
+      amount: roundMoney(amount),
+    },
   };
 }
