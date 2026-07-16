@@ -1,15 +1,22 @@
 /**
- * Automated A5 single-page verification for PV/RV print CSS + zoom fit.
+ * Automated A5 print verification — reproduces the REAL click-Print timing path.
  *
- * Does NOT rely on a running Next server (loads CSS from disk + fixture HTML).
- * Asserts Playwright PDF page count === 1 for:
- *   - short typical voucher
- *   - stressed long particulars / amount-in-words / 4 line-items
- *   - stacked-margin stress (16mm margins) WITH zoom fit applied
+ * Critical regression this script must catch:
+ *   Measuring getBoundingClientRect() on SCREEN styles (before @media print /
+ *   Tailwind print: densification) yields an inflated height → scale << 1 →
+ *   over-compressed printout. Fit MUST run inside beforeprint (print media on).
  *
- * Also optionally checks one live voucher when LIVE_VERIFY=1 and BASE_URL is up.
+ * Flow under test (mirrors printVoucherA5):
+ *   1. Screen media (fat Tailwind spacing) — baseline
+ *   2. emulateMedia('print') — as the browser does before beforeprint
+ *   3. Fire beforeprint → applyVoucherA5PrintFit → record scale
+ *   4. afterprint → clear zoom
+ *   5. PDF page-count under preferCSSPageSize A5
  *
- * Run: npx tsx --env-file=.env.local scripts/_verify-pv-a5-print.ts
+ * Also asserts the OLD buggy path (measure on screen) would over-compress
+ * short vouchers, so this methodology gap cannot silently return.
+ *
+ * Run: npx tsx scripts/_verify-pv-a5-print.ts
  * Exit 0 only when all asserts pass.
  */
 import fs from "node:fs";
@@ -36,6 +43,7 @@ const CSS_GLOBAL_PRINT = `
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    display: block !important;
   }
 }
 `;
@@ -45,7 +53,14 @@ const LOGO = `data:image/png;base64,${fs
 
 const A5_H_MM = 210;
 const A5_FIT_MM = 200;
-const A5_FIT_PX = (A5_FIT_MM * 96) / 25.4;
+
+/** Short 1-line voucher (like PV-20260715-004) must not need meaningful zoom. */
+const SHORT_SCALE_MIN = 0.98;
+/**
+ * Screen-layout height must be substantially taller than print-layout height,
+ * otherwise the fixture cannot demonstrate the beforeprint timing pitfall.
+ */
+const SCREEN_VS_PRINT_HEIGHT_RATIO_MIN = 1.4;
 
 type CaseName = "short" | "stress";
 
@@ -53,15 +68,58 @@ function countPdfPages(buf: Buffer): number {
   return (buf.toString("latin1").match(/\/Type\s*\/Page(?!\w)/g) ?? []).length;
 }
 
+/** Same algorithm as lib/cash-book/voucher-print-fit.ts (kept in sync manually). */
+const FIT_RUNTIME_JS = `
+window.__a5Fit = (function () {
+  const A5_FIT_HEIGHT_MM = ${A5_FIT_MM};
+  function a5FitHeightPx() { return (A5_FIT_HEIGHT_MM * 96) / 25.4; }
+  let lastScale;
+  function applyVoucherA5PrintFit(el) {
+    el.style.zoom = "1";
+    const height = el.getBoundingClientRect().height;
+    const scale = Math.min(1, a5FitHeightPx() / Math.max(height, 1));
+    el.style.zoom = String(scale);
+    lastScale = scale;
+    return scale;
+  }
+  function clearVoucherA5PrintFit(el) { el.style.zoom = ""; }
+  function printVoucherA5(el) {
+    if (!el) { window.print(); return; }
+    const onBeforePrint = () => { applyVoucherA5PrintFit(el); };
+    const onAfterPrint = () => {
+      clearVoucherA5PrintFit(el);
+      window.removeEventListener("beforeprint", onBeforePrint);
+      window.removeEventListener("afterprint", onAfterPrint);
+    };
+    window.addEventListener("beforeprint", onBeforePrint);
+    window.addEventListener("afterprint", onAfterPrint);
+    window.print();
+  }
+  return {
+    applyVoucherA5PrintFit,
+    clearVoucherA5PrintFit,
+    printVoucherA5,
+    getLastScale: () => lastScale,
+    measure: (el) => {
+      const h = el.getBoundingClientRect().height;
+      return {
+        heightPx: h,
+        heightMm: +(h / (96 / 25.4)).toFixed(2),
+        logoH: el.querySelector(".haidee-invoice-letterhead-logo")
+          ?.getBoundingClientRect().height ?? null,
+        sigMinH: getComputedStyle(el.querySelector(".payment-voucher-sig-line")).minHeight,
+        padding: getComputedStyle(el).padding,
+        fontSize: getComputedStyle(el).fontSize,
+      };
+    },
+  };
+})();
+`;
+
 function buildHtml(kind: CaseName): string {
   const lines =
     kind === "short"
-      ? [
-          [
-            "2026-07-15 / THONGDANG / เที่ยว / SONGKHLA",
-            "1,200.00",
-          ],
-        ]
+      ? [["2026-07-15 / THONGDANG / เที่ยว / SONGKHLA", "1,200.00"]]
       : [
           [
             "2026-07-15 / P.NARONG / เที่ยวครั้ง / SONGKHLA → PATTANI → HATYAI / fuel + allowance + border fee with a long wrap",
@@ -164,73 +222,61 @@ ${CSS_PV}
     </div>
   </main>
 </div>
+<script>${FIT_RUNTIME_JS}</script>
 </body></html>`;
-}
-
-async function applyZoomFit(page: Page) {
-  return page.evaluate(
-    `(() => {
-      const el = document.getElementById("voucher");
-      const fitPx = (${A5_FIT_MM} * 96) / 25.4;
-      el.style.zoom = "1";
-      const h = el.getBoundingClientRect().height;
-      const scale = Math.min(1, fitPx / Math.max(h, 1));
-      el.style.zoom = String(scale);
-      return {
-        heightBeforePx: h,
-        heightBeforeMm: +(h / (96 / 25.4)).toFixed(2),
-        heightAfterPx: el.getBoundingClientRect().height,
-        heightAfterMm: +(el.getBoundingClientRect().height / (96 / 25.4)).toFixed(2),
-        scale,
-        fitPx,
-      };
-    })()`
-  );
 }
 
 async function runCase(page: Page, kind: CaseName) {
   await page.setContent(buildHtml(kind), { waitUntil: "load" });
+  // Stay on SCREEN media first — this is the timing pitfall.
+  await page.emulateMedia({ media: "screen" });
+
+  const screenMeasure = await page.evaluate(`(() => {
+    const el = document.getElementById("voucher");
+    const m = window.__a5Fit.measure(el);
+    const buggyScale = window.__a5Fit.applyVoucherA5PrintFit(el);
+    window.__a5Fit.clearVoucherA5PrintFit(el);
+    return { ...m, buggyScreenScale: buggyScale };
+  })()`);
+
+  // Stub window.print like a headless print job: browser has already switched
+  // to print media before beforeprint (Playwright emulateMedia does that step).
+  await page.evaluate(`(() => {
+    window.print = function () {
+      window.dispatchEvent(new Event("beforeprint"));
+      window.dispatchEvent(new Event("afterprint"));
+    };
+  })()`);
+
   await page.emulateMedia({ media: "print" });
 
-  const before = await page.evaluate(
-    `(() => {
-      const el = document.getElementById("voucher");
-      const mm = (px) => +(px / (96 / 25.4)).toFixed(2);
-      return {
-        contentMm: mm(el.scrollHeight),
-        noPrintHidden: getComputedStyle(document.querySelector(".no-print")).display === "none",
-        page: getComputedStyle(el).page,
-        padding: getComputedStyle(el).padding,
-        logoH: document.querySelector(".haidee-invoice-letterhead-logo").getBoundingClientRect().height,
-      };
-    })()`
-  );
-
-  // PDF with CSS @page (margin 0) — no zoom yet
-  const pdfCssNoZoom = await page.pdf({
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
-
-  // Stress: simulate browser "Default" margins stacked (16mm) without zoom
-  const pdfStackedNoZoom = await page.pdf({
-    format: "A5",
-    preferCSSPageSize: false,
-    printBackground: true,
-    margin: { top: "16mm", right: "16mm", bottom: "16mm", left: "16mm" },
-  });
-
-  const fit = await applyZoomFit(page);
+  const printPath = await page.evaluate(`(() => {
+    const el = document.getElementById("voucher");
+    const beforeFit = window.__a5Fit.measure(el);
+    window.__a5Fit.printVoucherA5(el);
+    const scale = window.__a5Fit.getLastScale();
+    // afterprint cleared zoom; re-apply for PDF page-count check
+    window.__a5Fit.applyVoucherA5PrintFit(el);
+    const afterFit = window.__a5Fit.measure(el);
+    return {
+      beforeFit,
+      scale,
+      afterFit,
+      noPrintHidden:
+        getComputedStyle(document.querySelector(".no-print")).display === "none",
+      page: getComputedStyle(el).page,
+      zoomAfterClearWouldBeEmpty: (() => {
+        window.__a5Fit.clearVoucherA5PrintFit(el);
+        const cleared = el.style.zoom;
+        window.__a5Fit.applyVoucherA5PrintFit(el);
+        return cleared === "" || cleared === "normal";
+      })(),
+    };
+  })()`);
 
   const pdfCssZoom = await page.pdf({
     preferCSSPageSize: true,
     printBackground: true,
-  });
-  const pdfStackedZoom = await page.pdf({
-    format: "A5",
-    preferCSSPageSize: false,
-    printBackground: true,
-    margin: { top: "16mm", right: "16mm", bottom: "16mm", left: "16mm" },
   });
   const pdfA4Zoom = await page.pdf({
     format: "A4",
@@ -239,35 +285,33 @@ async function runCase(page: Page, kind: CaseName) {
     margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
   });
 
-  const media =
-    [...pdfCssZoom.toString("latin1").matchAll(/\/MediaBox\s*\[\s*([0-9.\s]+)\]/g)].map(
-      (m) => m[1].trim()
-    )[0] ?? null;
+  const mediaBox =
+    [
+      ...pdfCssZoom
+        .toString("latin1")
+        .matchAll(/\/MediaBox\s*\[\s*([0-9.\s]+)\]/g),
+    ].map((m) => m[1].trim())[0] ?? null;
 
-  const result = {
-    kind,
-    before,
-    fit,
-    pages: {
-      preferCss_noZoom: countPdfPages(pdfCssNoZoom),
-      stacked16_noZoom: countPdfPages(pdfStackedNoZoom),
-      preferCss_zoom: countPdfPages(pdfCssZoom),
-      stacked16_zoom: countPdfPages(pdfStackedZoom),
-      a4_zoom: countPdfPages(pdfA4Zoom),
-    },
-    mediaBoxZoom: media,
-  };
-
-  fs.writeFileSync(
-    path.join(OUT, `pv-${kind}-a5-zoom.pdf`),
-    pdfCssZoom
-  );
+  fs.writeFileSync(path.join(OUT, `pv-${kind}-a5-zoom.pdf`), pdfCssZoom);
   await page.screenshot({
     path: path.join(OUT, `pv-${kind}-print-media.png`),
     fullPage: true,
   });
 
-  return result;
+  return {
+    kind,
+    screenMeasure,
+    printPath,
+    pages: {
+      preferCss_zoom: countPdfPages(pdfCssZoom),
+      a4_zoom: countPdfPages(pdfA4Zoom),
+    },
+    mediaBoxZoom: mediaBox,
+    heightRatio: +(
+      screenMeasure.heightMm / printPath.beforeFit.heightMm
+    ).toFixed(3),
+    scaleDelta: +(printPath.scale - screenMeasure.buggyScreenScale).toFixed(4),
+  };
 }
 
 async function main() {
@@ -287,38 +331,64 @@ async function main() {
 
     const failures: string[] = [];
     for (const r of results) {
-      // Primary contract: CSS @page A5 margin:0 + zoom fit => exactly 1 page.
       if (r.pages.preferCss_zoom !== 1) {
         failures.push(`${r.kind}: preferCss_zoom=${r.pages.preferCss_zoom}`);
       }
       if (r.pages.a4_zoom !== 1) {
         failures.push(`${r.kind}: a4_zoom=${r.pages.a4_zoom}`);
       }
-      if (!r.before.noPrintHidden) {
-        failures.push(`${r.kind}: .no-print still visible`);
+      if (!r.printPath.noPrintHidden) {
+        failures.push(`${r.kind}: .no-print still visible in print media`);
       }
       if (!r.mediaBoxZoom || !r.mediaBoxZoom.startsWith("0 0 420")) {
         failures.push(`${r.kind}: MediaBox not A5 (${r.mediaBoxZoom})`);
       }
-      if (r.fit.heightAfterMm > A5_FIT_MM + 0.5) {
+      if (r.printPath.afterFit.heightMm > A5_FIT_MM + 0.5) {
         failures.push(
-          `${r.kind}: after zoom height ${r.fit.heightAfterMm}mm > fit ${A5_FIT_MM}mm`
+          `${r.kind}: after beforeprint-fit height ${r.printPath.afterFit.heightMm}mm > ${A5_FIT_MM}mm`
+        );
+      }
+
+      // Methodology: screen layout must be much taller than print layout.
+      if (r.heightRatio < SCREEN_VS_PRINT_HEIGHT_RATIO_MIN) {
+        failures.push(
+          `${r.kind}: screen/print height ratio ${r.heightRatio} < ${SCREEN_VS_PRINT_HEIGHT_RATIO_MIN} (fixture cannot catch timing bug)`
+        );
+      }
+      // Old buggy path (measure on screen) must zoom more aggressively than beforeprint.
+      if (r.screenMeasure.buggyScreenScale >= r.printPath.scale - 0.001) {
+        failures.push(
+          `${r.kind}: buggy screen scale ${r.screenMeasure.buggyScreenScale} not < beforeprint scale ${r.printPath.scale}`
+        );
+      }
+
+      // Short 1-line voucher (PV-20260715-004 class): scale ≈ 1
+      if (r.kind === "short" && r.printPath.scale < SHORT_SCALE_MIN) {
+        failures.push(
+          `short: beforeprint scale ${r.printPath.scale} < ${SHORT_SCALE_MIN} (still over-compressing)`
+        );
+      }
+      if (r.kind === "short" && r.screenMeasure.buggyScreenScale >= SHORT_SCALE_MIN) {
+        failures.push(
+          `short: buggy screen scale ${r.screenMeasure.buggyScreenScale} unexpectedly ≥ ${SHORT_SCALE_MIN} (expected unnecessary zoom on screen measure)`
         );
       }
     }
 
+    const pass = failures.length === 0;
     fs.writeFileSync(
       path.join(OUT, "verify-results.json"),
       JSON.stringify(
         {
           a5HeightMm: A5_H_MM,
           a5FitMm: A5_FIT_MM,
-          a5FitPx: A5_FIT_PX,
+          shortScaleMin: SHORT_SCALE_MIN,
+          screenVsPrintHeightRatioMin: SCREEN_VS_PRINT_HEIGHT_RATIO_MIN,
           results,
           failures,
           note:
-            "stacked16_* is diagnostic for browser+CSS margin stacking; pass criteria use preferCss_zoom (margin:0 @page).",
-          pass: failures.length === 0,
+            "Scale must be measured inside beforeprint (print media on). Measuring on screen styles over-compresses.",
+          pass,
         },
         null,
         2
@@ -327,10 +397,9 @@ async function main() {
 
     console.log("\n=== SUMMARY ===");
     console.log("failures:", failures);
-    console.log("PASS?", failures.length === 0);
+    console.log("PASS?", pass);
     console.log("artifacts:", OUT);
-
-    if (failures.length) process.exitCode = 2;
+    if (!pass) process.exitCode = 2;
   } finally {
     await browser.close();
   }

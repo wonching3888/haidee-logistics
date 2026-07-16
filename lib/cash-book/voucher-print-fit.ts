@@ -4,6 +4,9 @@
  *  re-introducing large CSS @page margins (which stack with browser defaults). */
 const A5_FIT_HEIGHT_MM = 200;
 
+/** Last scale applied by applyVoucherA5PrintFit (for tests / diagnostics). */
+export let lastVoucherA5PrintScale: number | undefined;
+
 export function a5FitHeightPx(): number {
   return (A5_FIT_HEIGHT_MM * 96) / 25.4;
 }
@@ -13,12 +16,17 @@ export function a5HeightPx(): number {
   return a5FitHeightPx();
 }
 
-/** Reset then scale element so its border-box height fits one A5 page. */
+/**
+ * Reset then scale element so its border-box height fits one A5 page.
+ * Must run while @media print styles are already active (e.g. inside
+ * `beforeprint`) — measuring screen-layout height over-compresses.
+ */
 export function applyVoucherA5PrintFit(el: HTMLElement): number {
   el.style.zoom = "1";
   const height = el.getBoundingClientRect().height;
   const scale = Math.min(1, a5FitHeightPx() / Math.max(height, 1));
   el.style.zoom = String(scale);
+  lastVoucherA5PrintScale = scale;
   return scale;
 }
 
@@ -27,19 +35,29 @@ export function clearVoucherA5PrintFit(el: HTMLElement) {
 }
 
 /**
- * Fit-then-print. Chrome blocks inside window.print() until the dialog closes,
- * so clearing zoom afterwards is safe for the print job already sent.
+ * Print with A5 fit applied in `beforeprint` (print styles already active)
+ * and cleared in `afterprint`.
+ *
+ * Do NOT measure/zoom before calling window.print() — Tailwind `print:` /
+ * @media print densification is not applied yet on screen, so the scale
+ * would be wrongly small (over-compressed printout).
  */
-export function printVoucherA5(el: HTMLElement | null): number | undefined {
+export function printVoucherA5(el: HTMLElement | null): void {
   if (!el) {
     window.print();
     return;
   }
-  const scale = applyVoucherA5PrintFit(el);
-  try {
-    window.print();
-  } finally {
+
+  const onBeforePrint = () => {
+    applyVoucherA5PrintFit(el);
+  };
+  const onAfterPrint = () => {
     clearVoucherA5PrintFit(el);
-  }
-  return scale;
+    window.removeEventListener("beforeprint", onBeforePrint);
+    window.removeEventListener("afterprint", onAfterPrint);
+  };
+
+  window.addEventListener("beforeprint", onBeforePrint);
+  window.addEventListener("afterprint", onAfterPrint);
+  window.print();
 }
