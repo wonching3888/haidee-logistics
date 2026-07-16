@@ -11,6 +11,14 @@ export const HAIDEE_MODE1A_INVOICE_DETAILS = {
     "This is computer generated invoice no signature required",
 } as const;
 
+/** Thai address for PV/RV (and other Thai-facing) print letterheads. */
+export const HAIDEE_VOUCHER_PRINT_ADDRESS_LINES = [
+  "38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320",
+] as const;
+
+/** Tax ID line for PV/RV print — reuses registrationNo, do not hardcode digits again. */
+export const HAIDEE_VOUCHER_PRINT_TAX_ID = `เลขประจำตัวผู้เสียภาษี ${HAIDEE_MODE1A_INVOICE_DETAILS.registrationNo}`;
+
 /** HAIDEE mode 1b MYR invoices — same company block, WTL collection bank. */
 export const HAIDEE_MODE1B_INVOICE_DETAILS = {
   registrationNo: HAIDEE_MODE1A_INVOICE_DETAILS.registrationNo,

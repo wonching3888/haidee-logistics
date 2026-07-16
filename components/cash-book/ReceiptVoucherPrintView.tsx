@@ -6,6 +6,10 @@ import { ArrowLeft, Pencil, Printer } from "lucide-react";
 import type { ReceiptVoucherDetail } from "@/app/actions/cash-book-receipt-voucher";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
+import {
+  HAIDEE_VOUCHER_PRINT_ADDRESS_LINES,
+  HAIDEE_VOUCHER_PRINT_TAX_ID,
+} from "@/lib/constants/haidee-company-details";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatThbPaymentVoucherAmountInWords } from "@/lib/thai-baht-text";
 import { formatDisplay } from "@/lib/date-utils";
@@ -69,6 +73,8 @@ export function ReceiptVoucherPrintView({
           nameZh=""
           nameTh="บริษัท ไฮดี โลจิสติกส์ จำกัด"
           nameEn="HAI DEE LOGISTICS CO., LTD."
+          addressLines={[...HAIDEE_VOUCHER_PRINT_ADDRESS_LINES]}
+          taxId={HAIDEE_VOUCHER_PRINT_TAX_ID}
         />
         <h1 className="mt-4 text-center text-lg font-bold print:mt-1 print:text-[11pt]">
           ใบสำคัญรับ / Receipt Voucher

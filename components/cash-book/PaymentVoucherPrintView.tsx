@@ -11,6 +11,10 @@ import {
   paymentMethodLabel,
   type PaymentVoucherMethod,
 } from "@/lib/constants/cash-book-accounts";
+import {
+  HAIDEE_VOUCHER_PRINT_ADDRESS_LINES,
+  HAIDEE_VOUCHER_PRINT_TAX_ID,
+} from "@/lib/constants/haidee-company-details";
 import { formatInvoiceAmountInWords } from "@/lib/invoice-amount-words";
 import { formatThbPaymentVoucherAmountInWords } from "@/lib/thai-baht-text";
 import { formatDisplay } from "@/lib/date-utils";
@@ -86,6 +90,8 @@ export function PaymentVoucherPrintView({
           nameZh=""
           nameTh="บริษัท ไฮดี โลจิสติกส์ จำกัด"
           nameEn="HAI DEE LOGISTICS CO., LTD."
+          addressLines={[...HAIDEE_VOUCHER_PRINT_ADDRESS_LINES]}
+          taxId={HAIDEE_VOUCHER_PRINT_TAX_ID}
         />
 
         <h1 className="mt-4 text-center text-lg font-bold print:mt-1 print:text-[11pt]">
@@ -183,10 +189,6 @@ export function PaymentVoucherPrintView({
             <p className="text-xs text-gray-600">{voucher.approvedBy ?? ""}</p>
           </div>
         </div>
-
-        <p className="payment-voucher-footer mt-8 text-xs text-gray-500 print:mt-1.5 print:text-[7.5pt]">
-          {P.footer}
-        </p>
       </div>
     </div>
   );

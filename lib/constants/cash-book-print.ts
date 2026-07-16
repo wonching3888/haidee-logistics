@@ -18,6 +18,4 @@ export const PAYMENT_VOUCHER_PRINT = {
   payeeSignature: "ผู้รับเงิน / Payee",
   preparedBy: "ผู้จัดทำ / Prepared by",
   approvedBy: "ผู้อนุมัติ / Approved by",
-  footer:
-    "เอกสารนี้เป็นหลักฐานการจ่ายเงินสด / This voucher records a cash payment (no ledger posting yet).",
 } as const;

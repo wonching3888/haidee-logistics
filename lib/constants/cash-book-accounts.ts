@@ -111,11 +111,11 @@ export const CASH_BOOK_LONGEST_ACCOUNT_NAME =
 export function paymentMethodLabel(method: PaymentVoucherMethod): string {
   switch (method) {
     case "CASH":
-      return "现金 / Cash";
+      return "เงินสด / Cash";
     case "TRANSFER":
-      return "转账 / Transfer";
+      return "โอนเงิน / Transfer";
     case "CHEQUE":
-      return "支票 / Cheque";
+      return "เช็ค / Cheque";
     default:
       return method;
   }

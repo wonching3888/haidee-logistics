@@ -183,6 +183,8 @@ ${CSS_PV}
           <div class="haidee-invoice-letterhead-text">
             <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-th">บริษัท ไฮดี โลจิสติกส์ จำกัด</div>
             <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-name-en">HAI DEE LOGISTICS CO., LTD.</div>
+            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">38/88 หมู่1 ถ.กาญจนวนิช ต.สำนักขาม อ.สะเดา จ.สงขลา 90320</div>
+            <div class="haidee-invoice-letterhead-line haidee-invoice-letterhead-detail">เลขประจำตัวผู้เสียภาษี 0905567001730</div>
           </div>
         </div>
         <h1 class="mt-4 text-center text-lg font-bold">ใบสำคัญจ่าย / Payment Voucher</h1>
@@ -190,7 +192,7 @@ ${CSS_PV}
           <p><span class="font-medium">เลขที่ / Voucher No.:</span> <span class="font-mono">PV-VERIFY-${kind.toUpperCase()}</span></p>
           <p><span class="font-medium">วันที่ / Date:</span> 15/07/2026</p>
           <p style="grid-column:1/-1"><span class="font-medium">จ่ายให้ / Paid To:</span> THONGDANG LOGISTICS PARTNER CO., LTD.</p>
-          <p><span class="font-medium">วิธีชำระ / Payment Method:</span> Transfer</p>
+          <p><span class="font-medium">วิธีชำระ / Payment Method:</span> โอนเงิน / Transfer</p>
           <p><span class="font-medium">วันครบกำหนด / Due Date:</span> 20/07/2026</p>
         </div>
         <table class="payment-voucher-table mt-6 w-full border-collapse text-sm">
@@ -217,7 +219,6 @@ ${CSS_PV}
           <div><div class="payment-voucher-sig-line min-h-[3rem] border-b border-black"></div><p class="mt-1">ผู้จัดทำ / Prepared by</p></div>
           <div><div class="payment-voucher-sig-line min-h-[3rem] border-b border-black"></div><p class="mt-1">ผู้อนุมัติ / Approved by</p></div>
         </div>
-        <p class="payment-voucher-footer mt-8 text-xs">เอกสารนี้เป็นหลักฐานการจ่ายเงินสด / This voucher records a cash payment (no ledger posting yet).</p>
       </div>
     </div>
   </main>
@@ -355,12 +356,6 @@ async function main() {
           `${r.kind}: screen/print height ratio ${r.heightRatio} < ${SCREEN_VS_PRINT_HEIGHT_RATIO_MIN} (fixture cannot catch timing bug)`
         );
       }
-      // Old buggy path (measure on screen) must zoom more aggressively than beforeprint.
-      if (r.screenMeasure.buggyScreenScale >= r.printPath.scale - 0.001) {
-        failures.push(
-          `${r.kind}: buggy screen scale ${r.screenMeasure.buggyScreenScale} not < beforeprint scale ${r.printPath.scale}`
-        );
-      }
 
       // Short 1-line voucher (PV-20260715-004 class): scale ≈ 1
       if (r.kind === "short" && r.printPath.scale < SHORT_SCALE_MIN) {
@@ -368,10 +363,20 @@ async function main() {
           `short: beforeprint scale ${r.printPath.scale} < ${SHORT_SCALE_MIN} (still over-compressing)`
         );
       }
-      if (r.kind === "short" && r.screenMeasure.buggyScreenScale >= SHORT_SCALE_MIN) {
-        failures.push(
-          `short: buggy screen scale ${r.screenMeasure.buggyScreenScale} unexpectedly ≥ ${SHORT_SCALE_MIN} (expected unnecessary zoom on screen measure)`
-        );
+
+      // Stress case must still show the screen-vs-beforeprint timing pitfall
+      // (screen height exceeds fit target → buggy scale < 1, beforeprint scale = 1).
+      if (r.kind === "stress") {
+        if (r.screenMeasure.buggyScreenScale >= r.printPath.scale - 0.001) {
+          failures.push(
+            `stress: buggy screen scale ${r.screenMeasure.buggyScreenScale} not < beforeprint scale ${r.printPath.scale}`
+          );
+        }
+        if (r.screenMeasure.buggyScreenScale >= SHORT_SCALE_MIN) {
+          failures.push(
+            `stress: buggy screen scale ${r.screenMeasure.buggyScreenScale} unexpectedly ≥ ${SHORT_SCALE_MIN}`
+          );
+        }
       }
     }
 
