@@ -68,11 +68,35 @@ function sanitizeFileName(name: string) {
 
 // TEMPORARY(踩线排查用): 为 true 时每份生成的 PDF 末尾会多一页诊断数字,排查结束后请删除
 // 这个常量以及 renderElementToPdfBlobCore 里那一段 `if (PDF_DEBUG_MEASURE)` 代码。
-const PDF_DEBUG_MEASURE = true;
+const PDF_DEBUG_MEASURE = false;
 
 async function waitForDocumentFonts() {
   if (typeof document !== "undefined" && document.fonts?.ready) {
     await document.fonts.ready;
+  }
+}
+
+/**
+ * 检测页面当前的"环境缩放"比例（比如浏览器缩放不是100%时）。
+ * html2canvas 手动还原布局时的取整计算对非100%缩放很敏感，会导致表格文字在格子内偏移（"踩线"）。
+ * 做法：量一个声明为1000px的探测元素，实际渲染出来是多少px，两者的比值就是当前缩放比例。
+ */
+function detectAmbientZoomScale(doc: Document): number {
+  try {
+    const probe = doc.createElement("div");
+    probe.style.position = "fixed";
+    probe.style.left = "-99999px";
+    probe.style.top = "0";
+    probe.style.width = "1000px";
+    probe.style.height = "1000px";
+    probe.style.visibility = "hidden";
+    doc.body.appendChild(probe);
+    const rect = probe.getBoundingClientRect();
+    const scale = rect.width / 1000;
+    doc.body.removeChild(probe);
+    return scale > 0 && Number.isFinite(scale) ? scale : 1;
+  } catch {
+    return 1;
   }
 }
 
@@ -378,6 +402,11 @@ async function renderElementToPdfBlobCore(
           clonedElement instanceof HTMLElement ? clonedElement : element;
         clonedRoot.setAttribute("data-pdf-capture-root", "true");
         prepareHtml2CanvasClone(clonedDoc, element, clonedRoot, cloneOptions);
+
+        const ambientZoomScale = detectAmbientZoomScale(clonedDoc);
+        if (Math.abs(ambientZoomScale - 1) > 0.01) {
+          clonedRoot.style.zoom = `${(1 / ambientZoomScale) * 100}%`;
+        }
 
         if (PDF_DEBUG_MEASURE) {
           try {
