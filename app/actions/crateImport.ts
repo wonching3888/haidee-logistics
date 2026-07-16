@@ -527,7 +527,11 @@ function buildQuantityRecordsForRow(
     if (qty <= 0) continue;
 
     if (colKey === CRATE_IMPORT_OTHER_COLUMN) {
-      otherColsData[colKey] = qty;
+      if (otherTongTypeId) {
+        tongEntries.push({ tongTypeId: otherTongTypeId, quantity: qty });
+      } else {
+        otherColsData[colKey] = qty;
+      }
       continue;
     }
 
