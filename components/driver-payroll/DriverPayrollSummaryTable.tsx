@@ -37,6 +37,7 @@ const COLUMNS = [
   { key: "lindung24Jam", label: "Lindung", align: "right" as const },
   { key: "eisEmployee", label: "EIS员工", align: "right" as const },
   { key: "pcb", label: "PCB", align: "right" as const },
+  { key: "advanceTotal", label: "垫款", align: "right" as const },
   { key: "netSalary", label: "实发", align: "right" as const },
   { key: "epfEmployer", label: "雇主EPF", align: "right" as const },
   { key: "socsoEmployer", label: "雇主SOCSO", align: "right" as const },

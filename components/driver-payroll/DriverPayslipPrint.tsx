@@ -178,6 +178,7 @@ export function DriverPayslipPrint({
                 <tr>
                   <th>Date</th>
                   <th className="amount">Amount (RM)</th>
+                  <th>备注/Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,6 +186,7 @@ export function DriverPayslipPrint({
                   <tr key={`${item.date}-${index}`}>
                     <td>{formatDisplayDate(parseDateInput(item.date))}</td>
                     <td className="amount">{formatPayslipMoney(item.amount)}</td>
+                    <td>{item.note ?? ""}</td>
                   </tr>
                 ))}
               </tbody>

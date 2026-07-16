@@ -79,6 +79,7 @@ export interface DriverPayrollSummaryRow {
   lindung24Jam: number;
   eisEmployee: number;
   pcb: number;
+  advanceTotal: number;
   netSalary: number;
   epfEmployer: number;
   socsoEmployer: number;
@@ -264,6 +265,7 @@ export function payrollSummaryToRow(
     lindung24Jam: summary.statutory.lindung24Jam,
     eisEmployee: summary.statutory.eisEmployee,
     pcb: summary.statutory.pcb,
+    advanceTotal: summary.advanceTotal,
     netSalary: summary.netSalary,
     epfEmployer: summary.statutory.epfEmployer,
     socsoEmployer: summary.statutory.socsoEmployer,
@@ -293,6 +295,7 @@ export function aggregateFleetPayrollRows(
       lindung24Jam: acc.lindung24Jam + row.lindung24Jam,
       eisEmployee: acc.eisEmployee + row.eisEmployee,
       pcb: acc.pcb + row.pcb,
+      advanceTotal: acc.advanceTotal + row.advanceTotal,
       netSalary: acc.netSalary + row.netSalary,
       epfEmployer: acc.epfEmployer + row.epfEmployer,
       socsoEmployer: acc.socsoEmployer + row.socsoEmployer,
@@ -314,6 +317,7 @@ export function aggregateFleetPayrollRows(
       lindung24Jam: 0,
       eisEmployee: 0,
       pcb: 0,
+      advanceTotal: 0,
       netSalary: 0,
       epfEmployer: 0,
       socsoEmployer: 0,
@@ -336,6 +340,7 @@ export function aggregateFleetPayrollRows(
     lindung24Jam: roundMoney(totals.lindung24Jam),
     eisEmployee: roundMoney(totals.eisEmployee),
     pcb: roundMoney(totals.pcb),
+    advanceTotal: roundMoney(totals.advanceTotal),
     netSalary: roundMoney(totals.netSalary),
     epfEmployer: roundMoney(totals.epfEmployer),
     socsoEmployer: roundMoney(totals.socsoEmployer),
