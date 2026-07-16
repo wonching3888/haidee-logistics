@@ -3,6 +3,7 @@ import {
   debtorCodeToIncomeAccNo,
   resolveArTaxType,
 } from "@/lib/ar-invoice-export/ar-invoice-accounts";
+import { formatDisplay } from "@/lib/date-utils";
 
 /** Revenue line kinds for AR export (freight / crate return / charter). */
 export type ArInvoiceRevenueKind = "freight" | "crate_return" | "charter";
@@ -87,16 +88,17 @@ export interface ArInvoiceAmountFetcher {
 /** Monthly DocDate: 1st of month as DD/MM/YYYY (freight & crate return). */
 export function formatArMonthlyDocDate(year: number, month: number): string {
   const mm = String(month).padStart(2, "0");
-  return `01/${mm}/${year}`;
+  return formatDisplay(`${year}-${mm}-01`);
 }
 
 /** Charter DocDate from ISO trip date YYYY-MM-DD → DD/MM/YYYY. */
 export function formatArCharterDocDate(tripDate: string): string {
-  const [y, m, d] = tripDate.slice(0, 10).split("-");
+  const iso = tripDate.slice(0, 10);
+  const [y, m, d] = iso.split("-");
   if (!y || !m || !d) {
     throw new Error(`Invalid charter trip date: ${tripDate}`);
   }
-  return `${d}/${m}/${y}`;
+  return formatDisplay(iso);
 }
 
 export function formatArFreightDescription(year: number, month: number): string {

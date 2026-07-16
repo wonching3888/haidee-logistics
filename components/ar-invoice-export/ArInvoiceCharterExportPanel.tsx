@@ -16,6 +16,7 @@ import {
   exportArCharterCsvAction,
   getArCharterExportPreview,
 } from "@/app/actions/ar-invoice-export";
+import { formatDisplay } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 type PreviewData = Awaited<ReturnType<typeof getArCharterExportPreview>>;
@@ -138,8 +139,8 @@ export function ArInvoiceCharterExportPanel() {
             {preview.skipped.map((item) => (
               <li key={item.entityKey}>
                 {item.customerName}
-                {item.charterNo ? ` [${item.charterNo}]` : ""} · {item.tripDate}:{" "}
-                {item.reason}
+                {item.charterNo ? ` [${item.charterNo}]` : ""} ·{" "}
+                {formatDisplay(item.tripDate)}: {item.reason}
               </li>
             ))}
           </ul>
@@ -163,7 +164,7 @@ export function ArInvoiceCharterExportPanel() {
               {preview.rows.map((row) => (
                 <TableRow key={row.docNo}>
                   <TableCell className="font-mono text-sm">{row.docNo}</TableCell>
-                  <TableCell>{row.tripDate}</TableCell>
+                  <TableCell>{formatDisplay(row.tripDate)}</TableCell>
                   <TableCell className="font-mono text-sm">
                     {row.debtorCode}
                   </TableCell>

@@ -42,6 +42,7 @@ import type {
   ReceivableCustomerKind,
 } from "@/lib/receivable-invoices";
 import { cn } from "@/lib/utils";
+import { formatDisplay } from "@/lib/date-utils";
 import { formatMoneyWithCurrency } from "@/lib/number-format";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
@@ -196,7 +197,7 @@ export function InvoicePaymentSection({
                   <Fragment key={payment.id}>
                     <TableRow>
                       <TableCell className={cn(FIRST_COL_WIDTH, STICKY_BODY_FIRST)}>
-                        <div>{payment.paymentDate}</div>
+                        <div>{formatDisplay(payment.paymentDate)}</div>
                         {payment.allocationStrategy === "manual" ? (
                           <span className="mt-0.5 block text-xs text-haidee-muted">
                             {t("invoiceCollections.payments.strategyManual")}

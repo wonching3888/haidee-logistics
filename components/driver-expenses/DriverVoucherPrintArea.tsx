@@ -11,6 +11,7 @@ import {
   type VoucherPrintBreakdown,
 } from "@/lib/driver-expense/voucher-utils";
 import { formatKpbFeeRowLabel } from "@/lib/driver-expense/fee-labels";
+import { formatDisplay } from "@/lib/date-utils";
 import { useT } from "@/components/shared/locale-context";
 import { PrintLetterhead } from "@/components/shared/PrintLogo";
 
@@ -117,7 +118,7 @@ export function DriverVoucherPrintArea({
           </div>
           <div>
             <span className="voucher-print-label">{VOUCHER_PRINT_LABELS.tarikh}</span>{" "}
-            {voucher.tripDate}
+            {formatDisplay(voucher.tripDate)}
           </div>
           <div>
             <span className="voucher-print-label">{VOUCHER_PRINT_LABELS.trip}</span>{" "}

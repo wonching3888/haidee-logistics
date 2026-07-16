@@ -42,6 +42,7 @@ import {
   type VoucherStatus,
 } from "@/lib/driver-voucher-status-types";
 import type { StoredUserRole } from "@/types";
+import { formatDisplay } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import {
   expenseTripKey,
@@ -1123,7 +1124,7 @@ export function DriverVoucherForm({
               </div>
               <div>
                 <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.tarikh}</p>
-                <p className="font-medium">{form.tripDate}</p>
+                <p className="font-medium">{formatDisplay(form.tripDate)}</p>
               </div>
               <div>
                 <p className="text-xs text-haidee-muted">{VOUCHER_LABELS.trip}</p>

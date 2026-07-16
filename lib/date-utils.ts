@@ -20,7 +20,7 @@ export function formatDisplay(dateStr: string): string {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   if (!year || !month || !day) return dateStr;
-  return `${day}/${month}/${year}`;
+  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 }
 
 /** User-facing date display: dd/MM/yyyy */

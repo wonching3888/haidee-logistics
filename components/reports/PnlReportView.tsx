@@ -41,6 +41,7 @@ import {
   isReportQueryRequested,
   withReportQueryFlag,
 } from "@/lib/reports/report-query-params";
+import { formatDisplay } from "@/lib/date-utils";
 import { formatMoneyAmount } from "@/lib/number-format";
 
 const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => 2020 + i);
@@ -242,7 +243,9 @@ function PnlTrendChart({
               transform: "translate(-50%, 0)",
             }}
           >
-            <div className="font-medium text-haidee-text">{activePoint.date}</div>
+            <div className="font-medium text-haidee-text">
+              {formatDisplay(activePoint.date)}
+            </div>
             <div className="mt-1 space-y-0.5 text-haidee-muted">
               <div className="flex justify-between gap-3">
                 <span className="text-emerald-700">收入</span>
@@ -1253,7 +1256,7 @@ function TripListRow({
             )}
           </button>
         </TableCell>
-        <TableCell>{trip.date}</TableCell>
+        <TableCell>{formatDisplay(trip.date)}</TableCell>
         <TableCell>{trip.route}</TableCell>
         <TableCell>{trip.driver ?? "—"}</TableCell>
         <TableCell>{trip.plate}</TableCell>

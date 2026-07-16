@@ -6,6 +6,7 @@ import { PnlIncompleteWarning } from "@/components/thai-cost/PnlIncompleteWarnin
 import { DispatchCrossCheckBanner } from "@/components/thai-cost/DispatchCrossCheckBanner";
 import type { DispatchCrossCheckResult } from "@/lib/thai-cost/dispatch-cross-check";
 import type { PattaniPnlDetail } from "@/lib/thai-cost/pattani-pnl";
+import { formatDisplay } from "@/lib/date-utils";
 import { Input } from "@/components/ui/input";
 
 function money(n: number) {
@@ -160,7 +161,7 @@ export function PattaniSummaryView({
             ) : (
               pnl.trips.map((t) => (
                 <tr key={t.id} className="border-t">
-                  <td className="px-3 py-2 font-mono">{t.date}</td>
+                  <td className="px-3 py-2 font-mono">{formatDisplay(t.date)}</td>
                   <td className="px-3 py-2 font-mono">{t.truckPlate}</td>
                   <td className="px-3 py-2">
                     {t.isRented

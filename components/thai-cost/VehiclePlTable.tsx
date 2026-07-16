@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { THAI_COST_STATION_LABELS } from "@/lib/constants/thai-cost";
+import { formatDisplay } from "@/lib/date-utils";
 import type { VehicleTripPlRow } from "@/lib/thai-cost/vehicle-pl";
 
 function money(n: number) {
@@ -62,7 +63,7 @@ export function VehiclePlTable({ rows }: { rows: VehicleTripPlRow[] }) {
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.id}>
-              <TableCell className="text-sm">{r.date}</TableCell>
+              <TableCell className="text-sm">{formatDisplay(r.date)}</TableCell>
               <TableCell className="font-mono">{r.truckPlate}</TableCell>
               <TableCell className="text-sm">
                 {r.driverName ?? "—"}

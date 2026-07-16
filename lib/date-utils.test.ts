@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BUSINESS_TIMEZONE,
   DISPLAY_TIMEZONE,
+  formatDisplay,
   formatDisplayDate,
   formatDisplayDateTime,
   formatDisplayTime,
@@ -12,6 +13,16 @@ import {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("formatDisplay", () => {
+  it("formats zero-padded ISO yyyy-MM-dd as dd/MM/yyyy", () => {
+    expect(formatDisplay("2026-06-18")).toBe("18/06/2026");
+  });
+
+  it("pads unpadded month/day segments (e.g. AR charter preview)", () => {
+    expect(formatDisplay("2026-6-18")).toBe("18/06/2026");
+  });
 });
 
 describe("DISPLAY_TIMEZONE", () => {

@@ -1,5 +1,6 @@
 import type { DispatchKlMcPrintData } from "@/app/actions/dispatch";
 import { cellDisplay, formatConsignorForKlMcPrint } from "@/lib/consignor-label";
+import { formatDisplay } from "@/lib/date-utils";
 import { t } from "@/lib/i18n/translate";
 import type { UserLanguage } from "@/types";
 import "@/components/documents/document-print.css";
@@ -78,7 +79,7 @@ function DispatchKlMcPrintMobile({
   return (
     <div className="dispatch-klmc-mobile md:hidden print:hidden">
       <div className="dispatch-klmc-mobile-title">
-        {t("dispatch.klMcPrintTitle", locale)} · {data.date}
+        {t("dispatch.klMcPrintTitle", locale)} · {formatDisplay(data.date)}
       </div>
 
       {rows.length === 0 ? (
@@ -172,7 +173,7 @@ function DispatchKlMcPrintA4({ data, locale }: DispatchKlMcPrintProps) {
   return (
     <div className="document-print dispatch-klmc-print dispatch-klmc-print-a4">
       <div className="dispatch-klmc-title">
-        {t("dispatch.klMcPrintTitle", locale)} · {data.date}
+        {t("dispatch.klMcPrintTitle", locale)} · {formatDisplay(data.date)}
       </div>
 
       <table className="dispatch-klmc-table">

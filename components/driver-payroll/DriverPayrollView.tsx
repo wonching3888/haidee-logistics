@@ -36,6 +36,7 @@ import { ScrollMatrixTable } from "@/components/shared/ScrollMatrixTable";
 import { getRouteLabel } from "@/lib/payroll-route-label";
 import { DriverPayrollSummaryTable } from "@/components/driver-payroll/DriverPayrollSummaryTable";
 import { PayrollJvExportPanel } from "@/components/driver-payroll/PayrollJvExportPanel";
+import { formatDisplay } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 interface DriverOption {
@@ -525,7 +526,7 @@ function DriverPayrollDetailSections({
                   data.extras.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.type === "advance" ? "借支" : "Allowance"}</TableCell>
-                      <TableCell>{item.date}</TableCell>
+                      <TableCell>{formatDisplay(item.date)}</TableCell>
                       <TableCell>{item.note ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">
                         {money(item.amount)}
