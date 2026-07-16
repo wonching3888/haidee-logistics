@@ -68,7 +68,7 @@ function sanitizeFileName(name: string) {
 
 // TEMPORARY(踩线排查用): 为 true 时每份生成的 PDF 末尾会多一页诊断数字,排查结束后请删除
 // 这个常量以及 renderElementToPdfBlobCore 里那一段 `if (PDF_DEBUG_MEASURE)` 代码。
-const PDF_DEBUG_MEASURE = false;
+const PDF_DEBUG_MEASURE = true;
 
 async function waitForDocumentFonts() {
   if (typeof document !== "undefined" && document.fonts?.ready) {
@@ -381,6 +381,7 @@ async function renderElementToPdfBlobCore(
       : {}),
   };
 
+  const liveAmbientZoomScale = detectAmbientZoomScale(document);
   const cloneDebugInfo: string[] = [];
 
   const canvas = await runWithHtml2CanvasCompat(() =>
@@ -410,6 +411,9 @@ async function renderElementToPdfBlobCore(
 
         if (PDF_DEBUG_MEASURE) {
           try {
+            cloneDebugInfo.push(
+              `zoom: live=${liveAmbientZoomScale} clonedDetected=${ambientZoomScale} appliedStyle=${clonedRoot.style.zoom || "(none)"}`
+            );
             const styleTag = clonedDoc.querySelector(
               "[data-html2canvas-market-do-baseline]"
             );
