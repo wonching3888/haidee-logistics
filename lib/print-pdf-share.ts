@@ -88,7 +88,7 @@ function addCanvasImageToPdfPages(
   }
 
   if (renderHeight <= pageHeight + 0.5) {
-    pdf.addImage(imgData, "JPEG", 0, 0, renderWidth, renderHeight);
+    pdf.addImage(imgData, "PNG", 0, 0, renderWidth, renderHeight);
     return;
   }
 
@@ -101,7 +101,7 @@ function addCanvasImageToPdfPages(
       pdf.addPage();
     }
     isFirstSlice = false;
-    pdf.addImage(imgData, "JPEG", 0, position, renderWidth, renderHeight);
+    pdf.addImage(imgData, "PNG", 0, position, renderWidth, renderHeight);
     heightLeft -= pageHeight;
     position = heightLeft - renderHeight;
   }
@@ -216,6 +216,10 @@ async function renderElementToPdfBlobCore(
       windowHeight: captureExtents.height,
       width: captureExtents.width,
       height: captureExtents.height,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
       onclone: (clonedDoc, clonedElement) => {
         const clonedRoot =
           clonedElement instanceof HTMLElement ? clonedElement : element;
@@ -225,7 +229,7 @@ async function renderElementToPdfBlobCore(
     })
   );
 
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
+  const imgData = canvas.toDataURL("image/png");
   const pdf =
     pdfContext?.pdf ??
     new jsPDF({
