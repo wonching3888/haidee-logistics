@@ -367,7 +367,9 @@ async function renderElementToPdfBlobCore(
     element,
     options?.captureFullContentWidth ? { wideTableSelector } : undefined
   );
-  const safeBoundariesPx = collectSafeCutBoundariesPx(element, scale);
+  // 分页安全切割线改为在 onclone 里、套用打印专用样式(如格子 padding 调整)之后再量，
+  // 避免"探路时量到的行高"和"实际截图里的行高"对不上，导致翻页时切到行的中间。
+  let safeBoundariesPx: number[] = [];
 
   const orientation = resolvePdfOrientation(options, captureExtents.width);
   const cloneOptions: Html2CanvasCloneOptions = {
@@ -403,6 +405,7 @@ async function renderElementToPdfBlobCore(
           clonedElement instanceof HTMLElement ? clonedElement : element;
         clonedRoot.setAttribute("data-pdf-capture-root", "true");
         prepareHtml2CanvasClone(clonedDoc, element, clonedRoot, cloneOptions);
+        safeBoundariesPx = collectSafeCutBoundariesPx(clonedRoot, scale);
 
         const ambientZoomScale = detectAmbientZoomScale(clonedDoc);
         if (Math.abs(ambientZoomScale - 1) > 0.01) {
