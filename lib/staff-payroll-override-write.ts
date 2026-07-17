@@ -1,21 +1,6 @@
-import type { StaffPayrollMonth } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  diffPayrollOverrideChanges,
-  type PayrollOverrideField,
-} from "@/lib/payroll-audit";
-
-const OVERRIDE_KEYS = [
-  "epfEmployeeOverride",
-  "epfEmployerOverride",
-  "socsoEmployeeOverride",
-  "socsoEmployerOverride",
-  "lindung24JamOverride",
-  "eisEmployeeOverride",
-  "eisEmployerOverride",
-  "pcbOverride",
-] as const satisfies readonly PayrollOverrideField[];
+import { diffPayrollOverrideChanges } from "@/lib/payroll-audit";
 
 export type StaffPayrollOverridePatchInput = {
   payrollMonthId: string;
@@ -85,19 +70,4 @@ export async function applyStaffPayrollOverridePatch(
   });
 
   return { changed: true as const, changes };
-}
-
-export function staffMonthOverridePick(
-  month: Pick<StaffPayrollMonth, (typeof OVERRIDE_KEYS)[number]>
-) {
-  return {
-    epfEmployeeOverride: month.epfEmployeeOverride,
-    epfEmployerOverride: month.epfEmployerOverride,
-    socsoEmployeeOverride: month.socsoEmployeeOverride,
-    socsoEmployerOverride: month.socsoEmployerOverride,
-    lindung24JamOverride: month.lindung24JamOverride,
-    eisEmployeeOverride: month.eisEmployeeOverride,
-    eisEmployerOverride: month.eisEmployerOverride,
-    pcbOverride: month.pcbOverride,
-  };
 }
