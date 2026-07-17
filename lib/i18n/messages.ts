@@ -182,6 +182,16 @@ export const MESSAGES = {
     en: "Crate Report",
     th: "รายงานประเภทลัง",
   },
+  "nav.crateReturnMarketReport": {
+    zh: "回收桶市场报表",
+    en: "Crate Return Market Report",
+    th: "รายงานตลาดลังคืน",
+  },
+  "nav.crateReturnTypeReport": {
+    zh: "回收桶桶型报表",
+    en: "Crate Return Type Report",
+    th: "รายงานประเภทลังคืน",
+  },
   "nav.crateRental": {
     zh: "租桶月结",
     en: "Crate Rental Statement",

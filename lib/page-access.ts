@@ -121,6 +121,10 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
     path.startsWith("/reports/crate-rental/") ||
     path === "/reports/crate" ||
     path.startsWith("/reports/crate/") ||
+    path === "/reports/crate-return-market" ||
+    path.startsWith("/reports/crate-return-market/") ||
+    path === "/reports/crate-return-type" ||
+    path.startsWith("/reports/crate-return-type/") ||
     path === "/market-report" ||
     path.startsWith("/market-report/")
   ) {

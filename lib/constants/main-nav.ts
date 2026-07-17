@@ -269,6 +269,8 @@ export const MAIN_NAV_REPORTS_BASE: MainNavLink[] = [
   { href: "/reports/market", messageKey: "nav.marketReport" },
   { href: "/reports/crate", messageKey: "nav.crateReport" },
   MAIN_NAV_REPORTS_CRATE_RENTAL,
+  { href: "/reports/crate-return-market", messageKey: "nav.crateReturnMarketReport" },
+  { href: "/reports/crate-return-type", messageKey: "nav.crateReturnTypeReport" },
 ];
 
 export const MAIN_NAV_REPORTS_OPERATIONS: MainNavLink = {
