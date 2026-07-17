@@ -46,6 +46,7 @@ interface StaffRow {
   childCount: number;
   accountCodeSuffix: string | null;
   isSocsoSecondCategory: boolean;
+  lindung24JamOptOut: boolean;
   payrollCategory: string;
   tinNumber: string | null;
   phoneNumber: string | null;

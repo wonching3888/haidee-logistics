@@ -67,6 +67,7 @@ export default defineConfig({
       "lib/payroll-charter-salary.test.ts",
       "lib/payroll-statutory.test.ts",
       "lib/staff-payroll-statutory.test.ts",
+      "lib/payroll-lindung-opt-out.test.ts",
       "lib/pcb-calculation.test.ts",
       "lib/driver-pcb-profile.test.ts",
       "lib/pcb-policy.test.ts",

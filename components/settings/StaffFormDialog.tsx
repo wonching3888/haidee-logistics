@@ -37,6 +37,7 @@ export interface StaffFormValue {
   childCount: string;
   accountCodeSuffix: string;
   isSocsoSecondCategory: boolean;
+  lindung24JamOptOut: boolean;
   payrollCategory: StaffPayrollCategoryFormValue;
   tinNumber: string;
   phoneNumber: string;
@@ -61,6 +62,7 @@ const EMPTY_FORM: StaffFormValue = {
   childCount: "0",
   accountCodeSuffix: "",
   isSocsoSecondCategory: false,
+  lindung24JamOptOut: false,
   payrollCategory: "salary",
   tinNumber: "",
   phoneNumber: "",
@@ -370,6 +372,16 @@ export function StaffFormDialog({
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              checked={form.lindung24JamOptOut}
+              onChange={(e) =>
+                setForm({ ...form, lindung24JamOptOut: e.target.checked })
+              }
+            />
+            退出 Lindung 24 Jam（自愿 Opt-out）
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
@@ -413,6 +425,7 @@ export function staffToFormValue(staff: {
   childCount: number;
   accountCodeSuffix?: string | null;
   isSocsoSecondCategory?: boolean;
+  lindung24JamOptOut?: boolean;
   payrollCategory?: string;
   tinNumber?: string | null;
   phoneNumber?: string | null;
@@ -441,6 +454,7 @@ export function staffToFormValue(staff: {
     childCount: String(staff.childCount),
     accountCodeSuffix: staff.accountCodeSuffix ?? "",
     isSocsoSecondCategory: Boolean(staff.isSocsoSecondCategory),
+    lindung24JamOptOut: Boolean(staff.lindung24JamOptOut),
     payrollCategory: category,
     tinNumber: staff.tinNumber ?? "",
     phoneNumber: staff.phoneNumber ?? "",
@@ -467,6 +481,7 @@ export function parseStaffFormValue(form: StaffFormValue) {
     childCount: Number(form.childCount) || 0,
     accountCodeSuffix: form.accountCodeSuffix.trim() || null,
     isSocsoSecondCategory: form.isSocsoSecondCategory,
+    lindung24JamOptOut: form.lindung24JamOptOut,
     payrollCategory: form.payrollCategory,
     tinNumber: form.tinNumber,
     phoneNumber: form.phoneNumber,

@@ -28,6 +28,7 @@ export interface DriverFormValue {
   spouseWorking: SpouseWorkingFormValue;
   childCount: string;
   accountCodeSuffix: string;
+  lindung24JamOptOut: boolean;
 }
 
 const EMPTY_FORM: DriverFormValue = {
@@ -44,6 +45,7 @@ const EMPTY_FORM: DriverFormValue = {
   spouseWorking: "",
   childCount: "0",
   accountCodeSuffix: "",
+  lindung24JamOptOut: false,
 };
 
 interface DriverFormDialogProps {
@@ -251,6 +253,16 @@ export function DriverFormDialog({
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              checked={form.lindung24JamOptOut}
+              onChange={(e) =>
+                setForm({ ...form, lindung24JamOptOut: e.target.checked })
+              }
+            />
+            退出 Lindung 24 Jam（自愿 Opt-out）
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
@@ -289,6 +301,7 @@ export function driverToFormValue(driver: {
   spouseWorking?: boolean | null;
   childCount: number;
   accountCodeSuffix?: string | null;
+  lindung24JamOptOut?: boolean;
 }): DriverFormValue {
   const num = (value: number | null) =>
     value != null ? String(value) : "";
@@ -306,6 +319,7 @@ export function driverToFormValue(driver: {
     spouseWorking: spouseWorkingToForm(driver.spouseWorking),
     childCount: String(driver.childCount),
     accountCodeSuffix: driver.accountCodeSuffix ?? "",
+    lindung24JamOptOut: Boolean(driver.lindung24JamOptOut),
   };
 }
 
@@ -324,5 +338,6 @@ export function parseDriverFormValue(form: DriverFormValue) {
     spouseWorking: spouseWorkingFromForm(form.spouseWorking),
     childCount: Number(form.childCount) || 0,
     accountCodeSuffix: form.accountCodeSuffix.trim() || null,
+    lindung24JamOptOut: form.lindung24JamOptOut,
   };
 }

@@ -167,6 +167,7 @@ export async function loadBatchDriverPayslipEntries(
       spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
+      lindung24JamOptOut: driver.lindung24JamOptOut,
     };
 
     const summary = buildDriverPayrollSummaryFromRecords({

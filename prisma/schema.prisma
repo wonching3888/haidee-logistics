@@ -385,6 +385,8 @@ model Driver {
   childCount            Int      @default(0) @map("child_count")
   accountCodeSuffix     String?  @map("account_code_suffix")
   isSocsoSecondCategory Boolean  @default(false) @map("is_socso_second_category")
+  /** Voluntary exit from Lindung 24 Jam (PERKESO); false = still enrolled (default). */
+  lindung24JamOptOut    Boolean  @default(false) @map("lindung_24_jam_opt_out")
   createdAt DateTime @default(now()) @map("created_at")
 
   trucks            Truck[]
@@ -537,6 +539,8 @@ model Staff {
   childCount            Int       @default(0) @map("child_count")
   accountCodeSuffix     String?   @map("account_code_suffix")
   isSocsoSecondCategory Boolean   @default(false) @map("is_socso_second_category")
+  /** Voluntary exit from Lindung 24 Jam (PERKESO); false = still enrolled (default). */
+  lindung24JamOptOut    Boolean   @default(false) @map("lindung_24_jam_opt_out")
   /** "salary" | "director_remuneration" — AutoCount JV gross account 9000 vs 9003 */
   payrollCategory       String    @default("salary") @map("payroll_category")
   tinNumber             String?   @map("tin_number")

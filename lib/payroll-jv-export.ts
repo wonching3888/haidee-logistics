@@ -376,6 +376,7 @@ export async function buildMonthlyDriverJvRows(
       spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
+      lindung24JamOptOut: driver.lindung24JamOptOut,
     };
     const monthRecord = driver.payrollMonths[0];
     const monthInput: DriverPayrollMonthInput = {

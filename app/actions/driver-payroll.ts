@@ -104,6 +104,7 @@ function serializeDriver(driver: {
   childCount: number;
   accountCodeSuffix: string | null;
   isSocsoSecondCategory: boolean;
+  lindung24JamOptOut: boolean;
 }) {
   return {
     id: driver.id,
@@ -127,6 +128,7 @@ function serializeDriver(driver: {
     childCount: driver.childCount,
     accountCodeSuffix: driver.accountCodeSuffix,
     isSocsoSecondCategory: driver.isSocsoSecondCategory,
+    lindung24JamOptOut: driver.lindung24JamOptOut,
     payrollName: getDriverPayrollName({
       fullName: driver.fullName,
       name: driver.name,
@@ -145,6 +147,7 @@ function toPayrollDriverInput(
     spouseWorking: driver.spouseWorking,
     childCount: driver.childCount,
     isSocsoSecondCategory: driver.isSocsoSecondCategory,
+    lindung24JamOptOut: driver.lindung24JamOptOut,
   };
 }
 
@@ -809,6 +812,7 @@ export async function saveDriverPayrollMaster(input: {
   spouseWorking?: boolean | null;
   childCount?: number;
   accountCodeSuffix?: string | null;
+  lindung24JamOptOut?: boolean;
 }) {
   await requirePayrollWriteAccess();
   if (!input.name.trim()) {
@@ -855,6 +859,7 @@ export async function saveDriverPayrollMaster(input: {
     pcbNeedsReview,
     childCount: input.childCount ?? 0,
     accountCodeSuffix: input.accountCodeSuffix?.trim().toUpperCase() || null,
+    lindung24JamOptOut: Boolean(input.lindung24JamOptOut),
   };
 
   if (input.id) {

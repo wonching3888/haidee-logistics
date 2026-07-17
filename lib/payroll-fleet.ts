@@ -29,6 +29,8 @@ export interface DriverPayrollDriverInput {
   spouseWorking?: boolean | null;
   childCount: number;
   isSocsoSecondCategory?: boolean;
+  /** When true and month has no lindung override, force Lindung = 0. */
+  lindung24JamOptOut?: boolean;
 }
 
 export interface DriverPayrollOverridesInput {
@@ -130,15 +132,22 @@ function sumTripField(
 }
 
 function statutoryOverridesFromInput(
-  overrides: DriverPayrollOverridesInput | undefined
+  overrides: DriverPayrollOverridesInput | undefined,
+  lindung24JamOptOut?: boolean
 ) {
   const source = overrides ?? EMPTY_OVERRIDES;
+  const lindungFromMonth = decimalToNumber(source.lindung24JamOverride);
   return {
     epfEmployee: decimalToNumber(source.epfEmployeeOverride),
     epfEmployer: decimalToNumber(source.epfEmployerOverride),
     socsoEmployee: decimalToNumber(source.socsoEmployeeOverride),
     socsoEmployer: decimalToNumber(source.socsoEmployerOverride),
-    lindung24Jam: decimalToNumber(source.lindung24JamOverride),
+    lindung24Jam:
+      lindungFromMonth != null
+        ? lindungFromMonth
+        : lindung24JamOptOut
+          ? 0
+          : null,
     eisEmployee: decimalToNumber(source.eisEmployeeOverride),
     eisEmployer: decimalToNumber(source.eisEmployerOverride),
     pcb: decimalToNumber(source.pcbOverride),
@@ -211,7 +220,10 @@ export function buildDriverPayrollSummaryFromRecords(input: {
     pcbFinal:
       input.pcbContext?.pcbFinal ??
       decimalToNumber(input.overrides?.pcbFinal),
-    overrides: statutoryOverridesFromInput(input.overrides),
+    overrides: statutoryOverridesFromInput(
+      input.overrides,
+      input.driver.lindung24JamOptOut
+    ),
   });
 }
 
@@ -412,6 +424,7 @@ export async function loadFleetPayrollAggregate(
       spouseWorking: driver.spouseWorking,
       childCount: driver.childCount,
       isSocsoSecondCategory: driver.isSocsoSecondCategory,
+      lindung24JamOptOut: driver.lindung24JamOptOut,
     };
     const monthRecord = driver.payrollMonths[0];
     const trips = monthRecord?.trips ?? [];
