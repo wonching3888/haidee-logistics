@@ -8,6 +8,10 @@ import {
 } from "@/lib/payroll-statutory";
 import { buildStaffPayrollSummary } from "@/lib/staff-payroll-statutory";
 
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function staffStatutoryOverridesFromMonth(
   month: {
     epfEmployeeOverride?: unknown;
@@ -67,6 +71,16 @@ export function buildStaffMonthPayrollSummary(input: {
     input.monthOverrides,
     Boolean(input.lindung24JamOptOut)
   );
+  /**
+   * Company policy (2026-07): employer EPF defaults to a flat 13% of gross
+   * salary (= baseSalary for staff — no separate allowance components here)
+   * when the month has no explicit epfEmployerOverride. Driver-side twin of
+   * this change is in lib/payroll-statutory.ts's buildPayrollSummary.
+   */
+  const resolvedOverrides: StatutoryOverrides = {
+    ...overrides,
+    epfEmployer: overrides.epfEmployer ?? roundMoney(baseSalary * 0.13),
+  };
   const statutory = calculateStatutoryDeductions({
     grossSalary: baseSalary,
     maritalStatus: input.maritalStatus,
@@ -78,7 +92,7 @@ export function buildStaffMonthPayrollSummary(input: {
     pcbYtdBeforeMonth: input.pcbYtdBeforeMonth ?? emptyPcbYtd(),
     pcbLocked: input.pcbLocked,
     pcbFinal: input.pcbFinal,
-    overrides,
+    overrides: resolvedOverrides,
   });
   return buildStaffPayrollSummary({ baseSalary, statutory });
 }

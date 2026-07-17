@@ -70,6 +70,9 @@ export function calculateStatutoryDeductions(input: {
 
   const epfTable = lookupEpfContributions(gross);
   const epfEmployee = input.overrides?.epfEmployee ?? epfTable.employee;
+  // Company callers (buildPayrollSummary / buildStaffMonthPayrollSummary) always
+  // resolve epfEmployer (override or flat 13%) before calling — this ?? table
+  // branch is only for direct calculateStatutoryDeductions use / audits.
   const epfEmployer = input.overrides?.epfEmployer ?? epfTable.employer;
 
   const socsoBase = gross;
@@ -192,6 +195,18 @@ export function buildPayrollSummary(input: {
       extraAllowanceTotal
   );
 
+  /**
+   * Company policy (2026-07): employer EPF defaults to a flat 13% of gross
+   * salary when the month has no explicit epfEmployerOverride, instead of
+   * the official Third Schedule bracket table. Per-month override still
+   * wins when set. Nothing else here changes.
+   */
+  const epfEmployerDefault = roundMoney(grossSalary * 0.13);
+  const resolvedOverrides: StatutoryOverrides = {
+    ...input.overrides,
+    epfEmployer: input.overrides?.epfEmployer ?? epfEmployerDefault,
+  };
+
   const statutory = calculateStatutoryDeductions({
     grossSalary,
     maritalStatus: input.maritalStatus,
@@ -204,7 +219,7 @@ export function buildPayrollSummary(input: {
     pcbFinal: input.pcbFinal,
     pcbMaritalDataVerified: input.pcbMaritalDataVerified,
     isSocsoSecondCategory: input.isSocsoSecondCategory,
-    overrides: input.overrides,
+    overrides: resolvedOverrides,
   });
 
   const netSalary = roundMoney(
