@@ -537,6 +537,11 @@ model Staff {
   childCount            Int       @default(0) @map("child_count")
   accountCodeSuffix     String?   @map("account_code_suffix")
   isSocsoSecondCategory Boolean   @default(false) @map("is_socso_second_category")
+  /** "salary" | "director_remuneration" — AutoCount JV gross account 9000 vs 9003 */
+  payrollCategory       String    @default("salary") @map("payroll_category")
+  tinNumber             String?   @map("tin_number")
+  phoneNumber           String?   @map("phone_number")
+  startDate             DateTime? @map("start_date") @db.Date
   createdAt             DateTime  @default(now()) @map("created_at")
 
   payrollMonths     StaffPayrollMonth[]

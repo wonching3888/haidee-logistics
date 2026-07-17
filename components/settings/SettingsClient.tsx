@@ -44,6 +44,7 @@ import type { FreightSettingsData } from "@/components/settings/FreightRatesSect
 import { FreightRatesSection } from "@/components/settings/FreightRatesSection";
 import { OperationsSettingsSection } from "@/components/settings/OperationsSettingsSection";
 import { DriverPayrollSettingsSection } from "@/components/settings/DriverPayrollSettingsSection";
+import { StaffPayrollSettingsSection } from "@/components/settings/StaffPayrollSettingsSection";
 import { RouteMasterSettingsSection } from "@/components/settings/RouteMasterSettingsSection";
 import { PayrollSettingsSection } from "@/components/settings/AllowanceSettingsSection";
 import { CrateRentalRatesSection } from "@/components/settings/CrateRentalRatesSection";
@@ -204,6 +205,31 @@ interface SettingsClientProps {
     childCount: number;
     accountCodeSuffix: string | null;
   }[];
+  staffPayrollStaff: {
+    id: string;
+    name: string;
+    nickname: string | null;
+    fullName: string | null;
+    active: boolean;
+    terminationDate: string | null;
+    startDate: string | null;
+    baseSalary: number | null;
+    autoCountEmployeeCode: string | null;
+    icNumber: string | null;
+    epfNumber: string | null;
+    socsoNumber: string | null;
+    bankName: string | null;
+    bankAccount: string | null;
+    maritalStatus: string | null;
+    spouseWorking: boolean | null;
+    pcbNeedsReview: boolean;
+    childCount: number;
+    accountCodeSuffix: string | null;
+    isSocsoSecondCategory: boolean;
+    payrollCategory: string;
+    tinNumber: string | null;
+    phoneNumber: string | null;
+  }[];
   routeMasters: RouteMasterRow[];
   payrollSettings: {
     routes: {
@@ -259,6 +285,7 @@ export function SettingsClient({
   data,
   freightData,
   driverPayrollDrivers,
+  staffPayrollStaff,
   routeMasters,
   payrollSettings,
   crateRentalRates,
@@ -746,6 +773,10 @@ export function SettingsClient({
 
         {activeSection === "driver-payroll" && (
           <DriverPayrollSettingsSection drivers={driverPayrollDrivers} />
+        )}
+
+        {activeSection === "staff-payroll" && (
+          <StaffPayrollSettingsSection staff={staffPayrollStaff} />
         )}
 
         {activeSection === "routes" && (

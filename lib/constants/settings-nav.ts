@@ -13,7 +13,8 @@ export type SettingsSection =
   | "consignee-rates"
   | "payment-relations"
   | "operations-settings"
-  | "driver-payroll";
+  | "driver-payroll"
+  | "staff-payroll";
 
 export const DEFAULT_SETTINGS_SECTION: SettingsSection = "shippers";
 
@@ -33,6 +34,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "payment-relations",
   "operations-settings",
   "driver-payroll",
+  "staff-payroll",
 ];
 
 /** Old section slugs → current (for redirects). */
@@ -64,6 +66,7 @@ export const SETTINGS_SECTION_TITLES: Record<
   "payment-relations": { label: "付款关系", labelEn: "Payment Relations" },
   "operations-settings": { label: "营运设定", labelEn: "Operations Settings" },
   "driver-payroll": { label: "司机资料", labelEn: "Driver Master Data" },
+  "staff-payroll": { label: "员工资料", labelEn: "Staff Master Data" },
 };
 
 export const SETTINGS_FREIGHT_SECTIONS: SettingsSection[] = [
@@ -201,6 +204,11 @@ export const SETTINGS_SIDEBAR_GROUPS: SettingsSidebarGroup[] = [
         section: "driver-payroll",
         label: "司机资料",
         labelEn: "Driver Master Data",
+      },
+      {
+        section: "staff-payroll",
+        label: "员工资料",
+        labelEn: "Staff Master Data",
       },
       { section: "routes", label: "路线", labelEn: "Routes" },
       {

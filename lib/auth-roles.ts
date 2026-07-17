@@ -222,6 +222,11 @@ export function canViewStaffPayroll(role: StoredUserRole): boolean {
   return canViewDriverPayroll(role);
 }
 
+/** admin/my ✓ · legacy accounting read-only · all others ✗ — same as driver payroll write */
+export function canWriteStaffPayroll(role: StoredUserRole): boolean {
+  return canWriteDriverPayroll(role);
+}
+
 /** admin only */
 export function canAccessSettings(role: StoredUserRole): boolean {
   return role === "admin";

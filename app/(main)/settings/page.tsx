@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSettingsData } from "@/app/actions/settings";
 import { getFreightSettingsData } from "@/app/actions/freight-settings";
 import { getDriverPayrollSettingsData } from "@/app/actions/driver-payroll";
+import { getStaffPayrollSettingsData } from "@/app/actions/staff-payroll";
 import { getRouteMasterSettingsData } from "@/app/actions/route-master";
 import { getAllowanceSettingsData } from "@/app/actions/allowance-settings";
 import { getCrateRentalRates } from "@/app/actions/crate-rental-rates";
@@ -36,6 +37,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     data,
     freightData,
     driverPayrollDrivers,
+    staffPayrollStaff,
     routeMasters,
     payrollSettings,
     crateRentalRates,
@@ -45,6 +47,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     getFreightSettingsData(),
     activeSection === "driver-payroll"
       ? getDriverPayrollSettingsData()
+      : Promise.resolve([]),
+    activeSection === "staff-payroll"
+      ? getStaffPayrollSettingsData()
       : Promise.resolve([]),
     activeSection === "routes"
       ? getRouteMasterSettingsData()
@@ -75,6 +80,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         data={data}
         freightData={freightData}
         driverPayrollDrivers={driverPayrollDrivers}
+        staffPayrollStaff={staffPayrollStaff}
         routeMasters={routeMasters}
         payrollSettings={payrollSettings}
         crateRentalRates={crateRentalRates}
