@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Download, FileSpreadsheet, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Download, FileSpreadsheet, Loader2, Printer } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -70,6 +71,7 @@ export function ArInvoiceFreightExportPanel() {
   }
 
   const canExport = preview != null && preview.rowCount > 0;
+  const printHref = `/documents/ar-invoice-listing/freight/print?year=${year}&month=${month}&mode=${encodeURIComponent(mode)}&returnTo=${encodeURIComponent("/financial/autocount-export")}`;
 
   return (
     <section className="space-y-4 rounded-xl border border-haidee-border bg-white p-4">
@@ -130,6 +132,15 @@ export function ArInvoiceFreightExportPanel() {
             <Download className="h-4 w-4" />
             导出 CSV Export
           </Button>
+          <Link
+            href={printHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+          >
+            <Printer className="h-4 w-4" />
+            打印 Print
+          </Link>
         </div>
       </div>
 

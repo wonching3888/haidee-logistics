@@ -108,6 +108,10 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
     return "invoice";
   }
 
+  if (path.startsWith("/documents/ar-invoice-listing")) {
+    return "autocount-export";
+  }
+
   if (
     path === "/dashboard" ||
     path.startsWith("/dashboard/") ||
