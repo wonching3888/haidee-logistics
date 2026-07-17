@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { Printer } from "lucide-react";
@@ -89,6 +89,10 @@ export function PeriodReportView({
     month: initialMonth,
   });
   const [navigating, setNavigating] = useState(false);
+
+  useEffect(() => {
+    setNavigating(false);
+  }, [data, queried]);
 
   const applied = useMemo((): PeriodReportDraft | null => {
     if (!queried || !data) return null;
