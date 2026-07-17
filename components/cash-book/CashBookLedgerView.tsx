@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { WideTableScrollArea } from "@/components/shared/WideTableScrollArea";
+import { CashBookLedgerExportPanel } from "@/components/cash-book/CashBookLedgerExportPanel";
 import { formatDisplay, formatDisplayDateTime } from "@/lib/date-utils";
 
 function money(n: number | null) {
@@ -122,6 +123,8 @@ export function CashBookLedgerView({
           )}
         </div>
       </div>
+
+      <CashBookLedgerExportPanel book={book} />
 
       {showAdjust && canWrite && (
         <div className="space-y-3 rounded-lg border border-dashed bg-white p-4">

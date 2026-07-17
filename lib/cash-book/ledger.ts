@@ -125,3 +125,67 @@ export function buildCashBookLedgerRows(input: {
 
   return rows;
 }
+
+export interface CashBookLedgerStatementRange {
+  /** Inclusive, YYYY-MM-DD */
+  from: string;
+  /** Inclusive, YYYY-MM-DD */
+  to: string;
+}
+
+export interface CashBookLedgerStatement {
+  range: CashBookLedgerStatementRange;
+  openingBalance: number;
+  closingBalance: number;
+  /** 区间内的交易行，不含合成的 "opening" 行——期初请用 openingBalance */
+  rows: CashBookLedgerDisplayRow[];
+  totalDebit: number;
+  totalCredit: number;
+}
+
+/**
+ * 把 buildCashBookLedgerRows() 算好的全量账本，按日期区间切片；区间的"期初"
+ * 是 range.from 前一天为止的滚动余额（不是重新计算，是从已有 rows 里读出来的）。
+ *
+ * 正确性不变量：range 覆盖账户最早一笔交易之前 ~ 覆盖到最后一笔交易之后时，
+ * 算出的 openingBalance 必须等于第0天期初、closingBalance 必须等于全账本
+ * 最后一行的 balance —— 即"切全部范围"必须和"不切片"结果完全一致。
+ */
+export function sliceCashBookLedgerStatement(
+  rows: CashBookLedgerDisplayRow[],
+  range: CashBookLedgerStatementRange
+): CashBookLedgerStatement {
+  let openingBalance = rows[0]?.balance ?? 0; // 第0天 opening 行的余额
+  const periodRows: CashBookLedgerDisplayRow[] = [];
+
+  for (const row of rows) {
+    if (row.kind === "opening") continue;
+    if (row.date < range.from) {
+      openingBalance = row.balance;
+      continue;
+    }
+    if (row.date > range.to) continue;
+    periodRows.push(row);
+  }
+
+  const closingBalance =
+    periodRows.length > 0
+      ? periodRows[periodRows.length - 1]!.balance
+      : openingBalance;
+
+  let totalDebit = 0;
+  let totalCredit = 0;
+  for (const row of periodRows) {
+    if (row.debit != null) totalDebit = roundMoney(totalDebit + row.debit);
+    if (row.credit != null) totalCredit = roundMoney(totalCredit + row.credit);
+  }
+
+  return {
+    range,
+    openingBalance,
+    closingBalance,
+    rows: periodRows,
+    totalDebit,
+    totalCredit,
+  };
+}

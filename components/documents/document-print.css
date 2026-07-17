@@ -1582,3 +1582,92 @@
   font-weight: 700;
 }
 
+.cash-book-ledger-statement-print {
+  font-size: 9pt;
+}
+
+.cash-book-ledger-statement-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cash-book-ledger-statement-company {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cash-book-ledger-statement-letterhead.haidee-invoice-letterhead {
+  margin-bottom: 0;
+}
+
+.cash-book-ledger-statement-meta {
+  flex: 0 0 auto;
+  text-align: right;
+  font-size: 8pt;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.cash-book-ledger-statement-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13pt;
+  margin: 8px 0 4px;
+  letter-spacing: 0.04em;
+}
+
+.cash-book-ledger-statement-subtitle {
+  text-align: center;
+  font-size: 9pt;
+  margin-bottom: 10px;
+}
+
+.cash-book-ledger-statement-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cash-book-ledger-statement-table th,
+.cash-book-ledger-statement-table td {
+  border: 1px solid #000000;
+  /* 底部多留一点，避免分享 PDF / html2canvas 时文字贴底边框（踩线） */
+  padding: 3px 4px 8px;
+  vertical-align: top;
+}
+
+.cash-book-ledger-statement-table th {
+  font-weight: 700;
+  background: #f0f0f0;
+}
+
+.cash-book-ledger-statement-date-col {
+  width: 72px;
+}
+
+.cash-book-ledger-statement-no-col {
+  width: 110px;
+}
+
+.cash-book-ledger-statement-desc-col {
+  width: auto;
+}
+
+.cash-book-ledger-statement-amount-col {
+  width: 78px;
+}
+
+.cash-book-ledger-statement-table tr.cash-book-ledger-statement-opening-row td {
+  background: #f5f5f5;
+  font-weight: 700;
+}
+
+.cash-book-ledger-statement-table tr.cash-book-ledger-statement-total-row td {
+  background: #d0d0d0;
+  font-weight: 700;
+}
+
+

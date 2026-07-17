@@ -115,6 +115,7 @@ export default defineConfig({
       "lib/cash-book/thai-cash-book-settlement.test.ts",
       "lib/thai-baht-text.test.ts",
       "lib/cash-book/ledger.test.ts",
+      "lib/cash-book/ledger-csv.test.ts",
     ],
   },
   resolve: {
