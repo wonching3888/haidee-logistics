@@ -211,10 +211,23 @@ function injectMarketDoTableCaptureBaseline(doc: Document) {
   const style = doc.createElement("style");
   style.setAttribute("data-html2canvas-market-do-baseline", "true");
   style.textContent = `
+    /* [市场 D/O html2canvas 字体基线归一化实验 -- 2026-07, 可回退]
+       背景：next/font 加载的 Chivo Mono 只覆盖拉丁字符集，中文内容会被浏览器静默替换成系统字体
+       (如 PingFang SC / Microsoft YaHei) 来实际绘制字形；但 html2canvas 计算"文字基线位置"时，
+       只用声明的字体栈 + 一段纯英文探测字符串来测量，测量用的字体和实际绘制用的字体如果不是同一个，
+       就可能导致基线位置算错，使文字在格子里偏上或偏下。
+       本实验：把捕获范围内的字体统一指定为下面这几个真实存在的系统字体，不再依赖 Chivo Mono 的
+       两层回退机制，让"测量用的字体"和"绘制用的字体"尽量保持一致。
+       如需回退：把下面 padding-top/padding-bottom 改回 1px/3px，并删除 font-family 及
+       font-synthesis/text-rendering/-webkit-font-smoothing 这几行即可恢复原状。 */
     [data-pdf-capture-root] .market-do-table th,
     [data-pdf-capture-root] .market-do-table td {
-      padding-top: 1px !important;
-      padding-bottom: 3px !important;
+      font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+      font-synthesis: none !important;
+      text-rendering: geometricPrecision !important;
+      -webkit-font-smoothing: antialiased !important;
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
     }
   `;
   doc.head.appendChild(style);

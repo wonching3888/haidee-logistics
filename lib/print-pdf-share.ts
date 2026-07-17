@@ -438,6 +438,65 @@ async function renderElementToPdfBlobCore(
               if (parentRow instanceof HTMLElement) {
                 cloneDebugInfo.push(`tr offsetHeight=${parentRow.offsetHeight}`);
               }
+
+              // [诊断-only, 不改变任何显示效果] 直接对比:
+              // (a) 这个格子里文字"真实、紧贴"的包围盒高度(用浏览器 Range API 量出来，反映真实排版结果，
+              //     包括实际用来画字的字体);
+              // (b) html2canvas 自己算出来、用来决定"从格子顶部往下多少像素画基线"的偏移量
+              //     (完全照抄 html2canvas 内部 FontMetrics 的量法)。
+              // 如果 (b) 明显大于 (a)，说明画字位置已经超出了文字自己实际所在的框(即被往下推)，
+              // 这正好和"踩线"症状吻合。
+              try {
+                const textNode = Array.from(sampleTd.childNodes).find(
+                  (n) => n.nodeType === 3 && !!n.textContent?.trim()
+                );
+                if (textNode) {
+                  const range = clonedDoc.createRange();
+                  range.selectNodeContents(textNode);
+                  const rects = range.getClientRects();
+                  if (rects.length > 0) {
+                    const r = rects[0];
+                    const probeFontFamily = cs?.fontFamily || "";
+                    const probeFontSize = cs?.fontSize || "";
+                    const probeContainer = clonedDoc.createElement("div");
+                    const probeImg = clonedDoc.createElement("img");
+                    const probeSpan = clonedDoc.createElement("span");
+                    probeContainer.style.visibility = "hidden";
+                    probeContainer.style.fontFamily = probeFontFamily;
+                    probeContainer.style.fontSize = probeFontSize;
+                    probeContainer.style.margin = "0";
+                    probeContainer.style.padding = "0";
+                    probeContainer.style.whiteSpace = "nowrap";
+                    clonedDoc.body.appendChild(probeContainer);
+                    probeImg.src =
+                      "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
+                    probeImg.width = 1;
+                    probeImg.height = 1;
+                    probeImg.style.margin = "0";
+                    probeImg.style.padding = "0";
+                    probeImg.style.verticalAlign = "baseline";
+                    probeSpan.style.fontFamily = probeFontFamily;
+                    probeSpan.style.fontSize = probeFontSize;
+                    probeSpan.style.margin = "0";
+                    probeSpan.style.padding = "0";
+                    probeSpan.appendChild(clonedDoc.createTextNode("Hidden Text"));
+                    probeContainer.appendChild(probeSpan);
+                    probeContainer.appendChild(probeImg);
+                    const probedBaseline =
+                      probeImg.offsetTop - probeSpan.offsetTop + 2;
+                    clonedDoc.body.removeChild(probeContainer);
+                    cloneDebugInfo.push(
+                      `textRange: height=${r.height.toFixed(2)} fontFamily=${probeFontFamily} probedBaseline=${probedBaseline} overshoot=${(probedBaseline - r.height).toFixed(2)}`
+                    );
+                  } else {
+                    cloneDebugInfo.push("textRange: no client rects found");
+                  }
+                } else {
+                  cloneDebugInfo.push("textRange: no text node found in sampleTd");
+                }
+              } catch (err) {
+                cloneDebugInfo.push(`textRange debug error: ${String(err)}`);
+              }
             } else {
               cloneDebugInfo.push("sampleTd not found");
             }
