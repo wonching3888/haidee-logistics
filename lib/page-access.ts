@@ -6,6 +6,7 @@ import {
   canAccessThaiCost,
   canAccessThaiCostMonthlySummary,
   canViewDriverPayroll,
+  canViewStaffPayroll,
   canViewInvoiceAmounts,
   canViewInvoiceCollections,
   canViewPnlOperations,
@@ -31,6 +32,7 @@ export type PageAccessGate =
   | "invoice"
   | "pnl"
   | "payroll"
+  | "staff-payroll"
   | "settings"
   | "history"
   | "driver-expenses"
@@ -68,6 +70,9 @@ export function resolvePageGate(pathname: string): PageAccessGate | null {
   }
   if (path === "/driver-payroll" || path.startsWith("/driver-payroll/")) {
     return "payroll";
+  }
+  if (path === "/staff-payroll" || path.startsWith("/staff-payroll/")) {
+    return "staff-payroll";
   }
   if (path === "/history" || path.startsWith("/history/")) {
     return "history";
@@ -193,6 +198,8 @@ export function canAccessPage(role: StoredUserRole, pathname: string): boolean {
       return canViewPnlOperations(role);
     case "payroll":
       return canViewDriverPayroll(role);
+    case "staff-payroll":
+      return canViewStaffPayroll(role);
     case "driver-expenses":
       return canAccessDriverExpenses(role);
     case "invoice-collections":

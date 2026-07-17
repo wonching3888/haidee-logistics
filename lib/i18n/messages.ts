@@ -212,6 +212,11 @@ export const MESSAGES = {
     en: "Driver Payroll",
     th: "เงินเดือนคนขับ",
   },
+  "nav.staffPayroll": {
+    zh: "员工工资单",
+    en: "Staff Payroll",
+    th: "เงินเดือนพนักงาน",
+  },
   "nav.invoiceCollections": {
     zh: "Invoice 收账",
     en: "Invoice Collections",

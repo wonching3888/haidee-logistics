@@ -516,6 +516,110 @@ model PayrollChangeLog {
   @@map("payroll_change_logs")
 }
 
+/** WTL Express office staff (fixed monthly salary). Independent of Driver payroll. */
+model Staff {
+  id                    String    @id @default(uuid()) @db.Uuid
+  name                  String    @unique
+  nickname              String?
+  fullName              String?   @map("full_name")
+  active                Boolean   @default(true)
+  terminationDate       DateTime? @map("termination_date") @db.Date
+  baseSalary            Decimal?  @map("base_salary") @db.Decimal(10, 2)
+  autoCountEmployeeCode String?   @map("autocount_employee_code")
+  icNumber              String?   @unique @map("ic_number")
+  epfNumber             String?   @map("epf_number")
+  socsoNumber           String?   @map("socso_number")
+  bankName              String?   @map("bank_name")
+  bankAccount           String?   @map("bank_account")
+  maritalStatus         String?   @map("marital_status")
+  spouseWorking         Boolean?  @map("spouse_working")
+  pcbNeedsReview        Boolean   @default(true) @map("pcb_needs_review")
+  childCount            Int       @default(0) @map("child_count")
+  accountCodeSuffix     String?   @map("account_code_suffix")
+  isSocsoSecondCategory Boolean   @default(false) @map("is_socso_second_category")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  payrollMonths     StaffPayrollMonth[]
+  payrollChangeLogs StaffPayrollChangeLog[]
+  pcbYtdBalances    StaffPcbYtdBalance[]
+
+  @@map("staff")
+}
+
+/**
+ * End-of-month PCB YTD for staff (same semantics as driver_pcb_ytd_balances).
+ * asOfYearMonth = "2026-06" means balances after June is closed (July opening).
+ */
+model StaffPcbYtdBalance {
+  id                String   @id @default(uuid()) @db.Uuid
+  staffId           String   @map("staff_id") @db.Uuid
+  asOfYearMonth     String   @map("as_of_year_month")
+  accumulatedGrossY Decimal  @default(0) @map("accumulated_gross_y") @db.Decimal(12, 2)
+  accumulatedEpfK   Decimal  @default(0) @map("accumulated_epf_k") @db.Decimal(12, 2)
+  accumulatedMtdX   Decimal  @default(0) @map("accumulated_mtd_x") @db.Decimal(12, 2)
+  accumulatedZakatZ Decimal  @default(0) @map("accumulated_zakat_z") @db.Decimal(12, 2)
+  /** seed | lock | manual */
+  source            String   @default("seed")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, asOfYearMonth])
+  @@index([asOfYearMonth])
+  @@map("staff_pcb_ytd_balances")
+}
+
+model StaffPayrollMonth {
+  id                    String    @id @default(uuid()) @db.Uuid
+  staffId               String    @map("staff_id") @db.Uuid
+  yearMonth             String    @map("year_month")
+  status                String    @default("draft")
+  epfEmployeeOverride   Decimal?  @map("epf_employee_override") @db.Decimal(10, 2)
+  epfEmployerOverride   Decimal?  @map("epf_employer_override") @db.Decimal(10, 2)
+  socsoEmployeeOverride Decimal?  @map("socso_employee_override") @db.Decimal(10, 2)
+  socsoEmployerOverride Decimal?  @map("socso_employer_override") @db.Decimal(10, 2)
+  eisEmployeeOverride   Decimal?  @map("eis_employee_override") @db.Decimal(10, 2)
+  eisEmployerOverride   Decimal?  @map("eis_employer_override") @db.Decimal(10, 2)
+  pcbOverride           Decimal?  @map("pcb_override") @db.Decimal(10, 2)
+  lindung24JamOverride  Decimal?  @map("lindung_24_jam_override") @db.Decimal(10, 2)
+  pcbComputed           Decimal?  @map("pcb_computed") @db.Decimal(10, 2)
+  pcbFinal              Decimal?  @map("pcb_final") @db.Decimal(10, 2)
+  pcbLocked             Boolean   @default(false) @map("pcb_locked")
+  pcbLockedAt           DateTime? @map("pcb_locked_at")
+  pcbSnapshotYtdGross   Decimal?  @map("pcb_snapshot_ytd_gross") @db.Decimal(12, 2)
+  pcbSnapshotYtdEpf     Decimal?  @map("pcb_snapshot_ytd_epf") @db.Decimal(12, 2)
+  pcbSnapshotYtdMtd     Decimal?  @map("pcb_snapshot_ytd_mtd") @db.Decimal(12, 2)
+  pcbSnapshotMonthGross Decimal?  @map("pcb_snapshot_month_gross") @db.Decimal(12, 2)
+  pcbSnapshotMonthEpf   Decimal?  @map("pcb_snapshot_month_epf") @db.Decimal(12, 2)
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, yearMonth])
+  @@map("staff_payroll_months")
+}
+
+model StaffPayrollChangeLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  payrollMonthId String?  @map("payrollMonthId") @db.Uuid
+  staffId        String   @map("staffId") @db.Uuid
+  yearMonth      String   @map("yearMonth")
+  eventType      String   @map("eventType")
+  field          String?
+  fromValue      String?  @map("fromValue")
+  toValue        String?  @map("toValue")
+  metadata       Json?
+  changedBy      String   @map("changedBy") @db.Uuid
+  changedAt      DateTime @default(now()) @map("changedAt")
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([staffId, yearMonth])
+  @@index([changedAt])
+  @@map("staff_payroll_change_logs")
+}
+
 model DispatchChangeLog {
   id          String   @id @default(uuid()) @db.Uuid
   entityType  String   @map("entityType")

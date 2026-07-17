@@ -66,6 +66,7 @@ export default defineConfig({
       "lib/driver-payroll-trip-sync.test.ts",
       "lib/payroll-charter-salary.test.ts",
       "lib/payroll-statutory.test.ts",
+      "lib/staff-payroll-statutory.test.ts",
       "lib/pcb-calculation.test.ts",
       "lib/driver-pcb-profile.test.ts",
       "lib/pcb-policy.test.ts",

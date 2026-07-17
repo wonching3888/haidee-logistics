@@ -217,6 +217,11 @@ export function canViewDriverPayroll(role: StoredUserRole): boolean {
   }
 }
 
+/** admin/my ✓ · all others ✗ · legacy accounting ✓ — same scope as driver payroll */
+export function canViewStaffPayroll(role: StoredUserRole): boolean {
+  return canViewDriverPayroll(role);
+}
+
 /** admin only */
 export function canAccessSettings(role: StoredUserRole): boolean {
   return role === "admin";
