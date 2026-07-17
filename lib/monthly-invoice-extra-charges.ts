@@ -36,6 +36,28 @@ export function sumExtraChargeAmounts(
   return roundMoney(charges.reduce((sum, row) => sum + row.amount, 0));
 }
 
+/** Raw invoice-currency totals by customer (no THB→MYR). For list/PDF display only. */
+export async function loadMonthlyInvoiceExtraChargeTotalsByCustomer(input: {
+  year: number;
+  month: number;
+  mode: MonthlyInvoiceMode;
+}): Promise<Map<string, number>> {
+  const rows = await prisma.monthlyInvoiceExtraCharge.findMany({
+    where: { year: input.year, month: input.month, mode: input.mode },
+    select: { customerId: true, amount: true },
+  });
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const amount = decimalToNumber(row.amount) ?? 0;
+    if (amount <= 0) continue;
+    totals.set(
+      row.customerId,
+      roundMoney((totals.get(row.customerId) ?? 0) + amount)
+    );
+  }
+  return totals;
+}
+
 export async function loadMonthlyInvoiceExtraCharges(input: {
   year: number;
   month: number;

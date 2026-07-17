@@ -16,10 +16,17 @@ import { fetchRawInvoiceLines } from "@/lib/monthly-invoice-lines";
 import { buildHaideeMonthlyInvoiceData, isHaideeMonthlyInvoiceData } from "@/lib/monthly-invoice-mode-haidee";
 import { buildMode4MonthlyInvoiceData, isWtlMonthlyInvoiceData } from "@/lib/monthly-invoice-mode4";
 import { buildMode3MonthlyInvoiceData } from "@/lib/monthly-invoice-mode3";
-import { applyMonthlyInvoiceExtraChargesToPrintData } from "@/lib/monthly-invoice-extra-charges";
+import {
+  applyMonthlyInvoiceExtraChargesToPrintData,
+  loadMonthlyInvoiceExtraChargeTotalsByCustomer,
+} from "@/lib/monthly-invoice-extra-charges";
 import { attachAccountingPrint } from "@/lib/monthly-invoice-accounting-print";
 import { resolveShipperInvoiceCompanyForPrint } from "@/lib/monthly-invoice-shipper-invoice-company";
 import type { MonthlyInvoicePrintData } from "@/lib/monthly-invoice-print-data";
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
 
 async function requireFreightViewer() {
   const user = await getCurrentUser();
@@ -52,13 +59,23 @@ export async function getMonthlyInvoiceCustomers(input: {
   const config = getMonthlyInvoiceModeConfig(input.mode)!;
   const rawLines = await fetchRawInvoiceLines(input.year, input.month, input.mode);
   const customers = buildMonthlyInvoiceCustomerSummaries(rawLines, config);
+  const extraChargeTotals = await loadMonthlyInvoiceExtraChargeTotalsByCustomer({
+    year: input.year,
+    month: input.month,
+    mode: input.mode,
+  });
+  const customersWithExtras = customers.map((customer) => {
+    const extra = extraChargeTotals.get(customer.customerId) ?? 0;
+    if (extra <= 0) return customer;
+    return { ...customer, grandTotal: roundMoney(customer.grandTotal + extra) };
+  });
 
   return {
     year: input.year,
     month: input.month,
     periodLabel: formatInvoicePeriodLabel(input.year, input.month),
     mode: config,
-    customers,
+    customers: customersWithExtras,
   };
 }
 
