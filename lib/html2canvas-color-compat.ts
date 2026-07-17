@@ -364,6 +364,20 @@ export function measureElementCaptureExtents(
     table.style.setProperty("table-layout", "auto", "important");
   }
 
+  // [市场 D/O 截图高度修正 -- 2026-07] injectMarketDoTableCaptureBaseline 只在 html2canvas
+  // 截图的克隆阶段才会把 market-do-table 的 padding-bottom 从基础值改成 8px，但截图前这里
+  // 量高度时用的还是原始网页(padding-bottom 未改)，量出来的高度会偏小，导致克隆阶段实际变高
+  // 之后，多出来的内容超出画布范围、被截断丢失。这里量高度前临时加上同样的 padding-bottom，
+  // 量完立刻用下面已有的 touched/snapshots 机制还原，不会影响用户实际看到的页面。
+  // 注意：这里的 8px 要跟 injectMarketDoTableCaptureBaseline 里的 padding-bottom 数值保持一致，
+  // 以后如果调整那边的数值，这里也要跟着改。
+  sourceRoot
+    .querySelectorAll<HTMLElement>(".market-do-table th, .market-do-table td")
+    .forEach((el) => {
+      touch(el);
+      el.style.setProperty("padding-bottom", "8px", "important");
+    });
+
   const width = Math.max(
     sourceRoot.scrollWidth,
     scrollHost instanceof HTMLElement ? scrollHost.scrollWidth : 0,
