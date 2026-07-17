@@ -227,7 +227,7 @@ function injectMarketDoTableCaptureBaseline(doc: Document) {
       text-rendering: geometricPrecision !important;
       -webkit-font-smoothing: antialiased !important;
       padding-top: 2px !important;
-      padding-bottom: 2px !important;
+      padding-bottom: 8px !important;
     }
   `;
   doc.head.appendChild(style);
