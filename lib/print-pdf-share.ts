@@ -186,7 +186,7 @@ function addCanvasImageToPdfPages(
   }
 
   if (renderHeight <= pageHeight + 0.5) {
-    pdf.addImage(imgData, "PNG", 0, 0, renderWidth, renderHeight);
+    pdf.addImage(imgData, "PNG", 0, 0, renderWidth, renderHeight, undefined, "SLOW");
     return;
   }
 
@@ -211,7 +211,7 @@ function addCanvasImageToPdfPages(
     const sliceHeightPx = cutPx - consumedPx;
     const sliceHeightMm = sliceHeightPx / pxPerMm;
     const sliceDataUrl = sliceCanvasToDataUrl(canvas, consumedPx, sliceHeightPx);
-    pdf.addImage(sliceDataUrl, "PNG", 0, 0, renderWidth, sliceHeightMm);
+    pdf.addImage(sliceDataUrl, "PNG", 0, 0, renderWidth, sliceHeightMm, undefined, "SLOW");
 
     consumedPx = cutPx;
   }
