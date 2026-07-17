@@ -1670,4 +1670,123 @@
   font-weight: 700;
 }
 
+.debtor-statement-print {
+  font-size: 9pt;
+}
+
+.debtor-statement-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.debtor-statement-company {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.debtor-statement-letterhead.haidee-invoice-letterhead {
+  margin-bottom: 0;
+}
+
+.debtor-statement-meta {
+  flex: 0 0 auto;
+  text-align: right;
+  font-size: 8pt;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.debtor-statement-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13pt;
+  margin: 8px 0 4px;
+  letter-spacing: 0.04em;
+}
+
+.debtor-statement-subtitle {
+  text-align: center;
+  font-size: 9pt;
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.debtor-statement-aging {
+  margin-bottom: 10px;
+}
+
+.debtor-statement-aging-note {
+  font-size: 8pt;
+  margin-bottom: 4px;
+}
+
+.debtor-statement-aging-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-bottom: 2px;
+}
+
+.debtor-statement-aging-table th,
+.debtor-statement-aging-table td {
+  border: 1px solid #000000;
+  padding: 3px 4px 8px;
+  vertical-align: top;
+  font-size: 8pt;
+}
+
+.debtor-statement-aging-table th {
+  font-weight: 700;
+  background: #f0f0f0;
+  text-align: center;
+}
+
+.debtor-statement-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.debtor-statement-table th,
+.debtor-statement-table td {
+  border: 1px solid #000000;
+  /* 底部多留一点，避免分享 PDF / html2canvas 时文字贴底边框（踩线） */
+  padding: 3px 4px 8px;
+  vertical-align: top;
+}
+
+.debtor-statement-table th {
+  font-weight: 700;
+  background: #f0f0f0;
+}
+
+.debtor-statement-date-col {
+  width: 72px;
+}
+
+.debtor-statement-no-col {
+  width: 110px;
+}
+
+.debtor-statement-desc-col {
+  width: auto;
+}
+
+.debtor-statement-amount-col {
+  width: 78px;
+}
+
+.debtor-statement-table tr.debtor-statement-opening-row td {
+  background: #f5f5f5;
+  font-weight: 700;
+}
+
+.debtor-statement-table tr.debtor-statement-total-row td {
+  background: #d0d0d0;
+  font-weight: 700;
+}
+
 

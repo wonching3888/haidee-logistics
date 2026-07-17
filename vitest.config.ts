@@ -83,6 +83,7 @@ export default defineConfig({
       "lib/invoice-allocation.test.ts",
       "lib/invoice-collections-detail.test.ts",
       "lib/invoice-collections-overview.test.ts",
+      "lib/invoice-collections-statement.test.ts",
       "lib/bank-reconciliation.test.ts",
       "lib/invoice-payment-audit.test.ts",
       "lib/crate-audit.test.ts",

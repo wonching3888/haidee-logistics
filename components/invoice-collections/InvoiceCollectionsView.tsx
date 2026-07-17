@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Printer } from "lucide-react";
 import { getInvoiceCollectionsPageData } from "@/app/actions/invoice-collections";
 import {
   CollectionStatusBadge,
@@ -347,6 +348,19 @@ export function InvoiceCollectionsView() {
     return `/financial/invoice-collections?${params.toString()}`;
   }, [applied, buildUrlParams, draft, hasQueried, searchParams]);
 
+  const printStatementHref = useMemo(() => {
+    if (!customerKey || !currencyParam) return null;
+    const range = applied ?? draft;
+    const params = new URLSearchParams();
+    params.set("customerKey", customerKey);
+    params.set("currency", currencyParam);
+    params.set("fromYear", String(range.fromYear));
+    params.set("fromMonth", String(range.fromMonth));
+    params.set("toYear", String(range.toYear));
+    params.set("toMonth", String(range.toMonth));
+    return `/financial/invoice-collections/statement/print?${params.toString()}`;
+  }, [applied, currencyParam, customerKey, draft]);
+
   return (
     <div className="space-y-6">
       {!isDetailView ? (
@@ -452,13 +466,26 @@ export function InvoiceCollectionsView() {
                     </strong>
                   </p>
                 </div>
-                <Link
-                  href={backToListHref}
-                  scroll={false}
-                  className="text-sm font-medium text-haidee-blue hover:underline"
-                >
-                  {t("invoiceCollections.backToList")}
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  {printStatementHref ? (
+                    <Link
+                      href={printStatementHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-haidee-blue hover:underline"
+                    >
+                      <Printer className="h-4 w-4" />
+                      打印对账单 Print Statement
+                    </Link>
+                  ) : null}
+                  <Link
+                    href={backToListHref}
+                    scroll={false}
+                    className="text-sm font-medium text-haidee-blue hover:underline"
+                  >
+                    {t("invoiceCollections.backToList")}
+                  </Link>
+                </div>
               </div>
 
               <InvoicePaymentSection
