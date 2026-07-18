@@ -30,6 +30,8 @@ export interface PnlShipperRow {
   mcThirdPartyHaulageMyr: number;
   /** Charter fixed driver salary (payroll charterSalary); embedded in directCostMyr. */
   driverSalaryMyr?: number;
+  /** Sadao handling commission allocated by barrel+box quantity share (whole-month unfiltered only). */
+  sadaoHandlingMyr: number;
   directCostMyr: number;
   allocatedFuelMyr: number;
   allocatedMaintenanceMyr: number;
@@ -127,6 +129,8 @@ export interface PnlPeriodSummary {
   payrollVariableAllowanceMyr: number | null;
   /** Reference only (month mode): grossProfitMyr − fleetPayrollIncrementalMyr. */
   netProfitAfterFleetPayrollMyr: number | null;
+  /** Reference only (month mode): Sadao monthly worker wages; not in contribution GP. */
+  sadaoMonthlyWorkerCostMyr: number | null;
 }
 
 export interface PnlCustomerRow {
@@ -139,6 +143,8 @@ export interface PnlCustomerRow {
   revenueMyr: number;
   directCostMyr: number;
   allocatedCostMyr: number;
+  /** Sadao handling allocated into this customer's costs (whole-month unfiltered). */
+  sadaoHandlingMyr: number;
   totalCostMyr: number;
   grossProfitMyr: number;
   profitPerCrate: number;

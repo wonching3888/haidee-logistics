@@ -74,6 +74,7 @@ import { isLogisticsPartnerShipper } from "@/lib/constants/shipper-kind";
 import { aggregatePartnerFreightIncomeMyr } from "@/lib/partner-freight";
 import { aggregateCrateReturnIncomeMyr } from "@/lib/crate-return-billing";
 import { aggregateMonthlyInvoiceExtraChargesMyr } from "@/lib/monthly-invoice-extra-charges";
+import { aggregateSadaoStationCostMyr } from "@/lib/operations-sadao-cost";
 import type {
   PnlCustomerData,
   PnlCustomerMarketRow,
@@ -579,6 +580,68 @@ async function enrichTripTotalsWithSupplementalIncome(
   );
 }
 
+async function allocateSadaoHandlingAcrossTrips(
+  trips: PnlTripRow[],
+  year: number,
+  month: number
+): Promise<PnlTripRow[]> {
+  const sadao = await aggregateSadaoStationCostMyr(year, month);
+  const monthTotalQty = trips.reduce(
+    (sum, trip) =>
+      sum + trip.shippers.reduce((s, sh) => s + sh.quantity, 0),
+    0
+  );
+
+  return trips.map((trip) => {
+    const shippers = trip.shippers.map((shipper) => {
+      const sadaoHandlingMyr = allocateShare(
+        shipper.quantity,
+        monthTotalQty,
+        sadao.handlingMyr
+      );
+      const totalCostMyr = roundMoney(shipper.totalCostMyr + sadaoHandlingMyr);
+      const grossProfitMyr = roundMoney(shipper.grossProfitMyr - sadaoHandlingMyr);
+      return {
+        ...shipper,
+        sadaoHandlingMyr,
+        totalCostMyr,
+        grossProfitMyr,
+        marginPct:
+          shipper.revenueMyr > 0
+            ? roundMoney((grossProfitMyr / shipper.revenueMyr) * 100)
+            : 0,
+      };
+    });
+    const tripHandlingMyr = roundMoney(
+      shippers.reduce((sum, sh) => sum + sh.sadaoHandlingMyr, 0)
+    );
+    const totalCostMyr = roundMoney(trip.totalCostMyr + tripHandlingMyr);
+    const grossProfitMyr = roundMoney(trip.grossProfitMyr - tripHandlingMyr);
+    return {
+      ...trip,
+      shippers,
+      totalCostMyr,
+      grossProfitMyr,
+      marginPct:
+        trip.revenueMyr > 0
+          ? roundMoney((grossProfitMyr / trip.revenueMyr) * 100)
+          : 0,
+    };
+  });
+}
+
+async function enrichPeriodSummaryWithSadaoMonthlyWorkerCost(
+  summary: PnlPeriodSummary,
+  year: number,
+  month: number
+): Promise<PnlPeriodSummary> {
+  const sadao = await aggregateSadaoStationCostMyr(year, month);
+  return {
+    ...summary,
+    sadaoMonthlyWorkerCostMyr: roundMoney(sadao.monthlyWorkersMyr),
+  };
+}
+
 async function computeFilteredPnlTrips(input: {
   year: number;
   month: number;
@@ -588,6 +651,8 @@ async function computeFilteredPnlTrips(input: {
 }): Promise<PnlMonthTripsCacheEntry> {
   const routeFilter = input.routeFilter ?? "ALL";
   const driverFilter = input.driverFilter ?? "ALL";
+  const isUnfilteredWholeMonth =
+    !input.day && routeFilter === "ALL" && driverFilter === "ALL";
   const cacheKey = pnlMonthTripsCacheKey({
     year: input.year,
     month: input.month,
@@ -666,16 +731,22 @@ async function computeFilteredPnlTrips(input: {
       )
     );
 
+    const allocatedTrips = isUnfilteredWholeMonth
+      ? await allocateSadaoHandlingAcrossTrips(trips, input.year, input.month)
+      : trips;
+
+    const tripTotals = await enrichTripTotalsWithSupplementalIncome(
+      buildTripTotalsFromRows(allocatedTrips),
+      input.year,
+      input.month,
+      input.day
+    );
+
     const entry: PnlMonthTripsCacheEntry = {
       expiresAt: 0,
       drivers,
-      trips,
-      tripTotals: await enrichTripTotalsWithSupplementalIncome(
-        buildTripTotalsFromRows(trips),
-        input.year,
-        input.month,
-        input.day
-      ),
+      trips: allocatedTrips,
+      tripTotals,
     };
     setCachedPnlMonthTrips(cacheKey, entry);
     return getCachedPnlMonthTrips(cacheKey)!;
@@ -776,6 +847,13 @@ function buildPeriodSummaryFromTrips(input: {
     trendMap.set(trip.date, point);
   }
   const revenueMyr = roundMoney(input.trips.reduce((s, t) => s + t.revenueMyr, 0));
+  // NOTE: this per-trip reduce has no visibility into month-level-only costs
+  // (e.g. Sadao station cost), so both call sites of this function
+  // immediately overwrite costMyr via mergePeriodSummaryWithTripTotals(...,
+  // tripTotals) right after. Kept as-is (not removed) to avoid coupling this
+  // general helper to that merge step; left here so revenueMyr/grossProfitMyr
+  // still have a sane standalone value if a future caller ever uses this
+  // return value without merging in tripTotals.
   const costMyr = roundMoney(input.trips.reduce((s, t) => s + t.totalCostMyr, 0));
   const grossProfitMyr = roundMoney(revenueMyr - costMyr);
   const totalBarrelQty = input.trips.reduce((s, t) => s + t.totalCrates, 0);
@@ -804,6 +882,7 @@ function buildPeriodSummaryFromTrips(input: {
     fleetPayrollIncrementalMyr: null,
     payrollVariableAllowanceMyr: null,
     netProfitAfterFleetPayrollMyr: null,
+    sadaoMonthlyWorkerCostMyr: null,
   };
 }
 
@@ -1541,6 +1620,7 @@ async function computeTripPnlRow(
 
       return {
         ...row,
+        sadaoHandlingMyr: 0,
         directCostMyr,
         allocatedFuelMyr,
         allocatedMaintenanceMyr,
@@ -2059,6 +2139,7 @@ function buildCustomersFromTrips(
         revenueMyr: 0,
         directCostMyr: 0,
         allocatedCostMyr: 0,
+        sadaoHandlingMyr: 0,
         totalCostMyr: 0,
         grossProfitMyr: 0,
         profitPerCrate: 0,
@@ -2074,6 +2155,9 @@ function buildCustomersFromTrips(
       );
       existing.allocatedCostMyr = roundMoney(
         existing.allocatedCostMyr + shipper.allocatedCostMyr
+      );
+      existing.sadaoHandlingMyr = roundMoney(
+        existing.sadaoHandlingMyr + shipper.sadaoHandlingMyr
       );
       existing.totalCostMyr = roundMoney(
         existing.totalCostMyr + shipper.totalCostMyr
@@ -2130,6 +2214,7 @@ function mergePeriodSummaryWithTripTotals(
   return {
     ...summary,
     revenueMyr: tripTotals.revenueMyr,
+    costMyr: tripTotals.totalCostMyr,
     grossProfitMyr: tripTotals.grossProfitMyr,
     marginPct: tripTotals.marginPct,
   };
@@ -2190,19 +2275,23 @@ export async function buildPnlPeriodSummary(input: {
     return {
       year: input.year,
       month: input.month,
-      periodSummary: await enrichPeriodSummaryWithFleetPayroll(
-        mergePeriodSummaryWithTripTotals(
-          buildPeriodSummaryFromTrips({
-            year: input.year,
-            month: input.month,
-            mode: "month",
-            trips,
-          }),
-          computed.tripTotals
+      periodSummary: await enrichPeriodSummaryWithSadaoMonthlyWorkerCost(
+        await enrichPeriodSummaryWithFleetPayroll(
+          mergePeriodSummaryWithTripTotals(
+            buildPeriodSummaryFromTrips({
+              year: input.year,
+              month: input.month,
+              mode: "month",
+              trips,
+            }),
+            computed.tripTotals
+          ),
+          input.year,
+          input.month,
+          computed.trips
         ),
         input.year,
-        input.month,
-        computed.trips
+        input.month
       ),
     };
   }
@@ -2349,6 +2438,7 @@ export async function buildPnlReport(input: {
       fleetPayrollIncrementalMyr: null,
       payrollVariableAllowanceMyr: null,
       netProfitAfterFleetPayrollMyr: null,
+      sadaoMonthlyWorkerCostMyr: null,
     };
     return {
       year: input.year,
@@ -2471,6 +2561,7 @@ export async function buildPnlReport(input: {
     fleetPayrollIncrementalMyr: null,
     payrollVariableAllowanceMyr: null,
     netProfitAfterFleetPayrollMyr: null,
+    sadaoMonthlyWorkerCostMyr: null,
   };
 
   const { customers, lossCustomers } = buildCustomersFromTrips(

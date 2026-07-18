@@ -235,6 +235,7 @@ export function computeCharterPnlRow(
     allocatedForwardingMyr: forwardingMyr,
     allocatedDriverMyr: 0,
     allocatedCostMyr,
+    sadaoHandlingMyr: 0,
     totalCostMyr,
     grossProfitMyr,
     marginPct,
