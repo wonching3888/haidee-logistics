@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -205,57 +206,79 @@ export function StaffPayrollView({
       )}
 
       {activeTab === "summary" && summaryData && (
-        <StaffPayrollSummaryTable data={summaryData} />
+        <div className="space-y-4">
+          <StaffPayrollSummaryTable data={summaryData} />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/staff-payroll/print/batch?year=${year}&month=${month}&returnTo=${encodeURIComponent(`/staff-payroll?year=${year}&month=${month}`)}`}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-haidee-border bg-white px-4 text-sm font-medium hover:bg-haidee-surface"
+            >
+              <Printer className="h-4 w-4" />
+              批量工资单 Batch Payslip ({summaryData.rows.length} 人)
+            </Link>
+          </div>
+        </div>
       )}
 
       {activeTab === "detail" && (
         <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">员工 Staff</label>
-            <select
-              value={staffId}
-              onChange={(e) => {
-                setStaffId(e.target.value);
-                startTransition(async () => {
-                  try {
-                    const result = await getStaffPayrollMonth({
-                      staffId: e.target.value,
-                      year,
-                      month,
-                    });
-                    setData(result);
-                    setOverrideForm({
-                      epfEmployee:
-                        result.overrides.epfEmployee?.toString() ?? "",
-                      epfEmployer:
-                        result.overrides.epfEmployer?.toString() ?? "",
-                      socsoEmployee:
-                        result.overrides.socsoEmployee?.toString() ?? "",
-                      socsoEmployer:
-                        result.overrides.socsoEmployer?.toString() ?? "",
-                      lindung24Jam:
-                        result.overrides.lindung24Jam?.toString() ?? "",
-                      eisEmployee:
-                        result.overrides.eisEmployee?.toString() ?? "",
-                      eisEmployer:
-                        result.overrides.eisEmployer?.toString() ?? "",
-                      pcb: result.overrides.pcb?.toString() ?? "",
-                    });
-                  } catch (err) {
-                    setError(
-                      err instanceof Error ? err.message : "加载失败"
-                    );
-                  }
-                });
-              }}
-              className="min-h-[44px] min-w-[220px] rounded-lg border border-haidee-border px-3 text-sm"
-            >
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">员工 Staff</label>
+              <select
+                value={staffId}
+                onChange={(e) => {
+                  setStaffId(e.target.value);
+                  startTransition(async () => {
+                    try {
+                      const result = await getStaffPayrollMonth({
+                        staffId: e.target.value,
+                        year,
+                        month,
+                      });
+                      setData(result);
+                      setOverrideForm({
+                        epfEmployee:
+                          result.overrides.epfEmployee?.toString() ?? "",
+                        epfEmployer:
+                          result.overrides.epfEmployer?.toString() ?? "",
+                        socsoEmployee:
+                          result.overrides.socsoEmployee?.toString() ?? "",
+                        socsoEmployer:
+                          result.overrides.socsoEmployer?.toString() ?? "",
+                        lindung24Jam:
+                          result.overrides.lindung24Jam?.toString() ?? "",
+                        eisEmployee:
+                          result.overrides.eisEmployee?.toString() ?? "",
+                        eisEmployer:
+                          result.overrides.eisEmployer?.toString() ?? "",
+                        pcb: result.overrides.pcb?.toString() ?? "",
+                      });
+                    } catch (err) {
+                      setError(
+                        err instanceof Error ? err.message : "加载失败"
+                      );
+                    }
+                  });
+                }}
+                className="min-h-[44px] min-w-[220px] rounded-lg border border-haidee-border px-3 text-sm"
+              >
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {staffId ? (
+              <Link
+                href={`/staff-payroll/print?staffId=${encodeURIComponent(staffId)}&year=${year}&month=${month}&returnTo=${encodeURIComponent(`/staff-payroll?staffId=${encodeURIComponent(staffId)}&year=${year}&month=${month}`)}`}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-haidee-border bg-white px-4 text-sm font-medium hover:bg-haidee-surface"
+              >
+                <Printer className="h-4 w-4" />
+                打印工资单 Print
+              </Link>
+            ) : null}
           </div>
 
           {data?.staff.pcbNeedsReview && (

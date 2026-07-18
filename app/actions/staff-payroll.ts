@@ -505,3 +505,103 @@ export async function saveStaffPayrollOverrides(input: {
   });
   revalidatePath("/staff-payroll");
 }
+
+export async function getStaffPayslipPrintData(input: {
+  staffId: string;
+  year: number;
+  month: number;
+}) {
+  await requireStaffPayrollAccess();
+  const { isStaffEligibleForPayrollMonth } = await import(
+    "@/lib/staff-payroll-month"
+  );
+  const staff = await prisma.staff.findUnique({ where: { id: input.staffId } });
+  if (
+    !staff ||
+    !isStaffEligibleForPayrollMonth(staff, input.year, input.month)
+  ) {
+    return null;
+  }
+
+  const monthData = await getStaffPayrollMonth(input);
+  return {
+    year: monthData.year,
+    month: monthData.month,
+    yearMonth: monthData.yearMonth,
+    staff: {
+      name: monthData.staff.name,
+      nickname: monthData.staff.nickname,
+      icNumber: monthData.staff.icNumber,
+      bankName: monthData.staff.bankName,
+      bankAccount: monthData.staff.bankAccount,
+      baseSalary: monthData.staff.baseSalary,
+    },
+    summary: monthData.summary,
+  };
+}
+
+export async function getBatchStaffPayslipPrintData(input: {
+  year: number;
+  month: number;
+}) {
+  await requireStaffPayrollAccess();
+  const staffList = await getStaffPayrollStaff(input);
+  const entries = [];
+  for (const s of staffList) {
+    const data = await getStaffPayslipPrintData({
+      staffId: s.id,
+      year: input.year,
+      month: input.month,
+    });
+    if (!data) continue;
+    entries.push({
+      staffId: s.id,
+      staff: data.staff,
+      summary: data.summary,
+    });
+  }
+  return {
+    year: input.year,
+    month: input.month,
+    yearMonth: `${input.year}-${String(input.month).padStart(2, "0")}`,
+    entries,
+  };
+}
+
+async function requireStaffPayrollJvExportAccess() {
+  const user = await requireStaffPayrollAccess();
+  const { canExportStaffPayrollJv } = await import("@/lib/auth-roles");
+  if (!canExportStaffPayrollJv(user.role as UserRole)) {
+    throw new Error("无 JV 导出权限 JV export access denied");
+  }
+  return user;
+}
+
+export async function getStaffPayrollJvPreview(input: {
+  year: number;
+  month: number;
+}) {
+  await requireStaffPayrollJvExportAccess();
+  const { buildMonthlyStaffJvRows } = await import(
+    "@/lib/staff-payroll-jv-export"
+  );
+  return buildMonthlyStaffJvRows(input.year, input.month);
+}
+
+export async function exportStaffPayrollJvCsvAction(input: {
+  year: number;
+  month: number;
+}) {
+  await requireStaffPayrollJvExportAccess();
+  const {
+    buildMonthlyStaffJvRows,
+    generateStaffPayrollJvCsv,
+    staffPayrollJvCsvFilename,
+  } = await import("@/lib/staff-payroll-jv-export");
+  const result = await buildMonthlyStaffJvRows(input.year, input.month);
+  const content = generateStaffPayrollJvCsv(result);
+  return {
+    filename: staffPayrollJvCsvFilename(input.year, input.month),
+    content,
+  };
+}

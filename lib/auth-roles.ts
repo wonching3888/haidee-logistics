@@ -227,6 +227,11 @@ export function canWriteStaffPayroll(role: StoredUserRole): boolean {
   return canWriteDriverPayroll(role);
 }
 
+/** admin/my only — staff payroll JV CSV export (same gate as driver payroll JV). */
+export function canExportStaffPayrollJv(role: StoredUserRole): boolean {
+  return canExportPayrollJv(role);
+}
+
 /** admin only */
 export function canAccessSettings(role: StoredUserRole): boolean {
   return role === "admin";
