@@ -11,12 +11,17 @@ interface DateInputFieldProps {
   className?: string;
   inputClassName?: string;
   id?: string;
+  name?: string;
+  /** Defaults to off — Safari often autofills bare type=date fields across dialogs. */
+  autoComplete?: string;
   disabled?: boolean;
 }
 
 /**
  * dd/MM/yyyy label with a full-size native date input overlay.
  * The input covers the field (not sr-only) so iOS Safari / PWA receive taps.
+ * Visible text is driven by `value` (empty → "DD/MM/YYYY"), so Safari's native
+ * empty-date chrome that paints "today" never shows through.
  */
 export function DateInputField({
   value,
@@ -24,6 +29,8 @@ export function DateInputField({
   className,
   inputClassName,
   id,
+  name,
+  autoComplete = "off",
   disabled,
 }: DateInputFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,8 +89,10 @@ export function DateInputField({
       <input
         ref={inputRef}
         id={id}
+        name={name}
         type="date"
         value={value}
+        autoComplete={autoComplete}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onClick={openPicker}

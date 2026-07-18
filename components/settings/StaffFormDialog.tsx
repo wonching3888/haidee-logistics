@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -280,12 +281,20 @@ export function StaffFormDialog({
             </label>
             <label className="block space-y-1 text-sm">
               入职日期 Start date
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(e) =>
-                  setForm({ ...form, startDate: e.target.value })
+              <DateInputField
+                id={
+                  form.name
+                    ? `staff-start-date-${form.name}`
+                    : "staff-start-date"
                 }
+                name={
+                  form.name
+                    ? `staff-start-date-${form.name}`
+                    : "staff-start-date"
+                }
+                value={form.startDate}
+                onChange={(startDate) => setForm({ ...form, startDate })}
+                className="max-w-none"
               />
             </label>
           </div>
@@ -350,12 +359,22 @@ export function StaffFormDialog({
             </label>
             <label className="block space-y-1 text-sm">
               离职日期 Termination date（可选）
-              <Input
-                type="date"
-                value={form.terminationDate}
-                onChange={(e) =>
-                  setForm({ ...form, terminationDate: e.target.value })
+              <DateInputField
+                id={
+                  form.name
+                    ? `staff-termination-date-${form.name}`
+                    : "staff-termination-date"
                 }
+                name={
+                  form.name
+                    ? `staff-termination-date-${form.name}`
+                    : "staff-termination-date"
+                }
+                value={form.terminationDate}
+                onChange={(terminationDate) =>
+                  setForm({ ...form, terminationDate })
+                }
+                className="max-w-none"
               />
             </label>
           </div>

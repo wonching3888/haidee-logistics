@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DateInputField } from "@/components/shared/DateInputField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -242,12 +243,22 @@ export function DriverFormDialog({
           </div>
           <label className="block space-y-1 text-sm">
             离职日期 Termination date（可选）
-            <Input
-              type="date"
-              value={form.terminationDate}
-              onChange={(e) =>
-                setForm({ ...form, terminationDate: e.target.value })
+            <DateInputField
+              id={
+                form.name
+                  ? `driver-termination-date-${form.name}`
+                  : "driver-termination-date"
               }
+              name={
+                form.name
+                  ? `driver-termination-date-${form.name}`
+                  : "driver-termination-date"
+              }
+              value={form.terminationDate}
+              onChange={(terminationDate) =>
+                setForm({ ...form, terminationDate })
+              }
+              className="max-w-none"
             />
           </label>
           <label className="flex items-center gap-2 text-sm">
