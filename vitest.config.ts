@@ -91,6 +91,8 @@ export default defineConfig({
       "lib/invoice-collections-statement.test.ts",
       "lib/bank-reconciliation.test.ts",
       "lib/invoice-payment-audit.test.ts",
+      "lib/wtl-revenue.test.ts",
+      "lib/unpriced-inbound.test.ts",
       "lib/crate-audit.test.ts",
       // DB writes only when RUN_INTEGRATION=1 and TEST_DATABASE_URL is set (non-production).
       "lib/invoice-payments-delete.integration.test.ts",

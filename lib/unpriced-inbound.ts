@@ -1,6 +1,7 @@
 import {
   classifyInboundFreightGap,
   computeInboundLineFreight,
+  hasAnyFreightRevenue,
   isWrongZeroFreightSnapshot,
   normalizeMcDeliveryMode,
   type InboundFreightGapReason,
@@ -49,6 +50,9 @@ const GAP_REASON_LABELS: Record<InboundFreightGapReason, string> = {
   consignee_missing_box_rate: "收货人箱型费率缺失",
   mc_self_delivery: "MC 自送（客户运费为 0）",
   mc_third_party_customer_zero: "MC 第三方代送（客户运费为 0）",
+  dual_payment_missing_shipper_rate: "双边收费：寄货人（主腿）费率未设定",
+  dual_payment_missing_secondary_rate: "双边收费：WTL 收货人（副腿）费率未设定",
+  dual_payment_missing_both_rates: "双边收费：两腿费率均未设定",
 };
 
 export function invoiceModeFromTags(
@@ -244,6 +248,17 @@ export async function findUnpricedInboundLines(input: {
         gapReason: "zero_amount_with_rate",
         gapReasonLabel: ZERO_AMOUNT_WITH_RATE_LABEL,
       });
+      continue;
+    }
+
+    if (recomputedAmount <= 0 && hasAnyFreightRevenue(snap)) {
+      // storedAmount is null, but a fresh recompute shows real revenue on
+      // at least one leg — most commonly a dual-payment line whose primary
+      // leg has no shipper rate by design while its WTL secondary leg
+      // bills fine right now. Not an "unpriced" line: this page is only
+      // for lines with zero revenue. A rate gap on the *other* leg (if
+      // any) is tracked separately via aggregateOperationsIncome's
+      // dualPaymentPartialGapReasons, not surfaced here.
       continue;
     }
 

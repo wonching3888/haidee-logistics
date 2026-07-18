@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import type { InboundLineFreightSnapshot } from "@/lib/inbound-freight";
 import { splitWtlSst } from "@/lib/wtl-sst";
 import {
@@ -41,18 +40,17 @@ function baseSnapshot(
 
 describe("shouldExcludeWtlSstFromRevenue", () => {
   it("is false before June 2026", () => {
-    assert.equal(shouldExcludeWtlSstFromRevenue(MAY), false);
-    assert.equal(
+    expect(shouldExcludeWtlSstFromRevenue(MAY)).toBe(false);
+    expect(
       shouldExcludeWtlSstFromRevenue(
         new Date(WTL_SST_EXCLUDE_FROM.getTime() - 1)
-      ),
-      false
-    );
+      )
+    ).toBe(false);
   });
 
   it("is true on and after 2026-06-01", () => {
-    assert.equal(shouldExcludeWtlSstFromRevenue(WTL_SST_EXCLUDE_FROM), true);
-    assert.equal(shouldExcludeWtlSstFromRevenue(JUNE), true);
+    expect(shouldExcludeWtlSstFromRevenue(WTL_SST_EXCLUDE_FROM)).toBe(true);
+    expect(shouldExcludeWtlSstFromRevenue(JUNE)).toBe(true);
   });
 });
 
@@ -66,24 +64,24 @@ describe("P001 whole-MY via mySegment only (no TH)", () => {
   });
 
   it("keeps inclusive amount before June 2026", () => {
-    assert.equal(lineRevenueMyr(p001, 4.5, MAY), 540);
-    assert.equal(operationsFreightIncomeMyr(p001, MAY), 540);
+    expect(lineRevenueMyr(p001, 4.5, MAY)).toBe(540);
+    expect(operationsFreightIncomeMyr(p001, MAY)).toBe(540);
   });
 
   it("splits SST only once via mySegment (not freightAmount + mySegment)", () => {
     const expected = splitWtlSst(540).exTax;
-    assert.equal(wtlBillingFreightRevenueMyr(p001, true), expected);
-    assert.equal(lineRevenueMyr(p001, 4.5, JUNE), expected);
-    assert.equal(operationsFreightIncomeMyr(p001, JUNE), expected);
-    assert.notEqual(lineRevenueMyr(p001, 4.5, JUNE), splitWtlSst(540).exTax * 2);
-    assert.ok(lineRevenueMyr(p001, 4.5, JUNE) < 540);
+    expect(wtlBillingFreightRevenueMyr(p001, true)).toBe(expected);
+    expect(lineRevenueMyr(p001, 4.5, JUNE)).toBe(expected);
+    expect(operationsFreightIncomeMyr(p001, JUNE)).toBe(expected);
+    expect(lineRevenueMyr(p001, 4.5, JUNE)).not.toBe(splitWtlSst(540).exTax * 2);
+    expect(lineRevenueMyr(p001, 4.5, JUNE)).toBeLessThan(540);
   });
 
   it("does not fall through to whole-freight split when mySegment is set", () => {
     const viaSegment = wtlBillingFreightRevenueMyr(p001, true);
     const wholeOnly = splitWtlSst(p001.freightAmount!).exTax;
-    assert.equal(viaSegment, wholeOnly);
-    assert.equal(viaSegment + splitWtlSst(p001.mySegmentFreightAmount!).exTax, wholeOnly * 2);
+    expect(viaSegment).toBe(wholeOnly);
+    expect(viaSegment + splitWtlSst(p001.mySegmentFreightAmount!).exTax).toBe(wholeOnly * 2);
   });
 });
 
@@ -97,8 +95,8 @@ describe("NKL dual-segment (TH + MY)", () => {
   it("strips SST from MY segment only", () => {
     const myExTax = splitWtlSst(178.08).exTax;
     const expected = round2(112 + myExTax);
-    assert.equal(lineRevenueMyr(nkl, 4.5, JUNE), expected);
-    assert.equal(lineRevenueMyr(nkl, 4.5, JUNE), 280);
+    expect(lineRevenueMyr(nkl, 4.5, JUNE)).toBe(expected);
+    expect(lineRevenueMyr(nkl, 4.5, JUNE)).toBe(280);
   });
 });
 
@@ -116,8 +114,45 @@ describe("dual-payment POR MC", () => {
   it("leaves THB main segment unchanged and strips SST from WTL dual portion", () => {
     const thbMyr = Math.round((150 / 4.5) * 100) / 100;
     const dualEx = splitWtlSst(135).exTax;
-    assert.equal(lineRevenueMyr(por, 4.5, JUNE), round2(thbMyr + dualEx));
-    assert.equal(dualPaymentWtlRevenueMyr(por, true), dualEx);
+    expect(lineRevenueMyr(por, 4.5, JUNE)).toBe(round2(thbMyr + dualEx));
+    expect(dualPaymentWtlRevenueMyr(por, true)).toBe(dualEx);
+  });
+});
+
+describe("dual-payment line with NO primary rate (WTL secondary only)", () => {
+  // Mirrors a POR-PATTANI-style relation where the shipper has no THB rate
+  // on file this period (freightAmount stays null) but the dual-payment
+  // secondary consignee rate IS configured, so dualPaymentWtlAmount is real
+  // money. A missing primary leg must never drop a present secondary leg.
+  const dualOnly = baseSnapshot({
+    paymentMode: "1a",
+    billingCompany: "haidee",
+    currency: "THB",
+    freightRate: null,
+    freightAmount: null,
+    thFreightAmount: null,
+    mySegmentFreightAmount: null,
+    dualPaymentWtlAmount: 424.5,
+  });
+
+  it("still recognizes the dual-payment secondary revenue after June 2026", () => {
+    const expected = splitWtlSst(424.5).exTax;
+    expect(lineRevenueMyr(dualOnly, 4.5, JUNE)).toBe(expected);
+    expect(lineRevenueMyr(dualOnly, 4.5, JUNE)).toBeGreaterThan(0);
+  });
+
+  it("passes the dual amount through inclusive before June 2026 (no SST split)", () => {
+    expect(lineRevenueMyr(dualOnly, 4.5, MAY)).toBe(424.5);
+  });
+
+  it("also recognizes it when freightAmount is exactly 0, not just null", () => {
+    const zeroed = { ...dualOnly, freightAmount: 0, freightRate: 0 };
+    expect(lineRevenueMyr(zeroed, 4.5, JUNE)).toBe(splitWtlSst(424.5).exTax);
+  });
+
+  it("still returns 0 when BOTH legs are empty", () => {
+    const bothEmpty = { ...dualOnly, dualPaymentWtlAmount: null };
+    expect(lineRevenueMyr(bothEmpty, 4.5, JUNE)).toBe(0);
   });
 });
 
@@ -131,9 +166,9 @@ describe("Mode 4 shipper WTL (1b + billing wtl)", () => {
   });
 
   it("applies ex-SST on MY segment from June 2026", () => {
-    assert.equal(lineRevenueMyr(mode4, 4.5, MAY), 74.4);
+    expect(lineRevenueMyr(mode4, 4.5, MAY)).toBe(74.4);
     const expected = round2(32 + splitWtlSst(42.4).exTax);
-    assert.equal(lineRevenueMyr(mode4, 4.5, JUNE), expected);
+    expect(lineRevenueMyr(mode4, 4.5, JUNE)).toBe(expected);
   });
 });
 

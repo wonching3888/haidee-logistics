@@ -530,9 +530,14 @@ export function computeInboundLineFreight(
     thFreightAmount,
     dualPaymentWtlRate: dualWtl.rate,
     dualPaymentWtlAmount: dualWtl.amount,
+    // Reflects the RELATION (is this line dual-payment?), not whether we
+    // managed to compute a positive secondary amount — so the signal
+    // survives even when the secondary rate itself is what's missing.
+    // Downstream gap classification depends on being able to tell "not
+    // dual-payment" apart from "dual-payment but secondary rate missing".
     dualPaymentWtlConsigneeId:
-      (dualWtl.amount ?? 0) > 0
-        ? relation?.secondaryConsigneeId ?? null
+      relation?.dualPayment && relation.secondaryConsigneeId
+        ? relation.secondaryConsigneeId
         : null,
   };
 }
@@ -547,15 +552,28 @@ export type InboundFreightGapReason =
   | "consignee_missing_tong_rate"
   | "consignee_missing_box_rate"
   | "mc_self_delivery"
-  | "mc_third_party_customer_zero";
+  | "mc_third_party_customer_zero"
+  | "dual_payment_missing_shipper_rate"
+  | "dual_payment_missing_secondary_rate"
+  | "dual_payment_missing_both_rates";
+
+/**
+ * Whether a line has ANY billable revenue: the primary (shipper/consignee)
+ * leg, OR the dual-payment WTL secondary leg. One leg being empty must never
+ * hide the other leg's revenue — use this instead of checking freightAmount
+ * alone anywhere a "does this line have money" decision is made.
+ */
+export function hasAnyFreightRevenue(
+  snapshot: Pick<InboundLineFreightSnapshot, "freightAmount" | "dualPaymentWtlAmount">
+): boolean {
+  return (snapshot.freightAmount ?? 0) > 0 || (snapshot.dualPaymentWtlAmount ?? 0) > 0;
+}
 
 export function classifyInboundFreightGap(
   line: InboundLineFreightInput,
   ctx: InboundFreightContext,
   snapshot: InboundLineFreightSnapshot
 ): InboundFreightGapReason | null {
-  if ((snapshot.freightAmount ?? 0) > 0) return null;
-
   const stall = ctx.stalls.get(line.stallId);
   const marketId = stall?.marketId ?? null;
   const consigneeId = stall?.consigneeId ?? null;
@@ -563,8 +581,39 @@ export function classifyInboundFreightGap(
 
   if (!marketId) return "no_market_on_stall";
 
+  const dualRelation = consigneeId
+    ? ctx.paymentRelations.get(relationKey(ctx.shipper.id, consigneeId))
+    : undefined;
+
+  if (dualRelation?.dualPayment) {
+    // Bilateral billing: primary (shipper THB) and secondary (WTL consignee
+    // MYR) legs are priced independently. Judge each on its own rate data
+    // instead of falling into the single-party reasons below, which would
+    // misreport which side actually has the gap.
+    const shipperRate = ctx.shipperRatesByMarket.get(marketId);
+    const primaryOk = isBox
+      ? shipperRate?.rateBox != null
+      : shipperRate?.rateTong != null;
+
+    const secondaryConsigneeId = dualRelation.secondaryConsigneeId ?? null;
+    const secondaryRate = secondaryConsigneeId
+      ? ctx.consigneeRatesByConsigneeMarket.get(`${secondaryConsigneeId}:${marketId}`)
+      : undefined;
+    const secondaryOk =
+      secondaryConsigneeId != null &&
+      (isBox ? secondaryRate?.rateBox != null : secondaryRate?.rateTong != null);
+
+    if (primaryOk && secondaryOk) return null;
+    if (!primaryOk && !secondaryOk) return "dual_payment_missing_both_rates";
+    return primaryOk
+      ? "dual_payment_missing_secondary_rate"
+      : "dual_payment_missing_shipper_rate";
+  }
+
+  if (hasAnyFreightRevenue(snapshot)) return null;
+
   const expectsConsigneePayment = Array.from(ctx.paymentRelations.values()).some(
-    (relation) => relation.paymentMode === "2" || relation.paymentMode === "3"
+    (r) => r.paymentMode === "2" || r.paymentMode === "3"
   );
   if (expectsConsigneePayment && !consigneeId) {
     return "stall_missing_consignee";

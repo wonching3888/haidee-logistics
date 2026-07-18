@@ -66,35 +66,48 @@ export function dualPaymentWtlRevenueMyr(
 /**
  * P&L / revenue line income in MYR.
  * Pass dispatch.date as tripDate for SST effective-date gating.
+ *
+ * Sums two INDEPENDENT revenue legs: the primary freight leg
+ * (freightAmount, billed to shipper or consignee) and the dual-payment WTL
+ * secondary leg (dualPaymentWtlAmount, billed to a second consignee under a
+ * `dualPayment` relation). Either leg can be empty on its own — a missing
+ * primary leg must never suppress a present secondary leg, and vice versa —
+ * so the primary computation is gated on its own condition instead of an
+ * early return that would also discard the secondary leg below it.
  */
 export function lineRevenueMyr(
   snapshot: InboundLineFreightSnapshot,
   exchangeRate: number,
   tripDate: Date
 ): number {
-  if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
-    return 0;
-  }
-
   const excludeSst = shouldExcludeWtlSstFromRevenue(tripDate);
   let total = 0;
 
-  if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
-    total += roundMoney(convertThbToMyr(snapshot.freightAmount, exchangeRate));
-  } else if (snapshot.billingCompany === "wtl" && excludeSst) {
-    total += wtlBillingFreightRevenueMyr(snapshot, true);
-  } else if (snapshot.currency === "MYR") {
-    total += snapshot.freightAmount;
-  } else {
-    const eq = freightAmountMyrEquivalent(snapshot);
-    if (eq != null) total += eq;
+  if (snapshot.freightAmount != null && snapshot.freightAmount > 0) {
+    if (snapshot.paymentMode === "1a" && snapshot.currency === "THB") {
+      total += roundMoney(convertThbToMyr(snapshot.freightAmount, exchangeRate));
+    } else if (snapshot.billingCompany === "wtl" && excludeSst) {
+      total += wtlBillingFreightRevenueMyr(snapshot, true);
+    } else if (snapshot.currency === "MYR") {
+      total += snapshot.freightAmount;
+    } else {
+      const eq = freightAmountMyrEquivalent(snapshot);
+      if (eq != null) total += eq;
+    }
   }
 
   total += dualPaymentWtlRevenueMyr(snapshot, excludeSst);
   return roundMoney(total);
 }
 
-/** Operations income: MYR amount to bucket for main freight line. */
+/**
+ * Operations income: MYR amount to bucket for the main (primary-leg) freight
+ * line ONLY. Deliberately excludes dualPaymentWtlAmount — its only current
+ * caller (accumulateStoredLineBuckets in operations-income.ts) adds the dual
+ * leg separately via dualPaymentWtlRevenueMyr(). If you're calling this to
+ * get "total revenue for this line", use lineRevenueMyr() instead, or you
+ * will silently under-count dual-payment lines.
+ */
 export function operationsFreightIncomeMyr(
   snapshot: InboundLineFreightSnapshot,
   tripDate: Date

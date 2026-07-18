@@ -38,6 +38,9 @@ const GAP_REASON_LABELS: Record<InboundFreightGapReason, string> = {
   consignee_missing_box_rate: "收货人箱型费率缺失",
   mc_self_delivery: "MC 自送（客户运费为 0）",
   mc_third_party_customer_zero: "MC 第三方代送（客户运费为 0）",
+  dual_payment_missing_shipper_rate: "双边收费：寄货人（主腿）费率未设定",
+  dual_payment_missing_secondary_rate: "双边收费：WTL 收货人（副腿）费率未设定",
+  dual_payment_missing_both_rates: "双边收费：两腿费率均未设定",
 };
 
 function SourceBadge({ source }: { source: "actual" | "estimate" }) {

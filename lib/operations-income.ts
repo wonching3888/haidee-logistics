@@ -1,5 +1,6 @@
 import {
   classifyInboundFreightGap,
+  hasAnyFreightRevenue,
   inboundLineStoredSnapshot,
   isMissingRateGap,
   normalizeMcDeliveryMode,
@@ -57,6 +58,17 @@ export interface OperationsIncomeResult {
   missingRateQuantity: number;
   gapReasons: Partial<Record<InboundFreightGapReason, number>>;
   warningSamples: OperationsIncomeWarningSample[];
+  /**
+   * Dual-payment (bilateral billing) lines where ONE leg is fully priced
+   * (already counted in the totals above) but the OTHER leg has a rate gap.
+   * Kept separate from missingRateLineCount/warningSamples so a partially
+   * gapped line — which is already contributing real revenue — doesn't
+   * inflate the "zero revenue" data-quality count.
+   */
+  dualPaymentPartialGapLineCount: number;
+  dualPaymentPartialGapQuantity: number;
+  dualPaymentPartialGapReasons: Partial<Record<InboundFreightGapReason, number>>;
+  dualPaymentPartialGapSamples: OperationsIncomeWarningSample[];
 }
 
 const WARNING_SAMPLE_LIMIT = 8;
@@ -158,6 +170,10 @@ export async function aggregateOperationsIncome(
   const warningSamples: OperationsIncomeWarningSample[] = [];
   let missingRateLineCount = 0;
   let missingRateQuantity = 0;
+  const dualPaymentPartialGapReasons: Partial<Record<InboundFreightGapReason, number>> = {};
+  const dualPaymentPartialGapSamples: OperationsIncomeWarningSample[] = [];
+  let dualPaymentPartialGapLineCount = 0;
+  let dualPaymentPartialGapQuantity = 0;
 
   for (const shipperLines of Array.from(linesByShipper.values())) {
     for (const line of shipperLines) {
@@ -168,7 +184,10 @@ export async function aggregateOperationsIncome(
       const marketCode = line.stall.market?.code ?? "";
       const snapshot = inboundLineStoredSnapshot(line, monthlyEx, marketCode);
 
-      if (snapshot.freightAmount == null || snapshot.freightAmount <= 0) {
+      // A dual-payment line can have real revenue on ONE leg while the other
+      // leg is empty — freightAmount alone must not decide "this line has no
+      // revenue" anymore. hasAnyFreightRevenue looks at both legs.
+      if (!hasAnyFreightRevenue(snapshot)) {
         const ctx = getOperationsFreightContext(
           freightCache,
           line,
@@ -210,6 +229,49 @@ export async function aggregateOperationsIncome(
 
       freightRevenueMyr += lineRevenueMyr(snapshot, monthlyEx, tripDate);
       accumulateStoredLineBuckets(totals, snapshot, monthlyEx, tripDate);
+
+      // This line's revenue is already fully counted above. If it's a
+      // dual-payment line where only ONE leg priced, still surface the gap
+      // on the other leg — but as a separate, non-blocking note, not as a
+      // "zero revenue" line (it isn't one).
+      const hasPrimary = (snapshot.freightAmount ?? 0) > 0;
+      const hasDual = (snapshot.dualPaymentWtlAmount ?? 0) > 0;
+      if (!hasPrimary || !hasDual) {
+        const ctx = getOperationsFreightContext(
+          freightCache,
+          line,
+          end,
+          shipperLines
+        );
+        const partialGapReason = classifyInboundFreightGap(
+          {
+            stallId: line.stallId,
+            tongTypeId: line.tongTypeId,
+            quantity: line.quantity,
+            mcDeliveryMode: normalizeMcDeliveryMode(
+              marketCode,
+              line.mcDeliveryMode
+            ),
+          },
+          ctx,
+          snapshot
+        );
+        if (partialGapReason) {
+          dualPaymentPartialGapReasons[partialGapReason] =
+            (dualPaymentPartialGapReasons[partialGapReason] ?? 0) + 1;
+          dualPaymentPartialGapLineCount += 1;
+          dualPaymentPartialGapQuantity += line.quantity;
+          if (dualPaymentPartialGapSamples.length < WARNING_SAMPLE_LIMIT) {
+            dualPaymentPartialGapSamples.push({
+              shipperCode: line.session.shipper.code,
+              shipperName: line.session.shipper.name,
+              marketCode,
+              quantity: line.quantity,
+              reason: partialGapReason,
+            });
+          }
+        }
+      }
     }
   }
 
@@ -234,5 +296,9 @@ export async function aggregateOperationsIncome(
     missingRateQuantity,
     gapReasons,
     warningSamples,
+    dualPaymentPartialGapLineCount,
+    dualPaymentPartialGapQuantity,
+    dualPaymentPartialGapReasons,
+    dualPaymentPartialGapSamples,
   };
 }

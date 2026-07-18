@@ -65,3 +65,4 @@ artifacts/
 备份HaiDee数据库.bat
 scripts/backup-haidee-database.bat
 scripts/备份HaiDee数据库.bat
+scripts/backup-dual-payment-consignee-id-*.json
